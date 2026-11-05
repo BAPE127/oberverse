@@ -104,7 +104,7 @@ export const electionMethods = {
     while (el.scandals.length > E.scandals.kept) el.scandals.shift();
     const name = this.party(row.party).name;
     this.log(s, `A scandal for ${name}: ${row.text}`);
-    if (row.day >= this.day - 1) this.news(`📰 ${name}: ${row.text}`);
+    if (row.day >= this.day - 1) this.news(`📰 ${name}: ${row.text}`, row.source === 'exposure' ? 'verified' : 'alleged');
     return row;
   },
 
@@ -225,7 +225,8 @@ export const electionMethods = {
     }
   },
 
-  news(text) { try { this.g.tablet.post('news', text, 'event'); } catch { /* the tablet may not exist in a bare test game */ } },
+  /** A line in the world news, with its truth label (verified, alleged, forecast or opinion; verified unless said). */
+  news(text, truth = 'verified') { try { this.g.tablet.post('news', this.labelled(text, truth), 'event'); } catch { /* the tablet may not exist in a bare test game */ } },
 
   // ---------------------------------------------------------------- views
   /** What the Campaign page shows. The sealed result is never shown before the announcement. */

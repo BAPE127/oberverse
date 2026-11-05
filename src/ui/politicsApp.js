@@ -1,7 +1,7 @@
 // The Politics app (v0.93.0): who governs Sund, the term and the date of the vote, the opposition and where the two parties differ; the government (v0.94.0), the polls (v0.94.0),
 // the election and campaign (v0.95.0, "Vote") and your influence (v0.95.0). Only the last two do anything: donations, meetings and offers. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
 import { h } from './panels.js';
-import { hero, tiles, row, help, fold, segments, n } from './tabletKit.js';
+import { hero, tiles, row, help, fold, segments, note, n } from './tabletKit.js';
 import { atlasStates } from '../world/atlas.js';
 import { campaignTab, influenceTab } from './politicsInfluence.js';
 import { diplomacyTab } from './politicsDiplomacy.js';
@@ -73,8 +73,26 @@ function pollsTab(ui, body) {
   }));
 }
 
+/** Optional things the world offers you (v0.97.0). Nothing here is mandatory. */
+function emergenceSection(ui, body, open) {
+  const g = ui.game;
+  const E = g.politics.emergence();
+  if (!E.open.length && !E.recent.length) return;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 4px' }, 'For you (optional)'));
+  body.append(list(
+    ...E.open.map((o) => row({ icon: o.icon, title: o.title, sub: `${o.text}${o.state === 'accepted' ? ` — accepted. ${o.where || ''}` : ''} (${o.daysLeft} days)`,
+      action: o.state === 'accepted' ? h('button', { class: 'tb-mini', onclick: () => go(g.politics.declineOffer(o.id)) }, 'Drop it')
+        : o.kind === 'choice' ? h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini pri', onclick: () => go(g.politics.answerOffer(o.id, true)) }, o.yes), h('button', { class: 'tb-mini', onclick: () => go(g.politics.answerOffer(o.id, false)) }, o.no))
+          : h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini pri', onclick: () => go(g.politics.acceptOffer(o.id)) }, 'Take it on'), h('button', { class: 'tb-mini', onclick: () => go(g.politics.declineOffer(o.id)) }, 'No')) })),
+    ...E.recent.map((o) => row({ icon: '🗒️', title: o.title, sub: o.reason || o.state, tag: o.state }))));
+  body.append(h('div', { class: 'tb-note' }, 'None of this is required. An offer you ignore ends, and says why.'));
+}
+
 function overviewTab(ui, body, open) {
   const g = ui.game;
+  const nt0 = note(ui);
+  if (nt0) body.append(nt0);
   const O = g.politics.overview();
   const gov = O.governing;
   const opp = O.opposition;
@@ -87,6 +105,7 @@ function overviewTab(ui, body, open) {
       row({ icon: '🏛️', title: gov.leader, sub: `${gov.blurb}`, tag: 'President', tone: 'good' }),
       row({ icon: '🗣️', title: opp.leader, sub: `${opp.blurb}`, tag: 'opposition' })),
     help('How politics works here', 'Sund is a constitutional monarchy: the king is head of state and an elected President governs. A term is 120 game days and the vote falls in its last 30.', 'Government, Polls and this page only read the record. They do not change any price, police or war yet (the economy and diplomacy come in later updates). "Vote" shows the election and takes public donations; "Influence" is who will see you and what you may ask. You never have to take part.', 'Whoever the voters pick, the other leader stays in the world and keeps working: you may meet either in the city.'));
+  emergenceSection(ui, body, open);
   body.append(fold(ui, 'Politics', 'Where the parties differ ›', (box) => {
     box.append(list(...O.issues.map((i) => row({
       icon: i.gap >= 3 ? '⚡' : i.gap >= 2 ? '↔️' : '＝', title: i.name, sub: `${gov.short}: ${LEAN[i.gov]} · ${opp.short}: ${LEAN[i.opp]}`, tag: i.gap >= 3 ? 'far apart' : i.gap >= 2 ? 'differ' : 'close', tone: i.gap >= 3 ? 'warn' : '',

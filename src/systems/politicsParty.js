@@ -133,8 +133,8 @@ export const partyMethods = {
     m.funds -= Math.min(m.funds, P.staff.wage * m.staff.length);
   },
 
-  /** What the party screen shows. */
-  party() {
+  /** What the party screen shows. (Not `party`: that is the content lookup of a party by id.) */
+  partyView() {
     const m = this.myParty();
     const needs = this.partyNeeds();
     const issues = Object.entries(POL.issues).map(([id, d]) => ({ id, name: d.name, stance: m?.platform[id] || 0 }));

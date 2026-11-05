@@ -17,7 +17,7 @@ import { fitOf, inProgress } from '../politics/policy.js';
 import { standingScore, tierOf, accessOpen, needsText, priceOf, takeOdds, outcomes, pickOutcome, band, unit, mayAsk } from '../politics/influence.js';
 
 const ESTATE_OF = Object.fromEntries(Object.values(ESTATE_DEFS).map((e) => [e.party, e]));
-const FLAGS = ['halver_appointment', ...Object.values(ESTATE_DEFS).map((e) => e.flag)];
+const FLAGS = ['halver_appointment', 'halver_pass', ...Object.values(ESTATE_DEFS).map((e) => e.flag)];
 const round = (v) => Math.round(v * 100) / 100;
 const OUTCOME_TEXT = {
   accepted: 'accepted', half: 'half done', delayed: 'delayed', refused: 'refused', counter: 'a counter-offer', reported: 'reported',
@@ -127,7 +127,7 @@ export const influenceMethods = {
       : { ok: false, text: `${this.nameOf(c)} cannot see you. ${why}` };
     inf.meetings[key] = { day: this.day, ok: res.ok, text: res.text };
     if (yes) {
-      if (c.side === 'gov') this.g.setFlag('halver_appointment', this.day);
+      if (c.side === 'gov') { this.g.setFlag('halver_appointment', this.day); if (key === 'president') this.g.setFlag('halver_pass', this.day); } // (v0.97.0: the President's own word opens the restricted rooms for the day)
       else if (key === 'opposition' && ESTATE_OF[c.party]) this.g.setFlag(ESTATE_OF[c.party].flag, this.day);
       const npc = this.npcOf(c);
       if (npc) this.g.relationships.adjust(npc, 'player', { trust: I.meeting.rel }, 'meeting');
@@ -297,7 +297,8 @@ export const influenceMethods = {
     inf.favours[o.party] = Math.max(0, inf.favours[o.party] - o.amount / I.donation.favourPer);
     const leader = this.g.npcs.get(P.parties[o.party].leader);
     if (leader) this.g.relationships.adjust(leader, 'player', { trust: -4 }, 'broken promise');
-    this.news(`🗞️ ${this.party(o.party).name} are said to have forgotten a donor. It is not the first time.`);
+    this.news(`🗞️ ${this.party(o.party).name} are said to have forgotten a donor. It is not the first time.`, 'alleged');
+    this.addScandal(s, this.ensureElections(s), { party: o.party, day, severity: 0.15, credibility: 0.6, attention: 0.4, source: 'press', text: 'a donor says the party forgot its promises' }); // (v0.97.0: a broken promise costs the party a little with the voters too)
   },
 
   /** An offer comes out: a scandal for the recipient's party, a fine for you (paid to the state), a hit to your reputation and the trust of those you dealt with. */

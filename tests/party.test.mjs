@@ -111,15 +111,15 @@ test('it takes no part in any election: the same world with and without a regist
 
 test('winding it up gives the funds back and frees the name; a save keeps the party; an old save simply has none; reading changes nothing', () => {
   const g = rich(newGame(5)); const M = g.politics;
-  assert.equal(M.party().has, false); assert.ok(!M.fundParty(5000).ok && !M.payFee().ok && !M.hireStaff('legal').ok && !M.disbandParty().ok, 'nothing works without a party');
+  assert.equal(M.partyView().has, false); assert.ok(!M.fundParty(5000).ok && !M.payFee().ok && !M.hireStaff('legal').ok && !M.disbandParty().ok, 'nothing works without a party');
   M.foundParty('The Harbour Party', P.colours[1]); M.fundParty(30000); M.setPlatform('enforcement', -2);
   const g2 = roundtrip(g);
   assert.equal(g2.politics.myParty().name, 'The Harbour Party'); assert.equal(g2.politics.myParty().funds, 30000); assert.equal(g2.politics.myParty().platform.enforcement, -2);
-  const before = JSON.stringify(g2.politics.peek()); g2.politics.party(); g2.politics.party(); assert.equal(JSON.stringify(g2.politics.peek()), before);
+  const before = JSON.stringify(g2.politics.peek()); g2.politics.partyView(); g2.politics.partyView(); assert.equal(JSON.stringify(g2.politics.peek()), before);
   const m = g.player.money;
   const r = M.disbandParty(); assert.ok(r.ok);
   assert.equal(g.player.money, m + 30000); assert.equal(M.myParty(), null);
   assert.ok(M.foundParty('The Harbour Party', '#fff').ok, 'the name is free again');
-  const v = M.party();
+  const v = M.partyView();
   assert.equal(v.issues.length, 8); assert.equal(v.staff.length, 5); assert.ok(v.candidacy && v.needs.total === 5);
 });

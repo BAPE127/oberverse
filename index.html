@@ -27811,7 +27811,7 @@ const electionMethods = {
     while (el.scandals.length > E.scandals.kept) el.scandals.shift();
     const name = this.party(row.party).name;
     this.log(s, `A scandal for ${name}: ${row.text}`);
-    if (row.day >= this.day - 1) this.news(`📰 ${name}: ${row.text}`);
+    if (row.day >= this.day - 1) this.news(`📰 ${name}: ${row.text}`, row.source === 'exposure' ? 'verified' : 'alleged');
     return row;
   },
 
@@ -27932,7 +27932,8 @@ const electionMethods = {
     }
   },
 
-  news(text) { try { this.g.tablet.post('news', text, 'event'); } catch { /* the tablet may not exist in a bare test game */ } },
+  /** A line in the world news, with its truth label (verified, alleged, forecast or opinion; verified unless said). */
+  news(text, truth = 'verified') { try { this.g.tablet.post('news', this.labelled(text, truth), 'event'); } catch { /* the tablet may not exist in a bare test game */ } },
 
   // ---------------------------------------------------------------- views
   /** What the Campaign page shows. The sealed result is never shown before the announcement. */
@@ -28129,7 +28130,7 @@ const { fitOf, inProgress } = __m["src/politics/policy.js"];
 const { standingScore, tierOf, accessOpen, needsText, priceOf, takeOdds, outcomes, pickOutcome, band, unit, mayAsk } = __m["src/politics/influence.js"];
 
 const ESTATE_OF = Object.fromEntries(Object.values(ESTATE_DEFS).map((e) => [e.party, e]));
-const FLAGS = ['halver_appointment', ...Object.values(ESTATE_DEFS).map((e) => e.flag)];
+const FLAGS = ['halver_appointment', 'halver_pass', ...Object.values(ESTATE_DEFS).map((e) => e.flag)];
 const round = (v) => Math.round(v * 100) / 100;
 const OUTCOME_TEXT = {
   accepted: 'accepted', half: 'half done', delayed: 'delayed', refused: 'refused', counter: 'a counter-offer', reported: 'reported',
@@ -28239,7 +28240,7 @@ const influenceMethods = {
       : { ok: false, text: `${this.nameOf(c)} cannot see you. ${why}` };
     inf.meetings[key] = { day: this.day, ok: res.ok, text: res.text };
     if (yes) {
-      if (c.side === 'gov') this.g.setFlag('halver_appointment', this.day);
+      if (c.side === 'gov') { this.g.setFlag('halver_appointment', this.day); if (key === 'president') this.g.setFlag('halver_pass', this.day); } // (v0.97.0: the President's own word opens the restricted rooms for the day)
       else if (key === 'opposition' && ESTATE_OF[c.party]) this.g.setFlag(ESTATE_OF[c.party].flag, this.day);
       const npc = this.npcOf(c);
       if (npc) this.g.relationships.adjust(npc, 'player', { trust: I.meeting.rel }, 'meeting');
@@ -28409,7 +28410,8 @@ const influenceMethods = {
     inf.favours[o.party] = Math.max(0, inf.favours[o.party] - o.amount / I.donation.favourPer);
     const leader = this.g.npcs.get(P.parties[o.party].leader);
     if (leader) this.g.relationships.adjust(leader, 'player', { trust: -4 }, 'broken promise');
-    this.news(`🗞️ ${this.party(o.party).name} are said to have forgotten a donor. It is not the first time.`);
+    this.news(`🗞️ ${this.party(o.party).name} are said to have forgotten a donor. It is not the first time.`, 'alleged');
+    this.addScandal(s, this.ensureElections(s), { party: o.party, day, severity: 0.15, credibility: 0.6, attention: 0.4, source: 'press', text: 'a donor says the party forgot its promises' }); // (v0.97.0: a broken promise costs the party a little with the voters too)
   },
 
   /** An offer comes out: a scandal for the recipient's party, a fine for you (paid to the state), a hit to your reputation and the trust of those you dealt with. */
@@ -28663,7 +28665,7 @@ const DIPLOMACY = {
   /** Sanctions on an aggressor are lifted when the quarrel ends; a standing embargo (international sanctions) may be lifted now and then. */
   standingLift: 0.02,
   /** Relations with Sund (−100 … +100): each country's own baseline from a hash, moved toward a target by a point a day. */
-  relations: { baseline: [-22, 28], step: 1, trade: 25, military: 45, perDispute: -14, perSanction: -22, perWar: -30, embargoOnThem: -12, lirre: 8 },
+  relations: { bonusDecay: 0.25, baseline: [-22, 28], step: 1, trade: 25, military: 45, perDispute: -14, perSanction: -22, perWar: -30, embargoOnThem: -12, lirre: 8 },
   /** Names for a relation score, from the worst: [upper bound (exclusive), label]. */
   bands: [[-60, 'Hostile'], [-30, 'Tense'], [-8, 'Cool'], [12, 'Neutral'], [40, 'Warm'], [101, 'Friendly']],
   /** What the quarrels are about (a hash picks one; it is only a name). */
@@ -28743,7 +28745,7 @@ function stepPair(pair, day, ctx) {
   const settle = clamp(D.talks[p.stage] + talksBonus, 0, D.talks.cap);
   if (u('talks') < settle) {
     Object.assign(p, { stage: 'peace', settledDay: day, until: null });
-    events.push({ kind: 'settled', text: `Talks succeed: the quarrel between ${ctx.name(p.a)} and ${ctx.name(p.b)} over ${p.cause} is settled.` });
+    events.push({ kind: 'settled', from: pair.stage, text: `Talks succeed: the quarrel between ${ctx.name(p.a)} and ${ctx.name(p.b)} over ${p.cause} is settled.` });
     return { pair: p, events };
   }
   if (p.stage === 'dispute') {
@@ -28837,7 +28839,7 @@ const diplomacyMethods = {
     }
     // a standing embargo is lifted now and then
     for (const [id, c] of Object.entries(ms.countries)) {
-      if (c.embargo && c.embargoReason !== 'war' && c.embargoReason !== 'sanctions' && unit(`${d.salt}|lift|${id}|${day}`) < D.standingLift) { c.embargo = false; c.embargoReason = null; M.news(`Sanctions on ${this.name(id)} are lifted.`); this.note(d, `Sanctions on ${this.name(id)} are lifted.`); }
+      if (c.embargo && c.embargoReason !== 'war' && c.embargoReason !== 'sanctions' && unit(`${d.salt}|lift|${id}|${day}`) < D.standingLift) { c.embargo = false; c.embargoReason = null; M.news(this.labelled(`Sanctions on ${this.name(id)} are lifted.`, 'verified')); this.note(d, `Sanctions on ${this.name(id)} are lifted.`); }
     }
     const fx = this.fx();
     const wars = ms.wars.length;
@@ -28855,8 +28857,9 @@ const diplomacyMethods = {
     for (const [id, rel] of Object.entries(d.relations)) {
       const quarrels = { dispute: 0, sanctions: 0, war: 0 };
       for (const p of Object.values(d.pairs)) if ((p.a === 'sund' && p.b === id) || (p.b === 'sund' && p.a === id)) { if (p.stage === 'dispute' || p.stage === 'tension') quarrels.dispute++; else if (p.stage === 'sanctions') quarrels.sanctions++; else if (p.stage === 'war') quarrels.war++; }
-      const target = targetScore({ base: baseline(id, d.salt), policy: fx.relations, quarrels, embargoed: Boolean(ms.countries[id]?.embargo), neutral: id === 'lirre' });
+      const target = targetScore({ base: baseline(id, d.salt), policy: fx.relations + (rel.bonus || 0), quarrels, embargoed: Boolean(ms.countries[id]?.embargo), neutral: id === 'lirre' });
       rel.score = stepToward(rel.score, target);
+      if (rel.bonus) { rel.bonus = Math.abs(rel.bonus) <= D.relations.bonusDecay ? 0 : rel.bonus - Math.sign(rel.bonus) * D.relations.bonusDecay; } // (v0.97.0: a country's regard after talks fades)
     }
     this.dayOverride = saved;
   },
@@ -28868,24 +28871,24 @@ const diplomacyMethods = {
     const other = (id) => (id === p.a ? p.b : p.a);
     const lift = (id, reason) => {
       const c = ms.countries[id];
-      if (c?.embargo && c.embargoReason === reason && !Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.aggressor === id) && (reason === 'war' ? q.stage === 'war' : q.stage === 'sanctions' || q.stage === 'war'))) { c.embargo = false; c.embargoReason = null; M.news(`The embargo on ${this.name(id)} is lifted.`); }
+      if (c?.embargo && c.embargoReason === reason && !Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.aggressor === id) && (reason === 'war' ? q.stage === 'war' : q.stage === 'sanctions' || q.stage === 'war'))) { c.embargo = false; c.embargoReason = null; this.note(d, `The embargo on ${this.name(id)} is lifted.`); }
     };
     this.note(d, e.text);
     if (e.kind === 'sanctions') {
       const c = ms.countries[e.aggressor];
       if (c && !c.embargo) { c.embargo = true; c.embargoReason = 'sanctions'; }
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
     } else if (e.kind === 'war') {
       ms.wars.push({ a: e.aggressor, b: other(e.aggressor), since: day });
       const c = ms.countries[e.aggressor];
       if (c) { c.embargo = true; c.embargoReason = 'war'; }
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
     } else if (e.kind === 'ceasefire') {
       ms.wars = ms.wars.filter((w) => pairKey(w.a, w.b) !== p.key);
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
       for (const id of [p.a, p.b]) lift(id, 'war');
     } else if (e.kind === 'settled') {
-      M.news(e.text);
+      if (e.from === 'sanctions' || p.a === 'sund' || p.b === 'sund') M.news(this.labelled(e.text, 'verified')); // (a quarrel settled early is only in the record)
       lift(p.aggressor, 'sanctions');
     }
   },
@@ -29508,8 +29511,8 @@ const partyMethods = {
     m.funds -= Math.min(m.funds, P.staff.wage * m.staff.length);
   },
 
-  /** What the party screen shows. */
-  party() {
+  /** What the party screen shows. (Not `party`: that is the content lookup of a party by id.) */
+  partyView() {
     const m = this.myParty();
     const needs = this.partyNeeds();
     const issues = Object.entries(POL.issues).map(([id, d]) => ({ id, name: d.name, stance: m?.platform[id] || 0 }));
@@ -29522,6 +29525,210 @@ const partyMethods = {
 };
 
 return { partyMethods };
+})();
+
+// ---- src/content/emergence.js
+__m["src/content/emergence.js"] = (function () {
+// Emergence (v0.97.0): optional things that turn up because of what the world is doing. Pure data. Nothing here is mandatory, none gates any system, and every one
+// that goes unanswered ends with a stated reason. Rewards are reputation, a person's trust or a country's regard: never cash. Each template is a condition on the
+// world (the checks are in src/systems/politicsEmergence.js) and a way to answer.
+
+const EMERGENCE = {
+  /** On day % every === offset the world may offer you something: at most `maxOpen` at once, each template at most every `cooldown` days, with this hashed chance; open for `expiresIn` days. */
+  every: 7, offset: 3, maxOpen: 2, cooldown: 40, chance: 0.6, expiresIn: 12, kept: 12,
+  /** What a good answer earns. */
+  reward: { rep: 1, trust: 3, regard: 10, regardDecay: 0.25 },
+  templates: {
+    farmer_fee: { icon: '🌾', title: 'The farmers want a word', kind: 'act',
+      text: 'A farmer from Lariat says the inspection fee is eating the harvest. Will you put their case to the Minister of Agriculture (ask the cabinet to take up lighter farm inspection)?',
+      where: 'Influence → the Minister of Agriculture → "Ask them to take up a policy".', done: 'You put the farmers\' case. They will remember it.', gone: 'The inspection fee is gone, and the farmers with it.' },
+    contractor_meeting: { icon: '📐', title: 'A contractor wants a meeting', kind: 'act',
+      text: 'A contractor who sells to the Space Office wants to meet the Minister of Defence & Security, and would like you to ask: a meeting with the Minister would do.',
+      where: 'Influence → the Minister of Defence & Security → "Ask for a meeting".', done: 'The Minister saw you; the contractor says thank you.', gone: 'The contractor found another way in.' },
+    journalist_lead: { icon: '🗞️', title: 'A journalist offers a lead', kind: 'choice',
+      text: 'A journalist has a lead on the scandal at {party}: "a document, or half of one". Do you pass it to the press? It is an allegation until someone checks it.',
+      yes: 'Pass it on', no: 'Not mine to pass', done: 'The press run it as an allegation. Your name is not on it.', gone: 'The story went cold.' },
+    embassy_talks: { icon: '🤝', title: 'Trade talks at the embassy', kind: 'choice',
+      text: 'The ambassador of {country} invites you to informal talks on trade. They think well of Sund this season. Nothing is promised.',
+      yes: 'Attend the talks', no: 'Send regrets', done: 'The talks went well: {country} thinks better of Sund for a while.', fail: 'The talks went nowhere: {country} is a little cooler.', gone: 'The ambassador was recalled.' },
+    organisers_invite: { icon: '📣', title: 'The organisers ask you to the square', kind: 'act',
+      text: 'The organisers of the demonstration in Sovereign Square ({cause}) would like to hear you speak, or see you support them: your choice, either counts.',
+      where: 'World → the demonstration → "Speak for talks" or "Support the organisers".', done: 'You showed your face. The organisers noted it.', gone: 'The demonstration is over.' },
+  },
+  /** The weekly forecast and opinion piece: at most one a week, only when there is something to say. */
+  news: { every: 7, offset: 5 },
+  /** Opinion pieces a columnist might write about a policy in force. */
+  columnists: ['"{policy}", writes a columnist, "is the sort of thing a government does when it has run out of other things."', '"{policy} will be judged," says a columnist, "by who is still angry in a year."', 'A columnist on {policy}: "Nobody asked, and everybody will have an opinion."'],
+};
+
+return { EMERGENCE };
+})();
+
+// ---- src/systems/politicsEmergence.js
+__m["src/systems/politicsEmergence.js"] = (function () {
+// Emergence (v0.97.0): optional offers that turn up because of the world, a weekly forecast or opinion piece, and truth labels on every politics news item. Added to the Politics service.
+//
+// Nothing is mandatory and nothing gates any system. An offer is a condition on the world (a farm inspection fee and a farm of yours; a Space Office customer and an aerospace
+// firm; a scandal; a warm country; a demonstration), shown with the person who asks and the way to answer; an unanswered one ends, with a reason, when its time is up or the world
+// moves on. Rewards are reputation, trust and a country's regard: never cash. Every chance is a hash (no random draw). News carries a truth label: verified, alleged, forecast or opinion.
+const { EMERGENCE: EM } = __m["src/content/emergence.js"];
+const { POLICIES } = __m["src/content/policies.js"];
+const { INFLUENCE: I } = __m["src/content/influence.js"];
+const { PARTY_IDS } = __m["src/politics/model.js"];
+const { unit } = __m["src/politics/diplomacy.js"];
+const { bandOf } = __m["src/politics/diplomacy.js"];
+
+const TRUTH = { verified: '✔ verified', alleged: '❓ alleged', forecast: '📈 forecast', opinion: '💬 opinion' };
+const fill = (t, p) => t.replace(/\{(\w+)\}/g, (_, k) => p[k] ?? '');
+
+const emergenceMethods = {
+  /** Put a truth label on a news line. */
+  labelled(text, truth = 'verified') { return `${TRUTH[truth] || TRUTH.verified} · ${text}`; },
+
+  ensureEmergence(s) {
+    if (s.emergence) return s.emergence;
+    s.emergence = { v: 1, offers: [], nextId: 1, last: {}, lastNews: -99 };
+    return s.emergence;
+  },
+
+  /** Does the world say this offer should exist now? Returns the parameters for its text, or null. */
+  emergenceCheck(tpl, s) {
+    const g = this.g;
+    if (tpl === 'farmer_fee') return this.fx().farmFee > 0 && (g.farm?.owned?.().length || 0) > 0 ? {} : null;
+    if (tpl === 'contractor_meeting') return g.aero?.owned && this.contact('npc_min_defence', s) ? {} : null;
+    if (tpl === 'journalist_lead') {
+      const el = this.ensureElections(s);
+      const sc = el.scandals.filter((x) => this.day - x.day <= 20 && !x.leadTold).sort((a, b) => b.severity * b.credibility - a.severity * a.credibility)[0];
+      return sc && sc.severity * sc.credibility * sc.attention > 0.12 ? { party: this.party(sc.party).name, scandal: sc.id } : null;
+    }
+    if (tpl === 'embassy_talks') {
+      const d = s.diplomacy;
+      const ms = g.world.market;
+      if (!d || !ms) return null;
+      const c = Object.entries(d.relations).filter(([id, r]) => r.score >= 12 && !ms.countries[id]?.embargo && !ms.wars.some((w) => w.a === 'sund' || w.b === 'sund')).sort((a, b) => b[1].score - a[1].score || (a[0] < b[0] ? -1 : 1))[0];
+      return c ? { country: this.name(c[0]), id: c[0] } : null;
+    }
+    if (tpl === 'organisers_invite') {
+      const d = this.activeDemos(s).find((x) => x.stage !== 'riot');
+      return d ? { cause: d.cause.text, demo: d.id } : null;
+    }
+    return null;
+  },
+
+  /** Has an accepted offer been answered? (Looks at what you have done since it was made.) */
+  emergenceDone(o, s) {
+    const inf = s.influence;
+    if (!inf) return false;
+    const since = (e) => e.day >= o.day;
+    if (o.tpl === 'farmer_fee') return inf.ledger.some((e) => e.kind === 'offer' && e.contact === 'npc_min_agriculture' && e.request === 'push' && e.policy === 'farm_down' && since(e));
+    if (o.tpl === 'contractor_meeting') return inf.ledger.some((e) => e.kind === 'meeting' && e.contact === 'npc_min_defence' && e.outcome === 'granted' && since(e));
+    if (o.tpl === 'organisers_invite') { const d = s.unrest?.demos.find((x) => x.id === o.params.demo); return Boolean(d && (d.spoke >= o.day || d.supported > 0)); }
+    return false;
+  },
+
+  reward(o, kind = 'good') {
+    const R = EM.reward;
+    const g = this.g;
+    g.adjustReputation(I.repFaction, kind === 'good' ? R.rep : 0);
+    if (o.tpl === 'contractor_meeting' || o.tpl === 'farmer_fee') { const npc = g.npcs.get(o.tpl === 'farmer_fee' ? 'npc_min_agriculture' : 'npc_min_defence'); if (npc) g.relationships.adjust(npc, 'player', { trust: R.trust }, 'emergence'); }
+  },
+
+  /** The weekly step: offers end (answered, or with a stated reason); a new one may turn up; a forecast or opinion piece may be written. Idempotent per day (hash-only). */
+  emergenceStep(s, day) {
+    const e = this.ensureEmergence(s);
+    for (const o of e.offers.filter((x) => x.state === 'open' || x.state === 'accepted')) {
+      const def = EM.templates[o.tpl];
+      if (o.state === 'accepted' && this.emergenceDone(o, s)) { o.state = 'done'; o.reason = def.done; this.reward(o); continue; }
+      const live = this.emergenceCheck(o.tpl, s);
+      if (!live) { o.state = 'expired'; o.reason = def.gone; continue; }
+      if (day > o.expires) { o.reason = o.state === 'accepted' ? 'You did not get to it in time.' : 'Nobody waits for ever: the moment has passed.'; o.state = 'expired'; }
+    }
+    if (day % EM.every === EM.offset && e.offers.filter((x) => x.state === 'open' || x.state === 'accepted').length < EM.maxOpen) {
+      for (const tpl of Object.keys(EM.templates).sort()) {
+        if (e.offers.filter((x) => x.state === 'open' || x.state === 'accepted').length >= EM.maxOpen) break;
+        if (day - (e.last[tpl] ?? -999) < EM.cooldown) continue;
+        const params = this.emergenceCheck(tpl, s);
+        if (!params || unit(`${this.ensureElections(s).salt}|emergence|${tpl}|${day}`) >= EM.chance) continue;
+        e.offers.push({ id: e.nextId++, tpl, day, expires: day + EM.expiresIn, state: 'open', params, reason: null });
+        e.last[tpl] = day;
+      }
+    }
+    e.offers = e.offers.filter((o) => o.state === 'open' || o.state === 'accepted' || day - o.day < 60).slice(-EM.kept - 4);
+    if (day % EM.news.every === EM.news.offset) this.weeklyNews(s, e, day);
+  },
+
+  /** At most one forecast or opinion piece a week, and only when there is something to say. */
+  weeklyNews(s, e, day) {
+    const salt = this.ensureElections(s).salt;
+    const m = this.budgetNow(s);
+    const cands = [];
+    if (m.deficit / m.revenue > 0.1) cands.push({ truth: 'forecast', text: `Treasury officials expect the month to close ${Math.round(m.deficit)}k in deficit; the debt stands at ${Math.round(s.budget.debt)}k.` });
+    const cal = this.calendar();
+    const latest = s.polls[s.polls.length - 1];
+    if (cal.phase === 'campaign' && latest) { const lead = latest.results.order - latest.results.liberty; cands.push({ truth: 'forecast', text: `With ${cal.daysToPolling} days to the vote, ${Math.abs(lead) < latest.margin ? 'the race is within the polls\' margin of error' : `${this.party(lead > 0 ? 'order' : 'liberty').name} lead the latest poll`}.` }); }
+    const active = s.policies.filter((p) => p.state === 'active');
+    if (active.length) { const p = active[Math.floor(unit(`${salt}|col|${day}`) * active.length)]; cands.push({ truth: 'opinion', text: EM.columnists[Math.floor(unit(`${salt}|colt|${day}`) * EM.columnists.length)].replace('{policy}', POLICIES[p.key].name) }); }
+    if (!cands.length || unit(`${salt}|newsday|${day}`) > 0.8) return;
+    const c = cands[Math.floor(unit(`${salt}|newspick|${day}`) * cands.length)];
+    this.news(c.text, c.truth);
+    e.lastNews = day;
+  },
+
+  // ---------------------------------------------------------------- answering
+  acceptOffer(id) {
+    const s = this.ensure(); const e = this.ensureEmergence(s);
+    const o = e.offers.find((x) => x.id === id);
+    if (!o || o.state !== 'open') return { ok: false, text: 'That offer has passed.' };
+    const def = EM.templates[o.tpl];
+    if (def.kind === 'choice') return { ok: false, text: 'Choose yes or no.' };
+    o.state = 'accepted'; o.day = this.day; o.expires = this.day + EM.expiresIn;
+    return { ok: true, text: `Noted. ${def.where || ''}` };
+  },
+
+  declineOffer(id) {
+    const s = this.ensure(); const e = this.ensureEmergence(s);
+    const o = e.offers.find((x) => x.id === id);
+    if (!o || (o.state !== 'open' && o.state !== 'accepted')) return { ok: false, text: 'That offer has passed.' };
+    o.state = 'declined'; o.reason = 'You said no, and nothing came of it.';
+    return { ok: true, text: 'You said no. That is allowed.' };
+  },
+
+  /** A "choice" offer: yes does the thing at once. */
+  answerOffer(id, yes) {
+    const s = this.ensure(); const e = this.ensureEmergence(s);
+    const o = e.offers.find((x) => x.id === id);
+    if (!o || o.state !== 'open') return { ok: false, text: 'That offer has passed.' };
+    const def = EM.templates[o.tpl];
+    if (def.kind !== 'choice') return { ok: false, text: 'That one is answered where it happens.' };
+    if (!yes) return this.declineOffer(id);
+    if (!this.emergenceCheck(o.tpl, s)) { o.state = 'expired'; o.reason = def.gone; return { ok: false, text: def.gone }; }
+    let text;
+    if (o.tpl === 'journalist_lead') {
+      const el = this.ensureElections(s);
+      const sc = el.scandals.find((x) => x.id === o.params.scandal);
+      if (sc) { sc.attention = Math.min(1, Math.round((sc.attention + 0.1) * 100) / 100); sc.leadTold = true; }
+      this.news(`A journalist has a document that, if genuine, touches ${o.params.party}. It has not been checked.`, 'alleged');
+      this.reward(o); text = def.done;
+    } else if (o.tpl === 'embassy_talks') {
+      const d = this.ensureDiplomacy(s); const rel = d.relations[o.params.id];
+      const ok = unit(`${d.salt}|talks|${o.id}`) < Math.max(0.35, Math.min(0.9, 0.7 + 0.01 * this.repNow()));
+      if (rel) rel.bonus = (rel.bonus || 0) + (ok ? EM.reward.regard : -3);
+      if (ok) this.reward(o, 'good');
+      text = fill(ok ? def.done : def.fail, { country: o.params.country });
+    }
+    o.state = 'done'; o.reason = text;
+    return { ok: true, text };
+  },
+
+  /** What the Overview's "for you" list shows. */
+  emergence() {
+    const s = this.ensure(); const e = this.ensureEmergence(s);
+    const row = (o) => { const def = EM.templates[o.tpl]; return { id: o.id, icon: def.icon, title: def.title, text: fill(def.text, o.params), kind: def.kind, yes: def.yes || null, no: def.no || null, where: def.where || null, state: o.state, daysLeft: Math.max(0, o.expires - this.day), reason: o.reason }; };
+    return { open: e.offers.filter((o) => o.state === 'open' || o.state === 'accepted').map(row), recent: e.offers.filter((o) => !['open', 'accepted'].includes(o.state)).slice(-4).reverse().map(row) };
+  },
+};
+
+return { emergenceMethods };
 })();
 
 // ---- src/systems/politics.js
@@ -29549,6 +29756,7 @@ const { economyMethods } = __m["src/systems/politicsEconomy.js"];
 const { diplomacyMethods } = __m["src/systems/politicsDiplomacy.js"];
 const { unrestMethods } = __m["src/systems/politicsUnrest.js"];
 const { partyMethods } = __m["src/systems/politicsParty.js"];
+const { emergenceMethods } = __m["src/systems/politicsEmergence.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -29674,6 +29882,7 @@ class Politics {
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
+    this.emergenceStep(s, day); // v0.97.0: optional offers, a weekly forecast or opinion piece
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -29808,7 +30017,7 @@ class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods, partyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods, partyMethods, emergenceMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 
 
@@ -70448,7 +70657,7 @@ function reaction(issue, stance) {
 function partyScreen(ui, body, open) {
   const g = ui.game;
   const P = g.politics;
-  const V = P.party();
+  const V = P.partyView();
   const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
   const nt = note(ui);
   if (nt) body.append(nt);
@@ -70728,7 +70937,7 @@ __m["src/ui/politicsApp.js"] = (function () {
 // The Politics app (v0.93.0): who governs Sund, the term and the date of the vote, the opposition and where the two parties differ; the government (v0.94.0), the polls (v0.94.0),
 // the election and campaign (v0.95.0, "Vote") and your influence (v0.95.0). Only the last two do anything: donations, meetings and offers. Follows the OberPad pattern: one hero, three tiles, a list, a fold.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, segments, n } = __m["src/ui/tabletKit.js"];
+const { hero, tiles, row, help, fold, segments, note, n } = __m["src/ui/tabletKit.js"];
 const { atlasStates } = __m["src/world/atlas.js"];
 const { campaignTab, influenceTab } = __m["src/ui/politicsInfluence.js"];
 const { diplomacyTab } = __m["src/ui/politicsDiplomacy.js"];
@@ -70800,8 +71009,26 @@ function pollsTab(ui, body) {
   }));
 }
 
+/** Optional things the world offers you (v0.97.0). Nothing here is mandatory. */
+function emergenceSection(ui, body, open) {
+  const g = ui.game;
+  const E = g.politics.emergence();
+  if (!E.open.length && !E.recent.length) return;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
+  body.append(h('div', { class: 'tb-label', style: 'margin:6px 4px' }, 'For you (optional)'));
+  body.append(list(
+    ...E.open.map((o) => row({ icon: o.icon, title: o.title, sub: `${o.text}${o.state === 'accepted' ? ` — accepted. ${o.where || ''}` : ''} (${o.daysLeft} days)`,
+      action: o.state === 'accepted' ? h('button', { class: 'tb-mini', onclick: () => go(g.politics.declineOffer(o.id)) }, 'Drop it')
+        : o.kind === 'choice' ? h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini pri', onclick: () => go(g.politics.answerOffer(o.id, true)) }, o.yes), h('button', { class: 'tb-mini', onclick: () => go(g.politics.answerOffer(o.id, false)) }, o.no))
+          : h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini pri', onclick: () => go(g.politics.acceptOffer(o.id)) }, 'Take it on'), h('button', { class: 'tb-mini', onclick: () => go(g.politics.declineOffer(o.id)) }, 'No')) })),
+    ...E.recent.map((o) => row({ icon: '🗒️', title: o.title, sub: o.reason || o.state, tag: o.state }))));
+  body.append(h('div', { class: 'tb-note' }, 'None of this is required. An offer you ignore ends, and says why.'));
+}
+
 function overviewTab(ui, body, open) {
   const g = ui.game;
+  const nt0 = note(ui);
+  if (nt0) body.append(nt0);
   const O = g.politics.overview();
   const gov = O.governing;
   const opp = O.opposition;
@@ -70814,6 +71041,7 @@ function overviewTab(ui, body, open) {
       row({ icon: '🏛️', title: gov.leader, sub: `${gov.blurb}`, tag: 'President', tone: 'good' }),
       row({ icon: '🗣️', title: opp.leader, sub: `${opp.blurb}`, tag: 'opposition' })),
     help('How politics works here', 'Sund is a constitutional monarchy: the king is head of state and an elected President governs. A term is 120 game days and the vote falls in its last 30.', 'Government, Polls and this page only read the record. They do not change any price, police or war yet (the economy and diplomacy come in later updates). "Vote" shows the election and takes public donations; "Influence" is who will see you and what you may ask. You never have to take part.', 'Whoever the voters pick, the other leader stays in the world and keeps working: you may meet either in the city.'));
+  emergenceSection(ui, body, open);
   body.append(fold(ui, 'Politics', 'Where the parties differ ›', (box) => {
     box.append(list(...O.issues.map((i) => row({
       icon: i.gap >= 3 ? '⚡' : i.gap >= 2 ? '↔️' : '＝', title: i.name, sub: `${gov.short}: ${LEAN[i.gov]} · ${opp.short}: ${LEAN[i.opp]}`, tag: i.gap >= 3 ? 'far apart' : i.gap >= 2 ? 'differ' : 'close', tone: i.gap >= 3 ? 'warn' : '',

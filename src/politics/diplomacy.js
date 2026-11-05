@@ -65,7 +65,7 @@ export function stepPair(pair, day, ctx) {
   const settle = clamp(D.talks[p.stage] + talksBonus, 0, D.talks.cap);
   if (u('talks') < settle) {
     Object.assign(p, { stage: 'peace', settledDay: day, until: null });
-    events.push({ kind: 'settled', text: `Talks succeed: the quarrel between ${ctx.name(p.a)} and ${ctx.name(p.b)} over ${p.cause} is settled.` });
+    events.push({ kind: 'settled', from: pair.stage, text: `Talks succeed: the quarrel between ${ctx.name(p.a)} and ${ctx.name(p.b)} over ${p.cause} is settled.` });
     return { pair: p, events };
   }
   if (p.stage === 'dispute') {

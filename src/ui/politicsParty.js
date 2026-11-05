@@ -19,7 +19,7 @@ function reaction(issue, stance) {
 export function partyScreen(ui, body, open) {
   const g = ui.game;
   const P = g.politics;
-  const V = P.party();
+  const V = P.partyView();
   const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Politics'); };
   const nt = note(ui);
   if (nt) body.append(nt);

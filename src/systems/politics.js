@@ -21,6 +21,7 @@ import { economyMethods } from './politicsEconomy.js';
 import { diplomacyMethods } from './politicsDiplomacy.js';
 import { unrestMethods } from './politicsUnrest.js';
 import { partyMethods } from './politicsParty.js';
+import { emergenceMethods } from './politicsEmergence.js';
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -146,6 +147,7 @@ export class Politics {
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
+    this.emergenceStep(s, day); // v0.97.0: optional offers, a weekly forecast or opinion piece
     for (const p of s.policies.filter(inProgress).sort((a, b) => a.id - b.id)) {
       const next = advance(p, day, G);
       if (!next) continue;
@@ -280,6 +282,6 @@ export class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods, partyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods, diplomacyMethods, unrestMethods, partyMethods, emergenceMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 export { PARTY_IDS };

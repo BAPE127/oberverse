@@ -59,7 +59,7 @@ export const diplomacyMethods = {
     }
     // a standing embargo is lifted now and then
     for (const [id, c] of Object.entries(ms.countries)) {
-      if (c.embargo && c.embargoReason !== 'war' && c.embargoReason !== 'sanctions' && unit(`${d.salt}|lift|${id}|${day}`) < D.standingLift) { c.embargo = false; c.embargoReason = null; M.news(`Sanctions on ${this.name(id)} are lifted.`); this.note(d, `Sanctions on ${this.name(id)} are lifted.`); }
+      if (c.embargo && c.embargoReason !== 'war' && c.embargoReason !== 'sanctions' && unit(`${d.salt}|lift|${id}|${day}`) < D.standingLift) { c.embargo = false; c.embargoReason = null; M.news(this.labelled(`Sanctions on ${this.name(id)} are lifted.`, 'verified')); this.note(d, `Sanctions on ${this.name(id)} are lifted.`); }
     }
     const fx = this.fx();
     const wars = ms.wars.length;
@@ -77,8 +77,9 @@ export const diplomacyMethods = {
     for (const [id, rel] of Object.entries(d.relations)) {
       const quarrels = { dispute: 0, sanctions: 0, war: 0 };
       for (const p of Object.values(d.pairs)) if ((p.a === 'sund' && p.b === id) || (p.b === 'sund' && p.a === id)) { if (p.stage === 'dispute' || p.stage === 'tension') quarrels.dispute++; else if (p.stage === 'sanctions') quarrels.sanctions++; else if (p.stage === 'war') quarrels.war++; }
-      const target = targetScore({ base: baseline(id, d.salt), policy: fx.relations, quarrels, embargoed: Boolean(ms.countries[id]?.embargo), neutral: id === 'lirre' });
+      const target = targetScore({ base: baseline(id, d.salt), policy: fx.relations + (rel.bonus || 0), quarrels, embargoed: Boolean(ms.countries[id]?.embargo), neutral: id === 'lirre' });
       rel.score = stepToward(rel.score, target);
+      if (rel.bonus) { rel.bonus = Math.abs(rel.bonus) <= D.relations.bonusDecay ? 0 : rel.bonus - Math.sign(rel.bonus) * D.relations.bonusDecay; } // (v0.97.0: a country's regard after talks fades)
     }
     this.dayOverride = saved;
   },
@@ -90,24 +91,24 @@ export const diplomacyMethods = {
     const other = (id) => (id === p.a ? p.b : p.a);
     const lift = (id, reason) => {
       const c = ms.countries[id];
-      if (c?.embargo && c.embargoReason === reason && !Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.aggressor === id) && (reason === 'war' ? q.stage === 'war' : q.stage === 'sanctions' || q.stage === 'war'))) { c.embargo = false; c.embargoReason = null; M.news(`The embargo on ${this.name(id)} is lifted.`); }
+      if (c?.embargo && c.embargoReason === reason && !Object.values(d.pairs).some((q) => q !== p && q.stage !== 'peace' && (q.aggressor === id) && (reason === 'war' ? q.stage === 'war' : q.stage === 'sanctions' || q.stage === 'war'))) { c.embargo = false; c.embargoReason = null; this.note(d, `The embargo on ${this.name(id)} is lifted.`); }
     };
     this.note(d, e.text);
     if (e.kind === 'sanctions') {
       const c = ms.countries[e.aggressor];
       if (c && !c.embargo) { c.embargo = true; c.embargoReason = 'sanctions'; }
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
     } else if (e.kind === 'war') {
       ms.wars.push({ a: e.aggressor, b: other(e.aggressor), since: day });
       const c = ms.countries[e.aggressor];
       if (c) { c.embargo = true; c.embargoReason = 'war'; }
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
     } else if (e.kind === 'ceasefire') {
       ms.wars = ms.wars.filter((w) => pairKey(w.a, w.b) !== p.key);
-      M.news(e.text);
+      M.news(this.labelled(e.text, 'verified'));
       for (const id of [p.a, p.b]) lift(id, 'war');
     } else if (e.kind === 'settled') {
-      M.news(e.text);
+      if (e.from === 'sanctions' || p.a === 'sund' || p.b === 'sund') M.news(this.labelled(e.text, 'verified')); // (a quarrel settled early is only in the record)
       lift(p.aggressor, 'sanctions');
     }
   },

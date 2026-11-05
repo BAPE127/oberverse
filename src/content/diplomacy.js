@@ -17,7 +17,7 @@ export const DIPLOMACY = {
   /** Sanctions on an aggressor are lifted when the quarrel ends; a standing embargo (international sanctions) may be lifted now and then. */
   standingLift: 0.02,
   /** Relations with Sund (−100 … +100): each country's own baseline from a hash, moved toward a target by a point a day. */
-  relations: { baseline: [-22, 28], step: 1, trade: 25, military: 45, perDispute: -14, perSanction: -22, perWar: -30, embargoOnThem: -12, lirre: 8 },
+  relations: { bonusDecay: 0.25, baseline: [-22, 28], step: 1, trade: 25, military: 45, perDispute: -14, perSanction: -22, perWar: -30, embargoOnThem: -12, lirre: 8 },
   /** Names for a relation score, from the worst: [upper bound (exclusive), label]. */
   bands: [[-60, 'Hostile'], [-30, 'Tense'], [-8, 'Cool'], [12, 'Neutral'], [40, 'Warm'], [101, 'Friendly']],
   /** What the quarrels are about (a hash picks one; it is only a name). */
