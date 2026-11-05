@@ -32785,7 +32785,7 @@ function openStrategic(game, { battalion, province, enemy, recipe, terrain, styl
   const C = peekMilitary(game)?.company; if (!C?.identity) return null;
   const day = game.clock.day; const st = ATLAS.states.find((x) => x.id === province.state);
   const id = nextId(C, 'N');
-  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.id}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.id, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
+  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.name}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.name, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
   return id;
 }
 
@@ -32906,9 +32906,10 @@ function dayTick(game) {
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
-  const open = list.filter((x) => x.state === 'open').length;
+  const open = list.filter((x) => x.state === 'open' && !x.strategic).length;
   if (built && open < maxOpen(reputation(game)) && unit(`${salt(game)}|engday|${day}`) < E.chance) offerOne(game, C, day);
-  const ended = list.filter((x) => !['open', 'delegated', 'tactical'].includes(x.state));
+  const ended = list.filter((x) => !x.strategic && !['open', 'delegated', 'tactical'].includes(x.state));
+  const sEnded = list.filter((x) => x.strategic && !['open', 'delegated', 'tactical'].includes(x.state)); if (sEnded.length > 8) { const drop = new Set(sEnded.slice(0, sEnded.length - 8)); C.engagements = list.filter((x) => !drop.has(x)); }
   if (ended.length > E.kept) { const drop = new Set(ended.slice(0, ended.length - E.kept)); C.engagements = list.filter((x) => !drop.has(x)); }
 }
 
@@ -33342,7 +33343,7 @@ __m["src/world/provinces.js"] = (function () {
 // docs/mockups/atlas-src/render.mjs), each half-degree cell of land going to the nearest seed of its own state. Pure and deterministic: nothing here is saved, and a province's id never
 // changes (it is the lattice cell it grew from, or `H_<state>` for a state too small to catch a seed).
 //
-//   provinces()            every province, in id order: { id, n, state, country, lat, lon, cells, terrain, coast, infra, vp, port, airfield, fort, capital, rail, road, places, neighbours, width } (rail and road list the provinces joined by a main road or any road)
+//   provinces()            every province, in id order: { id, name, n, state, country, lat, lon, cells, terrain, coast, infra, vp, port, airfield, fort, capital, rail, road, places, neighbours, width } (rail and road list the provinces joined by a main road or any road)
 //   provinceById(id)       one province or null
 //   provinceAt(lat, lon)   the province of a point of land, or null at sea / unclaimed / the southern ice
 //   provinceGrid()         { w, h, grid: Int16Array of province index per half-degree cell (-1 none) }
@@ -33440,6 +33441,9 @@ function build() {
     for (let k = 0; k <= steps; k++) { const lat = A.lat + ((B.lat - A.lat) * k) / steps; const lon = A.lon + ((B.lon - A.lon) * k) / steps; const [i, j] = cellIdx(lat, lon); const q = grid[j * W + i]; if (q >= 0 && q !== seq[seq.length - 1]) seq.push(q); }
     for (let k = 0; k < seq.length; k++) { const P = pv[seq[k]]; P.infra = Math.min(5, Math.max(P.infra, kind === 1 ? 3 : 2)); if (k) { const Q = pv[seq[k - 1]]; if (!P.road.includes(Q.n)) P.road.push(Q.n); if (!Q.road.includes(P.n)) Q.road.push(P.n); if (kind === 1) { if (!P.rail.includes(Q.n)) P.rail.push(Q.n); if (!Q.rail.includes(P.n)) Q.rail.push(P.n); } } }
   }
+  // a name: the main place in it (a capital, then a town, a port, a works), else its state's name and a number
+  const RANK = { c: 6, t: 5, p: 4, r: 3, m: 3, b: 2, f: 2, a: 1 }; const seen = new Map();
+  for (const p of pv) { const pl = p.places.map((nm) => ATLAS.places.find((q) => q.name === nm)).sort((a, b) => (RANK[b.kind] || 0) - (RANK[a.kind] || 0) || (a.name < b.name ? -1 : 1))[0]; if (pl) p.name = pl.name; else { const st = STATES.find((x) => x.id === p.state); const k = (seen.get(p.state) || 0) + 1; seen.set(p.state, k); p.name = `${st.name} ${k}`; } }
   const index = new Map(pv.map((p) => [p.id, p]));
   return { list: pv, index, grid, w: W, h: H, placeOf };
 }
@@ -33638,6 +33642,11 @@ function raise(game, { template, name, squads }) {
   w.battalions.push(bn); note(w, game, `${bn.name} is raised: ${P.people} soldiers, ${P.vehicles} vehicles, ${leader.name} commanding.`);
   return { ok: true, text: `${bn.name} is raised under ${leader.name}.`, id };
 }
+/** Soldiers of a battalion that is away are on a post (not drawn at the base, not for dismissal); at home they are not. */
+function posting(game, bn, on) {
+  const C = peekMilitary(game)?.company; if (!C) return;
+  for (const sid of bn.squads) for (const m of C.squads.find((q) => q.id === sid)?.members || []) { const p = C.personnel.find((x) => x.id === m); if (p) { if (on) p.post = `battalion:${bn.id}`; else if (String(p.post).startsWith('battalion:')) p.post = null; } }
+}
 function release(game, bn) {
   const C = peekMilitary(game)?.company; if (!C) return;
   for (const sid of bn.squads) { const s = C.squads.find((q) => q.id === sid); if (!s) continue; s.status = 'home'; delete s.battalion; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'deployed') x.status = 'assigned'; } }
@@ -33664,7 +33673,7 @@ function statsOf(game, bn) {
 // ---- theatres and employers
 const warBetween = (game, a, b) => (game.corp?.geo?.peek?.()?.events || []).some((e) => e.kind === 'war' && e.status === 'active' && e.parties.includes(a) && e.parties.includes(b));
 function theatres(game) {
-  return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
+  return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.split(/\s*\+\s*/).includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
 }
 const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
 const inTheatre = (th) => (p) => th.states.includes(p.state);
@@ -33684,7 +33693,7 @@ function enlist(game, { theatre, side }) {
   const st = staging(game, th, side); if (!st) return { ok: false, text: `${countryName(side)} holds no ground in ${th.name} to land you on.` };
   const enemy = th.between.find((c) => c !== side);
   w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
-  return { ok: true, text: `You serve ${countryName(side)} against ${countryName(enemy)} in ${th.name}. Landing at ${st.id}.` };
+  return { ok: true, text: `You serve ${countryName(side)} against ${countryName(enemy)} in ${th.name}. Landing at ${st.name}.` };
 }
 function discharge(game) {
   const w = warOf(game); if (!w?.employer) return { ok: false, text: 'You serve no one.' };
@@ -33699,7 +33708,7 @@ function deploy(game, id) {
   if (!w.employer) return { ok: false, text: 'Enlist in a theatre first.' };
   if (bn.status !== 'home') return { ok: false, text: `${bn.name} is ${bn.status}.` };
   const to = provinceById(w.employer.staging); const days = sealDays(provinceById(bn.home), to);
-  bn.status = 'deploying'; bn.arrive = nowHour(game) + days * 24; bn.target = to.id; note(w, game, `${bn.name} sails for ${to.id}: ${days} days.`);
+  posting(game, bn, true); bn.status = 'deploying'; bn.arrive = nowHour(game) + days * 24; bn.target = to.id; note(w, game, `${bn.name} sails for ${to.name}: ${days} days.`);
   return { ok: true, text: `${countryName(w.employer.side)}'s ships carry ${bn.name}: ${days} days.`, days };
 }
 function recall(game, id) {
@@ -33729,7 +33738,7 @@ function order(game, id, o) {
   if (bn.status !== 'theatre') return { ok: false, text: bn.status === 'home' ? `${bn.name} is at home: send it to the theatre first.` : `${bn.name} is at sea.` };
   if (bn.engaged) return { ok: false, text: `${bn.name} is in a battle: choose how to fight it first.` };
   const e = w.employer; const here = provinceById(bn.pos);
-  if (o.type === 'hold' || o.type === 'defend') { bn.order = { type: o.type }; bn.moving = null; bn.path = []; return { ok: true, text: o.type === 'defend' ? `${bn.name} digs in at ${here.id}.` : `${bn.name} holds.` }; }
+  if (o.type === 'hold' || o.type === 'defend') { bn.order = { type: o.type }; bn.moving = null; bn.path = []; return { ok: true, text: o.type === 'defend' ? `${bn.name} digs in at ${here.name}.` : `${bn.name} holds.` }; }
   if (o.type === 'withdraw') o = { type: 'move', to: e.staging };
   if (o.type === 'move') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
@@ -33737,7 +33746,7 @@ function order(game, id, o) {
     if (!friendly(game, to)) return { ok: false, text: 'That ground is not yours: attack it from a province next to it.' };
     const r = route(game, bn, to); if (!r) return { ok: false, text: 'There is no way there through ground you hold.' };
     bn.order = { type: 'move', to: to.id }; bn.path = r.path.slice(1); const first = provinceById(r.path[0]); bn.moving = { to: first.id, left: legHours(game, bn, here, first), attack: false }; bn.entrench = 0;
-    return { ok: true, text: `${bn.name} sets out for ${to.id}: about ${r.hours} hours.`, hours: r.hours };
+    return { ok: true, text: `${bn.name} sets out for ${to.name}: about ${r.hours} hours.`, hours: r.hours };
   }
   if (o.type === 'attack') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
@@ -33746,22 +33755,22 @@ function order(game, id, o) {
     if (!here.neighbours.includes(to.n)) return { ok: false, text: 'Move next to it first: an attack goes into the next province.' };
     if (bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
     bn.order = { type: 'attack', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: legHours(game, bn, here, to), attack: true }; bn.entrench = 0;
-    return { ok: true, text: `${bn.name} moves on ${to.id}: contact in about ${Math.round(bn.moving.left)} hours.` };
+    return { ok: true, text: `${bn.name} moves on ${to.name}: contact in about ${Math.round(bn.moving.left)} hours.` };
   }
   return { ok: false, text: 'No such order.' };
 }
 
 // ---- time
 function arrive(game, w, bn, hour) {
-  if (bn.status === 'deploying') { bn.status = 'theatre'; bn.pos = bn.target; bn.arrive = null; bn.order = { type: 'hold' }; note(w, game, `${bn.name} lands at ${bn.pos}.`); game.notify?.(`${bn.name} has landed at ${bn.pos}.`, 'info'); }
-  else if (bn.status === 'returning') { bn.status = 'home'; bn.pos = bn.home; bn.arrive = null; note(w, game, `${bn.name} is home.`); game.notify?.(`${bn.name} is home.`, 'info'); }
+  if (bn.status === 'deploying') { bn.status = 'theatre'; bn.pos = bn.target; bn.arrive = null; bn.order = { type: 'hold' }; note(w, game, `${bn.name} lands at ${provinceById(bn.pos).name}.`); game.notify?.(`${bn.name} has landed at ${provinceById(bn.pos).name}.`, 'info'); }
+  else if (bn.status === 'returning') { posting(game, bn, false); bn.status = 'home'; bn.pos = bn.home; bn.arrive = null; note(w, game, `${bn.name} is home.`); game.notify?.(`${bn.name} is home.`, 'info'); }
   void hour;
 }
 function contact(game, w, bn, prov) {
   const C = peekMilitary(game)?.company; const g = garrisonOf(game, prov);
   bn.moving = null; bn.order = { type: 'hold' };
-  const id = openStrategic(game, { battalion: bn, province: prov, enemy: g, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.id}` });
-  if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.id}.`); game.notify?.(`${bn.name} is in contact at ${prov.id}: choose how to fight it.`, 'warn'); }
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy: g, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
+  if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.name}.`); game.notify?.(`${bn.name} is in contact at ${prov.name}: choose how to fight it.`, 'warn'); }
   void C;
 }
 const recipeOf = (p) => (p.terrain === 'urban' ? 'city' : p.fort >= 3 ? 'compound' : p.fort >= 2 ? 'trench' : p.terrain === 'forest' || p.terrain === 'jungle' ? 'forest' : 'fields');
@@ -33780,7 +33789,7 @@ function advance(game) {
           if (bn.moving.left <= 0) {
             const dest = provinceById(bn.moving.to);
             if (bn.moving.attack) contact(game, w, bn, dest);
-            else { bn.pos = dest.id; bn.org = Math.max(0, bn.org - BATTALION.moveCost); const nx = bn.path.shift(); if (nx) { const nxt = provinceById(nx); bn.moving = { to: nx, left: legHours(game, bn, dest, nxt), attack: false }; } else { bn.moving = null; bn.order = { type: 'hold' }; game.notify?.(`${bn.name} has arrived at ${dest.id}.`, 'info'); } }
+            else { bn.pos = dest.id; bn.org = Math.max(0, bn.org - BATTALION.moveCost); const nx = bn.path.shift(); if (nx) { const nxt = provinceById(nx); bn.moving = { to: nx, left: legHours(game, bn, dest, nxt), attack: false }; } else { bn.moving = null; bn.order = { type: 'hold' }; game.notify?.(`${bn.name} has arrived at ${dest.name}.`, 'info'); } }
           }
         } else if (bn.order.type === 'defend' && h % BATTALION.entrenchHours === 0) bn.entrench = Math.min(BATTALION.entrenchMax, bn.entrench + 1);
       }
@@ -33806,7 +33815,7 @@ function dayTick(game) {
 function resolved(game, C, eng, R) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
   const prov = provinceById(eng.strategic.prov); const obj = R.objectives; bn.engaged = null; bn.order = { type: 'hold' }; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[obj]);
-  let line = `${bn.name} at ${prov.id}: `;
+  let line = `${bn.name} at ${prov.name}: `;
   if (obj >= 2) {
     w.control[prov.id] = w.employer.side; bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
@@ -33815,14 +33824,14 @@ function resolved(game, C, eng, R) {
   } else line += obj === 1 ? 'a stalemate: the enemy still holds.' : 'repulsed.';
   // the squads came back from the field: they belong to the battalion again
   const live = []; for (const sid of bn.squads) { const s = C.squads.find((q) => q.id === sid); if (!s) continue; if (!s.members.length && !s.equipment.length) { C.squads = C.squads.filter((q) => q !== s); continue; } live.push(sid); s.status = 'battalion'; s.battalion = bn.id; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'assigned') x.status = 'deployed'; } }
-  bn.squads = live; const cmd = C.personnel.find((p) => p.id === bn.commander);
+  bn.squads = live; posting(game, bn, true); const cmd = C.personnel.find((p) => p.id === bn.commander);
   if (!cmd || cmd.status !== 'active') { const next = bn.squads.map((sid) => C.personnel.find((p) => p.id === C.squads.find((q) => q.id === sid)?.leader)).find((p) => p && p.status === 'active'); bn.commander = next?.id || null; if (!next) line += ' It has lost its commander.'; }
   if (!bn.squads.length) { w.battalions = w.battalions.filter((b) => b !== bn); line += ' Nothing is left of it.'; }
   note(w, game, line);
 }
 function withdrawn(game, C, eng) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
-  bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${eng.strategic.prov}.`);
+  bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${provinceById(eng.strategic.prov).name}.`);
 }
 hooks.strategicResolved = resolved; hooks.strategicWithdrawn = withdrawn;
 
@@ -79196,7 +79205,7 @@ function strategicPanel(ui, body) {
   };
   const paintLeft = () => {
     const v = S.view; const kids = [h('h3', {}, 'ORDER OF BATTLE'), h('small', {}, v.employer ? `${v.employer.theatreName} · for ${v.employer.sideName}` : 'Not enlisted')];
-    for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${b.pos}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
+    for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${provinceById(b.pos).name}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
     if (!v.battalions.length) kids.push(h('p', { class: 'stc-note' }, 'No battalions yet. Raise one from your squads.'));
     kids.push(h('div', { class: 'stc-btns' }, h('button', { class: 'pri', onclick: () => openRaise() }, 'Raise a battalion'), h('button', { onclick: () => openDesigner() }, 'Templates'), v.employer ? h('button', { onclick: () => act(W.discharge()) }, 'Leave the service') : h('button', { class: 'pri', onclick: () => openEnlist() }, 'Enlist in a theatre')));
     left.replaceChildren(...kids);
@@ -79208,7 +79217,7 @@ function strategicPanel(ui, body) {
     const parts = [`${s.people} soldiers in ${b.squadNames.join(', ')}`, `${s.vehicles} vehicles`, b.commanderName ? `Commander ${b.commanderName}` : 'No commander', b.template ? `Template: ${b.template.name}` : ''].filter(Boolean);
     const ord = (type, label, mode) => h('button', { class: S.mode === mode ? 'on' : '', disabled: b.status !== 'theatre' || Boolean(b.engaged), onclick: () => { if (mode) { S.mode = S.mode === mode ? null : mode; say(S.mode ? `${label}: click a province.` : 'Cancelled.'); refresh(); } else act(W.battalionOrder(b.id, { type })); } }, label);
     const eng = b.engaged ? W.engagement(b.engaged) : null;
-    right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${b.pos}` : ''}`),
+    right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${provinceById(b.pos).name}` : ''}`),
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
       h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('p', { class: 'stc-note' }, 'Supply and fuel arrive with the supply update (v0.103.1).'),
@@ -79227,7 +79236,7 @@ function strategicPanel(ui, body) {
     const v = S.view; const e = v.employer; const c = e ? v.provinces.find((q) => q.id === p.id) : null; const fx = TERRAIN_FX[p.terrain];
     const lines = [`Terrain: ${TERRAIN[p.terrain].name}${p.coast ? ' · coast' : ''} · speed ×${fx.speed} · defence ×${fx.def}`, `Controller: ${ATLAS.countries[c?.controller || p.country]?.name} · Infrastructure ${p.infra} · Fort ${p.fort}`, `Victory points ${p.vp}${p.port ? ' · port' : ''}${p.airfield ? ' · airfield' : ''}${p.rail.length ? ' · railway' : ''}`];
     if (c && c.controller === e.enemy) lines.push(`Garrison (reported): about ${c.garrison.troops} troops${c.garrison.armour ? `, ${c.garrison.armour} armour` : ''}?`);
-    return [h('b', {}, `${p.id.toUpperCase()} · ${p.state}`), ...lines.map((t) => h('div', {}, t))];
+    return [h('b', {}, `${p.name} · ${ATLAS.states.find((x) => x.id === p.state)?.name}`), ...lines.map((t) => h('div', {}, t))];
   };
   const onMove = (e) => {
     const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left; const y = e.clientY - r.top;

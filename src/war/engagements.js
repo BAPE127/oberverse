@@ -171,7 +171,7 @@ export function openStrategic(game, { battalion, province, enemy, recipe, terrai
   const C = peekMilitary(game)?.company; if (!C?.identity) return null;
   const day = game.clock.day; const st = ATLAS.states.find((x) => x.id === province.state);
   const id = nextId(C, 'N');
-  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.id}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.id, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
+  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.name}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.name, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
   return id;
 }
 
@@ -292,9 +292,10 @@ export function dayTick(game) {
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
-  const open = list.filter((x) => x.state === 'open').length;
+  const open = list.filter((x) => x.state === 'open' && !x.strategic).length;
   if (built && open < maxOpen(reputation(game)) && unit(`${salt(game)}|engday|${day}`) < E.chance) offerOne(game, C, day);
-  const ended = list.filter((x) => !['open', 'delegated', 'tactical'].includes(x.state));
+  const ended = list.filter((x) => !x.strategic && !['open', 'delegated', 'tactical'].includes(x.state));
+  const sEnded = list.filter((x) => x.strategic && !['open', 'delegated', 'tactical'].includes(x.state)); if (sEnded.length > 8) { const drop = new Set(sEnded.slice(0, sEnded.length - 8)); C.engagements = list.filter((x) => !drop.has(x)); }
   if (ended.length > E.kept) { const drop = new Set(ended.slice(0, ended.length - E.kept)); C.engagements = list.filter((x) => !drop.has(x)); }
 }
 

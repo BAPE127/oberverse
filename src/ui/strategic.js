@@ -82,7 +82,7 @@ export function strategicPanel(ui, body) {
   };
   const paintLeft = () => {
     const v = S.view; const kids = [h('h3', {}, 'ORDER OF BATTLE'), h('small', {}, v.employer ? `${v.employer.theatreName} · for ${v.employer.sideName}` : 'Not enlisted')];
-    for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${b.pos}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
+    for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${provinceById(b.pos).name}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
     if (!v.battalions.length) kids.push(h('p', { class: 'stc-note' }, 'No battalions yet. Raise one from your squads.'));
     kids.push(h('div', { class: 'stc-btns' }, h('button', { class: 'pri', onclick: () => openRaise() }, 'Raise a battalion'), h('button', { onclick: () => openDesigner() }, 'Templates'), v.employer ? h('button', { onclick: () => act(W.discharge()) }, 'Leave the service') : h('button', { class: 'pri', onclick: () => openEnlist() }, 'Enlist in a theatre')));
     left.replaceChildren(...kids);
@@ -94,7 +94,7 @@ export function strategicPanel(ui, body) {
     const parts = [`${s.people} soldiers in ${b.squadNames.join(', ')}`, `${s.vehicles} vehicles`, b.commanderName ? `Commander ${b.commanderName}` : 'No commander', b.template ? `Template: ${b.template.name}` : ''].filter(Boolean);
     const ord = (type, label, mode) => h('button', { class: S.mode === mode ? 'on' : '', disabled: b.status !== 'theatre' || Boolean(b.engaged), onclick: () => { if (mode) { S.mode = S.mode === mode ? null : mode; say(S.mode ? `${label}: click a province.` : 'Cancelled.'); refresh(); } else act(W.battalionOrder(b.id, { type })); } }, label);
     const eng = b.engaged ? W.engagement(b.engaged) : null;
-    right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${b.pos}` : ''}`),
+    right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${provinceById(b.pos).name}` : ''}`),
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
       h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('p', { class: 'stc-note' }, 'Supply and fuel arrive with the supply update (v0.103.1).'),
@@ -113,7 +113,7 @@ export function strategicPanel(ui, body) {
     const v = S.view; const e = v.employer; const c = e ? v.provinces.find((q) => q.id === p.id) : null; const fx = TERRAIN_FX[p.terrain];
     const lines = [`Terrain: ${TERRAIN[p.terrain].name}${p.coast ? ' · coast' : ''} · speed ×${fx.speed} · defence ×${fx.def}`, `Controller: ${ATLAS.countries[c?.controller || p.country]?.name} · Infrastructure ${p.infra} · Fort ${p.fort}`, `Victory points ${p.vp}${p.port ? ' · port' : ''}${p.airfield ? ' · airfield' : ''}${p.rail.length ? ' · railway' : ''}`];
     if (c && c.controller === e.enemy) lines.push(`Garrison (reported): about ${c.garrison.troops} troops${c.garrison.armour ? `, ${c.garrison.armour} armour` : ''}?`);
-    return [h('b', {}, `${p.id.toUpperCase()} · ${p.state}`), ...lines.map((t) => h('div', {}, t))];
+    return [h('b', {}, `${p.name} · ${ATLAS.states.find((x) => x.id === p.state)?.name}`), ...lines.map((t) => h('div', {}, t))];
   };
   const onMove = (e) => {
     const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left; const y = e.clientY - r.top;

@@ -5,7 +5,10 @@ import assert from 'node:assert/strict';
 import { armedCompany } from './war_helpers.mjs';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { Game, CONTENT } from './helpers.mjs';
-import { needsOf, garrisonOf, controllerOf, DEFAULT_TEMPLATES, statsOf } from '../src/war/strategic.js';
+import { needsOf, garrisonOf, controllerOf, DEFAULT_TEMPLATES, statsOf, recipeOf, battleTerrain } from '../src/war/strategic.js';
+import { openStrategic } from '../src/war/engagements.js';
+import { createBattle, run } from '../src/battle/sim.js';
+import { styleOf } from '../src/content/battle.js';
 import { provinceById, provinces } from '../src/world/provinces.js';
 import { RETAINER, SEALIFT } from '../src/content/strategic.js';
 
@@ -45,7 +48,7 @@ test('a raised battalion owns its squads and vehicles: they cannot be given to a
 
 test('enlisting: a licensed company, a theatre where they are fighting, one of the two sides; then the employer carries the battalion over in days and it lands on ground its side holds', () => {
   const { g, id, bn } = raised(1403); const th = g.war.theatres();
-  assert.ok(th.find((t) => t.id === 'th_halden').hot, 'the one big land front is hot'); assert.ok(!th.some((t) => t.id === 'th_marches'), 'the Free Marches have no two sides to take');
+  assert.ok(th.find((t) => t.id === 'th_halden').hot, 'the one big land front is hot'); for (const id of ['th_northern', 'th_rift']) assert.ok(!th.find((t) => t.id === id).hot, `${id} has a landing, not a land front`); assert.ok(!th.some((t) => t.id === 'th_marches'), 'the Free Marches have no two sides to take');
   assert.ok(!g.war.enlist({ theatre: 'th_halden', side: 'sund' }).ok, 'not a country fighting there'); assert.ok(!g.war.enlist({ theatre: 'th_nowhere', side: 'varn' }).ok);
   assert.ok(!g.war.deploy(id).ok, 'enlist first'); const e = g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); assert.ok(e.ok, e.text);
   assert.ok(!g.war.enlist({ theatre: 'th_halden', side: 'varn' }).ok, 'one employer at a time'); const w = g.war.state().war; const st = provinceById(w.employer.staging); assert.equal(st.country, 'ostmark');
@@ -96,4 +99,24 @@ test('the war survives a save: battalions, employer, ground taken and the hour a
   const f = frontier(g); if (f.from.id !== bn.pos) { g.war.battalionOrder(id, { type: 'move', to: f.from.id }); hours(g, 300); } g.war.battalionOrder(id, { type: 'attack', to: f.to.id }); hours(g, 300); assert.ok(bn.engaged); void C;
   const g2 = roundtrip(g); const w2 = g2.war.state().war; assert.equal(w2.battalions[0].engaged, bn.engaged); assert.equal(w2.employer.side, 'ostmark'); assert.equal(w2.hour, g.war.state().war.hour); assert.deepEqual(g2.war.check(), []);
   assert.equal(g2.war.strategic().battalions[0].stats.strength, 100); assert.ok(g2.war.strategic().provinces.length > 30);
+});
+
+test('a battle on the map can be played yourself on every kind of ground: a city, a strong fort, a forest', () => {
+  const kinds = [['urban', (p) => p.terrain === 'urban'], ['fort', (p) => p.fort >= 3 && p.terrain !== 'urban'], ['forest', (p) => p.terrain === 'forest']];
+  for (const [name, test] of kinds) {
+    const { g, C, id, bn } = raised(1410 + name.length); const prov = provinces().find(test); assert.ok(prov, name);
+    const eid = openStrategic(g, { battalion: bn, province: prov, enemy: { troops: 6, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `test ${name}` });
+    const eng = C.engagements.find((x) => x.id === eid); assert.equal(eng.state, 'open'); assert.ok(!g.war.playEngagement(eid, ['nope']).ok, 'only the battalion\'s own squads');
+    const r = g.war.playEngagement(eid, bn.squads); assert.ok(r.ok, `${name}: ${r.text}`); assert.equal(eng.state, 'tactical');
+    const B = createBattle({ ...eng.battle.setup, ai: { p: true, e: true } }); run(B, 80); assert.ok(B.units.length > 10, `${name}: a battle was made`); assert.equal(eng.battle.setup.map.recipe, recipeOf(prov)); void id;
+  }
+});
+
+test('soldiers of a battalion that is away are on a post, and at home they are not; names, not codes, are what the map and the log say', () => {
+  const { g, C, id, bn } = raised(1415); const people = () => bn.squads.flatMap((sid) => C.squads.find((q) => q.id === sid).members).map((m) => C.personnel.find((p) => p.id === m));
+  assert.ok(people().every((p) => !p.post), 'at home: no post'); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(id);
+  assert.ok(people().every((p) => p.post === `battalion:${id}`), 'at sea: on a post'); hours(g, d.days * 24 + 1); assert.ok(people().every((p) => p.post === `battalion:${id}`));
+  assert.ok(!g.war.dismiss?.(people()[0].id)?.ok, 'cannot be dismissed while away'); assert.ok(g.war.state().war.log.some((l) => /lands at /.test(l.text) && !/P\d+_\d+/.test(l.text)), 'the log names the place');
+  const r = g.war.recall(id); assert.ok(r.ok); hours(g, r.days * 24 + 1); assert.equal(bn.status, 'home'); assert.ok(people().every((p) => !p.post), 'home again: no post'); assert.deepEqual(g.war.check(), []);
+  assert.ok(provinces().every((p) => p.name && p.name.length > 2)); assert.equal(provinceById(g.war.state().war.employer.staging).name.length > 2, true);
 });

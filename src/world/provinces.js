@@ -2,7 +2,7 @@
 // docs/mockups/atlas-src/render.mjs), each half-degree cell of land going to the nearest seed of its own state. Pure and deterministic: nothing here is saved, and a province's id never
 // changes (it is the lattice cell it grew from, or `H_<state>` for a state too small to catch a seed).
 //
-//   provinces()            every province, in id order: { id, n, state, country, lat, lon, cells, terrain, coast, infra, vp, port, airfield, fort, capital, rail, road, places, neighbours, width } (rail and road list the provinces joined by a main road or any road)
+//   provinces()            every province, in id order: { id, name, n, state, country, lat, lon, cells, terrain, coast, infra, vp, port, airfield, fort, capital, rail, road, places, neighbours, width } (rail and road list the provinces joined by a main road or any road)
 //   provinceById(id)       one province or null
 //   provinceAt(lat, lon)   the province of a point of land, or null at sea / unclaimed / the southern ice
 //   provinceGrid()         { w, h, grid: Int16Array of province index per half-degree cell (-1 none) }
@@ -100,6 +100,9 @@ function build() {
     for (let k = 0; k <= steps; k++) { const lat = A.lat + ((B.lat - A.lat) * k) / steps; const lon = A.lon + ((B.lon - A.lon) * k) / steps; const [i, j] = cellIdx(lat, lon); const q = grid[j * W + i]; if (q >= 0 && q !== seq[seq.length - 1]) seq.push(q); }
     for (let k = 0; k < seq.length; k++) { const P = pv[seq[k]]; P.infra = Math.min(5, Math.max(P.infra, kind === 1 ? 3 : 2)); if (k) { const Q = pv[seq[k - 1]]; if (!P.road.includes(Q.n)) P.road.push(Q.n); if (!Q.road.includes(P.n)) Q.road.push(P.n); if (kind === 1) { if (!P.rail.includes(Q.n)) P.rail.push(Q.n); if (!Q.rail.includes(P.n)) Q.rail.push(P.n); } } }
   }
+  // a name: the main place in it (a capital, then a town, a port, a works), else its state's name and a number
+  const RANK = { c: 6, t: 5, p: 4, r: 3, m: 3, b: 2, f: 2, a: 1 }; const seen = new Map();
+  for (const p of pv) { const pl = p.places.map((nm) => ATLAS.places.find((q) => q.name === nm)).sort((a, b) => (RANK[b.kind] || 0) - (RANK[a.kind] || 0) || (a.name < b.name ? -1 : 1))[0]; if (pl) p.name = pl.name; else { const st = STATES.find((x) => x.id === p.state); const k = (seen.get(p.state) || 0) + 1; seen.set(p.state, k); p.name = `${st.name} ${k}`; } }
   const index = new Map(pv.map((p) => [p.id, p]));
   return { list: pv, index, grid, w: W, h: H, placeOf };
 }
