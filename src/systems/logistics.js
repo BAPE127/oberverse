@@ -405,7 +405,7 @@ export class Logistics {
     const hours = this.sailHours(km, st.speed);
     const days = hours / 24;
     const opex = Math.ceil(Math.max(0.25, days) * st.opex);
-    const fees = (this.ownsPort(from) ? 0 : this.portType(from).fee) + (this.ownsPort(to) ? 0 : this.portType(to)?.fee || 0);
+    const fees = Math.round(((this.ownsPort(from) ? 0 : this.portType(from).fee) + (this.ownsPort(to) ? 0 : this.portType(to)?.fee || 0)) * (this.game.politics?.portFeeFactor() ?? 1)); // v0.96.0: licensing and inspection fees follow the government's regulation
     return { ok: reasons.length === 0, reasons, km, hours, load, opex, fees, cost: opex + fees, route: r };
   }
 

@@ -307,7 +307,7 @@ export class Market {
     s.orders = s.orders.filter((o) => (o.status === 'open' ? o.expires >= g.clock.day : g.clock.day - o.posted < 7));
     for (const [id, c] of Object.entries(s.countries)) {
       const def = this.cfg.countries[id];
-      c.budget = Math.min(def.budget * 3, c.budget + def.income * INCOME.armsDemand * (this.warOf(id) ? 1.5 : 1)); // (INCOME.armsDemand: v0.91.4)
+      c.budget = Math.min(def.budget * 3, c.budget + def.income * INCOME.armsDemand * (this.warOf(id) ? 1.5 : 1) * (id === 'sund' ? g.politics?.sundArmsFactor() ?? 1 : 1)); // (INCOME.armsDemand: v0.91.4; Sund's own defence spending: v0.96.0)
       for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
       c.hostility = Math.max(0, c.hostility - 5);
     }

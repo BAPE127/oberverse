@@ -17,6 +17,7 @@ import { compute, poll as takePoll } from '../politics/opinion.js';
 import { POLLSTERS, OPINION as OP } from '../content/opinion.js';
 import { electionMethods } from './politicsElections.js';
 import { influenceMethods } from './politicsInfluence.js';
+import { economyMethods } from './politicsEconomy.js';
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -125,7 +126,7 @@ export class Politics {
   /** This month's budget from what is in force today. */
   budgetNow(s) {
     const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
-    return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate() });
+    return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate(), extra: this.bondPremium() });
   }
 
   /** One government day: policies in progress move on (the Assembly votes when review ends); every seventh day the cabinet proposes; every thirtieth the budget window closes. Idempotent per day. */
@@ -274,6 +275,6 @@ export class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods); // v0.95.0: elections and campaigns; influence
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 export { PARTY_IDS };

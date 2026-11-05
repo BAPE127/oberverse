@@ -37,6 +37,11 @@ function governmentTab(ui, body) {
     tiles([{ n: String(G.active.length), t: 'policies in force' }, { n: String(G.coming.length), t: 'on their way' }, { n: k(b.debt), t: 'state debt' }]),
     list(...(G.active.length ? G.active.map(policy) : [row({ icon: '—', title: 'Nothing in force', sub: 'The government has no programmes yet.' })])));
   if (G.coming.length) body.append(list(...G.coming.map(policy)));
+  const fxv = g.politics.effectLines();
+  body.append(list(
+    row({ icon: '🧾', title: 'What the policies mean for you', sub: fxv.lines.length ? 'Each is a bounded change to a price or a fee, never a gift. A fee you pay is the state\'s revenue.' : 'None of the policies in force reaches your businesses yet.', tag: fxv.paid.total ? `fees paid ${n(fxv.paid.total)}` : null }),
+    ...fxv.lines.map((l) => row({ icon: '↳', title: l.name, sub: l.text })),
+    fxv.premium > 0 ? row({ icon: '🏦', title: 'The state\'s debt and the bond', sub: `The state\'s debt and deficit add ${(fxv.premium * 100).toFixed(2)} points to what Sund\'s government bond pays.` }) : null));
   body.append(help('How the government works', 'The cabinet meets every seventh day and proposes the one policy it most believes in and can afford. A policy goes to the Assembly\'s committee, then to a vote (a hundred seats; a bill passes on more than fifty), then is set up and comes into force. A new policy repeals its opposite.', 'In this update a policy changes only the state\'s books and, later, what the public thinks. It does not yet change any price, cost, the police or any war you play with; that comes with the economy update. You never have to take part.'));
   body.append(fold(ui, 'PoliticsGov', 'The decisions, and what ended ›', (box) => {
     box.append(list(...G.decisions.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text }))));

@@ -133,5 +133,5 @@ export class Geo {
   costFactor(sector, day = this.day) { return this.events().length ? (indices(this.events(), day, this.ctx(), G).cost[sector] ?? 1) : 1; }
 
   /** The expected-earnings change the market prices into a company's fair price today (a fraction; 0 with no events). */
-  sentiment(company, day = this.day) { return this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0; }
+  sentiment(company, day = this.day) { return (this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0) + (this.g.politics?.sectorSentiment(company.sector) || 0); } // v0.96.0: plus what the government's policies mean for the sector
 }

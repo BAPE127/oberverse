@@ -25,6 +25,8 @@ import { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomV
 import { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } from '../aero/pipeline.js';
 import { freshBooks, post, summarise, revenueAccount, flowOf } from '../aero/books.js';
 import { configure, cleanConfig, configError, configLabel } from '../aero/config.js';
+import { EFFECTS as FX_CFG } from '../content/effects.js';
+const PUBLIC_CUSTOMERS = FX_CFG.publicCustomers;
 import { makeTender, bidError, rankBids, launchAllowance } from '../aero/tenders.js';
 import { fairValue, nextPrice } from '../aero/valuation.js';
 import { rivalMorning } from '../aero/rival.js';
@@ -2435,7 +2437,7 @@ export class Aerospace {
     // customers' budgets come back; suppliers restock
     for (const [id, cu] of Object.entries(C.customers)) {
       const st = s.customers[id];
-      st.budget = Math.min(cu.budget, st.budget + Math.round(cu.budget * C.budgetDaily));
+      st.budget = Math.min(cu.budget, st.budget + Math.round(cu.budget * C.budgetDaily * (PUBLIC_CUSTOMERS.includes(id) ? this.game.politics?.publicBudgetFactor() ?? 1 : 1))); // v0.96.0: Sund's public customers follow public spending
     }
     for (const [id, sp] of Object.entries(C.suppliers)) {
       const st = s.suppliers[id];

@@ -186,7 +186,7 @@ test('the market\'s reaction is public, bounded and short; it is a premium on bo
   arm(g); g.robbery.minuteTick(); g.interact({ id: 'bank_tellers' }); minutes(g, 5); g.interact({ id: 'bank_vault' });
   const p0 = g.robbery.premium();
   assert.ok(p0 > 0 && p0 <= R.premium.max, `premium ${p0}`);
-  assert.equal(g.corp.bonds.base(), g.corp.bank.rate() + g.corp.geo.premium() + p0);
+  assert.equal(g.corp.bonds.base(), g.corp.bank.rate() + g.corp.geo.premium() + p0 + g.politics.bondPremium()); // (v0.96.0: plus the state's own debt premium)
   assert.equal(g.corp.bank.rate(), g.corp.bank.rate(), 'the policy rate is the bank\'s alone');
   assert.ok(g.robbery.news().some((n) => /was robbed/.test(n.text)), 'it is in the news');
   assert.equal(Object.keys(g.robbery.view()).length, 2); assert.equal(g.robbery.view().first.state, 'police');

@@ -20,7 +20,7 @@ export class Bonds {
   ensure() { return (this.K.state.bonds ||= { v: 1, lots: [], nextId: 1, log: [], earned: 0, lastDay: 0 }); }
   rate() { return this.K.bank.rate(); }
   /** What yields are built on: the policy rate and what the wars of the day add (v0.76.0). */
-  base() { return this.rate() + this.K.geo.premium() + this.K.game.robbery.premium(); }
+  base() { return this.rate() + this.K.geo.premium() + this.K.game.robbery.premium() + (this.K.game.politics?.bondPremium() || 0); } // v0.96.0: the state's debt and deficit
   /** What lending counts: the same without a robbery's market reaction (a robbery of the central bank never changes what you may borrow) — v0.79.0. */
   collateral() { return this.lots().map((l) => ({ years: l.years, value: valueOf(l, this.day, this.rate() + this.K.geo.premium()) })); }
 

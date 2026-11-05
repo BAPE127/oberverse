@@ -26733,7 +26733,7 @@ class Market {
     s.orders = s.orders.filter((o) => (o.status === 'open' ? o.expires >= g.clock.day : g.clock.day - o.posted < 7));
     for (const [id, c] of Object.entries(s.countries)) {
       const def = this.cfg.countries[id];
-      c.budget = Math.min(def.budget * 3, c.budget + def.income * INCOME.armsDemand * (this.warOf(id) ? 1.5 : 1)); // (INCOME.armsDemand: v0.91.4)
+      c.budget = Math.min(def.budget * 3, c.budget + def.income * INCOME.armsDemand * (this.warOf(id) ? 1.5 : 1) * (id === 'sund' ? g.politics?.sundArmsFactor() ?? 1 : 1)); // (INCOME.armsDemand: v0.91.4; Sund's own defence spending: v0.96.0)
       for (const k of Object.keys(c.sat)) c.sat[k] = Math.max(0, c.sat[k] * (1 - m.saturationDecay));
       c.hostility = Math.max(0, c.hostility - 5);
     }
@@ -27323,12 +27323,12 @@ __m["src/politics/budget.js"] = (function () {
 //
 //   monthly(B, { policies, wars, embargoes, debt, rate })  → { revenue, spending: { …lines, policies, interest }, deficit, headroom }
 // Revenue is a model of the country (a fixed base reduced by wars and embargoes); it is never taken from the player. A positive policy cost spends,
-// a negative one saves. Interest is the policy rate plus a premium on the debt stock, a twelfth a month.
-function monthly(B, { policies, wars = 0, embargoes = 0, debt = 0, rate = 0.03 }) {
+// a negative one saves. Interest is the policy rate plus a premium on the debt stock (and, from v0.96.0, what the debt itself adds to the yield: `extra`), a twelfth a month.
+function monthly(B, { policies, wars = 0, embargoes = 0, debt = 0, rate = 0.03, extra = 0 }) {
   const revenue = Math.round(B.revenue * Math.max(0.6, 1 - B.warPenalty * wars - B.embargoPenalty * embargoes));
   const standing = Object.values(B.standing).reduce((a, b) => a + b, 0);
   const policy = policies.reduce((a, p) => a + p.cost, 0);
-  const interest = Math.round((debt * (rate + B.premium)) / 12);
+  const interest = Math.round((debt * (rate + B.premium + extra)) / 12);
   const total = standing + policy + interest;
   const deficit = total - revenue;
   return { revenue, spending: { ...B.standing, policies: policy, interest, total }, deficit, headroom: Math.round(B.revenue * B.deficitLimit) - deficit };
@@ -28500,6 +28500,160 @@ const influenceMethods = {
 return { influenceMethods };
 })();
 
+// ---- src/content/effects.js
+__m["src/content/effects.js"] = (function () {
+// What the government's policies do to you and the economy (v0.96.0). Every figure is a bounded multiplier or a named levy, read where a price or a cost is
+// already worked out; nothing is a new tax on your wallet. A levy you pay is the state's revenue (it reduces the state's debt: no money from nowhere), and every
+// effect is shown to you as a named line (Politics → Government).
+//
+// Policies that name no effect here (police, enforcement, surveillance, commitments abroad) reach the world in later releases (unrest, diplomacy). The knob
+// `enabled` switches every effect off for a parity check: with it off, the game behaves exactly as it did at v0.95.0.
+
+const off = typeof process !== 'undefined' && process.env && process.env.OBERVERSE_POLITICS === 'off';
+
+const EFFECTS = {
+  enabled: !off,
+
+  /** Per policy in force. Each key is a hook (see src/politics/effects.js); a sector map moves what the market expects the sector's companies to earn (a share of price). */
+  policies: {
+    farm_up: { farmFee: 0.04, line: 'Stricter farm inspection: a 4% inspection fee on what you sell from your farm and herds.' },
+    farm_down: { line: 'Lighter farm inspection: no inspection fee on farm sales.', sentiment: { agriculture: 0.01 } },
+    reg_up: { portFees: 0.15, sentiment: { _all: -0.01 }, line: 'More inspections and licences: port and licensing fees on your voyages are 15% higher, and companies expect slightly lower profits.' },
+    reg_down: { portFees: -0.10, sentiment: { _all: 0.008 }, line: 'Less business regulation: port and licensing fees on your voyages are 10% lower, and companies expect slightly higher profits.' },
+    defence_up: { sundArms: 0.5, sentiment: { arms: 0.03, aerospace: 0.01 }, line: 'Raised defence spending: Sund buys more from the arms trade (its arms budget refills 50% faster) and arms companies are expected to earn more.' },
+    defence_down: { sundArms: -0.4, sentiment: { arms: -0.03, aerospace: -0.01 }, line: 'Cut defence spending: Sund buys less (its arms budget refills 40% slower) and arms companies are expected to earn less.' },
+    spend_up: { publicBudgets: 0.4, sentiment: { industrial: 0.01, transport: 0.01 }, line: 'Expanded public spending: Sund\'s public customers (the Space Office, the Met Office) have 40% more to spend on tenders.' },
+    spend_down: { publicBudgets: -0.3, sentiment: { industrial: -0.01, transport: -0.01 }, line: 'Cut public spending: Sund\'s public customers have 30% less to spend on tenders.' },
+  },
+
+  /** Bounds on the sum of every policy's effect, per hook. */
+  bounds: { farmFee: [0, 0.08], portFees: [-0.2, 0.3], sundArms: [-0.6, 1], publicBudgets: [-0.5, 0.8], sentiment: 0.05 },
+
+  /** The tender customers that are Sund's own public bodies. */
+  publicCustomers: ['cu_sund_space', 'cu_halver_weather'],
+
+  /** The state's debt moves the yield of its bond (the one bond, v0.96.0): over `debtFrom` of a year's revenue, and while the month closes in deficit; bounded. Rates, not obols. */
+  debt: { debtFrom: 0.25, perYear: 0.012, deficitPerShare: 0.012, max: 0.015 },
+};
+
+return { EFFECTS };
+})();
+
+// ---- src/politics/effects.js
+__m["src/politics/effects.js"] = (function () {
+// What the policies in force do (v0.96.0). Pure: from the ids of the policies in force, the bounded multipliers and levies, and the lines that say so.
+//
+//   effectsOf(active, E)        → { farmFee, portFees, sundArms, publicBudgets, sentiment: { sector: share }, lines: [{ policy, text }] }  (neutral when E.enabled is false)
+//   sentimentFor(fx, sector)    the policy's share of a sector's expected earnings (bounded)
+//   debtPremium(debt, revenue, deficit, E)   what the state's debt and deficit add to the yield of its bond (a rate; 0 when comfortable)
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function effectsOf(active, E) {
+  const out = { farmFee: 0, portFees: 0, sundArms: 0, publicBudgets: 0, sentiment: {}, lines: [] };
+  if (!E.enabled) return out;
+  for (const id of [...active].sort()) {
+    const p = E.policies[id];
+    if (!p) continue;
+    for (const k of ['farmFee', 'portFees', 'sundArms', 'publicBudgets']) out[k] += p[k] || 0;
+    for (const [s, v] of Object.entries(p.sentiment || {})) out.sentiment[s] = (out.sentiment[s] || 0) + v;
+    if (p.line) out.lines.push({ policy: id, text: p.line });
+  }
+  const B = E.bounds;
+  for (const k of ['farmFee', 'portFees', 'sundArms', 'publicBudgets']) out[k] = clamp(out[k], B[k][0], B[k][1]);
+  for (const s of Object.keys(out.sentiment)) out.sentiment[s] = clamp(out.sentiment[s], -B.sentiment, B.sentiment);
+  return out;
+}
+
+function sentimentFor(fx, sector) {
+  return clamp((fx.sentiment[sector] || 0) + (fx.sentiment._all || 0), -0.05, 0.05);
+}
+
+/** debt, revenue in thousands; deficit is the month's (positive = in deficit). */
+function debtPremium(debt, revenue, deficit, E) {
+  if (!E.enabled || !(revenue > 0)) return 0;
+  const D = E.debt;
+  const yearRatio = debt / (revenue * 12);
+  const p = Math.max(0, yearRatio - D.debtFrom) * D.perYear + Math.max(0, deficit / revenue) * D.deficitPerShare;
+  return Math.round(clamp(p, 0, D.max) / 0.0001) * 0.0001;
+}
+
+return { effectsOf, sentimentFor, debtPremium };
+})();
+
+// ---- src/systems/politicsEconomy.js
+__m["src/systems/politicsEconomy.js"] = (function () {
+// The economy hooks (v0.96.0): what the policies in force do to farms, arms, aerospace tenders, shipping, the exchange and the state's bond. Added to the Politics service.
+// Each hook is a bounded multiplier or a named levy read where a price or a cost is already worked out (src/politics/effects.js, src/content/effects.js). A levy you pay
+// is the state's revenue: it reduces the state's debt (in thousands), so nothing is made from nowhere; nothing here ever pays you.
+const { EFFECTS: E } = __m["src/content/effects.js"];
+const { effectsOf, sentimentFor, debtPremium } = __m["src/politics/effects.js"];
+const { POLICIES, GOVERNMENT: G } = __m["src/content/policies.js"];
+const { monthly } = __m["src/politics/budget.js"];
+
+const NEUTRAL = effectsOf([], { ...E, enabled: false });
+
+const economyMethods = {
+  /** The effects of the policies in force today (neutral until the government exists, or with the knob off). Cached on the policies' own states. */
+  fx() {
+    const s = this.peek();
+    if (!E.enabled || !s?.policies) return NEUTRAL;
+    const active = s.policies.filter((p) => p.state === 'active').map((p) => p.key);
+    const key = active.join(',');
+    if (this._fxKey !== key) { this._fxKey = key; this._fx = effectsOf(active, E); }
+    return this._fx;
+  },
+
+  /** The share of a sector's expected earnings the policies add or take away (bounded). */
+  sectorSentiment(sector) { return sentimentFor(this.fx(), sector); },
+
+  /** A farm sale's inspection fee: returns the fee for a gross sale (and gives it to the state). */
+  farmFee(gross) {
+    const rate = this.fx().farmFee;
+    if (!(rate > 0) || !(gross > 0)) return 0;
+    const fee = Math.round(gross * rate);
+    this.collectLevy(fee, 'farm inspection');
+    return fee;
+  },
+
+  /** Port and licensing fees on a voyage: the base fees × (1 + the policies' change). Not a levy collected here: the voyage's own fees already pay the harbours. */
+  portFeeFactor() { return 1 + this.fx().portFees; },
+
+  /** The multiplier on how fast Sund's own arms budget refills. */
+  sundArmsFactor() { return 1 + this.fx().sundArms; },
+
+  /** The multiplier on how fast Sund's public customers' tender budgets refill. */
+  publicBudgetFactor() { return 1 + this.fx().publicBudgets; },
+
+  /** What a levy you paid does: it is the state's revenue (the debt, in thousands, falls). */
+  collectLevy(amount, kind) {
+    const s = this.peek();
+    if (!s || !(amount > 0)) return;
+    s.levies ||= { total: 0, by: {} };
+    s.levies.total += amount;
+    s.levies.by[kind] = (s.levies.by[kind] || 0) + amount;
+    if (s.budget) s.budget.debt = Math.max(0, s.budget.debt - amount / 1000);
+  },
+
+  /** What the state's debt and deficit add to the yield of its bond (the one bond): a rate, bounded; 0 while comfortable or with the knob off. */
+  bondPremium() {
+    const s = this.peek();
+    if (!s?.budget) return 0;
+    const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
+    const m = monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate() }); // without the premium itself
+    return debtPremium(s.budget.debt, m.revenue, s.budget.last ? s.budget.last.deficit : m.deficit, E);
+  },
+
+  /** The lines the Government page shows: what each policy in force does to you, and what you have paid. */
+  effectLines() {
+    const s = this.ensure();
+    const fx = this.fx();
+    return { enabled: E.enabled, lines: fx.lines.map((l) => ({ ...l, name: POLICIES[l.policy].name })), paid: s.levies || { total: 0, by: {} }, premium: this.bondPremium() };
+  },
+};
+
+return { economyMethods };
+})();
+
 // ---- src/systems/politics.js
 __m["src/systems/politics.js"] = (function () {
 // The political system (v0.93.0): game.politics — the record `world.politics` and the read-only views the Politics app shows.
@@ -28521,6 +28675,7 @@ const { compute, poll: takePoll } = __m["src/politics/opinion.js"];
 const { POLLSTERS, OPINION: OP } = __m["src/content/opinion.js"];
 const { electionMethods } = __m["src/systems/politicsElections.js"];
 const { influenceMethods } = __m["src/systems/politicsInfluence.js"];
+const { economyMethods } = __m["src/systems/politicsEconomy.js"];
 
 const PRESIDENT = new WeakMap(); // a leader's content schedule → the same leader's schedule as President (built once, so identity is stable)
 
@@ -28629,7 +28784,7 @@ class Politics {
   /** This month's budget from what is in force today. */
   budgetNow(s) {
     const active = s.policies.filter((p) => p.state === 'active').map((p) => POLICIES[p.key]);
-    return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate() });
+    return monthly(G.budget, { policies: active, wars: this.wars(), embargoes: this.embargoes(), debt: s.budget.debt, rate: this.rate(), extra: this.bondPremium() });
   }
 
   /** One government day: policies in progress move on (the Assembly votes when review ends); every seventh day the cabinet proposes; every thirtieth the budget window closes. Idempotent per day. */
@@ -28778,7 +28933,7 @@ class Politics {
   }
 }
 
-Object.assign(Politics.prototype, electionMethods, influenceMethods); // v0.95.0: elections and campaigns; influence
+Object.assign(Politics.prototype, electionMethods, influenceMethods, economyMethods); // v0.95.0: elections and campaigns; influence; v0.96.0: the economy hooks
 
 
 
@@ -36886,7 +37041,7 @@ class Logistics {
     const hours = this.sailHours(km, st.speed);
     const days = hours / 24;
     const opex = Math.ceil(Math.max(0.25, days) * st.opex);
-    const fees = (this.ownsPort(from) ? 0 : this.portType(from).fee) + (this.ownsPort(to) ? 0 : this.portType(to)?.fee || 0);
+    const fees = Math.round(((this.ownsPort(from) ? 0 : this.portType(from).fee) + (this.ownsPort(to) ? 0 : this.portType(to)?.fee || 0)) * (this.game.politics?.portFeeFactor() ?? 1)); // v0.96.0: licensing and inspection fees follow the government's regulation
     return { ok: reasons.length === 0, reasons, km, hours, load, opex, fees, cost: opex + fees, route: r };
   }
 
@@ -40179,6 +40334,8 @@ const { quantityError, missingTech, baysFor, apronSize, canLift, unitCost, bomVa
 const { stagesOf, stageDays, stageMaterials, remainingMaterials, newUnit, failChance, launchFailChance, commissionFailChance, workLeft, lastBayStage } = __m["src/aero/pipeline.js"];
 const { freshBooks, post, summarise, revenueAccount, flowOf } = __m["src/aero/books.js"];
 const { configure, cleanConfig, configError, configLabel } = __m["src/aero/config.js"];
+const { EFFECTS: FX_CFG } = __m["src/content/effects.js"];
+const PUBLIC_CUSTOMERS = FX_CFG.publicCustomers;
 const { makeTender, bidError, rankBids, launchAllowance } = __m["src/aero/tenders.js"];
 const { fairValue, nextPrice } = __m["src/aero/valuation.js"];
 const { rivalMorning } = __m["src/aero/rival.js"];
@@ -42589,7 +42746,7 @@ class Aerospace {
     // customers' budgets come back; suppliers restock
     for (const [id, cu] of Object.entries(C.customers)) {
       const st = s.customers[id];
-      st.budget = Math.min(cu.budget, st.budget + Math.round(cu.budget * C.budgetDaily));
+      st.budget = Math.min(cu.budget, st.budget + Math.round(cu.budget * C.budgetDaily * (PUBLIC_CUSTOMERS.includes(id) ? this.game.politics?.publicBudgetFactor() ?? 1 : 1))); // v0.96.0: Sund's public customers follow public spending
     }
     for (const [id, sp] of Object.entries(C.suppliers)) {
       const st = s.suppliers[id];
@@ -43341,7 +43498,7 @@ class Farm {
       total += this.unitPrice(key, base);
       this.state.market[key] = (this.state.market[key] || 0) + 1;
     }
-    return total;
+    return total - (this.game.politics?.farmFee(total) || 0); // v0.96.0: an inspection fee when the government inspects farms more (it is the state's revenue)
   }
 
   coopPrice(itemId) {
@@ -46758,7 +46915,7 @@ class Bonds {
   ensure() { return (this.K.state.bonds ||= { v: 1, lots: [], nextId: 1, log: [], earned: 0, lastDay: 0 }); }
   rate() { return this.K.bank.rate(); }
   /** What yields are built on: the policy rate and what the wars of the day add (v0.76.0). */
-  base() { return this.rate() + this.K.geo.premium() + this.K.game.robbery.premium(); }
+  base() { return this.rate() + this.K.geo.premium() + this.K.game.robbery.premium() + (this.K.game.politics?.bondPremium() || 0); } // v0.96.0: the state's debt and deficit
   /** What lending counts: the same without a robbery's market reaction (a robbery of the central bank never changes what you may borrow) — v0.79.0. */
   collateral() { return this.lots().map((l) => ({ years: l.years, value: valueOf(l, this.day, this.rate() + this.K.geo.premium()) })); }
 
@@ -47747,7 +47904,7 @@ class Geo {
   costFactor(sector, day = this.day) { return this.events().length ? (indices(this.events(), day, this.ctx(), G).cost[sector] ?? 1) : 1; }
 
   /** The expected-earnings change the market prices into a company's fair price today (a fraction; 0 with no events). */
-  sentiment(company, day = this.day) { return this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0; }
+  sentiment(company, day = this.day) { return (this.events().length ? sentimentOf(this.events(), company, day, this.ctx(), G) : 0) + (this.g.politics?.sectorSentiment(company.sector) || 0); } // v0.96.0: plus what the government's policies mean for the sector
 }
 
 return { Geo };
@@ -69586,6 +69743,11 @@ function governmentTab(ui, body) {
     tiles([{ n: String(G.active.length), t: 'policies in force' }, { n: String(G.coming.length), t: 'on their way' }, { n: k(b.debt), t: 'state debt' }]),
     list(...(G.active.length ? G.active.map(policy) : [row({ icon: '—', title: 'Nothing in force', sub: 'The government has no programmes yet.' })])));
   if (G.coming.length) body.append(list(...G.coming.map(policy)));
+  const fxv = g.politics.effectLines();
+  body.append(list(
+    row({ icon: '🧾', title: 'What the policies mean for you', sub: fxv.lines.length ? 'Each is a bounded change to a price or a fee, never a gift. A fee you pay is the state\'s revenue.' : 'None of the policies in force reaches your businesses yet.', tag: fxv.paid.total ? `fees paid ${n(fxv.paid.total)}` : null }),
+    ...fxv.lines.map((l) => row({ icon: '↳', title: l.name, sub: l.text })),
+    fxv.premium > 0 ? row({ icon: '🏦', title: 'The state\'s debt and the bond', sub: `The state\'s debt and deficit add ${(fxv.premium * 100).toFixed(2)} points to what Sund\'s government bond pays.` }) : null));
   body.append(help('How the government works', 'The cabinet meets every seventh day and proposes the one policy it most believes in and can afford. A policy goes to the Assembly\'s committee, then to a vote (a hundred seats; a bill passes on more than fifty), then is set up and comes into force. A new policy repeals its opposite.', 'In this update a policy changes only the state\'s books and, later, what the public thinks. It does not yet change any price, cost, the police or any war you play with; that comes with the economy update. You never have to take part.'));
   body.append(fold(ui, 'PoliticsGov', 'The decisions, and what ended ›', (box) => {
     box.append(list(...G.decisions.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text }))));

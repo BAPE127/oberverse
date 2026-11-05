@@ -293,7 +293,7 @@ export class Farm {
       total += this.unitPrice(key, base);
       this.state.market[key] = (this.state.market[key] || 0) + 1;
     }
-    return total;
+    return total - (this.game.politics?.farmFee(total) || 0); // v0.96.0: an inspection fee when the government inspects farms more (it is the state's revenue)
   }
 
   coopPrice(itemId) {

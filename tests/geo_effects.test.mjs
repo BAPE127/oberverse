@@ -68,7 +68,7 @@ test('government bonds: the wars add a bounded premium to new coupons and move t
   assert.equal(g.corp.bonds.rate(), g.corp.bank.rate(), 'the policy rate is the bank\'s alone');
   const dear = g.corp.bonds.offers();
   assert.ok(dear.every((o) => o.yield > g.corp.bank.rate()), 'yields sit above the policy rate by the term premium and what the wars add');
-  assert.ok(Math.abs(dear[1].yield - (g.corp.bank.rate() + 0.0075 + p)) < 1e-9, '3-year: policy + term premium + the wars\' premium');
+  assert.ok(Math.abs(dear[1].yield - (g.corp.bank.rate() + 0.0075 + p + g.politics.bondPremium())) < 1e-9, '3-year: policy + term premium + the wars\' premium + the state\'s debt premium (v0.96.0)');
   assert.ok(g.corp.bonds.view(lot).value < valueOf(lot, g.clock.day, g.corp.bank.rate()), 'a bond already held is worth less when yields rise, on the same day');
   assert.equal(lot.coupon, calm[1], 'its own coupon was fixed when it was bought');
   assert.ok(dear[1].yield > calmYield);
