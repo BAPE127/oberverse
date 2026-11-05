@@ -32,6 +32,9 @@ export const REGIONS = {
   // The two estates (v0.94.1): each its own small map, through the Crown Quarter's east gates.
   ironcrest: { name: 'Ironcrest Hall', maps: { ironcrest_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
   willowmere: { name: 'Willowmere', maps: { willowmere_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
+  // The war update (v0.98.0): the government's base up FM 38 from Lariat, and the company's lot on the shore road west of the Yards.
+  fort: { name: 'Fort Gullcrest', maps: { fort_gullcrest: { x: 0, y: 0, fallbackSpot: 'south_gate' } } },
+  hollowmoor: { name: 'Hollowmoor Lot', maps: { hollowmoor_lot: { x: 0, y: 0, fallbackSpot: 'east_gate' } } },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {

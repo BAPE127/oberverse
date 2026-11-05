@@ -4,6 +4,7 @@ import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected, setCoupState, settle } from './protection.js';
 import { register as registerStructure, apply as applyDamage, repair as repairStructure, view as structureView } from './damage.js';
 import { checkMilitary } from './check.js';
+import { commission as commissionFacility, dailyTick as facilityDay, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
 export class War {
   constructor(game) { this.game = game; }
@@ -23,6 +24,26 @@ export class War {
   structures() { return structureView(this.g); }
 
   check() { return checkMilitary(this.peek()); }
+
+  // ---- the company's construction (v0.98.0). `pay` is the company's way of paying; stage 3 makes it the company's own account.
+  company() { return this.peek()?.company || null; }
+  lotOwned() { return lotOwnedOf(this.g); }
+  facilityState(id) { return facilityStateOf(this.g, id); }
+  facilities() { return facilityView(this.g); }
+  quote(id) { return facilityQuote(this.g, id); }
+  commission(id) { return commissionFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
+  repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
+  repairCost(id) { return facilityRepairCost(this.g, id); }
+  capacity() { return baseCapacity(this.g); }
+  dailyTick() { facilityDay(this.g); }
+  /** Pay for something the company buys. (Stage 3 of this release moves it to the company's own account; until then, your wallet.) */
+  pay(amount, note) {
+    const g = this.g;
+    if (g.player.money < amount) return { ok: false, text: `That costs ${amount.toLocaleString('en-US')} obols.` };
+    g.player.money -= amount;
+    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    return { ok: true };
+  }
 
   summary() {
     const m = this.peek();

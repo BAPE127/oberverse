@@ -16,6 +16,7 @@
 import { roomTiles } from '../world/mapBuilder.js';
 import { capitalFlats, CAPITAL_HOME_BUILDINGS } from './capital.js';
 import { estateFlats, ESTATE_DEFS } from './estates.js';
+import { fortFlats } from './fort.js'; // v0.98.0
 
 /**
  * A home: `building` on `map` (an existing building id) becomes its front
@@ -238,6 +239,12 @@ for (const [estate, E] of Object.entries(ESTATE_DEFS)) {
   const flats = estateFlats(estate);
   HOMES.push({ id: E.homeId, map: grounds, building: E.homeId, name: estate === 'ironcrest' ? 'The Guards\' Cottages' : 'The Staff Cottages', mapLabel: estate === 'ironcrest' ? 'Guards\' Cottages' : 'Staff Cottages', type: 'apartment',
     hallSize: { w: 11, h: 12, door: 5, xs: flats.map((_, i) => 2 + i * 2) }, flats });
+}
+
+// v0.98.0: Fort Gullcrest's barracks block: a flat for each of the garrison, the hall the size of its building.
+{
+  const flats = fortFlats();
+  HOMES.push({ id: 'fort_barracks', map: 'fort_gullcrest', building: 'fg_quarters', name: 'The Barracks Block', mapLabel: 'Barracks Block', type: 'apartment', hallSize: { w: 14, h: 10, door: 7, xs: flats.map((_, i) => 2 + i * 2) }, flats });
 }
 
 /** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */

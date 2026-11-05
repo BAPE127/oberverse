@@ -30,7 +30,7 @@ m.rect(19, 56, 114, 1, ',').rect(19, 61, 114, 2, ','); // Cotton Street
 m.rect(127, 38, 1, 41, ',').rect(132, 38, 1, 41, ','); // East Street
 m.rect(49, 73, 84, 1, ',').rect(49, 78, 84, 1, ','); // Dairy Road and Mesquite Lane
 // ---------------------------------------------------------------- roads
-m.rect(72, 4, 4, H - 4, '='); // FM 38
+m.rect(72, 0, 4, H, '='); // FM 38 (v0.98.0: on to the north edge, where Fort Gullcrest's gate is)
 m.rect(20, 24, 52, 4, '='); // Pecan Street
 m.rect(20, 24, 4, 37, '='); // Church Street
 m.rect(20, 40, 112, 4, '='); // Main Street
@@ -279,10 +279,13 @@ export const lariat = {
   buildings,
   doors: [
     // FM 38 runs south to Halvermouth's North Gate
+    // v0.98.0: FM 38 runs north to Fort Gullcrest, on the Hald Reach
+    ...[72, 73, 74, 75].map((x, i) => ({ id: `door_la_north_${i}`, x, y: 0, keepTile: true, gateway: 'Fort Gullcrest', label: 'FM 38 north, to Fort Gullcrest', to: { map: 'fort_gullcrest', spot: 'south_gate' } })),
     ...[72, 73, 74, 75].map((x, i) => ({ id: `door_la_south_${i}`, x, y: H - 1, keepTile: true, gateway: 'Halvermouth', label: 'FM 38 south, to Halvermouth', to: { map: 'halvermouth', spot: 'north_gate' } })),
   ],
   spots: {
     south_gate: { x: 73, y: H - 3, facing: 'up' },
+    north_gate: { x: 73, y: 2, facing: 'down' },
     town_square: { x: 119, y: 53, facing: 'up' },
     mercantile_door_out: { x: 49, y: 38, facing: 'down' },
     lariat_bank_door_out: { x: 39, y: 38, facing: 'down' },

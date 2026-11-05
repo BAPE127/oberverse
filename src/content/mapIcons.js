@@ -144,4 +144,13 @@ export const BUILDING_ICONS = {
   // The estates (v0.94.1)
   ic_hall: { icon: '🏰', kind: 'Ironcrest Hall (Josiah Vegas)' }, ih_cottages: { icon: '🏠', kind: 'The guards\' cottages' }, ic_gatehouse: { icon: '🛡️', kind: 'The gatehouse' }, ic_range: { icon: '🎯', kind: 'The range & armoury' },
   wm_hall: { icon: '🏡', kind: 'Willowmere (Susan)' }, wm_cottages: { icon: '🏠', kind: 'The staff cottages' }, wm_conservatory: { icon: '🌿', kind: 'The glass conservatory' }, wm_pavilion: { icon: '⛱️', kind: 'The garden pavilion' },
+  // The war update (v0.98.0): Fort Gullcrest (the government's) and Hollowmoor Lot (the company's)
+  fg_barracks1: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_barracks2: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_barracks3: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_mess: { icon: '🍲', kind: 'Mess hall (Fort Gullcrest)' },
+  fg_hospital: { icon: '🏥', kind: 'Hospital (Fort Gullcrest)' }, fg_depot: { icon: '📦', kind: 'Supply depot (Fort Gullcrest)' }, fg_command: { icon: '🎖️', kind: 'Command post (Fort Gullcrest)' }, fg_hangars: { icon: '✈️', kind: 'Aircraft hangars (Fort Gullcrest)' },
+  fg_armoury: { icon: '🔫', kind: 'Armoury (Fort Gullcrest)' }, fg_motor: { icon: '🛠️', kind: 'Motor pool (Fort Gullcrest)' }, fg_range: { icon: '🎯', kind: 'Training range (Fort Gullcrest)' }, fg_quarters: { icon: '🏠', kind: 'The barracks block (the garrison)' }, fg_gatehouse: { icon: '🛡️', kind: 'The guardhouse (Fort Gullcrest)' },
+  hm_office: { icon: '🏢', kind: 'Your site office' }, hm_bunk: { icon: '🛏️', kind: 'Bunkhouse (your company)' }, hm_range: { icon: '🎯', kind: 'Shooting range (your company)' }, hm_cage: { icon: '🔫', kind: 'Armoury cage (your company)' },
+  hm_command: { icon: '🎖️', kind: 'Command HQ (your company)' }, hm_barracks_a: { icon: '🪖', kind: 'Barracks A (your company)' }, hm_barracks_b: { icon: '🪖', kind: 'Barracks B (your company)' }, hm_barracks_c: { icon: '🪖', kind: 'Barracks C (your company)' },
+  hm_mess: { icon: '🍲', kind: 'Mess hall (your company)' }, hm_medical: { icon: '⚕️', kind: 'Medical centre (your company)' }, hm_hospital: { icon: '🏥', kind: 'Hospital (your company)' }, hm_motor: { icon: '🛠️', kind: 'Motor pool (your company)' },
+  hm_armoury: { icon: '🔫', kind: 'Armoury (your company)' }, hm_depot: { icon: '📦', kind: 'Supply depot (your company)' }, hm_depot_b: { icon: '📦', kind: 'Large supply depot (your company)' }, hm_training: { icon: '🏃', kind: 'Training ground (your company)' },
+  hm_factory: { icon: '🏭', kind: 'Tank factory (your company)' }, hm_works: { icon: '🚁', kind: 'Helicopter works (your company)' }, hm_hangars: { icon: '✈️', kind: 'Aircraft hangars (your company)' },
 };

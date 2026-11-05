@@ -9,6 +9,7 @@ const H = 84; // v0.27.0: a deeper harbour for life-size ships
 const m = new MapBuilder(W, H, 'g');
 m.rect(0, 0, W, 1, 'x').rect(0, 0, 1, 48, 'x'); // beyond the fence
 m.rect(1, 18, W - 1, 4, '='); // the yard road, from the east gate
+m.rect(0, 18, 1, 4, '='); // v0.98.0: and out of the west end, along the shore road to Hollowmoor Lot
 m.rect(40, 1, 2, 17, '=').rect(40, 22, 2, 19, '='); // the cross road, down to the docks
 m.rect(2, 35, 37, 3, ','); // loading apron
 // v0.21.0: the docks — Ober & Sons Maritime's quay along the south of the Yards
@@ -93,10 +94,13 @@ export const yards = {
     { id: 'door_yd_gate_a', x: 63, y: 19, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_b', x: 63, y: 20, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_s', x: 63, y: 21, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
+    // v0.98.0: the shore road west to Hollowmoor Lot (the company's ground)
+    ...[18, 19, 20, 21].map((y, i) => ({ id: `door_yd_west_${i}`, x: 0, y, keepTile: true, gateway: 'Hollowmoor Lot', label: 'The shore road west, to Hollowmoor Lot', to: { map: 'hollowmoor_lot', spot: 'east_gate' } })),
     { id: 'door_salty_ober', x: 59, y: 51, keepTile: true, label: 'the Salty Ober', to: { map: 'salty_ober', spot: 'entry' } },
   ],
   spots: {
     east_gate: { x: 61, y: 20, facing: 'left' },
+    hollowmoor_gate: { x: 2, y: 20, facing: 'right' },
     aw1_door_out: { x: 11, y: 14, facing: 'down' }, aw2_door_out: { x: 30, y: 14, facing: 'down' }, aw3_door_out: { x: 16, y: 35, facing: 'down' },
     yard_center: { x: 30, y: 20, facing: 'down' },
     ober_office_out: { x: 52, y: 39, facing: 'down' },

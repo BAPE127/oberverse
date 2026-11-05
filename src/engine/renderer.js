@@ -342,7 +342,7 @@ export class Renderer {
     const map = g.currentMap();
     // v0.47.0: the street and every building's interior are drawn together (buildings are walked
     // into, not loaded): the streets first, then the rooms over their footprints
-    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall))).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
+    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall)) && !(L.map.def?.facility && g.war.facilityState(L.map.def.facility) !== 'built')).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -419,6 +419,7 @@ export class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
+        if (b.facility && g.war.facilityState(b.facility) !== 'built') continue; // v0.98.0: Hollowmoor Lot's sites (the scaffold props stand here)
         if (b.hall && !g.aero.hallBuilt(b.hall)) continue; // v0.57.0: a building site (the hall_site prop) stands here until it's built
         if (b.interior) {
           // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front

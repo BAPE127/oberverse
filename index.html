@@ -2831,6 +2831,7 @@ const H = 84; // v0.27.0: a deeper harbour for life-size ships
 const m = new MapBuilder(W, H, 'g');
 m.rect(0, 0, W, 1, 'x').rect(0, 0, 1, 48, 'x'); // beyond the fence
 m.rect(1, 18, W - 1, 4, '='); // the yard road, from the east gate
+m.rect(0, 18, 1, 4, '='); // v0.98.0: and out of the west end, along the shore road to Hollowmoor Lot
 m.rect(40, 1, 2, 17, '=').rect(40, 22, 2, 19, '='); // the cross road, down to the docks
 m.rect(2, 35, 37, 3, ','); // loading apron
 // v0.21.0: the docks — Ober & Sons Maritime's quay along the south of the Yards
@@ -2915,10 +2916,13 @@ const yards = {
     { id: 'door_yd_gate_a', x: 63, y: 19, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_b', x: 63, y: 20, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
     { id: 'door_yd_gate_s', x: 63, y: 21, keepTile: true, gateway: 'Halvermouth', label: 'Mill Road, back to Halvermouth', to: { map: 'halvermouth', spot: 'mill_road_west' } },
+    // v0.98.0: the shore road west to Hollowmoor Lot (the company's ground)
+    ...[18, 19, 20, 21].map((y, i) => ({ id: `door_yd_west_${i}`, x: 0, y, keepTile: true, gateway: 'Hollowmoor Lot', label: 'The shore road west, to Hollowmoor Lot', to: { map: 'hollowmoor_lot', spot: 'east_gate' } })),
     { id: 'door_salty_ober', x: 59, y: 51, keepTile: true, label: 'the Salty Ober', to: { map: 'salty_ober', spot: 'entry' } },
   ],
   spots: {
     east_gate: { x: 61, y: 20, facing: 'left' },
+    hollowmoor_gate: { x: 2, y: 20, facing: 'right' },
     aw1_door_out: { x: 11, y: 14, facing: 'down' }, aw2_door_out: { x: 30, y: 14, facing: 'down' }, aw3_door_out: { x: 16, y: 35, facing: 'down' },
     yard_center: { x: 30, y: 20, facing: 'down' },
     ober_office_out: { x: 52, y: 39, facing: 'down' },
@@ -3038,7 +3042,7 @@ m.rect(19, 56, 114, 1, ',').rect(19, 61, 114, 2, ','); // Cotton Street
 m.rect(127, 38, 1, 41, ',').rect(132, 38, 1, 41, ','); // East Street
 m.rect(49, 73, 84, 1, ',').rect(49, 78, 84, 1, ','); // Dairy Road and Mesquite Lane
 // ---------------------------------------------------------------- roads
-m.rect(72, 4, 4, H - 4, '='); // FM 38
+m.rect(72, 0, 4, H, '='); // FM 38 (v0.98.0: on to the north edge, where Fort Gullcrest's gate is)
 m.rect(20, 24, 52, 4, '='); // Pecan Street
 m.rect(20, 24, 4, 37, '='); // Church Street
 m.rect(20, 40, 112, 4, '='); // Main Street
@@ -3287,10 +3291,13 @@ const lariat = {
   buildings,
   doors: [
     // FM 38 runs south to Halvermouth's North Gate
+    // v0.98.0: FM 38 runs north to Fort Gullcrest, on the Hald Reach
+    ...[72, 73, 74, 75].map((x, i) => ({ id: `door_la_north_${i}`, x, y: 0, keepTile: true, gateway: 'Fort Gullcrest', label: 'FM 38 north, to Fort Gullcrest', to: { map: 'fort_gullcrest', spot: 'south_gate' } })),
     ...[72, 73, 74, 75].map((x, i) => ({ id: `door_la_south_${i}`, x, y: H - 1, keepTile: true, gateway: 'Halvermouth', label: 'FM 38 south, to Halvermouth', to: { map: 'halvermouth', spot: 'north_gate' } })),
   ],
   spots: {
     south_gate: { x: 73, y: H - 3, facing: 'up' },
+    north_gate: { x: 73, y: 2, facing: 'down' },
     town_square: { x: 119, y: 53, facing: 'up' },
     mercantile_door_out: { x: 49, y: 38, facing: 'down' },
     lariat_bank_door_out: { x: 39, y: 38, facing: 'down' },
@@ -4805,14 +4812,14 @@ const CAPITAL_HOME_BUILDINGS = BLDG;
 // ------------------------------------------------------------------ appearance, schedule, dialogue
 const SKIN = ['#f0d0b0', '#e0b898', '#d8b090', '#c89a78', '#b88868', '#a07050', '#8a5e44'];
 const HAIR = ['#1e1a16', '#2a2622', '#4a3626', '#6a3a24', '#8a6a3a', '#c8c4bc', '#a8a49c', '#d8b870'];
-const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'] };
+const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'], soldier: ['#4a5a3a', '#5a5a42', '#3f4f35'] };
 const STYLE = ['short', 'parted', 'bun', 'curly', 'ponytail', 'long', 'messy'];
 
 function appearanceOf(p) {
-  const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold'].some((n) => p.name.startsWith(n));
+  const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold', 'Colonel Marta', 'Private Hanna', 'Private Ines'].some((n) => p.name.startsWith(n));
   const outfit = pick(OUTFIT[p.kind], p.id, 'o');
   const base = { skin: pick(SKIN, p.id, 's'), hair: pick(HAIR, p.id, 'h'), hairStyle: female ? pick(['bun', 'long', 'ponytail', 'curly', 'parted'], p.id, 'st') : pick(['short', 'parted', 'messy', 'curly'], p.id, 'st'), outfit, undershirt: '#f4f2ee',
-    tie: female && p.kind !== 'house' ? null : pick(['#7a2a34', '#2a4a7a', '#4a6a2a', '#8a6a2a', '#3a3a5a'], p.id, 't'), legs: '#1e2230', shoes: '#141418', accessories: [], accent: p.party === 'order' ? '#b8962e' : p.party === 'liberty' ? '#e8b040' : '#c9a24a',
+    tie: p.kind === 'soldier' || (female && p.kind !== 'house') ? null : pick(['#7a2a34', '#2a4a7a', '#4a6a2a', '#8a6a2a', '#3a3a5a'], p.id, 't'), legs: '#1e2230', shoes: '#141418', accessories: [], accent: p.party === 'order' ? '#b8962e' : p.party === 'liberty' ? '#e8b040' : '#c9a24a',
     build: pick(['average', 'thin', 'broad', 'round', 'wiry'], p.id, 'b'), height: 0.96 + (hash(p.id + 'ht') % 12) / 100 };
   if (p.armed) base.build = 'broad';
   if (p.kind === 'ambassador') base.accessories = [pick(['lapelpin', 'watchchain', 'scarf', 'monocle'], p.id, 'a')];
@@ -5678,6 +5685,314 @@ const willowmereGrounds = {
 const __default = [ironcrestGrounds, willowmereGrounds];
 
 return { ironcrestGrounds, willowmereGrounds, default: __default };
+})();
+
+// ---- src/content/fort.js
+__m["src/content/fort.js"] = (function () {
+// Fort Gullcrest's garrison (v0.98.0): the government's own people, a small standing detachment that makes the base live (guards at the gate, a patrol, the commanding officer's
+// staff). They are NPCs with a bed, a duty and a day, in the fort's own barracks. They belong to the national military (`world.military.gov`), never to your company; the fort's
+// full garrison, tanks and aircraft come with the later releases. Pure data and small generators, in the pattern of src/content/estates.js.
+const { personRecord } = __m["src/content/capital.js"];
+
+const P = (id, name, role, job, line, o = {}) => ({ id, name, shortName: name.split(' ').slice(-1)[0], role, kind: 'soldier', job, line, armed: o.armed ?? true, ...o });
+
+const FORT_PEOPLE = [
+  P('npc_fg_colonel', 'Colonel Marta Brandt', 'Commanding officer of Fort Gullcrest, Sund Army. Runs the base, the garrison and, by her own account, the weather.', 'command', 'The fort is the Crown\'s and the Army\'s. If you have business here, you have business with me, and I have very little time for either.', { armed: false }),
+  P('npc_fg_sergeant', 'Sergeant Major Oskar Venn', 'Sergeant major, Fort Gullcrest. The garrison fears him and would die for him, in no particular order.', 'barracks', 'Boots, belts, bunks. If it is not one of those it is somebody else\'s problem, and probably the Colonel\'s.'),
+  P('npc_fg_gate_a', 'Private Hanna Ledger', 'Gate guard at Fort Gullcrest, the day watch. Has memorised every vehicle that has used the road since spring.', 'gate', 'State your business at the gate. Then state it again, slower. It is nothing personal.'),
+  P('npc_fg_gate_b', 'Corporal Tobias Rook', 'Gate guard at Fort Gullcrest, the night watch. Fond of tea, lists and not being surprised.', 'gate_night', 'Gate\'s closed to anyone I do not know. I know eleven people. Make it twelve, in daylight.'),
+  P('npc_fg_patrol_a', 'Private Ines Calloway', 'Soldier of the garrison, walking the fort\'s perimeter. Counts her steps; they have never once come out the same.', 'patrol', 'Perimeter patrol. Walk with me and you are a visitor. Walk ahead of me and you are an incident.'),
+  P('npc_fg_patrol_b', 'Private Dov Marchetti', 'Soldier of the garrison on the second beat. Hums, always the same tune, always flat.', 'patrol', 'Beat two. Nothing to report, which is what I report, loudly, every hour.'),
+];
+
+const FORT_OWNERS = FORT_PEOPLE.map((p) => p.id);
+
+const SPOTS = {
+  command: { work: 'fort_gullcrest:command_out', label: 'at the command post' },
+  barracks: { work: 'fort_gullcrest:parade', label: 'drilling the garrison' },
+  gate: { work: 'fort_gullcrest:gate_post', label: 'on the gate' },
+  gate_night: { work: 'fort_gullcrest:gate_post', label: 'on the gate' },
+};
+
+function scheduleOf(p, home) {
+  const S = SPOTS[p.job];
+  if (p.job === 'patrol') {
+    return [
+      { from: '22:00', to: '06:00', activity: 'sleep', spot: `${home}:bed` },
+      { from: '06:00', to: '07:00', activity: 'eat', spot: `${home}:chair`, label: 'breakfast' },
+      { from: '07:00', to: '12:00', activity: 'patrol', patrol: 'beat_fort', label: 'walking the perimeter' },
+      { from: '12:00', to: '13:00', activity: 'eat', spot: `${home}:chair`, label: 'lunch in the barracks' },
+      { from: '13:00', to: '19:00', activity: 'patrol', patrol: 'beat_fort', label: 'walking the perimeter' },
+      { from: '19:00', to: '22:00', activity: 'relax', spot: `${home}:chair`, label: 'off duty' },
+    ];
+  }
+  const night = p.job === 'gate_night';
+  const day = night ? [
+    { from: '06:00', to: '08:00', activity: 'eat', spot: `${home}:chair`, label: 'breakfast after the watch' },
+    { from: '08:00', to: '16:00', activity: 'sleep', spot: `${home}:bed` },
+    { from: '16:00', to: '19:00', activity: 'relax', spot: `${home}:chair`, label: 'off duty' },
+    { from: '19:00', to: '20:00', activity: 'eat', spot: `${home}:chair`, label: 'supper' },
+    { from: '20:00', to: '24:00', activity: 'work', spot: S.work, label: S.label },
+    { from: '00:00', to: '06:00', activity: 'work', spot: S.work, label: S.label },
+  ] : [
+    { from: '22:00', to: '06:00', activity: 'sleep', spot: `${home}:bed` },
+    { from: '06:00', to: '07:00', activity: 'eat', spot: `${home}:chair`, label: 'breakfast' },
+    { from: '07:00', to: '12:00', activity: 'work', spot: S.work, label: S.label },
+    { from: '12:00', to: '13:00', activity: 'eat', spot: `${home}:chair`, label: 'lunch' },
+    { from: '13:00', to: '19:00', activity: 'work', spot: S.work, label: S.label },
+    { from: '19:00', to: '22:00', activity: 'relax', spot: `${home}:chair`, label: 'off duty' },
+  ];
+  return day;
+}
+
+/** The fort's barracks block: a flat each. */
+function fortFlats() {
+  return FORT_PEOPLE.map((p, i) => ({ who: [p.id], name: p.name, bed: ['#4a5a3a', '#5a5a4a', '#3a4a5a'][i % 3], rug: ['#6a6a4a', '#5a6a5a', '#4a5a6a'][i % 3], loot: { items: { item_pocket_watch: 1 }, money: 5 + i },
+    props: [{ type: 'shelf', x: 1, y: 4, examine: 'A kettle, a tin of boot polish and a photograph of someone back home who is not impressed.' }, { type: 'plant', x: 7, y: 4 }] }));
+}
+const fortLife = () => Object.fromEntries(FORT_PEOPLE.map((p, i) => [p.id, { home: `res_fort_barracks/flat_${i + 1}`, occupation: 'soldier' }]));
+
+function fortCharacters() {
+  const life = fortLife();
+  return FORT_PEOPLE.map((p) => personRecord(p, scheduleOf(p, life[p.id].home.replace('res_', '').replace('/flat_', '_'))));
+}
+
+function fortDialogues() {
+  return FORT_PEOPLE.map((p) => {
+    const k = p.id.slice(4);
+    return {
+      id: `dlg_${k}`,
+      greetings: [
+        { if: { activity: 'sleep' }, say: ['*asleep, boots by the bunk, one eye very slightly open*'] },
+        { if: { firstMeeting: true }, say: [`${p.name}. ${p.role.split('.')[0]}.`, 'You are on Army ground. Keep your hands where I can see them, and your questions short.'] },
+        { if: {}, variants: [['Yes?'], ['State your business.'], ['Move along, citizen, unless there is something.']] },
+      ],
+      farewells: [{ if: {}, variants: [['Carry on.'], ['Mind the road.']] }],
+      topics: [
+        { id: `t_${k}_job`, label: '"What do you do?"', keywords: ['do', 'job', 'work', 'role', 'what'], say: [p.line] },
+        { id: `t_${k}_fort`, label: '"What is Fort Gullcrest?"', keywords: ['fort', 'gullcrest', 'base', 'army', 'here'], say: ['The Crown\'s own base on the Hald Reach: barracks, a motor pool, hangars, a range and a gate. It is not a company\'s and it is not for sale. Companies keep their own ground.'] },
+        { id: `t_${k}_company`, label: '"I am thinking of starting a security firm."', keywords: ['company', 'security', 'firm', 'mercenary', 'hire', 'licence'], say: ['Then you want the Civic Office for the licence, a lot of your own and a great deal of patience. A private lot is yours to fence; the Army\'s base is not yours to fear. (Your company would build on Hollowmoor Lot, on the shore road west of the Yards.)'] },
+      ],
+      askPrompt: [['Ask. Briefly.']],
+      unknown: [['Above my pay grade.'], ['I could not say, and I would not.']],
+      gift: { loved: [['Coffee. You are forgiven for everything.']], liked: [['Thank you. I did not see that.']], neutral: [['Noted.']], disliked: [['Regulations.']], tooMany: [['That is plenty.']], ownStolen: [['That is mine.']] },
+      barks: { greet: ['Halt. Oh, it is you.'], work: ['Mm.', 'Clear.'], chat: ['Quite.'], argue: ['Orders are orders.'], sleep: ['zzz'], moods: {} },
+    };
+  });
+}
+
+const FORT_PATROL = { name: 'The Fort Gullcrest perimeter', dwell: 8, points: ['fort_gullcrest:patrol_a', 'fort_gullcrest:patrol_b', 'fort_gullcrest:patrol_c', 'fort_gullcrest:patrol_d', 'fort_gullcrest:patrol_e', 'fort_gullcrest:patrol_f'] };
+
+return { FORT_PEOPLE, FORT_OWNERS, fortFlats, fortLife, fortCharacters, fortDialogues, FORT_PATROL };
+})();
+
+// ---- src/content/maps/fortGullcrest.js
+__m["src/content/maps/fortGullcrest.js"] = (function () {
+// Fort Gullcrest (v0.98.0): the government's own base on the Hald Reach, a walled fort north of Lariat (mock-up `proposal-war-national-base.png`), its own map reached up FM 38 from
+// Lariat's north gate. Final coordinates. Preview: `npm run map -- fort_gullcrest`.
+//
+// A garrison of six lives in the barracks block and keeps it: the gate (day and night watch), the perimeter patrol, the Colonel's command post and the Sergeant Major's parade. The
+// buildings are the Crown's: their doors are shut to you (soldiers and the garrison's own go through). The fort's tanks, aircraft and full garrison come with later releases; here
+// it is a place, with a gate, walls, hangars and a life, and a government that is not your company.
+const { MapBuilder } = __m["src/world/mapBuilder.js"];
+const { FORT_OWNERS } = __m["src/content/fort.js"];
+
+const FG_W = 120;
+const FG_H = 84;
+const m = new MapBuilder(FG_W, FG_H, '.');
+m.rect(0, 0, FG_W, 1, 'R').rect(0, FG_H - 1, 1, 1, 'R').rect(0, 0, 1, FG_H, 'r').rect(FG_W - 1, 0, 1, FG_H, 'r'); // the edge of the map
+m.rect(0, FG_H - 1, 55, 1, 'r').rect(61, FG_H - 1, 59, 1, 'r'); // (the road leaves south at columns 56–59)
+m.rect(6, 4, 108, 76, 'r').rect(7, 5, 106, 74, '.'); // the fort's wall
+m.rect(56, 79, 4, 5, '='); // the road in from Lariat, through the gate in the south wall
+m.rect(56, 78, 4, 1, '=');
+m.rect(55, 79, 1, 5, ',').rect(60, 79, 1, 5, ',');
+m.rect(56, 58, 4, 21, '=').rect(8, 58, 104, 4, '='); // the main road north to the cross road
+m.rect(7, 57, 105, 1, ',').rect(7, 62, 105, 1, ',');
+m.rect(58, 48, 4, 10, ':'); // the way up to the command post
+m.rect(92, 30, 18, 12, 'g'); // the parade ground
+m.rect(78, 6, 32, 3, '='); // the apron and runway strip, top right
+const B = (id, name, x, y, w, h, o = {}) => ({
+  id, name, mapLabel: o.label ?? name, x, y, w, h, roof: o.roof || '#6a6e5a', wall: o.wall || '#9a9e86', trim: '#3a3e30', sign: o.sign, signColor: '#e8e4cc', flatRoof: true, trade: o.trade || 'office', tower: o.tower,
+  door: o.door ?? { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', owners: FORT_OWNERS, message: o.closed || `${name}: Army property. The door is shut to you.` } },
+});
+const buildings = [
+  B('fg_barracks1', 'Barracks 1', 10, 8, 16, 10, { sign: 'BARRACKS 1', trade: 'house' }),
+  B('fg_barracks2', 'Barracks 2', 30, 8, 16, 10, { sign: 'BARRACKS 2', trade: 'house' }),
+  B('fg_barracks3', 'Barracks 3', 10, 22, 16, 10, { sign: 'BARRACKS 3', trade: 'house' }),
+  B('fg_mess', 'Mess hall', 30, 22, 16, 10, { sign: 'MESS HALL', trade: 'diner' }),
+  B('fg_hospital', 'Hospital', 10, 38, 14, 10, { sign: 'HOSPITAL', wall: '#c8bcb4', roof: '#9a8a82' }),
+  B('fg_depot', 'Supply depot', 28, 38, 14, 10, { sign: 'SUPPLY DEPOT', trade: 'storage' }),
+  B('fg_command', 'Command post', 50, 38, 18, 10, { sign: 'COMMAND', wall: '#b8a868', roof: '#7a6e3a', closed: 'COMMAND. A sentry, a bell and a sign: "Appointments only. The Colonel is always busy."' }),
+  B('fg_hangars', 'Aircraft hangars', 76, 12, 30, 12, { sign: 'HANGARS', trade: 'storage', wall: '#7a8590', roof: '#4a5560' }),
+  B('fg_armoury', 'Armoury', 76, 28, 14, 10, { sign: 'ARMOURY', trade: 'storage', wall: '#8a867a' }),
+  B('fg_motor', 'Motor pool', 10, 64, 26, 10, { sign: 'MOTOR POOL', trade: 'storage', wall: '#7a7e8a', roof: '#4a4e5a' }),
+  B('fg_range', 'Training range', 80, 64, 26, 10, { sign: 'TRAINING RANGE', trade: 'storage', wall: '#7a8a6a' }),
+  B('fg_quarters', 'The Barracks Block', 38, 64, 14, 10, { sign: 'BARRACKS BLOCK', trade: 'house', wall: '#8a8e76', label: 'The Barracks Block' }),
+  B('fg_gatehouse', 'The Guardhouse', 64, 66, 9, 7, { sign: 'GUARDHOUSE', trade: 'office' }),
+];
+const props = []; let n = 0;
+const P = (type, x, y, o = {}) => props.push({ id: `fg_${type}_${n++}`, type, x, y, ...o });
+P('bigsign', 52, 80, { w: 3, h: 2, text: 'FORT GULLCREST', sub: 'SUND ARMY · AUTHORISED PERSONNEL', examine: 'FORT GULLCREST. "The Crown\'s base on the Hald Reach. Authorised personnel only. Everyone else: the gate, and then the road."' });
+P('boom_barrier', 56, 76, { w: 4, h: 1, raised: false, solid: false, examine: 'The gate\'s boom barrier. It is down, as it is whenever it is not being waved at.' });
+P('sign', 61, 77, { examine: 'GATE. "Vehicles stop. Pedestrians stop. Visitors stop, and then wait."' });
+P('booth', 61, 75, { examine: 'The gate post: a chair, a radio and a ledger in which the day\'s traffic is entered with a pencil that has been sharpened too many times.' });
+for (let y = 62; y > 50; y -= 6) { P('streetlamp', 55, y); P('streetlamp', 60, y); }
+for (let x = 12; x < 106; x += 16) { P('streetlamp', x, 57); P('streetlamp', x + 8, 62); }
+P('flagpole', 49, 48, { color: '#2a5a9a' }); P('flagpole', 68, 48, { color: '#2a5a9a' });
+P('flagpole', 100, 29, { color: '#2a5a9a' });
+P('statue', 64, 52, { w: 2, h: 3, label: 'THE UNKNOWN CLERK', examine: 'A bronze figure at a desk, holding a pen. The plaque: "Without Whom." Nobody has ever found out whom.' });
+for (const [x, y] of [[8, 6], [8, 34], [28, 34], [48, 6], [70, 20], [70, 50], [8, 52], [112, 50], [112, 26]]) P('tree', x, y);
+P('noticeboard', 98, 43, { examine: 'PARADE ORDERS: "Boots clean. Belts straight. Opinions, to yourself."' });
+P('bench', 94, 43); P('bench', 104, 43);
+P('crate', 78, 40); P('crate', 80, 40); P('barrel', 82, 40);
+P('bollard', 55, 78); P('bollard', 60, 78);
+const fortGullcrest = {
+  id: 'fort_gullcrest', name: 'Fort Gullcrest', kind: 'outdoor', music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(),
+  areas: [{ id: 'area_fg_road', name: 'The Gullcrest Road', x: 50, y: 74, w: 16, h: 10 }, { id: 'area_fg', name: 'Fort Gullcrest', x: 6, y: 4, w: 108, h: 76 }],
+  buildings,
+  doors: [56, 57, 58, 59].map((x, i) => ({ id: `door_fg_south_${i}`, x, y: FG_H - 1, keepTile: true, gateway: 'Lariat', label: 'FM 38 south, to Lariat', to: { map: 'lariat', spot: 'north_gate' } })),
+  spots: {
+    south_gate: { x: 57, y: FG_H - 3, facing: 'up' }, gate_post: { x: 62, y: 76, facing: 'left' }, command_out: { x: 58, y: 49, facing: 'down' }, parade: { x: 98, y: 36, facing: 'down' },
+    patrol_a: { x: 9, y: 59, facing: 'right' }, patrol_b: { x: 56, y: 60, facing: 'right' }, patrol_c: { x: 108, y: 59, facing: 'up' }, patrol_d: { x: 108, y: 30, facing: 'up' }, patrol_e: { x: 70, y: 56, facing: 'left' }, patrol_f: { x: 28, y: 56, facing: 'left' },
+  },
+  props,
+};
+const __default = [fortGullcrest];
+
+return { FG_W, FG_H, fortGullcrest, default: __default };
+})();
+
+// ---- src/content/facilities.js
+__m["src/content/facilities.js"] = (function () {
+// The company's facilities (v0.98.0): what Mason's Os can build on Hollowmoor Lot, in three stages (mock-up `proposal-war-merc-hq.png`: a security firm, a small army, a
+// military company). Pure data. A facility has a FUNCTION, not just a label: capacity is a real field (beds, meals, treatment places, stores, lines, hangar bays), so a base that
+// is too small loses morale and readiness later; it does not magically hold more. Nothing here produces anything yet: factories and the base's daily life come in later releases.
+//
+//   slot      a fixed place on the lot (x, y, w, h in tiles, final coordinates of src/content/maps/hollowmoor.js); one facility per slot
+//   stage     1 | 2 | 3: when it is offered (a stage opens when every facility of the stage before has been built)
+//   core      protected by the damage gate before a coup (src/war/protection.js): the heart of the base
+//   days      Mason's Os's work: days in each of foundation, frame and fitting-out (the permit waits one day, once the company is licensed)
+//   hp        hit points at the damage gate
+//   capacity  what it gives the base
+const F = (id, name, stage, slot, kind, cost, days, hp, capacity, o = {}) => ({ id, name, stage, slot, kind, cost, days, hp, capacity, core: o.core ?? true, text: o.text, trade: o.trade || 'office', sign: o.sign || name.toUpperCase(), roof: o.roof, wall: o.wall });
+
+const LOT = {
+  id: 'hollowmoor',
+  name: 'Hollowmoor Lot',
+  price: 60000,        // the lot, from the Land Registry (paid once, with the company's licence)
+  licence: 5000,       // the Civic Office's licence for a private security company (the company's founding fee)
+  map: 'hollowmoor_lot',
+  fenceHp: 300, gateHp: 200,
+};
+
+const FACILITIES = {
+  // ---- stage 1: a security firm
+  site_office: F('site_office', 'Site office', 1, 'office', 'office', 20000, [1, 2, 1], 120, { desks: 3 }, { text: 'The company\'s front door: a counter, three desks and a radio. Where contracts are signed.', sign: 'SITE OFFICE' }),
+  bunkhouse: F('bunkhouse', 'Bunkhouse', 1, 'bunk', 'barracks', 35000, [1, 3, 2], 140, { beds: 12 }, { text: 'Twelve bunks, a stove and a lot of boots.', trade: 'house', sign: 'BUNKHOUSE' }),
+  range: F('range', 'Shooting range', 1, 'range', 'range', 25000, [1, 2, 1], 90, { training: 6 }, { core: false, text: 'A firing line, a berm and a sign about hearing protection.', trade: 'storage', sign: 'RANGE' }),
+  cage: F('cage', 'Armoury cage', 1, 'cage', 'armoury', 15000, [1, 1, 1], 100, { stores: 60, racks: 24 }, { text: 'A cage with a lock, a ledger and a person who counts.', trade: 'storage', sign: 'ARMOURY' }),
+  // ---- stage 2: a small army
+  command: F('command', 'Command HQ & briefing room', 2, 'command', 'command', 90000, [2, 4, 3], 200, { desks: 10, briefing: 24 }, { text: 'Maps, a table for planning and a coffee machine that has seen things.', sign: 'COMMAND HQ' }),
+  barracks_a: F('barracks_a', 'Barracks A', 2, 'barracks_a', 'barracks', 70000, [2, 4, 3], 170, { beds: 30 }, { trade: 'house', text: 'Thirty beds in a long hall. Lights out is at ten and nobody keeps it.', sign: 'BARRACKS A' }),
+  barracks_b: F('barracks_b', 'Barracks B', 2, 'barracks_b', 'barracks', 70000, [2, 4, 3], 170, { beds: 30 }, { trade: 'house', text: 'Thirty more beds, a little further from the kitchen.', sign: 'BARRACKS B' }),
+  mess: F('mess', 'Mess hall', 2, 'mess', 'mess', 60000, [2, 3, 2], 150, { meals: 90 }, { trade: 'diner', text: 'Long tables, a hatch and a rota that is a source of grievance.', sign: 'MESS HALL' }),
+  medical: F('medical', 'Medical centre', 2, 'medical', 'medical', 80000, [2, 4, 3], 160, { treat: 8 }, { trade: 'office', text: 'Eight beds, a locked cabinet and a medic who has opinions about boots.', sign: 'MEDICAL' }),
+  motor_pool: F('motor_pool', 'Motor pool & tank workshop', 2, 'motor', 'motor_pool', 120000, [2, 5, 3], 190, { bays: 6, repair: 6 }, { trade: 'storage', text: 'Six bays, a pit and the smell of diesel that never leaves a coat.', sign: 'MOTOR POOL' }),
+  armoury: F('armoury', 'Armoury', 2, 'armoury', 'armoury', 60000, [2, 3, 2], 160, { stores: 400, racks: 120 }, { trade: 'storage', text: 'Racks, crates and a steel door with two keys, held by two different people.', sign: 'ARMOURY' }),
+  depot: F('depot', 'Supply depot', 2, 'depot', 'depot', 50000, [2, 3, 2], 140, { stores: 800 }, { trade: 'storage', text: 'Rations, fuel, parts and the paperwork to match.', sign: 'DEPOT' }),
+  // ---- stage 3: a military company
+  tank_factory: F('tank_factory', 'Tank factory', 3, 'factory', 'tank_factory', 900000, [4, 9, 6], 320, { lines: 2 }, { trade: 'storage', text: 'Two lines for tanks and only tanks. Planes, missiles, guns and ships come from your other companies.', sign: 'TANK FACTORY', roof: '#5a5e68', wall: '#8a909c' }),
+  helicopter_works: F('helicopter_works', 'Helicopter works', 3, 'works', 'helicopter_works', 1100000, [4, 9, 6], 300, { lines: 2 }, { trade: 'storage', text: 'Two lines for helicopters and only helicopters.', sign: 'HELICOPTER WORKS', roof: '#4a5a68', wall: '#7a8a9a' }),
+  hangars: F('hangars', 'Aircraft hangars', 3, 'hangars', 'hangar', 400000, [3, 7, 5], 260, { bays: 6 }, { trade: 'storage', text: 'Six bays for aircraft transferred from Aerospace.', sign: 'HANGARS' }),
+  barracks_c: F('barracks_c', 'Barracks C', 3, 'barracks_c', 'barracks', 90000, [2, 4, 3], 170, { beds: 40 }, { trade: 'house', text: 'Forty beds. The company is growing.', sign: 'BARRACKS C' }),
+  hospital: F('hospital', 'Hospital', 3, 'hospital', 'medical', 220000, [3, 6, 4], 200, { treat: 30, surgery: 2 }, { trade: 'office', text: 'Thirty beds and two theatres. It would rather not be busy.', sign: 'HOSPITAL' }),
+  training: F('training', 'Training ground', 3, 'training', 'range', 150000, [2, 4, 3], 120, { training: 40 }, { core: false, trade: 'storage', text: 'An obstacle course, a mock village and a lot of mud.', sign: 'TRAINING GROUND' }),
+  depot_b: F('depot_b', 'Supply depot (large)', 3, 'depot_b', 'depot', 120000, [2, 4, 3], 160, { stores: 2400 }, { trade: 'storage', text: 'A second, larger depot beside the first.', sign: 'DEPOT B' }),
+};
+
+const FACILITY_STATES = ['permit', 'foundation', 'frame', 'fitted', 'built'];
+const stageOf = (id) => FACILITIES[id].stage;
+const facilityBySlot = (slot) => Object.values(FACILITIES).find((f) => f.slot === slot) || null;
+
+return { LOT, FACILITIES, FACILITY_STATES, stageOf, facilityBySlot };
+})();
+
+// ---- src/content/maps/hollowmoor.js
+__m["src/content/maps/hollowmoor.js"] = (function () {
+// Hollowmoor Lot (v0.98.0): the company's own ground, a fenced lot on the shore road west of Mill Road Yards (the east gate of this map is the Yards' west gate). Final coordinates.
+// Preview: `npm run map -- hollowmoor_lot`.
+//
+// Every facility Mason's Os can build has its fixed SLOT here (src/content/facilities.js): a building that stands on the map from the start but is a SITE until the company has built it
+// (the same way Roost's halls work): stakes while it is only a place on the survey, a scaffold while Mason's Os works, the building when it is done. The fence and the gate are
+// part of the base from the day the lot is bought. Unbuilt, a slot is a blocked patch of ground; built, it has a room inside (generated, as for any building without a made one).
+const { MapBuilder } = __m["src/world/mapBuilder.js"];
+const { FACILITIES, LOT } = __m["src/content/facilities.js"];
+
+const HM_W = 112;
+const HM_H = 76;
+
+/** Where each facility stands: x, y, w, h in tiles (the door is at the bottom centre). */
+const SLOTS = {
+  office: [10, 10, 10, 7], bunk: [24, 10, 12, 7], barracks_a: [40, 10, 14, 8], mess: [58, 10, 12, 8], medical: [74, 10, 10, 8], range: [88, 10, 14, 12],
+  cage: [10, 24, 8, 6], command: [22, 24, 16, 9], barracks_b: [42, 24, 14, 8], armoury: [60, 24, 12, 8], depot: [76, 24, 12, 8], training: [90, 25, 12, 9],
+  motor: [10, 42, 22, 10], barracks_c: [36, 42, 14, 9], hospital: [54, 42, 14, 10], depot_b: [72, 42, 12, 8],
+  factory: [10, 56, 24, 10], works: [38, 56, 24, 10], hangars: [66, 56, 30, 10],
+};
+
+const m = new MapBuilder(HM_W, HM_H, '.');
+m.rect(0, 0, HM_W, 1, 'R').rect(0, HM_H - 1, HM_W, 1, 'R').rect(0, 0, 1, HM_H, 'r').rect(HM_W - 1, 0, 1, 36, 'r').rect(HM_W - 1, 40, 1, HM_H - 40, 'r'); // the edge of the map (the road leaves east at rows 36–39)
+m.rect(6, 6, 99, 65, 'r').rect(7, 7, 97, 63, '.'); // the fence
+m.rect(7, 36, 98, 4, '=').rect(105, 36, 7, 4, '='); // the lot's road, out through the gate in the east fence and on to the Yards
+m.rect(7, 35, 98, 1, ',').rect(7, 40, 98, 1, ','); // its pavements
+m.rect(105, 35, 7, 1, ',').rect(105, 40, 7, 1, ',');
+m.rect(8, 19, 96, 2, ':').rect(8, 32, 96, 2, ':').rect(8, 53, 96, 2, ':'); // the cross paths between the rows of buildings
+m.rect(100, 40, 1, 1, ',');
+
+const buildings = Object.values(FACILITIES).map((F) => {
+  const [x, y, w, h] = SLOTS[F.slot];
+  return {
+    id: `hm_${F.slot}`, name: F.name, mapLabel: F.name, x, y, w, h, roof: F.roof || '#6a6a58', wall: F.wall || '#a8a690', trim: '#3a3a30', sign: F.sign, signColor: '#e8e0c8', flatRoof: true, trade: F.trade, facility: F.id,
+    door: { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', facility: F.id, message: `${F.name}: Mason's Os has not built it yet.` } },
+  };
+});
+
+const props = [];
+let n = 0;
+const P = (type, x, y, o = {}) => props.push({ id: `hm_${type}_${n++}`, type, x, y, ...o });
+// the sites: stakes on the survey, a scaffold while Mason's Os works
+for (const F of Object.values(FACILITIES)) {
+  const [x, y, w, h] = SLOTS[F.slot];
+  const at = (state) => ({ facility: { slot: F.id, state } });
+  P('stake', x, y, { hiddenUnless: { facility: { slot: F.id, state: 'none', lot: true } } }); P('stake', x + w - 1, y + h - 1, { hiddenUnless: { facility: { slot: F.id, state: 'none', lot: true } } });
+  P('scaffold', x, y, { w, h, examine: `${F.name}: Mason's Os is working here. A sign: "FOUNDATIONS. Pardon our dust."`, hiddenUnless: at('foundation') });
+  P('scaffold', x, y, { w, h, examine: `${F.name}: the frame is up. A sign: "FRAME. Hard hats beyond this point."`, hiddenUnless: at('frame') });
+  P('scaffold', x, y, { w, h, examine: `${F.name}: walls and roof on; the crew is fitting it out.`, hiddenUnless: at('fitted') });
+  P('sign', x + Math.floor(w / 2) + 1, y + h, { examine: `${F.name} (stage ${F.stage}). ${F.text || ''}`, hiddenUnless: { facility: { slot: F.id, state: ['none', 'permit', 'foundation', 'frame', 'fitted'], lot: true } } });
+}
+// the gate and the fence
+P('bigsign', 93, 41, { w: 3, h: 2, text: 'HOLLOWMOOR LOT', sub: 'PRIVATE · BY APPOINTMENT', examine: 'HOLLOWMOOR LOT. "Private ground. Callers by appointment. Dogs, regrettably, are not by appointment."' });
+P('boom_barrier', 104, 36, { w: 1, h: 4, raised: true, solid: false, examine: 'The lot\'s boom barrier. It is up. There is nobody to put it down yet.' });
+P('sign', 102, 35, { examine: 'GATE. "Deliveries to the site office. Everything else to the site office as well."' });
+P('noticeboard', 99, 41, { examine: 'THE NOTICE BOARD: "Mason\'s Os: foundations Mondays, frames Thursdays, finishing whenever the weather allows. Permits are the Civic Office\'s, and so are the forms."' });
+for (let x = 14; x < 100; x += 14) { P('streetlamp', x, 35); P('streetlamp', x + 7, 40); }
+for (const [x, y] of [[8, 8], [22, 20], [56, 20], [72, 21], [102, 8], [102, 50], [8, 52], [86, 52], [60, 52], [8, 68]]) P('tree', x, y);
+P('flagpole', 8, 34, { color: '#8a2a30' });
+P('crate', 100, 42); P('barrel', 102, 42); P('crate', 100, 44);
+P('bollard', 104, 35); P('bollard', 104, 40);
+
+const hollowmoorLot = {
+  id: 'hollowmoor_lot', name: 'Hollowmoor Lot', kind: 'outdoor', music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(),
+  areas: [{ id: 'area_hm_road', name: 'The Hollowmoor Road', x: 98, y: 30, w: 14, h: 12 }, { id: 'area_hm_lot', name: 'Hollowmoor Lot', x: 6, y: 6, w: 99, h: 65 }],
+  buildings,
+  doors: [36, 37, 38, 39].map((y, i) => ({ id: `door_hm_east_${i}`, x: HM_W - 1, y, keepTile: true, gateway: 'Mill Road Yards', label: 'The shore road east, to Mill Road Yards', to: { map: 'yards', spot: 'hollowmoor_gate' } })),
+  spots: { east_gate: { x: 108, y: 37, facing: 'left' }, gate_inside: { x: 100, y: 37, facing: 'left' }, site_office: { x: 15, y: 18, facing: 'down' }, notice: { x: 99, y: 42, facing: 'up' },
+    ...Object.fromEntries(Object.entries(SLOTS).flatMap(([slot, [x, y, w, h]]) => [[`hm_${slot}_out`, { x: x + Math.floor(w / 2), y: y + h, facing: 'down' }]])) },
+  props,
+};
+
+const __default = [hollowmoorLot];
+
+return { HM_W, HM_H, SLOTS, hollowmoorLot, default: __default };
 })();
 
 // ---- src/content/income.js
@@ -7371,6 +7686,9 @@ const REGIONS = {
   // The two estates (v0.94.1): each its own small map, through the Crown Quarter's east gates.
   ironcrest: { name: 'Ironcrest Hall', maps: { ironcrest_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
   willowmere: { name: 'Willowmere', maps: { willowmere_grounds: { x: 0, y: 0, fallbackSpot: 'west_gate' } } },
+  // The war update (v0.98.0): the government's base up FM 38 from Lariat, and the company's lot on the shore road west of the Yards.
+  fort: { name: 'Fort Gullcrest', maps: { fort_gullcrest: { x: 0, y: 0, fallbackSpot: 'south_gate' } } },
+  hollowmoor: { name: 'Hollowmoor Lot', maps: { hollowmoor_lot: { x: 0, y: 0, fallbackSpot: 'east_gate' } } },
   coast: {
     name: 'Lanternside & surrounds',
     maps: {
@@ -15530,6 +15848,7 @@ __m["src/content/life.js"] = (function () {
 
 const { capitalLife } = __m["src/content/capital.js"]; // v0.94.0
 const { estateLife } = __m["src/content/estates.js"]; // v0.94.1
+const { fortLife, FORT_PATROL } = __m["src/content/fort.js"]; // v0.98.0
 
 /**
  * Occupations: reusable behaviour profiles.
@@ -15538,7 +15857,8 @@ const { estateLife } = __m["src/content/estates.js"]; // v0.94.1
  *   persist    'persistent' (saved, never despawned)
  */
 const OCCUPATIONS = {
-  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.94.0: the capital's people live and work in the Crown Quarter
+  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
+  soldier: { name: 'Soldier', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.98.0: Fort Gullcrest's garrison // v0.94.0: the capital's people live and work in the Crown Quarter
   shopkeeper: { name: 'Shopkeeper', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   clerk: { name: 'Clerk / office worker', transport: 'transit', interrupt: 'resume', persist: 'persistent' },
   tradesperson: { name: 'Tradesperson', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
@@ -15677,7 +15997,7 @@ const LIFE = {
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
   npc_vegas: { home: 'res_ironcrest/master', occupation: 'official' }, // v0.94.1: the leaders live in their own mansions
   npc_susan: { home: 'res_willowmere/master', occupation: 'official' },
-  ...capitalLife(), ...estateLife(),
+  ...capitalLife(), ...estateLife(), ...fortLife(),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -15744,6 +16064,7 @@ const PATROLS = {
   beat_docks: { name: 'The Docks and Quay Road', map: 'halvermouth', dwell: 6, points: [[44, 78], [66, 78], [92, 78], [108, 78], [92, 70], [66, 70]] },
   beat_lanternside: { name: 'Lanternside', dwell: 10, points: ['lanternside:square_bench', 'lanternside:fountain_side', 'lanternside:canal_footbridge', 'lanternside:quay_edge', 'lanternside:park_bench'] },
   beat_westbrook: { name: 'Westbrook and the Lots', dwell: 10, points: ['westbrook:survey', 'westbrook:birdwatch', 'westbrook:lots_sign'] },
+  beat_fort: FORT_PATROL, // v0.98.0: the garrison's perimeter
   beat_oilfields: { name: 'The Ober Fields', dwell: 12, points: ['ober_fields:field_entrance', 'ober_fields:inspection_point', 'ober_fields:gate_post'] },
 };
 
@@ -16290,6 +16611,7 @@ __m["src/content/homes.js"] = (function () {
 const { roomTiles } = __m["src/world/mapBuilder.js"];
 const { capitalFlats, CAPITAL_HOME_BUILDINGS } = __m["src/content/capital.js"];
 const { estateFlats, ESTATE_DEFS } = __m["src/content/estates.js"];
+const { fortFlats } = __m["src/content/fort.js"]; // v0.98.0
 
 /**
  * A home: `building` on `map` (an existing building id) becomes its front
@@ -16512,6 +16834,12 @@ for (const [estate, E] of Object.entries(ESTATE_DEFS)) {
   const flats = estateFlats(estate);
   HOMES.push({ id: E.homeId, map: grounds, building: E.homeId, name: estate === 'ironcrest' ? 'The Guards\' Cottages' : 'The Staff Cottages', mapLabel: estate === 'ironcrest' ? 'Guards\' Cottages' : 'Staff Cottages', type: 'apartment',
     hallSize: { w: 11, h: 12, door: 5, xs: flats.map((_, i) => 2 + i * 2) }, flats });
+}
+
+// v0.98.0: Fort Gullcrest's barracks block: a flat for each of the garrison, the hall the size of its building.
+{
+  const flats = fortFlats();
+  HOMES.push({ id: 'fort_barracks', map: 'fort_gullcrest', building: 'fg_quarters', name: 'The Barracks Block', mapLabel: 'Barracks Block', type: 'apartment', hallSize: { w: 14, h: 10, door: 7, xs: flats.map((_, i) => 2 + i * 2) }, flats });
 }
 
 /** Marty takes a fifth flat at the Plumb Line (Mason is his landlord). Built in maps/westbrook.js. */
@@ -17274,7 +17602,7 @@ function generatedInterior(S, b) {
   const tiles = roomTiles(W, H, FLOOR[kind], dx >= 0 ? dx : 0);
   if (dx < 0) tiles[H - 1] = 'W'.repeat(W);
   const def = {
-    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, trade: kind, dwelling: kind === 'house' || kind === 'shack',
+    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, ...(b.facility ? { facility: b.facility } : {}), trade: kind, dwelling: kind === 'house' || kind === 'shack',
     tiles,
     doors: dx >= 0 ? [{ id: `door_${id}_exit`, x: dx, y: H - 1, to: { map: S.id, spot: `${b.id}_out` } }] : [],
     spots: {},
@@ -17508,6 +17836,9 @@ const halverHouseMaps = __m["src/content/maps/halverHouse.js"].default;
 const partyHQMaps = __m["src/content/maps/partyHQ.js"].default; // v0.94.1: the two party headquarters as real offices
 const estateGroundsMaps = __m["src/content/maps/estateGrounds.js"].default; // v0.94.1: Ironcrest Hall and Willowmere
 const mansionMaps = __m["src/content/maps/mansions.js"].default;
+const fortMaps = __m["src/content/maps/fortGullcrest.js"].default; // v0.98.0: the government's own base
+const hollowmoorMaps = __m["src/content/maps/hollowmoor.js"].default; // v0.98.0: the company's lot
+const { fortCharacters, fortDialogues } = __m["src/content/fort.js"];
 const { estateCharacters, estateDialogues } = __m["src/content/estates.js"];
 const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } = __m["src/content/arms.js"];
 const { PROP_TYPES } = __m["src/content/props.js"];
@@ -17597,7 +17928,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...fortMaps, ...hollowmoorMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -17623,7 +17954,7 @@ const DEALERS_W = Object.fromEntries(Object.entries(DEALERS).map(([id, d]) => {
 }));
 
 // v0.32.0: a schedule block that names a patrol beat starts at the beat's first waypoint
-const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters(), ...estateCharacters()]);
+const ALL_CHARACTERS = byId([mags, osric, tibbs, moneybucks, ...oberStaff, ...masonCrew, ...police, ...sums, ...sal, ...lucasChars, ...dealerChars, ...captainOber, ...lariatChars, ...casinoChars, ...aeroChars, ...bankChars, ...politicsChars, ...capitalCharacters(), ...estateCharacters(), ...fortCharacters()]);
 for (const c of Object.values(ALL_CHARACTERS)) for (const b of c.schedule || []) if (b.patrol && !b.spot) b.spot = PATROL_ROUTES[b.patrol]?.[0];
 
 /** Content before property plots are expanded (tests add fixture plots to this). */
@@ -17648,7 +17979,7 @@ const BASE_CONTENT = {
   motifs: MOTIFS,
   audioRegistry: AUDIO_REGISTRY,
   characters: ALL_CHARACTERS,
-  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues()]),
+  dialogues: byId([dlgMags, dlgOsric, dlgTibbs, dlgMoneybucks, ...dlgOberStaff, ...dlgMasonCrew, ...dlgPolice, ...dlgSums, ...dlgSal, ...dlgLucas, ...dlgOfficer, ...dlgDealers, ...dlgCaptainOber, ...dlgLariat, ...dlgCasino, ...dlgAero, ...dlgBanks, ...dlgPolitics, ...capitalDialogues(), ...estateDialogues(), ...fortDialogues()]),
   puns: PUNS,
   warehouses: WAREHOUSES,
   recipes: RECIPES,
@@ -17674,7 +18005,7 @@ const BASE_CONTENT = {
 // v0.47.0: seamless buildings. The towns grow so every building holds its interior; every
 // street coordinate in the content moves with them (once — everything above is in the widened
 // coordinates); then each interior is laid over its building and the seams are re-stitched.
-const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats', 'crown_quarter', 'ironcrest_grounds', 'willowmere_grounds'];
+const STREETS = ['lanternside', 'westbrook', 'ober_fields', 'halvermouth', 'yards', 'lariat', 'starling_flats', 'crown_quarter', 'ironcrest_grounds', 'willowmere_grounds', 'fort_gullcrest', 'hollowmoor_lot'];
 const GROWTH = growStreets(MAPS, REGIONS, (id, b) => {
   const I = realInterior(MAPS, MAPS[id], b);
   return I ? { W: I.def.tiles[0].length, H: I.def.tiles.length, ex: I.exit.x } : null;
@@ -20757,7 +21088,7 @@ const { recall } = __m["src/sim/memory.js"];
 const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle', 'facility',
 ];
 
 /**
@@ -20889,6 +21220,11 @@ function checkKey(key, val, game, npc) {
     case 'site': {
       const st = game.world.construction || {};
       return Object.entries(val).every(([k, v]) => compare(st[k] ?? 0, v));
+    }
+    case 'facility': { // v0.98.0: { slot: facility id, state: 'none' | 'permit' | 'foundation' | 'frame' | 'fitted' | 'built' | 'ruin' (or a list), lot: true } — the company's buildings on Hollowmoor Lot
+      const st = game.war.facilityState(val.slot);
+      if (val.lot !== undefined && game.war.lotOwned() !== val.lot) return false;
+      return Array.isArray(val.state) ? val.state.includes(st) : st === val.state;
     }
     case 'property': {
       // { plot, state, blueprint } for one plot; { state } = any plot in that state; { surveyed: bool }
@@ -30061,6 +30397,18 @@ function freshMilitary() {
   };
 }
 
+/** The player's company (v0.98.0, stage 3 fills the identity): everything a company holds is a record with an id, one location and one status (src/war/check.js). */
+function freshCompany() {
+  return {
+    identity: null,                 // { name, colours, badge, founded, motto }: set by founding (src/war/company.js)
+    licensed: false,                // the Civic Office's licence for a private security company
+    lot: { owned: false, day: null, price: 0 },
+    facilities: [],                 // { id: facility id, slot, kind, state: permit|foundation|frame|fitted|built|ruin, daysLeft, paid, since }
+    personnel: [], squads: [], equipment: [], stock: {}, production: [], contracts: [], generals: [],
+    lastDay: 0, log: [],
+  };
+}
+
 const peekMilitary = (game) => game.world?.military || null;
 
 function ensureMilitary(game) {
@@ -30068,7 +30416,7 @@ function ensureMilitary(game) {
   return game.world.military;
 }
 
-return { freshMilitary, peekMilitary, ensureMilitary };
+return { freshMilitary, freshCompany, peekMilitary, ensureMilitary };
 })();
 
 // ---- src/content/military.js
@@ -30272,6 +30620,150 @@ function checkMilitary(m) {
 return { checkMilitary };
 })();
 
+// ---- src/war/facilities.js
+__m["src/war/facilities.js"] = (function () {
+// The company's construction (v0.98.0): Mason's Os builds the facilities of src/content/facilities.js on Hollowmoor Lot, in stages, on the existing building-contract model
+// (permit → work → built), with real capacity and the same damage gate for everything that can be hurt.
+//
+//   commission(game, id)        order a facility: stage open, lot owned, not already ordered; paid up front (less the crew's goodwill discount)
+//   dailyTick(game)             the permit waits a day; then foundation, frame and fitting-out take their days; built → registered with the damage gate
+//   repairCost / repair         a damaged facility is mended through the gate (never by writing its state); a destroyed one is rebuilt
+//   capacity(game)              what the base can hold: beds, meals, treatment places, stores, lines, bays — less for a damaged facility, none for a ruin
+// A built facility is registered with the gate as `fac_<id>`; its state is read from the gate, never stored here.
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { register, repair: gateRepair, stateOf, hpOf } = __m["src/war/damage.js"];
+const { FACILITIES, FACILITY_STATES, LOT } = __m["src/content/facilities.js"];
+
+const rec = (m, id) => m?.company?.facilities.find((f) => f.id === id) || null;
+const sid = (id) => `fac_${id}`;
+
+const lotOwned = (game) => Boolean(peekMilitary(game)?.company?.lot?.owned);
+
+/** 'none' | 'permit' | 'foundation' | 'frame' | 'fitted' | 'built' | 'ruin' (built, then destroyed). */
+function facilityState(game, id) {
+  const f = rec(peekMilitary(game), id);
+  if (!f) return 'none';
+  if (f.state === 'built' && stateOf(game, sid(id)) === 'destroyed') return 'ruin';
+  return f.state;
+}
+
+/** Is the stage this facility belongs to open? Stage 1 always; a later stage needs every facility of the stage before built. */
+function stageOpen(game, stage) {
+  if (stage <= 1) return true;
+  return Object.values(FACILITIES).filter((F) => F.stage === stage - 1).every((F) => facilityState(game, F.id) === 'built');
+}
+
+function quote(game, id) {
+  const F = FACILITIES[id];
+  if (!F) return null;
+  const disc = game.construction?.discount?.() || 0;
+  return { cost: Math.round(F.cost * (1 - disc)), discount: disc, days: F.days.reduce((a, b) => a + b, 1) };
+}
+
+/** Order a facility. `pay(amount, note)` is the company's way of paying (it returns { ok, text }); nothing is spent unless every check has passed. */
+function commission(game, id, pay) {
+  const F = FACILITIES[id];
+  const m = peekMilitary(game);
+  if (!F) return { ok: false, text: 'No such facility.' };
+  if (!m?.company) return { ok: false, text: 'You have no company.' };
+  if (!m.company.lot.owned) return { ok: false, text: 'You have no ground to build on: buy Hollowmoor Lot first.' };
+  if (rec(m, id)) return { ok: false, text: `${F.name} is already ${facilityState(game, id) === 'built' ? 'built' : 'on order'}.` };
+  if (!stageOpen(game, F.stage)) return { ok: false, text: `${F.name} is a stage ${F.stage} building: finish stage ${F.stage - 1} first.` };
+  const q = quote(game, id);
+  const r = pay(q.cost, `Mason's Os: ${F.name}`);
+  if (!r.ok) return r;
+  m.company.facilities.push({ id, slot: F.slot, kind: F.kind, state: 'permit', daysLeft: 1, stage: 0, paid: q.cost, since: game.clock.day });
+  m.log.push({ day: game.clock.day, text: `${F.name} commissioned (${q.cost} obols).` });
+  return { ok: true, text: `Mason's Os will build the ${F.name.toLowerCase()}: ${q.cost.toLocaleString('en-US')} obols, about ${q.days} days.` };
+}
+
+/** 06:11 each day: the work moves on. Idempotent per day. */
+function dailyTick(game) {
+  const m = peekMilitary(game);
+  const C = m?.company;
+  if (!C) return;
+  const day = game.clock.day;
+  if (C.lastDay >= day) return;
+  C.lastDay = day;
+  for (const f of C.facilities) {
+    if (f.state === 'built' || f.state === 'ruin') continue;
+    if (f.state === 'permit' && C.licensed === false) continue; // no licence, no permit (the Civic Office will not stamp it)
+    f.daysLeft -= 1;
+    if (f.daysLeft > 0) continue;
+    const F = FACILITIES[f.id];
+    const i = FACILITY_STATES.indexOf(f.state);
+    const next = FACILITY_STATES[i + 1];
+    f.state = next;
+    if (next === 'built') { finish(game, f, F); continue; }
+    f.daysLeft = F.days[FACILITY_STATES.indexOf(next) - 1]; // foundation, frame, fitted in turn
+    game.notify?.(`Mason's Os: the ${F.name.toLowerCase()} is at the ${next === 'foundation' ? 'foundations' : next === 'frame' ? 'frame' : 'fitting-out'} stage.`, 'info');
+  }
+}
+
+function finish(game, f, F) {
+  const m = peekMilitary(game);
+  f.builtDay = game.clock.day;
+  const existing = stateOf(game, sid(f.id));
+  if (existing) gateRepair(game, sid(f.id), F.hp, 'rebuild'); // a rebuilt ruin: whole again, through the gate
+  else register(game, sid(f.id), { owner: 'company', core: F.core, hp: F.hp, name: F.name });
+  m.log.push({ day: game.clock.day, text: `${F.name} is built.` });
+  game.notify?.(`Mason's Os finished your ${F.name.toLowerCase()}. "Built to last, as far as it is anyone's business to say."`, 'good');
+  game.bus?.emit('war:facility', { id: f.id, state: 'built' });
+}
+
+/** What mending costs: half of what the damaged share of the building is worth (a ruin is rebuilt for most of its price, and goes through the stages again). */
+function repairCost(game, id) {
+  const F = FACILITIES[id];
+  const h = hpOf(game, sid(id));
+  if (!F || !h) return null;
+  const state = stateOf(game, sid(id));
+  if (state === 'destroyed') return { kind: 'rebuild', cost: Math.round(F.cost * 0.8) };
+  const lost = 1 - h.hp / h.hpMax;
+  return { kind: 'repair', cost: Math.round(F.cost * 0.5 * lost) };
+}
+
+function repair(game, id, pay) {
+  const m = peekMilitary(game);
+  const f = rec(m, id);
+  const F = FACILITIES[id];
+  const q = f && f.state === 'built' ? repairCost(game, id) : null;
+  if (!q) return { ok: false, text: 'There is nothing to repair.' };
+  if (q.cost <= 0) return { ok: false, text: `${F.name} is as good as new.` };
+  const r = pay(q.cost, `Mason's Os: ${q.kind === 'rebuild' ? 'rebuilding' : 'repairing'} ${F.name}`);
+  if (!r.ok) return r;
+  if (q.kind === 'rebuild') { f.state = 'foundation'; f.daysLeft = F.days[0]; f.rebuild = true; return { ok: true, text: `Mason's Os will rebuild the ${F.name.toLowerCase()} from the foundations (${q.cost.toLocaleString('en-US')} obols).` }; }
+  const h = hpOf(game, sid(id));
+  gateRepair(game, sid(id), h.hpMax - h.hp, 'repair');
+  return { ok: true, text: `Mason's Os mended the ${F.name.toLowerCase()} (${q.cost.toLocaleString('en-US')} obols).` };
+}
+
+/** What the base can hold, from the facilities that stand: a damaged one gives half, a ruin none. */
+function capacity(game) {
+  const out = { beds: 0, meals: 0, treat: 0, stores: 0, desks: 0, lines: 0, bays: 0, training: 0, repair: 0, racks: 0, surgery: 0, briefing: 0 };
+  const m = peekMilitary(game);
+  for (const f of m?.company?.facilities || []) {
+    if (f.state !== 'built') continue;
+    const st = stateOf(game, sid(f.id));
+    const k = st === 'destroyed' ? 0 : st === 'damaged' ? 0.5 : 1;
+    for (const [key, v] of Object.entries(FACILITIES[f.id].capacity)) out[key] = (out[key] || 0) + Math.floor(v * k);
+  }
+  return out;
+}
+
+/** The offers: every facility with its state, cost and whether it can be ordered now. */
+function view(game) {
+  const m = peekMilitary(game);
+  return Object.values(FACILITIES).map((F) => {
+    const st = facilityState(game, F.id);
+    const r = rec(m, F.id);
+    const q = quote(game, F.id);
+    return { ...F, state: st, daysLeft: r?.daysLeft ?? null, cost: q.cost, open: stageOpen(game, F.stage), canOrder: st === 'none' && stageOpen(game, F.stage) && Boolean(m?.company?.lot.owned), gate: stateOf(game, sid(F.id)), repair: st === 'built' || st === 'ruin' ? repairCost(game, F.id) : null };
+  });
+}
+
+return { lotOwned, facilityState, stageOpen, quote, commission, dailyTick, repairCost, repair, capacity, view };
+})();
+
 // ---- src/war/api.js
 __m["src/war/api.js"] = (function () {
 // The war update's service (v0.98.0): game.war. A thin facade over the record (src/war/state.js), the protection gate (protection.js), the damage gate (damage.js) and the
@@ -30280,6 +30772,7 @@ const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { baseProtected, setCoupState, settle } = __m["src/war/protection.js"];
 const { register: registerStructure, apply: applyDamage, repair: repairStructure, view: structureView } = __m["src/war/damage.js"];
 const { checkMilitary } = __m["src/war/check.js"];
+const { commission: commissionFacility, dailyTick: facilityDay, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
 class War {
   constructor(game) { this.game = game; }
@@ -30299,6 +30792,26 @@ class War {
   structures() { return structureView(this.g); }
 
   check() { return checkMilitary(this.peek()); }
+
+  // ---- the company's construction (v0.98.0). `pay` is the company's way of paying; stage 3 makes it the company's own account.
+  company() { return this.peek()?.company || null; }
+  lotOwned() { return lotOwnedOf(this.g); }
+  facilityState(id) { return facilityStateOf(this.g, id); }
+  facilities() { return facilityView(this.g); }
+  quote(id) { return facilityQuote(this.g, id); }
+  commission(id) { return commissionFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
+  repairFacility(id) { return repairFacility(this.g, id, (amount, note) => this.pay(amount, note)); }
+  repairCost(id) { return facilityRepairCost(this.g, id); }
+  capacity() { return baseCapacity(this.g); }
+  dailyTick() { facilityDay(this.g); }
+  /** Pay for something the company buys. (Stage 3 of this release moves it to the company's own account; until then, your wallet.) */
+  pay(amount, note) {
+    const g = this.g;
+    if (g.player.money < amount) return { ok: false, text: `That costs ${amount.toLocaleString('en-US')} obols.` };
+    g.player.money -= amount;
+    g.bus.emit('money:changed', { delta: -amount, total: g.player.money });
+    return { ok: true };
+  }
 
   summary() {
     const m = this.peek();
@@ -50924,6 +51437,7 @@ class Game {
     if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
     if (lock.hq) return this.hq.owns(lock.hq) ? null : lock.message; // v0.86.0: an office is shut until the parent company buys it
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
+    if (lock.facility) return this.war.facilityState(lock.facility) === 'built' ? null : (lock.message || 'Still a building site.'); // v0.98.0: Hollowmoor Lot's facilities are the company's: shut until built, then yours
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
@@ -50941,6 +51455,7 @@ class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
+    if (door.lock?.facility && this.war.facilityState(door.lock.facility) !== 'built') return false; // v0.98.0
     if (door.lock?.hq) return this.hq.owns(door.lock.hq) && Boolean(npc.profile.hqStaff); // v0.86.0: an owned office is for its officers (v0.87.0: they have bodies)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
@@ -51018,6 +51533,7 @@ class Game {
     this.politics.minuteTick(); // v0.95.0: election night
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
+    if (this.clock.minuteOfDay === 6 * 60 + 11) this.war.dailyTick(); // v0.98.0: the company's construction
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {
@@ -64891,7 +65407,7 @@ class Renderer {
     const map = g.currentMap();
     // v0.47.0: the street and every building's interior are drawn together (buildings are walked
     // into, not loaded): the streets first, then the rooms over their footprints
-    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall))).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
+    this.layers = [{ map, x: 0, y: 0 }, ...g.neighbors(map.id)].filter((L) => !(L.map.def?.hall && !g.aero.hallBuilt(L.map.def.hall)) && !(L.map.def?.facility && g.war.facilityState(L.map.def.facility) !== 'built')).sort((a, b) => (a.map.kind === 'interior') - (b.map.kind === 'interior')); // v0.57.0: a hall still being built has no room to draw
     this.updateCamera(dt);
     const { zoom } = this.cam;
     const v = this.view;
@@ -64968,6 +65484,7 @@ class Renderer {
         if (lm.id === g.player.map && g.heavy?.decals.length) this.drawScorch(ctx, g.heavy.decals.filter((d) => d.map === lm.id));
       })();
       for (const b of lm.buildings) {
+        if (b.facility && g.war.facilityState(b.facility) !== 'built') continue; // v0.98.0: Hollowmoor Lot's sites (the scaffold props stand here)
         if (b.hall && !g.aero.hallBuilt(b.hall)) continue; // v0.57.0: a building site (the hall_site prop) stands here until it's built
         if (b.interior) {
           // v0.47.0: its room is drawn in its place; v0.51.0: its sign and awning over the front
@@ -66798,6 +67315,15 @@ const BUILDING_ICONS = {
   // The estates (v0.94.1)
   ic_hall: { icon: '🏰', kind: 'Ironcrest Hall (Josiah Vegas)' }, ih_cottages: { icon: '🏠', kind: 'The guards\' cottages' }, ic_gatehouse: { icon: '🛡️', kind: 'The gatehouse' }, ic_range: { icon: '🎯', kind: 'The range & armoury' },
   wm_hall: { icon: '🏡', kind: 'Willowmere (Susan)' }, wm_cottages: { icon: '🏠', kind: 'The staff cottages' }, wm_conservatory: { icon: '🌿', kind: 'The glass conservatory' }, wm_pavilion: { icon: '⛱️', kind: 'The garden pavilion' },
+  // The war update (v0.98.0): Fort Gullcrest (the government's) and Hollowmoor Lot (the company's)
+  fg_barracks1: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_barracks2: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_barracks3: { icon: '🪖', kind: 'Barracks (Fort Gullcrest)' }, fg_mess: { icon: '🍲', kind: 'Mess hall (Fort Gullcrest)' },
+  fg_hospital: { icon: '🏥', kind: 'Hospital (Fort Gullcrest)' }, fg_depot: { icon: '📦', kind: 'Supply depot (Fort Gullcrest)' }, fg_command: { icon: '🎖️', kind: 'Command post (Fort Gullcrest)' }, fg_hangars: { icon: '✈️', kind: 'Aircraft hangars (Fort Gullcrest)' },
+  fg_armoury: { icon: '🔫', kind: 'Armoury (Fort Gullcrest)' }, fg_motor: { icon: '🛠️', kind: 'Motor pool (Fort Gullcrest)' }, fg_range: { icon: '🎯', kind: 'Training range (Fort Gullcrest)' }, fg_quarters: { icon: '🏠', kind: 'The barracks block (the garrison)' }, fg_gatehouse: { icon: '🛡️', kind: 'The guardhouse (Fort Gullcrest)' },
+  hm_office: { icon: '🏢', kind: 'Your site office' }, hm_bunk: { icon: '🛏️', kind: 'Bunkhouse (your company)' }, hm_range: { icon: '🎯', kind: 'Shooting range (your company)' }, hm_cage: { icon: '🔫', kind: 'Armoury cage (your company)' },
+  hm_command: { icon: '🎖️', kind: 'Command HQ (your company)' }, hm_barracks_a: { icon: '🪖', kind: 'Barracks A (your company)' }, hm_barracks_b: { icon: '🪖', kind: 'Barracks B (your company)' }, hm_barracks_c: { icon: '🪖', kind: 'Barracks C (your company)' },
+  hm_mess: { icon: '🍲', kind: 'Mess hall (your company)' }, hm_medical: { icon: '⚕️', kind: 'Medical centre (your company)' }, hm_hospital: { icon: '🏥', kind: 'Hospital (your company)' }, hm_motor: { icon: '🛠️', kind: 'Motor pool (your company)' },
+  hm_armoury: { icon: '🔫', kind: 'Armoury (your company)' }, hm_depot: { icon: '📦', kind: 'Supply depot (your company)' }, hm_depot_b: { icon: '📦', kind: 'Large supply depot (your company)' }, hm_training: { icon: '🏃', kind: 'Training ground (your company)' },
+  hm_factory: { icon: '🏭', kind: 'Tank factory (your company)' }, hm_works: { icon: '🚁', kind: 'Helicopter works (your company)' }, hm_hangars: { icon: '✈️', kind: 'Aircraft hangars (your company)' },
 };
 
 return { BUILDING_ICONS };

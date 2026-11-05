@@ -274,6 +274,7 @@ export class Game {
     if (lock.bank) { const sealed = this.robbery.closedReason(lock.bank); if (sealed) return sealed; } // v0.79.0: shut for the investigation
     if (lock.hq) return this.hq.owns(lock.hq) ? null : lock.message; // v0.86.0: an office is shut until the parent company buys it
     if (lock.aeroHall && !this.aero.hallBuilt(lock.aeroHall)) return 'Still a building site — Roost Aeroworks hasn\'t built it yet.'; // v0.57.0
+    if (lock.facility) return this.war.facilityState(lock.facility) === 'built' ? null : (lock.message || 'Still a building site.'); // v0.98.0: Hollowmoor Lot's facilities are the company's: shut until built, then yours
     if (holder(lock.key)) return null;
     if (lock.home && this.homes?.opensFor(door)) return null; // v0.36.0: invited, or the lock's been picked / the door forced
     if (lock.flag && !this.getFlag(lock.flag)) return lock.flagMessage || lock.message || 'Locked. You are not expected here.';
@@ -291,6 +292,7 @@ export class Game {
   npcCanPass(npc, door) {
     if (!door.to) return false;
     if (door.lock?.aeroHall && !this.aero.hallBuilt(door.lock.aeroHall)) return false;
+    if (door.lock?.facility && this.war.facilityState(door.lock.facility) !== 'built') return false; // v0.98.0
     if (door.lock?.hq) return this.hq.owns(door.lock.hq) && Boolean(npc.profile.hqStaff); // v0.86.0: an owned office is for its officers (v0.87.0: they have bodies)
     if (!door.lock || (door.lock.owners || []).includes(npc.id)) return true;
     if (door.lock.staff && npc.profile.staff) return true; // v0.36.0: the Lodging House lets its lodgers in
@@ -368,6 +370,7 @@ export class Game {
     this.politics.minuteTick(); // v0.95.0: election night
     if (this.clock.minuteOfDay === 6 * 60 + 7) this.corp.dailyTick(); // v0.60.0: the wider world's day
     if (this.clock.minuteOfDay === 6 * 60 + 9) this.politics.dailyTick(); // v0.93.0: the political term
+    if (this.clock.minuteOfDay === 6 * 60 + 11) this.war.dailyTick(); // v0.98.0: the company's construction
     if (this.clock.minuteOfDay === 19 * 60 + 5) this.corp.personnel.payroll(); // v0.62.0: the people you employ are paid, once a day
     this.casino.minuteTick();
     for (const npc of this.npcs.values()) {

@@ -17,6 +17,18 @@ export function freshMilitary() {
   };
 }
 
+/** The player's company (v0.98.0, stage 3 fills the identity): everything a company holds is a record with an id, one location and one status (src/war/check.js). */
+export function freshCompany() {
+  return {
+    identity: null,                 // { name, colours, badge, founded, motto }: set by founding (src/war/company.js)
+    licensed: false,                // the Civic Office's licence for a private security company
+    lot: { owned: false, day: null, price: 0 },
+    facilities: [],                 // { id: facility id, slot, kind, state: permit|foundation|frame|fitted|built|ruin, daysLeft, paid, since }
+    personnel: [], squads: [], equipment: [], stock: {}, production: [], contracts: [], generals: [],
+    lastDay: 0, log: [],
+  };
+}
+
 export const peekMilitary = (game) => game.world?.military || null;
 
 export function ensureMilitary(game) {

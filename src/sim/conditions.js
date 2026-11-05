@@ -8,7 +8,7 @@ import { recall } from './memory.js';
 export const CONDITION_KEYS = [
   'all', 'any', 'not', 'firstMeeting', 'met', 'rel', 'mood', 'activity', 'hasItem', 'money', 'quest',
   'flag', 'notFlag', 'flags', 'knows', 'playerKnows', 'time', 'rep', 'map', 'day', 'npcAt', 'jobDoneToday',
-  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle',
+  'stock', 'propState', 'stolen', 'containerHas', 'recalls', 'hasItemTag', 'npcMood', 'flagToday', 'arrived', 'wealth', 'oil', 'site', 'property', 'police', 'gang', 'factory', 'arms', 'staff', 'dairy', 'aeroHall', 'hq', 'hqStyle', 'facility',
 ];
 
 /**
@@ -140,6 +140,11 @@ function checkKey(key, val, game, npc) {
     case 'site': {
       const st = game.world.construction || {};
       return Object.entries(val).every(([k, v]) => compare(st[k] ?? 0, v));
+    }
+    case 'facility': { // v0.98.0: { slot: facility id, state: 'none' | 'permit' | 'foundation' | 'frame' | 'fitted' | 'built' | 'ruin' (or a list), lot: true } — the company's buildings on Hollowmoor Lot
+      const st = game.war.facilityState(val.slot);
+      if (val.lot !== undefined && game.war.lotOwned() !== val.lot) return false;
+      return Array.isArray(val.state) ? val.state.includes(st) : st === val.state;
     }
     case 'property': {
       // { plot, state, blueprint } for one plot; { state } = any plot in that state; { surveyed: bool }

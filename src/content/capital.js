@@ -83,14 +83,14 @@ export const CAPITAL_HOME_BUILDINGS = BLDG;
 // ------------------------------------------------------------------ appearance, schedule, dialogue
 const SKIN = ['#f0d0b0', '#e0b898', '#d8b090', '#c89a78', '#b88868', '#a07050', '#8a5e44'];
 const HAIR = ['#1e1a16', '#2a2622', '#4a3626', '#6a3a24', '#8a6a3a', '#c8c4bc', '#a8a49c', '#d8b870'];
-const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'] };
+const OUTFIT = { ambassador: ['#2a3a5a', '#3a2a4a', '#4a3a2a', '#2a4a3a', '#5a2a34', '#2a2a3a'], party: ['#2a3a5a', '#4a2a34', '#2a4a4a', '#5a4a2a', '#3a3a4a'], house: ['#2a2e36', '#2a3040', '#3a3a3a'], minister: ['#1e2a3a', '#2a2a2a', '#3a2a3a', '#2a3a2a'], soldier: ['#4a5a3a', '#5a5a42', '#3f4f35'] };
 const STYLE = ['short', 'parted', 'bun', 'curly', 'ponytail', 'long', 'messy'];
 
 export function appearanceOf(p) {
-  const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold'].some((n) => p.name.startsWith(n));
+  const female = ['Lucía', 'Marina', 'Dorrie', 'Hester', 'Dolores', 'Vivian', 'Ada', 'Judith', 'Imelda', 'Lena', 'Nell', 'Priya', 'Maeve', 'Rosamund', 'Ursula', 'Ophelia', 'Marigold', 'Colonel Marta', 'Private Hanna', 'Private Ines'].some((n) => p.name.startsWith(n));
   const outfit = pick(OUTFIT[p.kind], p.id, 'o');
   const base = { skin: pick(SKIN, p.id, 's'), hair: pick(HAIR, p.id, 'h'), hairStyle: female ? pick(['bun', 'long', 'ponytail', 'curly', 'parted'], p.id, 'st') : pick(['short', 'parted', 'messy', 'curly'], p.id, 'st'), outfit, undershirt: '#f4f2ee',
-    tie: female && p.kind !== 'house' ? null : pick(['#7a2a34', '#2a4a7a', '#4a6a2a', '#8a6a2a', '#3a3a5a'], p.id, 't'), legs: '#1e2230', shoes: '#141418', accessories: [], accent: p.party === 'order' ? '#b8962e' : p.party === 'liberty' ? '#e8b040' : '#c9a24a',
+    tie: p.kind === 'soldier' || (female && p.kind !== 'house') ? null : pick(['#7a2a34', '#2a4a7a', '#4a6a2a', '#8a6a2a', '#3a3a5a'], p.id, 't'), legs: '#1e2230', shoes: '#141418', accessories: [], accent: p.party === 'order' ? '#b8962e' : p.party === 'liberty' ? '#e8b040' : '#c9a24a',
     build: pick(['average', 'thin', 'broad', 'round', 'wiry'], p.id, 'b'), height: 0.96 + (hash(p.id + 'ht') % 12) / 100 };
   if (p.armed) base.build = 'broad';
   if (p.kind === 'ambassador') base.accessories = [pick(['lapelpin', 'watchchain', 'scarf', 'monocle'], p.id, 'a')];

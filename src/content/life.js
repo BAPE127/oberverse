@@ -11,6 +11,7 @@
 
 import { capitalLife } from './capital.js'; // v0.94.0
 import { estateLife } from './estates.js'; // v0.94.1
+import { fortLife, FORT_PATROL } from './fort.js'; // v0.98.0
 
 /**
  * Occupations: reusable behaviour profiles.
@@ -19,7 +20,8 @@ import { estateLife } from './estates.js'; // v0.94.1
  *   persist    'persistent' (saved, never despawned)
  */
 export const OCCUPATIONS = {
-  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.94.0: the capital's people live and work in the Crown Quarter
+  official: { name: 'Official / diplomat', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
+  soldier: { name: 'Soldier', transport: 'walk', interrupt: 'resume', persist: 'persistent' }, // v0.98.0: Fort Gullcrest's garrison // v0.94.0: the capital's people live and work in the Crown Quarter
   shopkeeper: { name: 'Shopkeeper', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
   clerk: { name: 'Clerk / office worker', transport: 'transit', interrupt: 'resume', persist: 'persistent' },
   tradesperson: { name: 'Tradesperson', transport: 'walk', interrupt: 'resume', persist: 'persistent' },
@@ -158,7 +160,7 @@ export const LIFE = {
   // v0.93.0: the two party leaders (temporary flats until their own residences are built)
   npc_vegas: { home: 'res_ironcrest/master', occupation: 'official' }, // v0.94.1: the leaders live in their own mansions
   npc_susan: { home: 'res_willowmere/master', occupation: 'official' },
-  ...capitalLife(), ...estateLife(),
+  ...capitalLife(), ...estateLife(), ...fortLife(),
   ...Object.fromEntries(['opal', 'lupe', 'dale', 'lorna'].map((k) => [`npc_${k}`, { home: `res_bluebonnet/room_${k}`, occupation: 'shopkeeper' }])),
   npc_wade: { home: 'res_bluebonnet/room_wade', occupation: 'farmer', transport: 'transit' }, // no truck: he takes the No. 2 into the city
   npc_rosa: { home: 'res_bluebonnet/room_rosa', occupation: 'tradesperson' },
@@ -225,5 +227,6 @@ export const PATROLS = {
   beat_docks: { name: 'The Docks and Quay Road', map: 'halvermouth', dwell: 6, points: [[44, 78], [66, 78], [92, 78], [108, 78], [92, 70], [66, 70]] },
   beat_lanternside: { name: 'Lanternside', dwell: 10, points: ['lanternside:square_bench', 'lanternside:fountain_side', 'lanternside:canal_footbridge', 'lanternside:quay_edge', 'lanternside:park_bench'] },
   beat_westbrook: { name: 'Westbrook and the Lots', dwell: 10, points: ['westbrook:survey', 'westbrook:birdwatch', 'westbrook:lots_sign'] },
+  beat_fort: FORT_PATROL, // v0.98.0: the garrison's perimeter
   beat_oilfields: { name: 'The Ober Fields', dwell: 12, points: ['ober_fields:field_entrance', 'ober_fields:inspection_point', 'ober_fields:gate_post'] },
 };
