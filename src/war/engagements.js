@@ -10,7 +10,7 @@ import { reputation } from './contracts.js';
 import { leave } from './squads.js';
 import { resolve, estimate } from './combat.js';
 import { ATLAS } from '../content/atlas.js';
-import { styleOf } from '../content/battle.js';
+import { styleOf, SUPPORT } from '../content/battle.js';
 import { buildSetup } from '../battle/setup.js';
 import { ENGAGEMENTS as KINDS, ENGAGE as E, GENERALS, terrainOf } from '../content/generals.js';
 import { VEHICLES } from '../content/procurement.js';
@@ -114,7 +114,7 @@ export function play(game, id, squads) {
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C), ai: { p: false, e: true } }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
@@ -155,6 +155,17 @@ export function decline(game, id) {
   return { ok: true, text: 'Turned down.' };
 }
 
+/** What the company can call in a played battle, from what it really holds: missiles and drones in the stores (at most three of each kind), and the aircraft in its hangars (as many as the fuel allows). */
+export function supportOf(C) {
+  const items = {};
+  for (const k of Object.keys(C.stock)) { const m = /:(item_missile_guided|item_missile_cruise|item_drone_attack|item_drone_strike)$/.exec(k); if (m && C.stock[k] > 0) items[m[1]] = Math.min(3, (items[m[1]] || 0) + C.stock[k]); }
+  let fuel = C.stock['supply:fuel'] || 0; const air = [];
+  for (const x of C.equipment || []) {
+    if (x.kind !== 'aircraft' || x.status !== 'stored' || x.assignedTo != null || air.length >= 3) continue;
+    const kind = /bomb/i.test(x.type) ? 'bomber' : 'fighter'; if (fuel < SUPPORT[kind].fuel) continue; fuel -= SUPPORT[kind].fuel; air.push({ id: x.id, name: x.name, kind });
+  }
+  return { items, air };
+}
 const rocketKeys = (C) => Object.keys(C.stock).filter((k) => k.endsWith(':item_rpg_rocket')).sort();
 
 /**
@@ -182,6 +193,8 @@ export function applyOutcome(game, C, eng, R) {
   const used = {};
   if (R.used.fuel) { let left = R.used.fuel; const k = 'supply:fuel'; const t = Math.min(left, C.stock[k] || 0); if (t) { takeStock(game, k, t); used[SUPPLIES.fuel.name] = t; } }
   if (R.used.rockets) { let left = R.used.rockets; for (const k of rocketKeys(C)) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; used['RPG rockets'] = (used['RPG rockets'] || 0) + t; } if (!left) break; } }
+  for (const [item, n] of Object.entries(R.used.items || {})) { let left = n; for (const k of Object.keys(C.stock).filter((q) => q.endsWith(`:${item}`)).sort()) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; const nm = SUPPORT[item]?.name || item; used[nm] = (used[nm] || 0) + t; } if (!left) break; } }
+  if (R.used.air?.length) used['Air passes'] = R.used.air.length;
   // the general and the money
   const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }

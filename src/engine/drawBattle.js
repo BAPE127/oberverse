@@ -8,7 +8,8 @@ import { drawCar } from './drawBattleCars.js';
 import { bakeGround, gameMapOf } from './battleGround.js';
 import { drawProp, setPixelProps } from './drawWorld.js';
 import { PROP_TYPES } from '../content/props.js';
-import { TILE, ART_STYLE } from '../content/battle.js';
+import { TILE, ART_STYLE, SUPPORT } from '../content/battle.js';
+import { drawJet } from './drawBattleFx.js';
 import { LOOKS, DEFAULT_LOOK } from '../content/troops.js';
 import { unit } from '../battle/hash.js';
 
@@ -46,10 +47,16 @@ export function bakeScene(map0) {
     if (p.type === 'crosswalk') { drawProp(gg, pp, { wind: 0, map: gm, time: 0, night: false }); continue; }
     items.push({ y: (p.y + (pp.h || 1)) * TP - 4, x0: p.x * TP - 48, x1: (p.x + (pp.w || 1)) * TP + 48, y0: p.y * TP - 120, y1: (p.y + (pp.h || 1)) * TP + 24, draw: (g, t) => drawProp(g, pp, { wind: 0, map: gm, time: t, night: false }) });
   }
-  for (const b of map.buildings) { const sprite = bakeBuilding(b); items.push({ y: (b.y + b.h) * TP, b, x0: b.x * TP, x1: b.x * TP + sprite.width, y0: b.y * TP, y1: b.y * TP + sprite.height, draw: (g) => g.drawImage(sprite, b.x * TP, b.y * TP) }); }
+  for (const b of map.buildings) { const sprite = bakeBuilding(b); items.push({ y: (b.y + b.h) * TP, b, x0: b.x * TP, x1: b.x * TP + sprite.width, y0: b.y * TP, y1: b.y * TP + sprite.height, draw: (g, t, B) => { g.drawImage(sprite, b.x * TP, b.y * TP); if (B) for (const r of B.rubble) if (r.x >= b.x && r.x < b.x + b.w && r.y >= b.y && r.y < b.y + b.h) rubble(g, r.x, r.y); } }); }
   for (const c of map.cars || []) items.push({ y: c.y + 10, x0: c.x - 70, x1: c.x + 70, y0: c.y - 40, y1: c.y + 40, draw: (g) => drawCar(g, c.kind, c.color, c.dir, c.x, c.y) });
   items.sort((a, b) => a.y - b.y);
   return { map, gm, ground, items };
+}
+
+/** A breached wall segment: a dark gap with bricks on the ground. */
+function rubble(g, tx, ty) {
+  const x = tx * TP; const y = ty * TP; g.fillStyle = INK; g.fillRect(x + 2, y + 2, TP - 4, TP - 4); g.fillStyle = '#2a2420'; g.fillRect(x + 4, y + 4, TP - 8, TP - 8);
+  for (let i = 0; i < 9; i++) { const u = unit(`rub|${tx}|${ty}|${i}`); const v = unit(`rub|${tx}|${ty}|${i}|v`); g.fillStyle = ['#8a4a3a', '#a8604a', '#6a3a2a', '#c8b8a0'][i % 4]; g.fillRect(x + 3 + Math.floor(u * (TP - 9)), y + 3 + Math.floor(v * (TP - 9)), 4 + (i % 3) * 2, 3 + (i % 2) * 2); }
 }
 
 /** One floor of a building as a plan, in the game's roofless look: plank floors with a shadow under the north wall, brick or plaster walls with framed windows, furniture on the boards, the stair and a label. */
@@ -92,8 +99,8 @@ const specOf = (u) => (u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvi
 
 /** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
 export class BattleView {
-  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
-  attach(B, looks = {}) { this.B = B; this.map = B.map; this.scene = bakeScene(B.map); this.looks = looks; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
+  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.air = []; this.labels = []; this.rings = []; this.evi = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
+  attach(B, looks = {}) { this.B = B; this.map = B.map; this.scene = bakeScene(B.map); this.looks = looks; this.evi = B.events.length; this.air = []; this.labels = []; this.rings = []; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
   tier() { return this.cam.zoom < 0.55 ? 'far' : this.cam.zoom > 1.8 ? 'close' : 'command'; }
   toWorld(sx, sy) { const r = this.cv.getBoundingClientRect(); return { x: (sx - r.left) / this.cam.zoom + this.cam.x, y: (sy - r.top) / this.cam.zoom + this.cam.y }; }
   toTile(sx, sy) { const w = this.toWorld(sx, sy); return { x: w.x / TP, y: w.y / TP }; }
@@ -114,6 +121,18 @@ export class BattleView {
 
   /** What changed since the last frame becomes effects: shots, hits, kills. */
   effects(B) {
+    const T = TP;
+    for (const e of B.events.slice(this.evi)) {
+      if (e.k === 'blast') { const big = e.r >= 2.5; this.fx.blast(e.x * T, e.y * T - 6, big); for (let i = 0; i < Math.round(e.r * 2); i++) this.fx.blast(e.x * T + (unit(`bl|${B.tick}|${i}`) - 0.5) * e.r * T * 1.4, e.y * T + (unit(`bm|${B.tick}|${i}`) - 0.5) * e.r * T * 1.2 - 6, false); this.rings.push({ x: e.x * T, y: e.y * T, r: e.r * T, age: 0 }); }
+      else if (e.k === 'pass') this.air.push({ kind: e.kind, x0: e.x0 * T, x1: e.x1 * T, y: e.y * T, t0: e.t, dur: e.dur });
+      else if (e.k === 'module') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: { tracks: 'TRACKS OUT', gun: 'GUN OUT', engine: 'ENGINE ON FIRE', crew: 'CREW OUT' }[e.module] || e.module, age: 0 }); }
+      else if (e.k === 'breach') { this.fx.blast((e.x + 0.5) * T, (e.y + 0.5) * T, false); for (let i = 0; i < 6; i++) this.fx.hit((e.x + unit(`br|${i}`)) * T, (e.y + unit(`bs|${i}`)) * T); }
+      else if (e.k === 'wallhit') this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T);
+      else if (e.k === 'down' && e.abandoned) { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: 'ABANDONED', age: 0 }); }
+    }
+    this.evi = B.events.length;
+    if (B.tick % 3 === 0) for (const c of B.smoke) if (c.until > B.tick) for (let i = 0; i < 2; i++) this.fx.cloud((c.x + (unit(`sc|${B.tick}|${i}`) - 0.5) * c.r * 1.7) * T, (c.y + (unit(`sd|${B.tick}|${i}`) - 0.5) * c.r * 1.3) * T);
+    for (const u of B.units) if (u.burning && B.tick % 4 === 0) this.fx.flame(u.x * T, u.y * T - 8);
     for (const u of B.units) {
       const s0 = this.lastShots.get(u.id) ?? u.shots; if (u.shots > s0) { const t = u.target ? B.byId.get(u.target) : null; if (t) { const dx = t.x - u.x; const dy = t.y - u.y; const d = Math.hypot(dx, dy) || 1; this.fx.muzzle(u.x * TP, u.y * TP - 12, dx / d, dy / d); this.fx.tracer(u.x * TP, u.y * TP - 12, t.x * TP, t.y * TP - 12, u.side); if (u.W.pierce >= 1 || u.W.rocket) this.fx.blast(t.x * TP, t.y * TP - 8); } }
       this.lastShots.set(u.id, u.shots);
@@ -144,7 +163,23 @@ export class BattleView {
     });
     this.drawItems(g, list, open, B, ui);
     this.fx.draw(g);
+    this.overlay(g, B);
     g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** What is in the air and what is about to land: the passes, the rings round the targets of strikes that are on their way, the shock rings and the labels. */
+  overlay(g, B) {
+    const T = TP;
+    for (const p of B.pend) { const S = SUPPORT[p.kind]; if (!S || S.group === 'smoke') continue; const r = (S.r || 1.5) * T; const left = Math.max(0, p.at - B.tick); g.strokeStyle = `rgba(255,${80 + (left % 6) * 20},60,0.9)`; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(p.x * T, p.y * T, r, r * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,90,60,0.12)'; g.fill(); }
+    for (const r of B.runs) { const S = SUPPORT[r.kind]; g.strokeStyle = 'rgba(255,200,90,0.5)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(r.x0 * T, r.y * T); g.lineTo(r.x1 * T, r.y * T); g.stroke(); g.setLineDash([]); void S; }
+    this.rings = this.rings.filter((q) => q.age < 14); for (const q of this.rings) { q.age++; g.strokeStyle = `rgba(255,230,180,${1 - q.age / 14})`; g.lineWidth = 3; g.beginPath(); g.ellipse(q.x, q.y, q.r * (0.3 + q.age / 14), q.r * 0.8 * (0.3 + q.age / 14), 0, 0, Math.PI * 2); g.stroke(); }
+    this.air = this.air.filter((a) => B.tick - a.t0 <= a.dur + 30);
+    for (const a of this.air) {
+      const f = (B.tick - a.t0) / a.dur; const x = a.x0 + (a.x1 - a.x0) * f; const bomber = a.kind === 'bomber';
+      if (f >= -0.1 && f <= 1.4) { drawJet(g, x, a.y - 30 * (1 - Math.min(1, Math.max(0, f))) * 0, 0, bomber, this.t); if (!bomber && f >= 0 && f <= 1) { g.fillStyle = '#ffe08a'; for (let i = 0; i < 5; i++) g.fillRect(Math.round(x + 24 + i * 5), Math.round(a.y + (i % 2) * 2 - 1), 3, 2); } }
+    }
+    this.labels = this.labels.filter((l) => l.age < 60); g.font = 'bold 12px monospace'; g.textAlign = 'center';
+    for (const l of this.labels) { l.age++; const y = l.y - l.age * 0.5; g.fillStyle = INK; g.fillText(l.text, l.x + 1, y + 1); g.fillStyle = '#ffd24a'; g.fillText(l.text, l.x, y); }
   }
 
   /** The standing things and the people, merged in order of how far down the screen they are, so a soldier behind a tree is behind it. */
@@ -155,7 +190,7 @@ export class BattleView {
       flush(it.y);
       if (it.x1 < vx0 || it.x0 > vx1 || it.y1 < vy0 || it.y0 > vy1) continue;
       if (it.b && open[it.b.id]) continue;
-      it.draw(g, this.t);
+      it.draw(g, this.t, this.B);
     }
     flush(Infinity);
   }

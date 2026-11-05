@@ -52,6 +52,29 @@ export const ARMOUR_FLOOR = 0.04;
 /** What a role adds to its side: medics mend those near them, officers rally, signallers see further. */
 export const ROLE = { medic: { heal: 3, radius: 3 }, officer: { rally: 6 }, signaller: { sight: 3 }, marksman: {}, anti_tank: {}, machine_gunner: {} };
 
+/** Where a ground vehicle is hit decides how hard: its front is its thickest armour, its rear its thinnest (a multiplier on the damage). */
+export const FACING = { front: 0.6, side: 1.0, rear: 1.4 };
+/**
+ * A ground vehicle is a hull and four modules (v0.102.0). A hit that lands on a module wears it down (its integrity is 1 at the start); a module under `hurt` works badly, one under `down` is out:
+ * tracks out = it cannot move; the gun out = it cannot fire its main gun; the engine out = it burns; the crew out = it is abandoned (lost). `w` is the share of hits that land on each.
+ */
+export const MODULES = { tracks: { w: 0.30 }, gun: { w: 0.25 }, engine: { w: 0.20 }, crew: { w: 0.15 }, hull: { w: 0.10 } };
+export const MODULE = { hpShare: 0.5, hurt: 0.5, down: 0.15, burn: 5, slow: 0.5, aimLoss: 0.8 };
+/**
+ * Support called from the real stock (v0.102.0): a battlefield missile or a drone (one item, used up when it is called), an aircraft pass (an aircraft the company keeps, which is not lost but burns
+ * fuel), and smoke (carried by engineers and officers: two grenades each, a part of their kit). A strike takes `delay` seconds to land and hurts everyone in its blast, yours too.
+ */
+export const SUPPORT = {
+  item_missile_guided: { name: 'Skylance guided missile', delay: 4, r: 3, dmg: 420, group: 'missile' },
+  item_missile_cruise: { name: 'Longbow cruise missile', delay: 6, r: 4, dmg: 700, group: 'missile' },
+  item_drone_attack: { name: 'Hornet attack drone', delay: 3, r: 1.6, dmg: 180, group: 'drone' },
+  item_drone_strike: { name: 'Kestrel strike drone', delay: 3, r: 2.2, dmg: 280, group: 'drone' },
+  fighter: { name: 'Fighter strafing pass', delay: 5, len: 22, width: 1.3, dmgTick: 6, fuel: 6, seconds: 3.5, group: 'air' },
+  bomber: { name: 'Bomber run', delay: 6, len: 26, bombs: 4, r: 2.6, dmg: 360, fuel: 10, seconds: 4, group: 'air' },
+  smoke: { name: 'Smoke', delay: 0.8, r: 2.6, seconds: 30, throw: 9, charges: 2, group: 'smoke' },
+};
+/** A wall segment holds this much damage before it is breached (a gun or a rocket opens it; the wall becomes rubble you can walk through and see through). */
+export const BREACH = { wall: 260, blast: 1.4 };
 /** A battle's length and how its objectives are scored (a share of the enemy put out of action, a ceiling on your own losses, a zone held or taken, a convoy through). */
 /** A soldier put out of action (hit points gone) is dead with this chance (less with plate armour), else badly wounded: the same split the aggregate resolver uses (src/war/combat.js, a third of the casualties dead). */
 export const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };

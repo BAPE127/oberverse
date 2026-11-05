@@ -9,7 +9,7 @@ const KIND = { tank: 'tank', helicopter: 'helicopter', carrier: 'carrier' };
 const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'vehicle_mg' };
 
 /** `eng`: { id, goal, enemy:{troops,armour,air,skill}, recipe, biome, style }. `people`: [{id,name,role,tier,armour,exp,morale,fatigue,armed}]. `vehicles`: [{id,name,cls,armour,firepower,speed}]. */
-export function buildSetup({ key, eng, people, vehicles, ai = {} }) {
+export function buildSetup({ key, eng, people, vehicles, support = null, ai = {} }) {
   const units = [];
   for (const p of people) {
     const tiers = CLASSES[p.role]?.tiers || {};
@@ -30,6 +30,6 @@ export function buildSetup({ key, eng, people, vehicles, ai = {} }) {
   }
   for (let i = 0; i < Math.round(E.armour); i++) units.push({ id: `et${i}`, side: 'e', kind: 'tank', role: 'tank', name: 'Enemy tank', rec: null, weapon: 'tank_gun', hp: UNITS.tank.hp + UNITS.tank.perArmour * 3, accMult: skill, armourBar: 3, morale: 80, sight: UNITS.tank.sight, speed: SPEED.vehicleBase + SPEED.vehiclePerBar * 3 });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
-  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
+  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, units, support: support || { items: {}, air: [] }, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }
 export { STYLES, pick };

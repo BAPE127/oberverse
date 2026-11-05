@@ -3,11 +3,11 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
-import { createBattle, step, issue, outcome, replay, sightOf, isVeh } from '../battle/sim.js';
+import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport } from '../battle/sim.js';
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
-import { TICK } from '../content/battle.js';
+import { TICK, SUPPORT } from '../content/battle.js';
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
 const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -64,6 +64,8 @@ export function battlePanel(ui, body, opts = {}) {
   const target = (e, shift) => {
     const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
     const mode = S.mode || (shift ? 'amove' : 'move');
+    if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
+    if (mode === 'smoke' || mode === 'suppress' || mode === 'breach') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
     S.mode = null; paintBar();
@@ -75,10 +77,12 @@ export function battlePanel(ui, body, opts = {}) {
     if (!B) return; canvas.setPointerCapture(e.pointerId);
     if (e.button === 2) { if (S.sel.size) target(e, e.shiftKey); return; }
     if (e.button === 1 || e.altKey) { S.drag = { pan: true, x: e.clientX, y: e.clientY }; return; }
+    if (S.mode?.startsWith('support:')) { target(e, false); return; }
     if (S.mode && S.sel.size) { target(e, e.shiftKey); return; }
     S.drag = { x: e.clientX, y: e.clientY, x1: e.clientX, y1: e.clientY, sel: true, shift: e.shiftKey };
   });
   canvas.addEventListener('pointermove', (e) => {
+    if (B) S.mouse = view.toTile(e.clientX, e.clientY);
     const d = S.drag; if (!d) return;
     if (d.pan) { view.cam.x -= (e.clientX - d.x) / view.cam.zoom; view.cam.y -= (e.clientY - d.y) / view.cam.zoom; d.x = e.clientX; d.y = e.clientY; view.clamp(); return; }
     d.x1 = e.clientX; d.y1 = e.clientY;
@@ -99,6 +103,7 @@ export function battlePanel(ui, body, opts = {}) {
     else if (k === '1' || k === '2' || k === '3') { S.speed = [1, 4, 16][Number(k) - 1]; paintBar(); }
     else if (k === 'h') give({ type: 'hold' }, 'hold'); else if (k === 'r') give({ type: 'retreat' }, 'retreat');
     else if (k === 'a') { S.mode = 'amove'; paintBar(); } else if (k === 'm') { S.mode = 'move'; paintBar(); } else if (k === 'g') { S.mode = 'garrison'; paintBar(); }
+    else if (k === 's') { S.mode = 'smoke'; paintBar(); } else if (k === 'b') { S.mode = 'breach'; paintBar(); }
     else if (k === 'c') { const u = [...S.sel].map((x) => B.byId.get(x)).filter(Boolean)[0]; if (u) view.center(u.x, u.y); }
     else if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) { S.keys.add(k); e.preventDefault(); }
   };
@@ -112,12 +117,21 @@ export function battlePanel(ui, body, opts = {}) {
     const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate' }[B.goal];
     top.replaceChildren(h('b', {}, eng.title), h('span', {}, goal), h('span', {}, `⏱ ${mmss(B.tick)} / ${mmss(B.maxTicks)}`), h('span', { class: 'grow' }), h('span', { class: 'bt-p' }, `Yours ${alive}/${mine.length}`), h('span', { class: 'bt-e' }, `Enemy in sight ${[...seenSet()].length}`), h('span', { title: 'the camera tier' }, `🔭 ${view.tier()}`), h('button', { onclick: () => close() }, '✕ Leave'));
   };
+  /** What can be called from the real stock, as buttons: each item left, each aircraft not yet used. Then a click on the map. */
+  const supportButtons = (mk) => {
+    const out = [];
+    for (const [item, n] of Object.entries(B.sup.items)) if (n > 0) out.push(mk(`${SUPPORT[item].name} ×${n}`, `support:${item}`, () => { S.mode = S.mode === `support:${item}` ? null : `support:${item}`; paintBar(); }));
+    for (const a of B.sup.air) if (!a.used) out.push(mk(`✈ ${a.name || SUPPORT[a.kind].name} (${a.kind})`, `support:${a.kind}:${a.id}`, () => { const m = `support:${a.kind}:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
+    return out;
+  };
   const paintBar = () => {
     const mk = (label, k, fn) => h('button', { class: S.mode === k ? 'on' : '', onclick: fn }, label);
     bar.replaceChildren(...SPEEDS.map(([v, l]) => h('button', { class: S.speed === v ? 'on' : '', onclick: () => { S.speed = v; paintBar(); } }, l)), h('span', { class: 'sep' }),
       mk('Move', 'move', () => { S.mode = S.mode === 'move' ? null : 'move'; paintBar(); }), mk('Attack-move', 'amove', () => { S.mode = S.mode === 'amove' ? null : 'amove'; paintBar(); }),
       h('button', { onclick: () => give({ type: 'hold' }, 'hold') }, 'Hold'), mk('Garrison', 'garrison', () => { S.mode = S.mode === 'garrison' ? null : 'garrison'; paintBar(); }),
       h('button', { onclick: () => { S.gFloor = (S.gFloor + 1) % 6; paintBar(); } }, `Floor ${S.gFloor + 1}`), h('button', { onclick: () => give({ type: 'retreat' }, 'retreat') }, 'Retreat'), h('span', { class: 'sep' }),
+      mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
+      ...(B ? supportButtons(mk) : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
       ...(B ? Object.entries(opened()).map(([b, v]) => h('button', { class: S.ground.has(Number(b)) ? 'on' : '', title: 'what to show of this building', onclick: () => { const n = Number(b); if (S.ground.has(n)) S.ground.delete(n); else S.ground.add(n); paintBar(); } }, `🏢${Number(b) + 1}: ${S.ground.has(Number(b)) ? 'ground floor' : `floor ${v.floor + 1}`}`)) : []));
   };
@@ -152,6 +166,7 @@ export function battlePanel(ui, body, opts = {}) {
     view.visible = (e) => seenSet().has(e.id);
     view.draw(B, { selected: S.sel, open: opened(), seen: seenSet() });
     if (S.drag?.sel && Math.hypot(S.drag.x1 - S.drag.x, S.drag.y1 - S.drag.y) > 6) { const g2 = canvas.getContext('2d'); const rr = canvas.getBoundingClientRect(); g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#7af0a0'; g2.lineWidth = 1; g2.strokeRect(Math.min(S.drag.x, S.drag.x1) - rr.left, Math.min(S.drag.y, S.drag.y1) - rr.top, Math.abs(S.drag.x1 - S.drag.x), Math.abs(S.drag.y1 - S.drag.y)); }
+    if (S.mode?.startsWith('support:') && S.mouse) { const q = SUPPORT[S.mode.split(':')[1]]; const g2 = canvas.getContext('2d'); const z = view.cam.zoom; const sx = (S.mouse.x * TP - view.cam.x) * z; const sy = (S.mouse.y * TP - view.cam.y) * z; g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#ff6a4a'; g2.lineWidth = 2; g2.setLineDash([8, 6]); g2.beginPath(); g2.ellipse(sx, sy, (q.r || q.width || 1.5) * TP * z, (q.r || q.width || 1.5) * TP * z * 0.8, 0, 0, Math.PI * 2); g2.stroke(); if (q.len) { g2.beginPath(); g2.moveTo(sx - (q.len / 2) * TP * z, sy); g2.lineTo(sx + (q.len / 2) * TP * z, sy); g2.stroke(); } g2.setLineDash([]); }
     if (B.tick % 10 === 0) { paintTop(); paintCard(); }
     if (B.tick - S.lastSave >= 100) { S.lastSave = B.tick; save(); }
     ui.battleFrames = (ui.battleFrames || 0) + 1;

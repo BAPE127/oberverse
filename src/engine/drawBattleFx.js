@@ -6,6 +6,7 @@ import { unit } from '../battle/hash.js';
 const FIRE = ['#fff4b8', '#ffd24a', '#ff9a24', '#e8581a', '#b02a12', '#6a1408', '#2a0a08'];
 const SMOKE = ['#a8a8b6', '#7e7e8c', '#585864', '#383842', '#1e1e26'];
 const DUST = ['#e0cdb0', '#c0aa8c', '#98826a', '#6e5c44', '#4a3c2c'];
+const SCREEN = ['#f6f6fa', '#dcdce6', '#c0c0ce', '#a2a2b2', '#84849a'];
 const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]].map((r) => r.map((v) => (v + 0.5) / 16));
 const CAP = 600;
 const PX = 2; // one art pixel is two screen pixels
@@ -23,9 +24,13 @@ export class FxLayer {
     for (let i = 0; i < 7 * m; i++) this.add({ k: 'fire', x: x + (this.h(`x${i}`) - 0.5) * 12 * m, y: y + (this.h(`y${i}`) - 0.5) * 10 * m, vx: (this.h(`vx${i}`) - 0.5) * 1.2, vy: -0.4 - this.h(`vy${i}`) * 0.8, age: 0, life: 9 + Math.floor(this.h(`l${i}`) * 8), s: 3 * m });
     for (let i = 0; i < 5 * m; i++) this.add({ k: 'smoke', x: x + (this.h(`sx${i}`) - 0.5) * 10, y: y - 4, vx: (this.h(`svx${i}`) - 0.5) * 0.5, vy: -0.5 - this.h(`svy${i}`) * 0.4, age: 0, life: 40 + Math.floor(this.h(`sl${i}`) * 30), s: 4 * m });
   }
+  /** White-grey smoke screen: a long-lived puff that hardly rises. */
+  cloud(x, y) { this.n++; this.add({ k: 'screen', x, y, vx: (this.h('cx') - 0.5) * 0.15, vy: -0.05, age: 0, life: 90, s: 7 }); }
+  /** A little flame and black smoke from a burning wreck or a burning engine. */
+  flame(x, y) { this.n++; this.add({ k: 'fire', x: x + (this.h('fx') - 0.5) * 8, y, vx: 0, vy: -0.5, age: 0, life: 10, s: 2 }); this.add({ k: 'smoke', x: x + (this.h('fy') - 0.5) * 6, y: y - 6, vx: 0.05, vy: -0.6, age: 0, life: 46, s: 3 }); }
   smoke(x, y) { this.n++; this.add({ k: 'smoke', x: x + (this.h('sx') - 0.5) * 8, y, vx: (this.h('sv') - 0.3) * 0.6, vy: -0.6, age: 0, life: 50, s: 4 }); }
   step() {
-    for (const q of this.p) { q.age++; q.x += q.vx; q.y += q.vy; if (q.k === 'smoke') { q.vx += 0.01; q.s += 0.05; } if (q.k === 'spark') q.vy += 0.25; }
+    for (const q of this.p) { q.age++; q.x += q.vx; q.y += q.vy; if (q.k === 'smoke') { q.vx += 0.01; q.s += 0.05; } if (q.k === 'screen') q.s += 0.03; if (q.k === 'spark') q.vy += 0.25; }
     this.p = this.p.filter((q) => q.age < q.life);
     for (const l of this.lines) l.age++;
     this.lines = this.lines.filter((l) => l.age < l.life);
@@ -37,8 +42,9 @@ export class FxLayer {
       const f = q.age / q.life; const r = Math.max(1, Math.round(q.s));
       let ramp; let level;
       if (q.k === 'fire' || q.k === 'flash' || q.k === 'spark') { ramp = FIRE; level = Math.min(6, Math.floor(f * 7)); if (q.k === 'flash') level = f > 0.5 ? 2 : 0; if (q.k === 'spark') level = Math.min(3, Math.floor(f * 4)); }
+      else if (q.k === 'screen') { ramp = SCREEN; level = Math.min(3, Math.floor(f * 4)); }
       else if (q.k === 'dust') { ramp = DUST; level = Math.min(4, Math.floor(f * 5)); } else { ramp = SMOKE; level = Math.min(4, Math.floor(0.4 * 5 + f * 2)); }
-      const alpha = q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
+      const alpha = q.k === 'screen' ? Math.min(0.9, 2.2 * (1 - f)) : q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
       for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
         if (i * i + j * j > r * r + 1) continue;
         const px = Math.round(q.x / PX) * PX + i * PX; const py = Math.round(q.y / PX) * PX + j * PX;
@@ -49,4 +55,20 @@ export class FxLayer {
       }
     }
   }
+}
+
+/** An aircraft seen from above on the battle's pixel idiom: a fuselage, swept wings, a tail, a canopy, a shadow well below it. `ang` is its heading (east is zero); `bomber` is bigger with four engines. */
+export function drawJet(g, x, y, ang, bomber = false, t = 0) {
+  const INK = '#1b1a24'; const L = bomber ? 56 : 38; const Wd = bomber ? 62 : 34; const body = bomber ? '#6c7466' : '#7c8794'; const hi = bomber ? '#8c9486' : '#9eaab8'; const lo = bomber ? '#4c5446' : '#5a6572';
+  g.save(); g.imageSmoothingEnabled = false;
+  g.save(); g.translate(Math.round(x + 18), Math.round(y + 30)); g.rotate(ang); g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(-L / 2, -3, L, 6); g.fillRect(-4, -Wd / 2 + 2, 10, Wd - 4); g.restore();
+  g.translate(Math.round(x), Math.round(y)); g.rotate(ang);
+  const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(a, b, w, h); };
+  R(-L / 2 - 1, -4, L + 2, 8, INK); R(-6, -Wd / 2 - 1, 16, Wd + 2, INK);
+  R(-L / 2, -3, L, 6, body); R(-L / 2, -3, L, 2, hi); R(-L / 2, 1, L, 2, lo); R(L / 2 - 8, -2, 8, 4, lo); R(L / 2 - 2, -1, 3, 2, body);
+  R(-4, -Wd / 2, 12, Wd, body); R(-4, -Wd / 2, 12, 2, hi); R(-4, Wd / 2 - 2, 12, 2, lo); R(-8, -Wd / 2 + 2, 4, 5, lo); R(-8, Wd / 2 - 7, 4, 5, lo);
+  R(-L / 2, -Wd / 5, 8, Wd * 0.4, body); R(-L / 2, -Wd / 5, 8, 2, hi);
+  R(L / 2 - 14, -2, 6, 4, '#2a4a62'); R(L / 2 - 13, -2, 2, 1, '#9ad0ee');
+  if (bomber) for (const dy of [-Wd / 3, -Wd / 8, Wd / 8, Wd / 3]) { R(-2, dy - 2, 8, 4, lo); R(-3, dy - 1, 2, 2, (Math.floor(t * 20) % 2) ? '#ffb43a' : '#ff7a2a'); } else { R(-L / 2 - 2, -1, 3, 2, (Math.floor(t * 20) % 2) ? '#ffd24a' : '#ff8a2a'); }
+  g.restore();
 }
