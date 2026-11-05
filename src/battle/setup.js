@@ -6,7 +6,7 @@ import { CLASSES, ARMOUR } from '../content/troops.js';
 import { unit, pick } from './hash.js';
 
 const KIND = { tank: 'tank', helicopter: 'helicopter', carrier: 'carrier' };
-const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'vehicle_mg' };
+const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'aa_gun' }; // (rules 3: anti-air fires at aircraft; under rules 1 and 2 it was a machine gun, and a saved setup keeps its own weapon string)
 
 /** `eng`: { id, goal, enemy:{troops,armour,air,skill}, recipe, biome, style }. `people`: [{id,name,role,tier,armour,exp,morale,fatigue,armed}]. `vehicles`: [{id,name,cls,armour,firepower,speed}]. */
 export function buildSetup({ key, eng, people, vehicles, support = null, ai = {} }) {
@@ -18,7 +18,7 @@ export function buildSetup({ key, eng, people, vehicles, support = null, ai = {}
   }
   for (const v of vehicles) {
     const kind = KIND[v.cls] || 'other'; const T = UNITS[kind === 'helicopter' ? 'helicopter' : kind] || UNITS.other;
-    units.push({ id: v.id, side: 'p', kind, role: v.cls, name: v.name, rec: { t: 'vehicle', id: v.id }, weapon: VWEAPON[v.cls] || 'none', hp: T.hp + T.perArmour * v.armour, accMult: 0.9 + 0.05 * v.firepower, armourBar: v.armour, morale: 80, sight: T.sight, speed: kind === 'helicopter' ? SPEED.helicopter : SPEED.vehicleBase + SPEED.vehiclePerBar * v.speed });
+    units.push({ id: v.id, side: 'p', kind, role: v.cls, vtype: v.type || null, name: v.name, rec: { t: 'vehicle', id: v.id }, weapon: VWEAPON[v.cls] || 'none', hp: T.hp + T.perArmour * v.armour, accMult: 0.9 + 0.05 * v.firepower, armourBar: v.armour, morale: 80, sight: T.sight, speed: kind === 'helicopter' ? SPEED.helicopter : SPEED.vehicleBase + SPEED.vehiclePerBar * v.speed });
   }
   // the enemy: made from what the engagement says is against you (a count, a skill), nothing else
   const E = eng.enemy; const skill = E.skill ?? 1;
@@ -29,6 +29,7 @@ export function buildSetup({ key, eng, people, vehicles, support = null, ai = {}
     units.push({ id: `e${i}`, side: 'e', kind: 'inf', role, name: `Enemy ${i + 1}`, rec: null, weapon, hp: UNITS.infantry.hp, accMult: skill, prot: 1, morale: 65 + Math.floor(unit(`${key}|enemy|m|${i}`) * 25), sight: UNITS.infantry.sight, speed: SPEED.infantry });
   }
   for (let i = 0; i < Math.round(E.armour); i++) units.push({ id: `et${i}`, side: 'e', kind: 'tank', role: 'tank', name: 'Enemy tank', rec: null, weapon: 'tank_gun', hp: UNITS.tank.hp + UNITS.tank.perArmour * 3, accMult: skill, armourBar: 3, morale: 80, sight: UNITS.tank.sight, speed: SPEED.vehicleBase + SPEED.vehiclePerBar * 3 });
+  for (let i = 0; i < Math.round(E.aa || 0); i++) units.push({ id: `ea${i}`, side: 'e', kind: 'other', role: 'antiair', name: 'Enemy anti-air gun', rec: null, weapon: 'aa_gun', hp: UNITS.other.hp + UNITS.other.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.other.sight, speed: SPEED.vehicleBase });
   for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
   return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key, ver: MAP_VER }, goal: eng.goal, rules: RULES, units, support: support || { items: {}, air: [] }, ai: { p: Boolean(ai.p), e: ai.e !== false } };
 }

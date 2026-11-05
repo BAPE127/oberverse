@@ -36,6 +36,8 @@ export const WEAPONS = {
   tank_gun: { range: 18, damage: 130, interval: 3.0, acc: 0.65, suppress: 10, pierce: 1 },
   heli_gun: { range: 14, damage: 55, interval: 1.4, acc: 0.6, suppress: 3, pierce: 0.5 },
   vehicle_mg: { range: 10, damage: 14, interval: 0.5, acc: 0.4, suppress: 1.2, pierce: 0.02 },
+  // v0.102.1: an anti-air gun shoots at aircraft and helicopters only (airOnly); it hits a helicopter hard
+  aa_gun: { range: 20, damage: 38, interval: 0.6, acc: 0.6, suppress: 1, pierce: 0.6, airOnly: true },
   none: { range: 0, damage: 0, interval: 99, acc: 0, suppress: 0, pierce: 0 },
 };
 
@@ -74,7 +76,24 @@ export const SUPPORT = {
   fighter: { name: 'Fighter strafing pass', delay: 5, len: 22, width: 1.3, dmgTick: 6, fuel: 6, seconds: 3.5, group: 'air' },
   bomber: { name: 'Bomber run', delay: 6, len: 26, bombs: 4, r: 2.6, dmg: 360, fuel: 10, seconds: 4, group: 'air' },
   smoke: { name: 'Smoke', delay: 0.8, r: 2.6, seconds: 30, throw: 9, charges: 2, group: 'smoke' },
+  // v0.102.1: a strategic missile product from the company's own stores (the record is used up), 20 seconds to land and a very large blast
+  strategic: { name: 'Strategic missile', delay: 20, r: 7, dmg: 1800, group: 'strategic' },
 };
+/** A breaching charge (an Arms works item): an engineer plants it on a wall (a few seconds, exposed) and it goes off after its fuse; it breaches the segment and hurts what is next to it. */
+export const CHARGE = { name: 'Breaching charge', plant: 3, fuse: 4, r: 1.3, dmg: 220, perEngineer: 2, cap: 6 };
+/**
+ * Fire missions (v0.102.1): a mortar carrier, a self-propelled gun and a howitzer fire shells (an Arms works item, one shell a round) at a point, indirectly, over the heads of everything between. A shell
+ * takes `flight` seconds a tile of range's worth to land; where it lands is scattered (a spotter who sees the point cuts the scatter to a little); a blast hurts everyone in it.
+ */
+export const ARTY = {
+  thump: { range: 38, interval: 4, r: 1.8, dmg: 120, speed: 14 },
+  hammer: { range: 45, interval: 6, r: 2.2, dmg: 200, speed: 18 },
+  howitzer: { range: 55, interval: 9, r: 3, dmg: 320, speed: 20 },
+};
+export const SCATTER = { spotted: 0.8, blind: 3.6 };
+/** How long a helicopter can stay over the battle (seconds), then it must go home; and what stops an aircraft pass (a chance a tick for each live anti-air gun in reach). */
+export const STATION = { seconds: 150, mercy: 240 };
+export const FLAK = { perTick: 0.012 };
 /** A wall segment holds this much damage before it is breached (a gun or a rocket opens it; the wall becomes rubble you can walk through and see through). */
 export const BREACH = { wall: 260, blast: 1.4 };
 /** A battle's length and how its objectives are scored (a share of the enemy put out of action, a ceiling on your own losses, a zone held or taken, a convoy through). */

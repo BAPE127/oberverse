@@ -10,7 +10,7 @@ import { reputation } from './contracts.js';
 import { leave } from './squads.js';
 import { resolve, estimate } from './combat.js';
 import { ATLAS } from '../content/atlas.js';
-import { styleOf, SUPPORT } from '../content/battle.js';
+import { styleOf, SUPPORT, CHARGE } from '../content/battle.js';
 import { buildSetup } from '../battle/setup.js';
 import { reserved } from './reserve.js';
 import { ENGAGEMENTS as KINDS, ENGAGE as E, GENERALS, terrainOf } from '../content/generals.js';
@@ -34,7 +34,7 @@ function forces(game, squadIds) {
   const people = []; const vehicles = [];
   for (const s of squads) {
     for (const m of s.members) { const p = C.personnel.find((x) => x.id === m); if (p && p.status === 'active') people.push({ id: p.id, name: p.name, role: p.role, tier: tierHeld(p), armour: p.armour || 1, exp: p.exp || 0, morale: p.morale ?? 70, fatigue: p.fatigue || 0, armed: Boolean(p.weapon) }); }
-    for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); const V = x && VEHICLES[x.type]; if (V && (x.status === 'assigned' || x.status === 'deployed')) vehicles.push({ id: x.id, name: x.name, cls: V.class, armour: V.armour, firepower: V.firepower, speed: V.speed }); }
+    for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); const V = x && VEHICLES[x.type]; if (V && (x.status === 'assigned' || x.status === 'deployed')) vehicles.push({ id: x.id, name: x.name, type: x.type, cls: V.class, armour: V.armour, firepower: V.firepower, speed: V.speed }); }
   }
   return { squads, people, vehicles };
 }
@@ -159,14 +159,15 @@ export function decline(game, id) {
 /** What the company can call in a played battle, from what it really holds: missiles and drones in the stores (at most three of each kind), and the aircraft in its hangars (as many as the fuel allows). */
 export function supportOf(C, exceptId = null) {
   const items = {}; const held = reserved(C, exceptId);
-  const stock = {}; for (const k of Object.keys(C.stock)) { const m = /:(item_missile_guided|item_missile_cruise|item_drone_attack|item_drone_strike)$/.exec(k); if (m) stock[m[1]] = (stock[m[1]] || 0) + C.stock[k]; }
-  for (const [item, n] of Object.entries(stock)) { const free = n - (held.items[item] || 0); if (free > 0) items[item] = Math.min(3, free); }
+  const stock = {}; for (const k of Object.keys(C.stock)) { const m = /:(item_missile_guided|item_missile_cruise|item_drone_attack|item_drone_strike|item_artillery_shell|item_breach_charge)$/.exec(k); if (m) stock[m[1]] = (stock[m[1]] || 0) + C.stock[k]; }
+  for (const [item, n] of Object.entries(stock)) { const free = n - (held.items[item] || 0); if (free > 0) items[item] = Math.min(item === 'item_artillery_shell' ? 24 : item === 'item_breach_charge' ? CHARGE.cap : 3, free); }
   let fuel = C.stock['supply:fuel'] || 0; const air = [];
   for (const x of C.equipment || []) {
     if (x.kind !== 'aircraft' || x.status !== 'stored' || x.assignedTo != null || air.length >= 3 || held.air.has(x.id)) continue;
     const kind = /bomb/i.test(x.type) ? 'bomber' : 'fighter'; if (fuel < SUPPORT[kind].fuel) continue; fuel -= SUPPORT[kind].fuel; air.push({ id: x.id, name: x.name, kind });
   }
-  return { items, air };
+  const strategic = (C.equipment || []).filter((x) => x.kind === 'missile' && x.status === 'stored' && x.assignedTo == null && !held.ids.has(x.id)).slice(0, 2).map((x) => ({ id: x.id, name: x.name }));
+  return { items, air, strategic };
 }
 const rocketKeys = (C) => Object.keys(C.stock).filter((k) => k.endsWith(':item_rpg_rocket')).sort();
 
@@ -195,8 +196,12 @@ export function applyOutcome(game, C, eng, R) {
   const used = {};
   if (R.used.fuel) { let left = R.used.fuel; const k = 'supply:fuel'; const t = Math.min(left, C.stock[k] || 0); if (t) { takeStock(game, k, t); used[SUPPLIES.fuel.name] = t; } }
   if (R.used.rockets) { let left = R.used.rockets; for (const k of rocketKeys(C)) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; used['RPG rockets'] = (used['RPG rockets'] || 0) + t; } if (!left) break; } }
-  for (const [item, n] of Object.entries(R.used.items || {})) { let left = n; for (const k of Object.keys(C.stock).filter((q) => q.endsWith(`:${item}`)).sort()) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; const nm = SUPPORT[item]?.name || item; used[nm] = (used[nm] || 0) + t; } if (!left) break; } }
+  for (const [item, n] of Object.entries(R.used.items || {})) { let left = n; for (const k of Object.keys(C.stock).filter((q) => q.endsWith(`:${item}`)).sort()) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; const nm = SUPPORT[item]?.name || game.content?.items?.[item]?.name || item; used[nm] = (used[nm] || 0) + t; } if (!left) break; } }
   if (R.used.air?.length) used['Air passes'] = R.used.air.length;
+  const gone = [];
+  for (const id of [...(R.used.strategic || []), ...(R.used.airLost || [])]) { const x = C.equipment.find((q) => q.id === id); if (x && x.status !== 'destroyed') { x.status = 'destroyed'; x.assignedTo = null; gone.push(x.name); } }
+  if ((R.used.strategic || []).length) used['Strategic missiles'] = R.used.strategic.length;
+  if ((R.used.airLost || []).length) lines.push(`Shot down and lost: ${R.used.airLost.map((id) => C.equipment.find((q) => q.id === id)?.name || id).join(', ')}.`);
   // the general and the money
   const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }

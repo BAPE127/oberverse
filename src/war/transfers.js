@@ -88,7 +88,7 @@ export function giveBack(game, spec) {
     if (!x) return { ok: false, text: 'No such item.' };
     if (!x.origin) return { ok: false, text: `${x.name} was bought or built here: it has nowhere to go back to.` };
     if (x.status !== 'stored' || x.assignedTo != null) return { ok: false, text: `${x.name} is ${x.status === 'stored' ? 'assigned' : x.status}: only a free item can be returned.` };
-    if (reserved(C).air.has(x.id)) return { ok: false, text: `${x.name} is set aside for a battle in progress: it can go back when the battle is over.` };
+    if (reserved(C).ids.has(x.id)) return { ok: false, text: `${x.name} is set aside for a battle in progress: it can go back when the battle is over.` };
     const A = game.aero;
     if ((A.state.storage || []).some((r) => r.id === x.origin.rec.id)) return { ok: false, text: 'Aerospace already has a record with that number.' };
     (A.state.storage ||= []).push(clone(x.origin.rec));

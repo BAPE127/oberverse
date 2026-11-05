@@ -65,7 +65,8 @@ export function battlePanel(ui, body, opts = {}) {
     const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
-    if (mode === 'smoke' || mode === 'suppress' || mode === 'breach') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall' }[mode]); S.mode = null; paintBar(); return; }
+    if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'smoke' || mode === 'suppress' || mode === 'breach' || mode === 'fire') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall', fire: 'fire at the point' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
     S.mode = null; paintBar();
@@ -120,8 +121,10 @@ export function battlePanel(ui, body, opts = {}) {
   /** What can be called from the real stock, as buttons: each item left, each aircraft not yet used. Then a click on the map. */
   const supportButtons = (mk) => {
     const out = [];
-    for (const [item, n] of Object.entries(B.sup.items)) if (n > 0) out.push(mk(`${SUPPORT[item].name} ×${n}`, `support:${item}`, () => { S.mode = S.mode === `support:${item}` ? null : `support:${item}`; paintBar(); }));
+    for (const [item, n] of Object.entries(B.sup.items)) if (n > 0 && SUPPORT[item]) out.push(mk(`${SUPPORT[item].name} ×${n}`, `support:${item}`, () => { S.mode = S.mode === `support:${item}` ? null : `support:${item}`; paintBar(); }));
     for (const a of B.sup.air) if (!a.used) out.push(mk(`✈ ${a.name || SUPPORT[a.kind].name} (${a.kind})`, `support:${a.kind}:${a.id}`, () => { const m = `support:${a.kind}:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
+    for (const a of B.sup.strategic) if (!a.used) out.push(mk(`☢ ${a.name || 'Strategic missile'}`, `support:strategic:${a.id}`, () => { const m = `support:strategic:${a.id}`; S.mode = S.mode === m ? null : m; paintBar(); }));
+    if (B.rules >= 3 && B.units.some((u) => u.side === 'p' && u.alive && u.arty)) out.push(mk(`Fire mission (${B.sup.items.item_artillery_shell || 0} shells)`, 'fire', () => { S.mode = S.mode === 'fire' ? null : 'fire'; paintBar(); }));
     return out;
   };
   const paintBar = () => {
@@ -131,7 +134,7 @@ export function battlePanel(ui, body, opts = {}) {
       h('button', { onclick: () => give({ type: 'hold' }, 'hold') }, 'Hold'), mk('Garrison', 'garrison', () => { S.mode = S.mode === 'garrison' ? null : 'garrison'; paintBar(); }),
       h('button', { onclick: () => { S.gFloor = (S.gFloor + 1) % 6; paintBar(); } }, `Floor ${S.gFloor + 1}`), h('button', { onclick: () => give({ type: 'retreat' }, 'retreat') }, 'Retreat'), h('span', { class: 'sep' }),
       mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
-      ...(B ? supportButtons(mk) : []), h('span', { class: 'sep' }),
+      ...(B ? supportButtons(mk) : []), ...(B && B.rules >= 3 && B.units.some((u) => u.side === 'e' && u.W.airOnly && u.alive && seenSet().has(u.id)) ? [h('span', { class: 'bt-warn', title: 'an anti-air gun in sight: an aircraft pass in its reach can be shot down' }, '⚠ enemy AA in sight')] : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
       ...(B ? Object.entries(opened()).map(([b, v]) => h('button', { class: S.ground.has(Number(b)) ? 'on' : '', title: 'what to show of this building', onclick: () => { const n = Number(b); if (S.ground.has(n)) S.ground.delete(n); else S.ground.add(n); paintBar(); } }, `🏢${Number(b) + 1}: ${S.ground.has(Number(b)) ? 'ground floor' : `floor ${v.floor + 1}`}`)) : []));
   };

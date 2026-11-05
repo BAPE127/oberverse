@@ -124,9 +124,14 @@ export class BattleView {
     const T = TP;
     for (const e of B.events.slice(this.evi)) {
       if (e.k === 'blast') { const big = e.r >= 2.5; this.fx.blast(e.x * T, e.y * T - 6, big); for (let i = 0; i < Math.round(e.r * 2); i++) this.fx.blast(e.x * T + (unit(`bl|${B.tick}|${i}`) - 0.5) * e.r * T * 1.4, e.y * T + (unit(`bm|${B.tick}|${i}`) - 0.5) * e.r * T * 1.2 - 6, false); this.rings.push({ x: e.x * T, y: e.y * T, r: e.r * T, age: 0 }); }
-      else if (e.k === 'pass') this.air.push({ kind: e.kind, x0: e.x0 * T, x1: e.x1 * T, y: e.y * T, t0: e.t, dur: e.dur });
+      else if (e.k === 'pass') this.air.push({ kind: e.kind, id: e.id, x0: e.x0 * T, x1: e.x1 * T, y: e.y * T, t0: e.t, dur: e.dur });
       else if (e.k === 'module') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: { tracks: 'TRACKS OUT', gun: 'GUN OUT', engine: 'ENGINE ON FIRE', crew: 'CREW OUT' }[e.module] || e.module, age: 0 }); }
       else if (e.k === 'breach') { this.fx.blast((e.x + 0.5) * T, (e.y + 0.5) * T, false); for (let i = 0; i < 6; i++) this.fx.hit((e.x + unit(`br|${i}`)) * T, (e.y + unit(`bs|${i}`)) * T); }
+      else if (e.k === 'shell') { const u = B.byId.get(e.id); if (u) { const a = Math.atan2(e.y - u.y, e.x - u.x); this.fx.muzzle(u.x * T, u.y * T - 10, Math.cos(a), Math.sin(a)); this.fx.smoke(u.x * T + Math.cos(a) * 18, u.y * T - 10); this.fx.smoke(u.x * T + Math.cos(a) * 26, u.y * T - 14); } }
+      else if (e.k === 'shotdown') { this.air = this.air.filter((a) => a.id !== e.id); this.labels.push({ x: e.x * T, y: e.y * T - 30, text: 'SHOT DOWN', age: 0 }); for (let i = 0; i < 4; i++) this.fx.blast(e.x * T + (unit(`sd|${i}`) - 0.5) * 40, e.y * T - 20 + i * 8, i < 2); }
+      else if (e.k === 'bingo') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 50, text: 'BINGO FUEL', age: 0 }); }
+      else if (e.k === 'noshells') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF SHELLS', age: 0 }); }
+      else if (e.k === 'outofrange') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF RANGE', age: 0 }); }
       else if (e.k === 'wallhit') this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T);
       else if (e.k === 'down' && e.abandoned) { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: 'ABANDONED', age: 0 }); }
     }
@@ -170,7 +175,7 @@ export class BattleView {
   /** What is in the air and what is about to land: the passes, the rings round the targets of strikes that are on their way, the shock rings and the labels. */
   overlay(g, B) {
     const T = TP;
-    for (const p of B.pend) { const S = SUPPORT[p.kind]; if (!S || S.group === 'smoke') continue; const r = (S.r || 1.5) * T; const left = Math.max(0, p.at - B.tick); g.strokeStyle = `rgba(255,${80 + (left % 6) * 20},60,0.9)`; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(p.x * T, p.y * T, r, r * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,90,60,0.12)'; g.fill(); }
+    for (const p of B.pend) { const S = SUPPORT[p.kind]; if ((!S && p.kind !== 'shell') || S?.group === 'smoke') continue; const r = (p.r || S?.r || 1.5) * T; const left = Math.max(0, p.at - B.tick); g.strokeStyle = `rgba(255,${80 + (left % 6) * 20},60,0.9)`; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.ellipse(p.x * T, p.y * T, r, r * 0.8, 0, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(255,90,60,0.12)'; g.fill(); }
     for (const r of B.runs) { const S = SUPPORT[r.kind]; g.strokeStyle = 'rgba(255,200,90,0.5)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(r.x0 * T, r.y * T); g.lineTo(r.x1 * T, r.y * T); g.stroke(); g.setLineDash([]); void S; }
     this.rings = this.rings.filter((q) => q.age < 14); for (const q of this.rings) { q.age++; g.strokeStyle = `rgba(255,230,180,${1 - q.age / 14})`; g.lineWidth = 3; g.beginPath(); g.ellipse(q.x, q.y, q.r * (0.3 + q.age / 14), q.r * 0.8 * (0.3 + q.age / 14), 0, 0, Math.PI * 2); g.stroke(); }
     this.air = this.air.filter((a) => B.tick - a.t0 <= a.dur + 30);

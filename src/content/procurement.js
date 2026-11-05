@@ -76,7 +76,7 @@ export const SUPPLIES = {
 };
 
 /** The Arms works items the company may take: whatever its recipes make that is a weapon, a round, a missile or a drone. (Parts and machines never move.) */
-export const ARMS_TRANSFERABLE = ['item_pistol', 'item_smg', 'item_shotgun', 'item_assault_rifle', 'item_sniper_rifle', 'item_lmg', 'item_rpg', 'item_rpg_rocket', 'item_missile_guided', 'item_missile_cruise', 'item_drone_attack', 'item_drone_strike'];
+export const ARMS_TRANSFERABLE = ['item_pistol', 'item_smg', 'item_shotgun', 'item_assault_rifle', 'item_sniper_rifle', 'item_lmg', 'item_rpg', 'item_rpg_rocket', 'item_missile_guided', 'item_missile_cruise', 'item_drone_attack', 'item_drone_strike', 'item_artillery_shell', 'item_breach_charge'];
 
 /** What a transfer leaves behind: the trail (never money) keeps this many entries. */
 export const TRANSFER_LOG = 80;
