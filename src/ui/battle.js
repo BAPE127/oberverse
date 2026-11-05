@@ -3,7 +3,7 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
-import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport } from '../battle/sim.js';
+import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, issueFormation } from '../battle/sim.js';
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
@@ -23,7 +23,7 @@ export function battlePanel(ui, body, opts = {}) {
   const B = bt.result ? null : (bt.tick > 0 ? replay(bt.setup, bt.log, bt.tick) : createBattle(bt.setup));
   const view = new BattleView(canvas); const squadLooks = {};
   for (const s of W.squads()) for (const m of s.members) squadLooks[m] = s.look;
-  const S = { speed: 1, acc: 0, sel: new Set(), mode: null, gFloor: 1, ground: new Set(), drag: null, keys: new Set(), done: Boolean(bt.result), lastSave: 0, vis: new Set(), visTick: -99, log: [], filed: Boolean(bt.result) };
+  const S = { formation: 'line', speed: 1, acc: 0, sel: new Set(), mode: null, gFloor: 1, ground: new Set(), drag: null, keys: new Set(), done: Boolean(bt.result), lastSave: 0, vis: new Set(), visTick: -99, log: [], filed: Boolean(bt.result) };
   let raf = 0; let last = performance.now(); let closed = false;
 
   const say = (t) => { S.log.unshift(t); S.log.length = Math.min(S.log.length, 7); feed.replaceChildren(...S.log.map((x) => h('div', {}, x))); };
@@ -67,9 +67,12 @@ export function battlePanel(ui, body, opts = {}) {
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
     if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'escort') { const f = unitAtPoint(e); if (!f) { say('Click one of your units to escort.'); return; } const ids = [...S.sel].filter((x) => x !== f.id); give({ type: 'escort', target: f.id }, `escort ${f.name}`); S.mode = null; paintBar(); void ids; return; }
+    if (mode === 'flank' || mode === 'regroup' || mode === 'recon') { give({ type: mode, x: t.x, y: t.y }, { flank: 'flank round to the point', regroup: 'regroup at the point', recon: 'scout ahead' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'charge' || mode === 'scout' || mode === 'fpv') { const want = { charge: 'engineer', scout: 'uav', fpv: 'uav' }[mode]; const ids = [...S.sel].filter((x) => B.byId.get(x)?.role === want && B.byId.get(x).alive); if (!ids.length) { say(`Select ${want === 'uav' ? 'a UAV operator' : 'an engineer'} first.`); S.mode = null; paintBar(); return; } issue(B, ids, { type: mode, x: t.x, y: t.y }); save(); say({ charge: 'plant a charge', scout: 'send the scout drone', fpv: 'launch an FPV drone' }[mode] + '.'); S.mode = null; paintBar(); return; }
     if (mode === 'smoke' || mode === 'suppress' || mode === 'breach' || mode === 'fire') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall', fire: 'fire at the point' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
+    else if (S.formation !== 'none' && (mode === 'move' || mode === 'amove') && [...S.sel].filter((x) => B.byId.get(x)?.alive).length >= 3) { const ids = [...S.sel].filter((x) => B.byId.get(x)?.alive); issueFormation(B, ids, mode, t.x, t.y, S.formation); save(); say(`${ids.length} ${mode === 'amove' ? 'attack-move' : 'move'} in a ${S.formation}.`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
     S.mode = null; paintBar();
   };
@@ -138,6 +141,8 @@ export function battlePanel(ui, body, opts = {}) {
       mk('Move', 'move', () => { S.mode = S.mode === 'move' ? null : 'move'; paintBar(); }), mk('Attack-move', 'amove', () => { S.mode = S.mode === 'amove' ? null : 'amove'; paintBar(); }),
       h('button', { onclick: () => give({ type: 'hold' }, 'hold') }, 'Hold'), mk('Garrison', 'garrison', () => { S.mode = S.mode === 'garrison' ? null : 'garrison'; paintBar(); }),
       h('button', { onclick: () => { S.gFloor = (S.gFloor + 1) % 6; paintBar(); } }, `Floor ${S.gFloor + 1}`), h('button', { onclick: () => give({ type: 'retreat' }, 'retreat') }, 'Retreat'), h('span', { class: 'sep' }),
+      mk('Flank', 'flank', () => { S.mode = S.mode === 'flank' ? null : 'flank'; paintBar(); }), mk('Regroup', 'regroup', () => { S.mode = S.mode === 'regroup' ? null : 'regroup'; paintBar(); }), mk('Recon', 'recon', () => { S.mode = S.mode === 'recon' ? null : 'recon'; paintBar(); }), mk('Escort', 'escort', () => { S.mode = S.mode === 'escort' ? null : 'escort'; paintBar(); }),
+      h('button', { title: 'how a group of three or more arranges itself when it moves', onclick: () => { const fs = ['line', 'column', 'wedge', 'skirmish', 'none']; S.formation = fs[(fs.indexOf(S.formation) + 1) % fs.length]; paintBar(); } }, `Formation: ${S.formation}`),
       mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
       ...(B ? supportButtons(mk) : []), ...(B && B.rules >= 3 && B.units.some((u) => u.side === 'e' && u.W.airOnly && u.alive && seenSet().has(u.id)) ? [h('span', { class: 'bt-warn', title: 'an anti-air gun in sight: an aircraft pass in its reach can be shot down' }, '⚠ enemy AA in sight')] : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),

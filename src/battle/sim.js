@@ -51,6 +51,25 @@ function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle i
 }
 
 // ---- orders
+/** The spots of a formation: `n` places round a point, facing the way the group is going (line abreast, a column, a wedge, a skirmish line spread wide). */
+export function formationSpots(n, x, y, heading, kind = 'line') {
+  const fx = Math.cos(heading); const fy = Math.sin(heading); const px = -fy; const py = fx; const gap = kind === 'skirmish' ? 2.6 : 1.7; const out = [];
+  for (let i = 0; i < n; i++) {
+    const o = i - (n - 1) / 2; let a = o * gap; let b = 0;
+    if (kind === 'column') { a = (i % 2 ? 0.8 : -0.8); b = -Math.floor(i / 1) * 1.2 * 0.5 * 2; }
+    else if (kind === 'wedge') { a = o * gap; b = -Math.abs(o) * 1.4; }
+    out.push({ x: x + px * a + fx * b, y: y + py * a + fy * b });
+  }
+  return out;
+}
+/** Give a group a move or attack-move to a point in a formation: each unit its own spot, nearest first, on ground it can stand on. */
+export function issueFormation(B, ids, type, x, y, kind = 'line') {
+  const us = ids.map((id) => B.byId.get(id)).filter((u) => u && u.alive && u.side === 'p'); if (!us.length) return;
+  const cx = us.reduce((a, u) => a + u.x, 0) / us.length; const cy = us.reduce((a, u) => a + u.y, 0) / us.length; const heading = Math.atan2(y - cy, x - cx); const spots = formationSpots(us.length, x, y, heading, kind);
+  const left = us.slice(); const used = [];
+  for (const sp of spots) { let bi = 0; let bd = 1e9; left.forEach((u, i) => { const d = Math.hypot(u.x - sp.x, u.y - sp.y); if (d < bd) { bd = d; bi = i; } }); const u = left.splice(bi, 1)[0]; const k = u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh'; const at = standNear(B, Math.max(1, Math.min(B.map.w - 2, sp.x)), Math.max(1, Math.min(B.map.h - 2, sp.y)), k) || { x, y }; used.push([u.id, at]); }
+  for (const [id, at] of used) issue(B, [id], { type, x: at.x, y: at.y });
+}
 export function issue(B, ids, order) {
   B.log.push({ t: B.tick, ids: [...ids], order: { ...order } });
   for (const id of ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, order); }
@@ -58,7 +77,13 @@ export function issue(B, ids, order) {
 function setOrder(B, u, order) {
   u.order = { ...order }; u.path = []; u.target = u.order.type === 'move' ? null : u.target; u.gstage = null; u.post = null;
   const kind = u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh';
-  if (order.type === 'move' || order.type === 'amove') u.path = findPath(B.map, u, order, kind);
+  if (order.type === 'move' || order.type === 'amove' || order.type === 'regroup' || order.type === 'recon') u.path = findPath(B.map, u, order, kind);
+  else if (order.type === 'flank') { // round the side: out to a point 9 tiles to one flank of the line to the target, then in
+    const dx = order.x - u.x; const dy = order.y - u.y; const l = Math.hypot(dx, dy) || 1; const side = chance(`${B.key}|${u.id}|flank`) < 0.5 ? 1 : -1; let w = { x: u.x + dx * 0.55 - (dy / l) * 9 * side, y: u.y + dy * 0.55 + (dx / l) * 9 * side };
+    w = standNear(B, Math.max(1, Math.min(B.map.w - 2, w.x)), Math.max(1, Math.min(B.map.h - 2, w.y)), kind) || { x: order.x, y: order.y };
+    const a = findPath(B.map, u, w, kind); const b = findPath(B.map, { x: w.x, y: w.y, z: u.z }, order, kind); u.path = [...a, ...b];
+  }
+  else if (order.type === 'escort') { if (!B.byId.get(order.target)?.alive || order.target === u.id) u.order = { type: 'hold' }; }
   else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
   else if (order.type === 'fire') { if (!u.arty) u.order = { type: 'hold' }; }
   else if (order.type === 'tend') { if (u.role !== 'medic') u.order = { type: 'hold' }; }
@@ -296,11 +321,13 @@ function step1(B, u, idxU) {
   const o = u.order;
   const hold = o.type === 'hold' || (o.type === 'garrison' && u.gstage === 'post');
   const engaged = tgt && tgt.alive && dist(u, tgt) <= reachOf(u) && u.W.range > 0;
+  const reconSeen = o.type === 'recon' ? B.units.filter((e) => e.alive && !e.fled && e.side !== u.side && dist(u, e) <= sightOf(u) && seeLine(B, u, eyeZ(u), e, eyeZ(e))) : [];
   // an infantryman fires standing; on a move order he keeps moving; on attack-move he stops to fight what he can hit
   let moves = false;
   if (!u.broken && (u.state !== 'pinned' || o.type === 'retreat')) {
-    if (o.type === 'move' || o.type === 'retreat') moves = true;
-    else if (o.type === 'amove' && !engaged) moves = true;
+    if (o.type === 'move' || o.type === 'retreat' || o.type === 'regroup') moves = true;
+    else if ((o.type === 'amove' || o.type === 'flank') && !engaged) moves = true;
+    else if (o.type === 'recon' && !reconSeen.length) moves = true;
     else if (o.type === 'garrison' && (u.gstage === 'go' || u.gstage === 'post') && u.path.length) moves = true;
   } else if (u.broken) moves = true;
   if (u.broken && !u.path.length) setOrder(B, u, { type: 'retreat' });
@@ -314,6 +341,11 @@ function step1(B, u, idxU) {
     if (!d) { if (o.type === 'tend') u.order = { type: 'hold' }; u.tendT = 0; }
     else if (dist(u, d) > 1.3) { special = true; u.tendT = 0; if (!u.path.length || B.tick % 20 === 0) { const sp = standBeside(B, d); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
     else { special = true; moves = false; u.tendT++; if (u.tendT >= TEND.seconds * TICK.perSecond) { d.stab = true; u.tendT = 0; B.events.push({ t: B.tick, k: 'stabilised', id: d.id, by: u.id }); } }
+  } else if (o.type === 'escort' && !u.broken) {
+    const f = B.byId.get(o.target);
+    if (!f || !f.alive || f.fled) u.order = { type: 'hold' };
+    else if (dist(u, f) > 3.5) { if (!u.path.length || B.tick % 10 === 0) { const sp = standNear(B, f.x, f.y, isVeh(u) ? 'veh' : 'inf'); u.path = sp ? findPath(B.map, u, sp, isVeh(u) ? 'veh' : 'inf') : []; } moves = !engaged || isVeh(f); }
+    else { u.path = []; moves = false; }
   } else if (o.type === 'charge' && u.role === 'engineer' && !u.broken) {
     const wx = Math.floor(o.x); const wy = Math.floor(o.y); const dd = Math.hypot(wx + 0.5 - u.x, wy + 0.5 - u.y);
     if (dd > 1.9) { if (!u.path.length) { const sp = standNear(B, o.x, o.y, 'inf'); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; if (!u.path.length) u.order = { type: 'hold' }; } moves = true; }
@@ -351,7 +383,9 @@ function step1(B, u, idxU) {
   if (moves) { moveAlong(B, u, speedOf(B, u)); } else u.moving = false;
   if (o.type === 'garrison') garrisonStep(B, u);
   if (u.order.type === 'move' && !u.path.length) u.order = { type: 'hold' };
-  if (u.order.type === 'amove' && !u.path.length && !engaged) u.order = { type: 'hold' };
+  if ((u.order.type === 'amove' || u.order.type === 'flank') && !u.path.length && !engaged) u.order = { type: 'hold' };
+  if (u.order.type === 'regroup') { u.supp = Math.max(0, u.supp - 0.4); if (!u.path.length) u.order = { type: 'hold' }; }
+  if (u.order.type === 'recon') { if (reconSeen.length) { for (const e of reconSeen) B.spotted[e.id] = B.tick; B.events.push({ t: B.tick, k: 'contact', id: u.id }); u.order = { type: 'hold' }; u.path = []; } else if (!u.path.length) u.order = { type: 'hold' }; }
   if (u.order.type === 'retreat' && !u.path.length) { if (u.broken || u.side === 'p') { u.fled = true; B.events.push({ t: B.tick, k: 'fled', id: u.id }); } else u.order = { type: 'hold' }; }
   void hold;
 }
@@ -447,4 +481,4 @@ export function replay(setup, log, tick) {
   while (i < q.length && q[i].t <= B.tick) { if (q[i].order.type === 'support') applySupport(B, q[i].order); else for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
   return B;
 }
-export { inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule };
+export { standNear, inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule };
