@@ -2,6 +2,26 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.102.2] — 2026-11-05 — War: Battle Depth III (development build)
+
+Finishes what v0.102.1's report listed as not done, except the fog of war from strategic intel (v0.103.0) and a flown FPV window (the owner's answer: keep the automatic dive). Reference: `docs/WAR.md`. **Saved battles first:** a setup's `rules` is now 4; every new default behaviour is on only under rules 4, the rules-3 replays stay pinned by `tests/battle_frozen.test.mjs`, and a rules-4 battle is pinned too so v0.103.0 cannot drift it.
+
+**Designation** (the owner's answer: every strike). A missile, a drone, an aircraft pass, a strategic missile, an FPV dive, and rocket or missile fire from a launcher lands only on a designated point: an enemy within 3.5 tiles of it is in sight of one of yours, under your scout drone, or was spotted within the drone's two-minute memory. Otherwise the call is refused and nothing is spent. **Guns firing shells are not held to it** (they can fire blind, less true; a decision of mine, listed in the limits).
+
+**Two vehicles to buy** (the owner's answer: both). The Rainmaker rocket launcher fires a salvo of twelve small blasts over a 3.5-tile field for three shells from the stores; the Longbow missile launcher fires the Arms works' missiles from the stores one at a time (the guided one first) from 80 tiles. Both deploy first, both need a designated point. Bought from suppliers like the other artillery; drawn with the fleet sprites.
+
+**Enemy battery and counter-battery.** Engagements with 16 or more enemy troops bring one battery, 28 or more two. A battery is fixed far back, is not counted as a fighter, and answers the place a gun of yours fired from once, 15 seconds after (ten shells at scatter 2.5); while it fires it is marked as spotted, so it can be designated and shelled in turn.
+
+**Stances, vehicle orders, trenches** (earlier in this release): aggressive, defensive and hold fire sit beside the current order; reverse (half speed, the front stays to the enemy); repair by an engineer (tracks, gun, engine, fires); an SP gun deploys for five seconds before it fires; infantry board and unload carriers up to the carrier's capacity, ride unseen, and a destroyed carrier takes the dead and wounded aboard with it, each person counted once; a heavy blast (250 damage and more) collapses trench tiles into open ground.
+
+**Reinforcements.** When you lead an engagement, squads can be held back in reserve: they are not on the map, not counted, take no losses until you call them, and come on at your edge 20 seconds later. If nothing of yours is left on the field the reserve is called for you instead of the battle being lost. The call is in the order log and a replay agrees.
+
+**New missions.** A **raid** (hold the marked ground for 12 seconds with the enemy still there, on a five-minute clock), **bring an officer out** and **recover a downed pilot** (the person starts at the marked ground, is not a record and not a fighter, the pilot is hurt and slow; bring them to within four tiles of your own start edge; if they die, the mission is lost). The estimate weighs a raid as an attack and the other two as a convoy; the played battle is calibrated for the new goals only in that a strong force does each far more often than a weak one on every kind of ground.
+
+**Found while building it:** a strike recorded at tick 0 was read as "never spotted" (a truthiness test); the sim now compares with undefined.
+
+**Tests.** `battle_vehicles` (5), `battle_strikes` (5), `battle_missions` (6), `battle_frozen` (+1, rules 4), `battle_fire` (+1, trench collapse). **Existing tests edited:** `battle_fire` (the fire mission waits for the gun to deploy; the strategic-missile and anti-air tests mark the enemy spotted before they call a strike; the trench-collapse test puts a spotted enemy beside the cell), `battle_depth` (the aircraft-pass test marks the enemy spotted; the order-log replay test lets both sides move until the enemy is really in sight, because a replay cannot carry a hand-set spot; the played-missile test marks the foe spotted). No other existing test changed.
+
 ## [0.102.1] — 2026-11-05 — War: Battle Depth II (development build)
 
 Finishes what v0.102.0's roadmap row promised and did not ship. Reference: `docs/WAR.md`. **Saved battles first:** a setup now carries `rules` (3 from this release) as well as the map version; the maps and the rules of the two earlier generations are pinned by `tests/battle_frozen.test.mjs` (the numbers in it were produced by the v0.101.0 and v0.102.0 code themselves), and everything that runs without an order (a medic tending, a helicopter's station time, anti-air) is on only under rules 3. v0.102.0 modules and facing are now gated the same way (a v0.101.0 battle replays without them).

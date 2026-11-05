@@ -136,6 +136,39 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 
 **Orders added:** `smoke`, `suppress` (a point; no target needed; pins whoever stands within two and a half tiles) and `breach` (a tank or an anti-tank soldier (a rocket or the tank gun, not a rifle) opens a wall segment: two tank shells, and the wall becomes rubble that does not stop a look or a person). Orders and support are in the log, so a save replays them.
 
+## Battle depth III (v0.102.2)
+
+Release 5c of the war update: what v0.102.1's report listed as not done (except fog from strategic intel, which belongs to the strategic layer in v0.103.0).
+
+| Piece | Where |
+| --- | --- |
+| Rules 4 and its pins | `src/content/battle.js` (`RULES`), `tests/battle_frozen.test.mjs` |
+| Designation | `src/battle/sim.js` (`designated`, `applySupport`, the FPV and launcher branches), `src/content/battle.js` (`DESIGNATE`) |
+| Rainmaker, Longbow, battery | `src/content/battle.js` (`ARTY`), `src/content/procurement.js`, `src/engine/drawFleet.js`, `src/battle/setup.js`, `src/war/engagements.js` (`enemy.battery`), `tickBattery` in the sim |
+| Stances, reverse, repair, deploy, load and unload, trench collapse | `src/battle/sim.js`, `src/content/battle.js` (`STANCES`, `CARRY`, `BAIL`, `REPAIR`, `DEPLOY`, `TRENCH_COLLAPSE`) |
+| Reserve | `callReserve` and `placeUnits` in the sim, `play(game, id, squads, reserves)`, the Military app's engagement screen |
+| Raid, extraction, rescue | goals `raid`, `extract`, `rescue` in the sim; `VIPS`, `RAID`, `VIP_HOME`, `RESERVE` in the content file; `ENGAGEMENTS` in `src/content/generals.js`; the estimate maps them in `src/war/combat.js` |
+
+**Designation.** A point is designated for a side when an enemy within 3.5 tiles of it is in sight of one of its units (not one riding inside a carrier), under one of its scout drones, or, for you, was spotted within the drone's two-minute memory. `callSupport` refuses a strike at a point that is not designated and spends nothing; an FPV order and a launcher's fire order that find no designation drop, with a label on the field. A gun firing shells is not held to it (blind fire is allowed, and scatters wide).
+
+**Launchers.** The Rainmaker takes three shells for twelve rockets (110 damage, 1.5 tiles each) spread over a 3.5-tile field, interval 14 seconds, range 50. The Longbow takes one missile a shot (guided if there is one, else cruise), interval 25 seconds, range 80, and the missile lands after the longer of its own delay and its flight. Both deploy for five seconds, and moving packs them up.
+
+**The battery.** `enemy.battery` is 0, 1 (16 or more troops) or 2 (28 or more). Each is a fixed unit that is not counted as a fighter (`onGround`), is never ordered by the AI, and when a gun of yours fires from a place it has not answered it fires ten shells at that place (scatter 2.5) 15 seconds later, then reloads. It is marked spotted when it fires. Kill it and it says nothing.
+
+**Reserve.** `play(game, id, squads, reserves)` marks the held squads' people and vehicles `reserve: true` in the setup; they are not units until `callReserve` (logged as a `reserve` order, replayed) puts them at your edge after 20 seconds. A headless side calls it at 30 seconds; when nothing of yours is left on the field it is called for you. `applyOutcome` only reads the units that were in the battle, so an uncalled reserve takes no losses.
+
+**Missions.** A raid ends when you have held the marked ground for 12 seconds, whatever the enemy is doing, or when the enemy is beaten; its clock is five minutes. An extraction and a rescue put a person (`vip`, not a record and not a fighter) at the marked ground; the mission is won when they are within four tiles of your own start edge (every recipe has one that is reachable on foot, tested), lost if they die. The officer is a normal man; the pilot has 60 percent of the hit points and 65 percent of the speed. The other two objectives (enemy put out, own losses within the ceiling) are scored as in every battle.
+
+## Honest limits (v0.102.2)
+
+- **Designation:** guns firing shells (mortar, SP gun, howitzer) are not held to it; this was my reading of "every strike" and it is the first thing to change if you meant them too. The enemy calls no strike, so it has no designation to need.
+- **The aggregate resolver is still not changed for any of this.** A raid is weighed as an attack, an extraction and a rescue as a convoy, and the enemy battery, a reserve and designation do not enter the estimate. The played battle is checked only to this extent: a strong force does a raid, an extraction or a rescue far more often than a weak one on every kind of ground (`tests/battle_missions.test.mjs`); a rate-for-rate calibration of the new goals against the estimate has not been made.
+- **Extraction and rescue** score the same three objectives as other battles, so "put the enemy out" counts for them too; the pilot does not bleed out; nobody can be carried (the pilot walks, slowly); no helicopter picks them up.
+- **The battery** answers the place a gun fired from, not a rocket launcher's or a drone's; it does not move, uses no stock, and does not answer the player's missiles.
+- **A reserve** you never call still earns the engagement's experience and morale (everyone committed to the engagement does).
+- **Rules 4 behaviour** applies to new battles only; a battle saved under rules 3 has none of it (no stance, no deploy time, no designation, no collapse).
+- Fog of war from strategic intel is v0.103.0; there is no flown FPV window (kept automatic).
+
 ## Battle depth II (v0.102.1)
 
 Release 5b of the war update: what v0.102.0's roadmap row promised and did not ship, plus a repair of how saved battles are kept.

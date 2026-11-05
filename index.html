@@ -18113,7 +18113,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.102.1';
+const GAME_VERSION = '0.102.2';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -55085,6 +55085,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.102.2',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Battle Depth III',
+    notes: [
+      'Strikes need a designated point: a missile, a drone, an aircraft pass or a strategic missile lands only where an enemy is in sight of one of yours, under a scout drone, or was spotted a short while ago. Guns firing shells can still fire blind, less true.',
+      'Two new vehicles to buy: the Rainmaker rocket launcher (twelve rockets over a field for three shells from the stores) and the Longbow missile launcher (fires the stores\' missiles from far back). Enemy engagements of sixteen troops or more now bring a battery that answers the place a gun of yours fired from.',
+      'Stances (aggressive, defensive, hold fire); reverse, deploy before an SP gun fires, repair by an engineer, board and unload carriers (the carrier\'s loss takes its passengers with it); a heavy blast collapses a trench.',
+      'Hold squads back in reserve and call them in; new missions: a raid, bringing an officer out, recovering a downed pilot.',
+      'A battle saved before this release replays as it was played.',
+    ],
+  },
   {
     version: '0.102.1',
     date: '2026-11-05',

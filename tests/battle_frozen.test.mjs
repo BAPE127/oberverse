@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generate } from '../src/battle/map.js';
-import { createBattle, step, issue, callSupport, replay } from '../src/battle/sim.js';
+import { createBattle, step, issue, callSupport, callReserve, replay } from '../src/battle/sim.js';
 import { buildSetup } from '../src/battle/setup.js';
 
 const hs = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0; return h; };
@@ -45,5 +45,18 @@ test('the three recipes of v0.102.1 are exactly what they were, and a battle mad
     setup.rules = 3; const B = createBattle(setup);
     for (let i = 0; i < 700 && !B.over; i++) { if (i === 100) issue(B, ['g1'], { type: 'fire', x: B.map.spawns.p.x + 25, y: B.map.spawns.p.y }); if (i === 150) issue(B, ['p1'], { type: 'tend' }); if (i === 200) { const e = B.units.find((u) => u.side === 'e' && u.alive); if (e) callSupport(B, { kind: 'item_missile_guided', x: e.x, y: e.y }); } step(B); }
     assert.equal(snap(replay(setup, B.log, B.tick)), snap(B), `${recipe} replays`); assert.equal(snap(B), want[recipe], `${recipe}: the battle of a rules-3 setup is what it was`);
+  }
+});
+
+// ---- v0.102.2 (rules 4): pinned from the code of that release, with a battery that answers, a rocket launcher, a designated missile, a stance, a reserve and an extraction
+test('a battle made under rules 4 (v0.102.2) plays on as it was played', () => {
+  const people4 = Array.from({ length: 12 }, (_, i) => ({ id: `p${i}`, name: `P${i}`, role: i === 0 ? 'engineer' : i === 1 ? 'medic' : i % 6 === 3 ? 'machine_gunner' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
+  const vehicles4 = [{ id: 'v1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 }, { id: 'r1', name: 'Rainmaker', cls: 'artillery', type: 'rainmaker', armour: 2, firepower: 5, speed: 3 }, { id: 'g1', name: 'Hammer', cls: 'artillery', type: 'hammer', armour: 2, firepower: 5, speed: 3 }];
+  const want = { 'city/defence': '-1593734039:700', 'trench/offence': '1331828643:700', 'forest/extract': '336952670:697' };
+  for (const [recipe, goal] of [['city', 'defence'], ['trench', 'offence'], ['forest', 'extract']]) {
+    const setup = JSON.parse(JSON.stringify(buildSetup({ key: `r4|${recipe}`, eng: { goal, recipe, biome: 'rural', style: 'ostmark', enemy: { troops: 18, armour: 1, air: 0, battery: 1, skill: 1 } }, people: people4, vehicles: vehicles4, reserve: ['p9', 'p10', 'p11'], support: { items: { item_artillery_shell: 9, item_missile_guided: 1 }, air: [], strategic: [] }, ai: { p: true, e: true } })));
+    const B = createBattle(setup);
+    for (let i = 0; i < 700 && !B.over; i++) { if (i === 60) issue(B, ['p2'], { type: 'stance', stance: 'defensive' }); if (i === 100) issue(B, ['g1', 'r1'], { type: 'fire', x: B.map.spawns.e.x - 20, y: B.map.spawns.e.y }); if (i === 250) { const e = B.units.find((u) => u.side === 'e' && u.alive && !u.battery); if (e) callSupport(B, { kind: 'item_missile_guided', x: e.x, y: e.y }); } if (i === 300) callReserve(B); step(B); }
+    assert.equal(snap(replay(setup, B.log, B.tick)), snap(B), `${recipe} replays`); assert.equal(snap(B), want[`${recipe}/${goal}`], `${recipe}/${goal}: the battle of a rules-4 setup is what it was`);
   }
 });
