@@ -32234,6 +32234,8 @@ const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
 const TILE = { GROUND: 0, ROAD: 1, WALL: 2, WATER: 3, TREE: 4, HEDGE: 5, FLOOR: 6, DOOR: 7, WINDOW: 8, STAIRS: 9, CROP: 10, TRENCH: 11, WIRE: 12 };
 /** Trenches (v0.102.1) are walkable by people and give sandbag cover; wire is walkable by people at a crawl (a fraction of their speed) and stops vehicles. */
 const WIRE_SLOW = 0.4;
+/** A blast of at least this much damage (a howitzer shell, a bomb, a missile, a charge; not a drone or a mortar bomb) collapses the trench within this share of its radius: the earth falls in and the tiles are open ground, with no cover (rules 4). */
+const TRENCH_COLLAPSE = { dmg: 250, share: 0.75 };
 
 /** The chance a shot is absorbed by what the target stands in or behind (docs/PROPOSAL_WAR_TACTICAL.md section 5). */
 const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85, trench: 0.75 };
@@ -32324,6 +32326,16 @@ const ARTY = {
 const SCATTER = { spotted: 0.8, blind: 3.6 };
 /** How long a helicopter can stay over the battle (seconds), then it must go home; and what stops an aircraft pass (a chance a tick for each live anti-air gun in reach). */
 const STATION = { seconds: 150, mercy: 240 };
+/** Stances (rules 4): aggressive (the way units always fought), defensive (stops to fight at first sight, dug in: suppression fades 30 percent faster), hold fire (never fires). */
+const STANCES = ['aggressive', 'defensive', 'holdfire'];
+const DEFENSIVE = { decay: 1.3 };
+/** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
+const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4 };
+const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
+/** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
+const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };
+/** An SP gun or howitzer must be set up (seconds) before it fires a mission, and moving packs it up again (rules 4). */
+const DEPLOY = { seconds: 5 };
 const FLAK = { perTick: 0.012 };
 /** A wall segment holds this much damage before it is breached (a gun or a rocket opens it; the wall becomes rubble you can walk through and see through). */
 const BREACH = { wall: 260, blast: 1.4 };
@@ -32340,7 +32352,7 @@ const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
 /** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
 const MAP_VER = 2;
 /** The rules version of the simulation: a setup carries the one it was made under, and anything that runs without an order (a medic tending, a helicopter's station time, anti-air) is on only from rules 3, so a battle saved earlier replays the way it was played. */
-const RULES = 3;
+const RULES = 4;
 
 /** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
 const STYLES = {
@@ -32361,7 +32373,7 @@ const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', snow: 'sn
 const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
 
-return { TICK, TILE, WIRE_SLOW, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, BREACH, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
+return { TICK, TILE, WIRE_SLOW, TRENCH_COLLAPSE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, FACING, MODULES, MODULE, SUPPORT, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, FLAK, BREACH, DOWN, OBJECTIVE, RECIPES, RECIPES_V1, MAP_VER, RULES, STYLES, FACADE, faceH, minTiles, ART_STYLE, ART_BIOME, STYLE_OF, styleOf };
 })();
 
 // ---- src/war/combat.js
@@ -76772,7 +76784,7 @@ __m["src/battle/sim.js"] = (function () {
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-const { CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
+const { STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } = __m["src/content/battle.js"];
 const { OUTCOMES } = __m["src/war/combat.js"];
 const { generate, idx, inb, tileAt, walkable } = __m["src/battle/map.js"];
 const { findPath, los, canStand } = __m["src/battle/nav.js"];
@@ -76786,7 +76798,7 @@ function createBattle(setup) {
   const map = generate({ ...setup.map, ver: setup.map.ver ?? 1 });
   const rules = setup.rules ?? (setup.map.ver >= 2 ? 2 : 1); // 1: v0.101.0; 2: v0.102.0 (modules and facing); 3: v0.102.1 (what runs without an order): a setup says which rules it was made under, and replays under them
   const B = { key: setup.key, setup, rules, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
-    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0, items: {}, air: [], strategic: [], airLost: [] }, sup: { items: { ...(setup.support?.items || {}) }, air: (setup.support?.air || []).map((a) => ({ ...a, used: false })), strategic: (setup.support?.strategic || []).map((a) => ({ ...a, used: false })) }, pend: [], runs: [], smoke: [], drones: [], fpvs: [], spotted: {}, wall: new Map(), rubble: [], collapsed: [], hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
   const place = (side, specs) => {
     const s = side === 'p' ? map.spawns.p : map.spawns.e;
     const taken = new Set();
@@ -76813,7 +76825,7 @@ function makeUnit(spec, side, x, y, rules = 2) { // (spec.vtype: which vehicle i
   return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, vtype: spec.vtype || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
     fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
     moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0,
-    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
+    heading: side === 'p' ? 0 : Math.PI, mod: ground ? { tracks: 1, gun: 1, engine: 1, crew: 1 } : null, arty: rules >= 3 && spec.role === 'artillery' ? ARTY[spec.vtype] || null : null, fuelT: rules >= 3 && spec.kind === 'helicopter' ? Math.round((spec.vtype === 'mercy' ? STATION.mercy : STATION.seconds) * TICK.perSecond) : null, stance: 'aggressive', hidden: false, inside: null, pax: [], bailed: false, dep: 0, deployed: false, stab: false, evac: false, tendT: 0, plantT: 0, recharge: 0, burning: false, smokes: spec.kind === 'inf' && (spec.role === 'engineer' || spec.role === 'officer') ? SUPPORT.smoke.charges : 0 };
 }
 
 // ---- orders
@@ -76841,9 +76853,11 @@ function issue(B, ids, order) {
   for (const id of ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, order); }
 }
 function setOrder(B, u, order) {
+  if (order.type === 'stance') { if (B.rules >= 4 && STANCES.includes(order.stance)) u.stance = order.stance; return; } // (a stance sits beside the order: it does not replace it)
+  if (u.arty && order.type !== 'fire') { u.deployed = false; u.dep = 0; }
   u.order = { ...order }; u.path = []; u.target = u.order.type === 'move' ? null : u.target; u.gstage = null; u.post = null;
   const kind = u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh';
-  if (order.type === 'move' || order.type === 'amove' || order.type === 'regroup' || order.type === 'recon') u.path = findPath(B.map, u, order, kind);
+  if (order.type === 'move' || order.type === 'reverse' || order.type === 'amove' || order.type === 'regroup' || order.type === 'recon') u.path = findPath(B.map, u, order, kind);
   else if (order.type === 'flank') { // round the side: out to a point 9 tiles to one flank of the line to the target, then in
     const dx = order.x - u.x; const dy = order.y - u.y; const l = Math.hypot(dx, dy) || 1; const side = chance(`${B.key}|${u.id}|flank`) < 0.5 ? 1 : -1; let w = { x: u.x + dx * 0.55 - (dy / l) * 9 * side, y: u.y + dy * 0.55 + (dx / l) * 9 * side };
     w = standNear(B, Math.max(1, Math.min(B.map.w - 2, w.x)), Math.max(1, Math.min(B.map.h - 2, w.y)), kind) || { x: order.x, y: order.y };
@@ -76852,6 +76866,9 @@ function setOrder(B, u, order) {
   else if (order.type === 'escort') { if (!B.byId.get(order.target)?.alive || order.target === u.id) u.order = { type: 'hold' }; }
   else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
   else if (order.type === 'fire') { if (!u.arty) u.order = { type: 'hold' }; }
+  else if (order.type === 'repair') { const v = B.byId.get(order.target); if (u.role !== 'engineer' || !v?.mod || !v.alive || v.side !== u.side) u.order = { type: 'hold' }; }
+  else if (order.type === 'load') { const c = B.byId.get(order.target); if (u.kind !== 'inf' || !c?.alive || c.side !== u.side || !(CARRY[c.vtype] > 0)) u.order = { type: 'hold' }; }
+  else if (order.type === 'unload') { if (!u.pax.length) u.order = { type: 'hold' }; }
   else if (order.type === 'tend') { if (u.role !== 'medic') u.order = { type: 'hold' }; }
   else if (order.type === 'charge') { if (u.role !== 'engineer' || !(B.sup.items.item_breach_charge > 0)) u.order = { type: 'hold' }; u.plantT = 0; }
   else if (order.type === 'scout' || order.type === 'fpv') { if (u.role !== 'uav') u.order = { type: 'hold' }; }
@@ -76888,7 +76905,7 @@ function visible(B, u, e) { return dist(u, e) <= sightOf(u) && seeLine(B, u, eye
 function pickTarget(B, u) {
   let best = null; let bd = 1e9;
   for (const e of B.units) {
-    if (e.side === u.side || !e.alive || e.fled) continue;
+    if (e.side === u.side || !e.alive || e.fled || e.hidden) continue;
     if (u.W.airOnly && e.kind !== 'helicopter') continue; // an anti-air gun looks up
     const d = dist(u, e); if (d > sightOf(u) || d >= bd) continue;
     if (!seeLine(B, u, eyeZ(u), e, eyeZ(e))) continue;
@@ -76952,7 +76969,7 @@ function hitModule(B, t, dmg, by) {
 function blast(B, x, y, r, dmg, by) {
   B.events.push({ t: B.tick, k: 'blast', x, y, r });
   for (const n of B.units) {
-    if (!n.alive || n.fled) continue; const d = dist(n, { x, y }); if (d > r) continue;
+    if (!n.alive || n.fled || n.hidden) continue; const d = dist(n, { x, y }); if (d > r) continue;
     let v = dmg * (1 - d / r); if (B.map.bid[idx(B.map, Math.floor(n.x), Math.floor(n.y))] >= 0 && !isVeh(n)) v *= 0.5;
     if (isVeh(n)) { v *= n.kind === 'helicopter' ? 0.6 : 0.5; } else v /= n.prot;
     n.hp -= v; n.hurt += v; n.supp = Math.min(100, n.supp + 40 * (1 - d / r)); n.lastBy = by;
@@ -76960,6 +76977,7 @@ function blast(B, x, y, r, dmg, by) {
     if (n.hp <= 0 && n.alive) { n.alive = false; n.hp = 0; B.events.push({ t: B.tick, k: 'down', id: n.id, by }); }
   }
   for (let j = Math.floor(y - r); j <= Math.ceil(y + r); j++) for (let i = Math.floor(x - r); i <= Math.ceil(x + r); i++) if (Math.hypot(i + 0.5 - x, j + 0.5 - y) <= r * BREACH.blast / 2 + 0.6 && dmg >= BREACH.wall) breachTile(B, i, j);
+  if (B.rules >= 4 && dmg >= TRENCH_COLLAPSE.dmg) for (let j = Math.floor(y - r); j <= Math.ceil(y + r); j++) for (let i = Math.floor(x - r); i <= Math.ceil(x + r); i++) if (inb(B.map, i, j) && B.map.tiles[idx(B.map, i, j)] === TILE.TRENCH && Math.hypot(i + 0.5 - x, j + 0.5 - y) <= r * TRENCH_COLLAPSE.share) { B.map.tiles[idx(B.map, i, j)] = TILE.GROUND; B.collapsed.push({ x: i, y: j, t: B.tick }); B.events.push({ t: B.tick, k: 'collapse', x: i, y: j }); }
 }
 function breachTile(B, i, j) {
   if (!inb(B.map, i, j) || B.map.tiles[idx(B.map, i, j)] !== TILE.WALL) return false; // (a building's wall, or the wall round a compound)
@@ -77031,13 +77049,13 @@ function moveAlong(B, u, speed) {
   if (!u.path.length) return false;
   let left = speed * dt;
   while (left > 0 && u.path.length) {
-    const nx = u.path[0]; const d = Math.hypot(nx.x - u.x, nx.y - u.y); if (d > 1e-6 && u.kind !== 'inf') u.heading = Math.atan2(nx.y - u.y, nx.x - u.x);
+    const nx = u.path[0]; const d = Math.hypot(nx.x - u.x, nx.y - u.y); if (d > 1e-6 && u.kind !== 'inf' && u.order.type !== 'reverse') u.heading = Math.atan2(nx.y - u.y, nx.x - u.x);
     if (d <= left) { u.x = nx.x; u.y = nx.y; left -= d; u.path.shift(); u.travelled += d; } else { u.x += ((nx.x - u.x) / d) * left; u.y += ((nx.y - u.y) / d) * left; u.travelled += left; left = 0; }
     u.moving = true;
   }
   return u.moving;
 }
-const speedOf = (B, u) => (u.kind === 'inf' ? (B.map.bid[idx(B.map, Math.floor(u.x), Math.floor(u.y))] >= 0 ? SPEED.indoors : SPEED.infantry) * (1 - 0.3 * (u.fatigueP || 0)) * (tileAt(B.map, Math.floor(u.x), Math.floor(u.y)) === TILE.WIRE ? WIRE_SLOW : 1) : u.speed * trackFactor(u));
+const speedOf = (B, u) => (u.kind === 'inf' ? (B.map.bid[idx(B.map, Math.floor(u.x), Math.floor(u.y))] >= 0 ? SPEED.indoors : SPEED.infantry) * (1 - 0.3 * (u.fatigueP || 0)) * (tileAt(B.map, Math.floor(u.x), Math.floor(u.y)) === TILE.WIRE ? WIRE_SLOW : 1) : u.speed * trackFactor(u) * (u.order.type === 'reverse' ? 0.5 : 1));
 
 /** A standable tile near a point (nearest first), or null. */
 function standNear(B, x, y, kind) { for (let r = 0; r < 6; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue; const tx = Math.floor(x) + i; const ty = Math.floor(y) + j; if (canStand(B.map, tx, ty, kind) && B.map.bid[idx(B.map, tx, ty)] < 0) return { x: tx + 0.5, y: ty + 0.5 }; } return null; }
@@ -77058,6 +77076,17 @@ function garrisonStep(B, u) {
   // 'post': stands at the window and holds
 }
 
+/** A carrier lost with people aboard: some are killed with it, the rest come out hurt and shaken beside the wreck. */
+function bail(B, c) {
+  c.bailed = true;
+  for (const id of c.pax) {
+    const p = B.byId.get(id); if (!p || !p.alive) continue; const r = chance(`${B.key}|bail|${id}`);
+    p.inside = null; p.hidden = false; const sp = standNear(B, c.x, c.y, 'inf') || { x: c.x, y: c.y }; p.x = sp.x; p.y = sp.y;
+    if (r < BAIL.killed) { p.alive = false; p.hp = 0; B.events.push({ t: B.tick, k: 'down', id: p.id, by: 'carrier' }); }
+    else { p.hp = Math.max(1, p.hp - p.hpMax * BAIL.hurt); p.supp = Math.min(100, p.supp + BAIL.shaken); }
+  }
+  B.events.push({ t: B.tick, k: 'bail', id: c.id, n: c.pax.length }); c.pax = [];
+}
 /** The nearest downed friend nobody has stabilised yet (for a medic), within reach. */
 function downedNear(B, u, reach) {
   let best = null; let bd = reach;
@@ -77068,10 +77097,12 @@ function standBeside(B, d) { return standNear(B, d.x, d.y, 'inf'); }
 
 function step1(B, u, idxU) {
   if (!u.alive || u.fled) return;
+  if (u.inside) { const c = B.byId.get(u.inside); if (c && c.alive) { u.x = c.x; u.y = c.y; u.z = 0; u.path = []; u.moving = false; } return; } // aboard a carrier: it carries him, he does nothing
   if (u.burning && B.tick % 10 === 0) { u.hp -= MODULE.burn; if (u.hp <= 0) { u.alive = false; u.hp = 0; B.events.push({ t: B.tick, k: 'down', id: u.id, by: 'fire' }); return; } }
   if (u.recharge > 0) u.recharge--;
   if (u.fuelT != null && u.alive && !u.fled) { u.fuelT--; if (u.fuelT === 0) { B.events.push({ t: B.tick, k: 'bingo', id: u.id }); setOrder(B, u, { type: 'retreat' }); } }
-  u.supp = Math.max(0, u.supp - SUPPRESS.decay);
+  const stance = B.rules >= 4 ? u.stance : 'aggressive';
+  u.supp = Math.max(0, u.supp - SUPPRESS.decay * (stance === 'defensive' ? DEFENSIVE.decay : 1));
   const ns = stateOf(u);
   if (ns === 'broken' && !u.broken) { u.broken = true; setOrder(B, u, { type: 'retreat' }); B.events.push({ t: B.tick, k: 'broke', id: u.id }); }
   if (u.broken && u.supp < SUPPRESS.rally + (u.morale - 70) * 0.2) u.broken = false; // rallied
@@ -77083,15 +77114,15 @@ function step1(B, u, idxU) {
   u.cd--;
   if (u.W.range > 0 && B.tick % TICK.decide === idxU % TICK.decide) u.target = (() => { const t = pickTarget(B, u); return t ? t.id : null; })();
   const tgt = u.target ? B.byId.get(u.target) : null;
-  const canShoot = tgt && tgt.alive && !tgt.fled && u.W.range > 0 && !u.broken && dist(u, tgt) <= reachOf(u) && u.cd <= 0 && seeLine(B, u, eyeZ(u), tgt, eyeZ(tgt)) && !gunOut(u);
+  const canShoot = tgt && tgt.alive && !tgt.fled && u.W.range > 0 && !u.broken && dist(u, tgt) <= reachOf(u) && u.cd <= 0 && seeLine(B, u, eyeZ(u), tgt, eyeZ(tgt)) && !gunOut(u) && stance !== 'holdfire';
   const o = u.order;
   const hold = o.type === 'hold' || (o.type === 'garrison' && u.gstage === 'post');
-  const engaged = tgt && tgt.alive && dist(u, tgt) <= reachOf(u) && u.W.range > 0;
+  const engaged = tgt && tgt.alive && (stance === 'defensive' || dist(u, tgt) <= reachOf(u)) && u.W.range > 0;
   const reconSeen = o.type === 'recon' ? B.units.filter((e) => e.alive && !e.fled && e.side !== u.side && dist(u, e) <= sightOf(u) && seeLine(B, u, eyeZ(u), e, eyeZ(e))) : [];
   // an infantryman fires standing; on a move order he keeps moving; on attack-move he stops to fight what he can hit
   let moves = false;
   if (!u.broken && (u.state !== 'pinned' || o.type === 'retreat')) {
-    if (o.type === 'move' || o.type === 'retreat' || o.type === 'regroup') moves = true;
+    if (o.type === 'move' || o.type === 'reverse' || o.type === 'retreat' || o.type === 'regroup') moves = true;
     else if ((o.type === 'amove' || o.type === 'flank') && !engaged) moves = true;
     else if (o.type === 'recon' && !reconSeen.length) moves = true;
     else if (o.type === 'garrison' && (u.gstage === 'go' || u.gstage === 'post') && u.path.length) moves = true;
@@ -77107,6 +77138,20 @@ function step1(B, u, idxU) {
     if (!d) { if (o.type === 'tend') u.order = { type: 'hold' }; u.tendT = 0; }
     else if (dist(u, d) > 1.3) { special = true; u.tendT = 0; if (!u.path.length || B.tick % 20 === 0) { const sp = standBeside(B, d); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
     else { special = true; moves = false; u.tendT++; if (u.tendT >= TEND.seconds * TICK.perSecond) { d.stab = true; u.tendT = 0; B.events.push({ t: B.tick, k: 'stabilised', id: d.id, by: u.id }); } }
+  } else if (o.type === 'repair' && u.role === 'engineer' && !u.broken) {
+    const v = B.byId.get(o.target);
+    if (!v || !v.alive || !v.mod) u.order = { type: 'hold' };
+    else if (dist(u, v) > REPAIR.reach) { if (!u.path.length || B.tick % 20 === 0) { const sp = standNear(B, v.x, v.y, 'inf'); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
+    else { special = true; moves = false; let low = null; for (const k of ['tracks', 'gun', 'engine']) if (v.mod[k] < 1 && (!low || v.mod[k] < v.mod[low])) low = k; if (low) { v.mod[low] = Math.min(1, v.mod[low] + REPAIR.rate / TICK.perSecond); if (low === 'engine' && v.burning && v.mod.engine >= REPAIR.fireOut) { v.burning = false; B.events.push({ t: B.tick, k: 'fireout', id: v.id }); } if (v.mod.gun >= MODULE.hurt && v.mod.crew >= MODULE.hurt && v.accMult0) v.accMult = v.accMult0; } else { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'repaired', id: v.id }); } }
+  } else if (o.type === 'load' && u.kind === 'inf' && !u.broken) {
+    const c = B.byId.get(o.target);
+    if (!c || !c.alive || !(CARRY[c.vtype] > 0)) u.order = { type: 'hold' };
+    else if (dist(u, c) > BAIL.board) { if (!u.path.length || B.tick % 20 === 0) { const sp = standNear(B, c.x, c.y, 'inf'); u.path = sp ? findPath(B.map, u, sp, 'inf') : []; } moves = true; }
+    else if (c.pax.length < CARRY[c.vtype]) { u.inside = c.id; u.hidden = true; c.pax.push(u.id); u.order = { type: 'hold' }; u.path = []; B.events.push({ t: B.tick, k: 'board', id: u.id, by: c.id }); return; }
+    else { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'full', id: c.id }); }
+  } else if (o.type === 'unload' && u.pax.length) {
+    for (const id of u.pax) { const p = B.byId.get(id); if (!p || !p.alive) continue; const sp = standNear(B, u.x, u.y, 'inf') || { x: u.x, y: u.y }; p.inside = null; p.hidden = false; p.x = sp.x + (chance(`${B.key}|${B.tick}|${id}|ux`) - 0.5); p.y = sp.y + (chance(`${B.key}|${B.tick}|${id}|uy`) - 0.5); }
+    B.events.push({ t: B.tick, k: 'unload', id: u.id, n: u.pax.length }); u.pax = []; u.order = { type: 'hold' };
   } else if (o.type === 'escort' && !u.broken) {
     const f = B.byId.get(o.target);
     if (!f || !f.alive || f.fled) u.order = { type: 'hold' };
@@ -77126,6 +77171,7 @@ function step1(B, u, idxU) {
   } else if (o.type === 'fire' && u.arty && !u.broken) {
     const dd = Math.hypot(o.x - u.x, o.y - u.y); special = true; moves = false; u.aim = { x: o.x, y: o.y };
     if (dd > u.arty.range) { u.order = { type: 'hold' }; B.events.push({ t: B.tick, k: 'outofrange', id: u.id }); }
+    else if (B.rules >= 4 && !u.deployed) { if (u.dep === 0) B.events.push({ t: B.tick, k: 'deploying', id: u.id }); u.dep++; if (u.dep >= DEPLOY.seconds * TICK.perSecond) { u.deployed = true; B.events.push({ t: B.tick, k: 'deployed', id: u.id }); } }
     else if (u.cd <= 0) {
       if (!(B.sup.items.item_artillery_shell > 0)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
       else {
@@ -77148,7 +77194,7 @@ function step1(B, u, idxU) {
   if (canShoot && !special && !(moves && u.kind === 'inf' && o.type === 'move' && u.state === 'shaken')) { fire(B, u, tgt); u.cd = Math.max(1, Math.round(u.W.interval * TICK.perSecond * (u.state === 'shaken' ? 1.2 : 1))); }
   if (moves) { moveAlong(B, u, speedOf(B, u)); } else u.moving = false;
   if (o.type === 'garrison') garrisonStep(B, u);
-  if (u.order.type === 'move' && !u.path.length) u.order = { type: 'hold' };
+  if ((u.order.type === 'move' || u.order.type === 'reverse') && !u.path.length) u.order = { type: 'hold' };
   if ((u.order.type === 'amove' || u.order.type === 'flank') && !u.path.length && !engaged) u.order = { type: 'hold' };
   if (u.order.type === 'regroup') { u.supp = Math.max(0, u.supp - 0.4); if (!u.path.length) u.order = { type: 'hold' }; }
   if (u.order.type === 'recon') { if (reconSeen.length) { for (const e of reconSeen) B.spotted[e.id] = B.tick; B.events.push({ t: B.tick, k: 'contact', id: u.id }); u.order = { type: 'hold' }; u.path = []; } else if (!u.path.length) u.order = { type: 'hold' }; }
@@ -77195,6 +77241,7 @@ function step(B) {
   if (B.tick % 20 === 0) { if (B.ai.e) ai(B, 'e'); if (B.ai.p) ai(B, 'p'); }
   B.units.forEach((u, i) => step1(B, u, i));
   tickSupport(B);
+  for (const c of B.units) if (!c.alive && c.pax.length && !c.bailed) bail(B, c);
   B.tick++;
   // objectives
   const pz = zoneCount(B, 'p'); const ez = zoneCount(B, 'e');
@@ -77835,6 +77882,13 @@ function rubble(g, tx, ty) {
   for (let i = 0; i < 9; i++) { const u = unit(`rub|${tx}|${ty}|${i}`); const v = unit(`rub|${tx}|${ty}|${i}|v`); g.fillStyle = ['#8a4a3a', '#a8604a', '#6a3a2a', '#c8b8a0'][i % 4]; g.fillRect(x + 3 + Math.floor(u * (TP - 9)), y + 3 + Math.floor(v * (TP - 9)), 4 + (i % 3) * 2, 3 + (i % 2) * 2); }
 }
 
+/** A trench that has fallen in: churned earth and a few planks, over the painted trench. */
+function fallenEarth(g, tx, ty) {
+  const x = tx * TP; const y = ty * TP; g.fillStyle = '#4a3a2a'; g.fillRect(x, y, TP, TP);
+  for (let i = 0; i < 14; i++) { const u = unit(`fe|${tx}|${ty}|${i}`); const v = unit(`fe|${tx}|${ty}|${i}|v`); g.fillStyle = ['#6a5236', '#3a2c1e', '#7a6244', '#2e2418'][i % 4]; g.fillRect(x + Math.floor(u * (TP - 8)), y + Math.floor(v * (TP - 8)), 5 + (i % 3) * 3, 4 + (i % 2) * 3); }
+  g.fillStyle = INK; for (let i = 0; i < 2; i++) { const u = unit(`fp|${tx}|${ty}|${i}`); g.fillRect(x + 3 + Math.floor(u * 16), y + 4 + i * 14, 12, 3); }
+}
+
 /** One floor of a building as a plan, in the game's roofless look: plank floors with a shadow under the north wall, brick or plaster walls with framed windows, furniture on the boards, the stair and a label. */
 function plan(g, map, b, floor, gm) {
   const X = b.x * TP; const Y = b.y * TP; const S = ART_STYLES[b.astyle] || ART_STYLES.halver; const wall = S.walls[0]; const wlo = shade(wall, -30); const whi = shade(wall, 22);
@@ -77911,6 +77965,8 @@ class BattleView {
       else if (e.k === 'bingo') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 50, text: 'BINGO FUEL', age: 0 }); }
       else if (e.k === 'noshells') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF SHELLS', age: 0 }); }
       else if (e.k === 'outofrange') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF RANGE', age: 0 }); }
+      else if (e.k === 'deploying' || e.k === 'deployed' || e.k === 'repaired' || e.k === 'fireout' || e.k === 'bail' || e.k === 'full') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: { deploying: 'SETTING UP', deployed: 'READY TO FIRE', repaired: 'REPAIRED', fireout: 'FIRE OUT', bail: 'BAILED OUT', full: 'FULL' }[e.k], age: 0 }); if (e.k === 'bail' && u) this.fx.blast(u.x * T, u.y * T - 8, false); }
+      else if (e.k === 'collapse') { this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T); this.fx.hit((e.x + 0.5) * T, (e.y + 0.7) * T); }
       else if (e.k === 'wallhit') this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T);
       else if (e.k === 'down' && e.abandoned) { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: 'ABANDONED', age: 0 }); }
     }
@@ -77937,9 +77993,10 @@ class BattleView {
     const open = ui.open || {};
     // a building opened to a floor plan lies flat on the ground; the rest stand, in order from back to front, with the people between them
     for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor, this.scene.gm); }
+    for (const c of B.collapsed || []) fallenEarth(g, c.x, c.y);
     for (const r of B.rubble) if (B.map.bid[r.y * B.map.w + r.x] < 0) rubble(g, r.x, r.y); // (a breach in a wall that is not a building's, as round a compound)
     if (tier === 'far') { this.drawItems(g, [], open); this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
-    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y).filter((u) => {
+    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled && !u.hidden).sort((a, b) => a.y - b.y).filter((u) => {
       const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
       const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
       if (inside && !v) return false; // inside a roofed building: not seen
@@ -78106,6 +78163,8 @@ function battlePanel(ui, body, opts = {}) {
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
     if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'reverse') { give({ type: 'reverse', x: t.x, y: t.y }, 'back up to the point'); S.mode = null; paintBar(); return; }
+    if (mode === 'repair' || mode === 'load') { const f = unitAtPoint(e); if (!f || (mode === 'repair' && !f.mod) || (mode === 'load' && !(f.pax))) { say(mode === 'repair' ? 'Click one of your vehicles.' : 'Click one of your carriers.'); return; } give({ type: mode, target: f.id }, mode === 'repair' ? `repair ${f.name}` : `board ${f.name}`); S.mode = null; paintBar(); return; }
     if (mode === 'escort') { const f = unitAtPoint(e); if (!f) { say('Click one of your units to escort.'); return; } const ids = [...S.sel].filter((x) => x !== f.id); give({ type: 'escort', target: f.id }, `escort ${f.name}`); S.mode = null; paintBar(); void ids; return; }
     if (mode === 'flank' || mode === 'regroup' || mode === 'recon') { give({ type: mode, x: t.x, y: t.y }, { flank: 'flank round to the point', regroup: 'regroup at the point', recon: 'scout ahead' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'charge' || mode === 'scout' || mode === 'fpv') { const want = { charge: 'engineer', scout: 'uav', fpv: 'uav' }[mode]; const ids = [...S.sel].filter((x) => B.byId.get(x)?.role === want && B.byId.get(x).alive); if (!ids.length) { say(`Select ${want === 'uav' ? 'a UAV operator' : 'an engineer'} first.`); S.mode = null; paintBar(); return; } issue(B, ids, { type: mode, x: t.x, y: t.y }); save(); say({ charge: 'plant a charge', scout: 'send the scout drone', fpv: 'launch an FPV drone' }[mode] + '.'); S.mode = null; paintBar(); return; }
@@ -78182,6 +78241,8 @@ function battlePanel(ui, body, opts = {}) {
       h('button', { onclick: () => { S.gFloor = (S.gFloor + 1) % 6; paintBar(); } }, `Floor ${S.gFloor + 1}`), h('button', { onclick: () => give({ type: 'retreat' }, 'retreat') }, 'Retreat'), h('span', { class: 'sep' }),
       mk('Flank', 'flank', () => { S.mode = S.mode === 'flank' ? null : 'flank'; paintBar(); }), mk('Regroup', 'regroup', () => { S.mode = S.mode === 'regroup' ? null : 'regroup'; paintBar(); }), mk('Recon', 'recon', () => { S.mode = S.mode === 'recon' ? null : 'recon'; paintBar(); }), mk('Escort', 'escort', () => { S.mode = S.mode === 'escort' ? null : 'escort'; paintBar(); }),
       h('button', { title: 'how a group of three or more arranges itself when it moves', onclick: () => { const fs = ['line', 'column', 'wedge', 'skirmish', 'none']; S.formation = fs[(fs.indexOf(S.formation) + 1) % fs.length]; paintBar(); } }, `Formation: ${S.formation}`),
+      h('button', { title: 'hold fire / defensive / aggressive, for those selected', onclick: () => { const ss = ['aggressive', 'defensive', 'holdfire']; S.stance = ss[(ss.indexOf(S.stance || 'aggressive') + 1) % 3]; if (S.sel.size) give({ type: 'stance', stance: S.stance }, `${S.stance}`); paintBar(); } }, `Stance: ${S.stance || 'aggressive'}`),
+      mk('Reverse', 'reverse', () => { S.mode = S.mode === 'reverse' ? null : 'reverse'; paintBar(); }), mk('Repair', 'repair', () => { S.mode = S.mode === 'repair' ? null : 'repair'; paintBar(); }), mk('Board', 'load', () => { S.mode = S.mode === 'load' ? null : 'load'; paintBar(); }), h('button', { onclick: () => { const ids = [...S.sel].filter((x) => B.byId.get(x)?.pax?.length); if (!ids.length) say('Select a carrier with people aboard.'); else { issue(B, ids, { type: 'unload' }); save(); say('unload.'); } } }, 'Unload'),
       mk('Smoke', 'smoke', () => { S.mode = S.mode === 'smoke' ? null : 'smoke'; paintBar(); }), mk('Suppress', 'suppress', () => { S.mode = S.mode === 'suppress' ? null : 'suppress'; paintBar(); }), mk('Breach', 'breach', () => { S.mode = S.mode === 'breach' ? null : 'breach'; paintBar(); }),
       ...(B ? supportButtons(mk) : []), ...(B && B.rules >= 3 && B.units.some((u) => u.side === 'e' && u.W.airOnly && u.alive && seenSet().has(u.id)) ? [h('span', { class: 'bt-warn', title: 'an anti-air gun in sight: an aircraft pass in its reach can be shot down' }, '⚠ enemy AA in sight')] : []), h('span', { class: 'sep' }),
       h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
@@ -78191,7 +78252,7 @@ function battlePanel(ui, body, opts = {}) {
     const us = [...S.sel].map((x) => B?.byId.get(x)).filter(Boolean);
     if (!us.length) { card.replaceChildren(h('small', {}, B ? 'Click a soldier or drag a box. Right-click to move (Shift: attack-move). Space pauses. Mouse wheel zooms; drag with Alt to pan.' : '')); return; }
     const by = {}; for (const u of us) by[u.role] = (by[u.role] || 0) + 1;
-    card.replaceChildren(h('b', {}, `${us.length} selected`), h('small', {}, Object.entries(by).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')), h('small', {}, `Average health ${Math.round((us.reduce((a, u) => a + u.hp / u.hpMax, 0) / us.length) * 100)}% · ${us.filter((u) => u.state !== 'steady').length} shaken or worse`));
+    card.replaceChildren(h('b', {}, `${us.length} selected`), h('small', {}, Object.entries(by).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')), h('small', {}, B.rules >= 4 ? `Stance: ${[...new Set(us.map((u) => u.stance))].join('/')}` : ''), h('small', {}, `Average health ${Math.round((us.reduce((a, u) => a + u.hp / u.hpMax, 0) / us.length) * 100)}% · ${us.filter((u) => u.state !== 'steady').length} shaken or worse`));
   };
   paintTop(); paintBar(); paintCard();
 

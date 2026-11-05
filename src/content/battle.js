@@ -7,6 +7,8 @@ export const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
 export const TILE = { GROUND: 0, ROAD: 1, WALL: 2, WATER: 3, TREE: 4, HEDGE: 5, FLOOR: 6, DOOR: 7, WINDOW: 8, STAIRS: 9, CROP: 10, TRENCH: 11, WIRE: 12 };
 /** Trenches (v0.102.1) are walkable by people and give sandbag cover; wire is walkable by people at a crawl (a fraction of their speed) and stops vehicles. */
 export const WIRE_SLOW = 0.4;
+/** A blast of at least this much damage (a howitzer shell, a bomb, a missile, a charge; not a drone or a mortar bomb) collapses the trench within this share of its radius: the earth falls in and the tiles are open ground, with no cover (rules 4). */
+export const TRENCH_COLLAPSE = { dmg: 250, share: 0.75 };
 
 /** The chance a shot is absorbed by what the target stands in or behind (docs/PROPOSAL_WAR_TACTICAL.md section 5). */
 export const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85, trench: 0.75 };
@@ -97,6 +99,16 @@ export const ARTY = {
 export const SCATTER = { spotted: 0.8, blind: 3.6 };
 /** How long a helicopter can stay over the battle (seconds), then it must go home; and what stops an aircraft pass (a chance a tick for each live anti-air gun in reach). */
 export const STATION = { seconds: 150, mercy: 240 };
+/** Stances (rules 4): aggressive (the way units always fought), defensive (stops to fight at first sight, dug in: suppression fades 30 percent faster), hold fire (never fires). */
+export const STANCES = ['aggressive', 'defensive', 'holdfire'];
+export const DEFENSIVE = { decay: 1.3 };
+/** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
+export const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4 };
+export const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
+/** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
+export const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };
+/** An SP gun or howitzer must be set up (seconds) before it fires a mission, and moving packs it up again (rules 4). */
+export const DEPLOY = { seconds: 5 };
 export const FLAK = { perTick: 0.012 };
 /** A wall segment holds this much damage before it is breached (a gun or a rocket opens it; the wall becomes rubble you can walk through and see through). */
 export const BREACH = { wall: 260, blast: 1.4 };

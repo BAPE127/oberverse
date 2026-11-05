@@ -60,6 +60,13 @@ function rubble(g, tx, ty) {
   for (let i = 0; i < 9; i++) { const u = unit(`rub|${tx}|${ty}|${i}`); const v = unit(`rub|${tx}|${ty}|${i}|v`); g.fillStyle = ['#8a4a3a', '#a8604a', '#6a3a2a', '#c8b8a0'][i % 4]; g.fillRect(x + 3 + Math.floor(u * (TP - 9)), y + 3 + Math.floor(v * (TP - 9)), 4 + (i % 3) * 2, 3 + (i % 2) * 2); }
 }
 
+/** A trench that has fallen in: churned earth and a few planks, over the painted trench. */
+function fallenEarth(g, tx, ty) {
+  const x = tx * TP; const y = ty * TP; g.fillStyle = '#4a3a2a'; g.fillRect(x, y, TP, TP);
+  for (let i = 0; i < 14; i++) { const u = unit(`fe|${tx}|${ty}|${i}`); const v = unit(`fe|${tx}|${ty}|${i}|v`); g.fillStyle = ['#6a5236', '#3a2c1e', '#7a6244', '#2e2418'][i % 4]; g.fillRect(x + Math.floor(u * (TP - 8)), y + Math.floor(v * (TP - 8)), 5 + (i % 3) * 3, 4 + (i % 2) * 3); }
+  g.fillStyle = INK; for (let i = 0; i < 2; i++) { const u = unit(`fp|${tx}|${ty}|${i}`); g.fillRect(x + 3 + Math.floor(u * 16), y + 4 + i * 14, 12, 3); }
+}
+
 /** One floor of a building as a plan, in the game's roofless look: plank floors with a shadow under the north wall, brick or plaster walls with framed windows, furniture on the boards, the stair and a label. */
 function plan(g, map, b, floor, gm) {
   const X = b.x * TP; const Y = b.y * TP; const S = ART_STYLES[b.astyle] || ART_STYLES.halver; const wall = S.walls[0]; const wlo = shade(wall, -30); const whi = shade(wall, 22);
@@ -136,6 +143,8 @@ export class BattleView {
       else if (e.k === 'bingo') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 50, text: 'BINGO FUEL', age: 0 }); }
       else if (e.k === 'noshells') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF SHELLS', age: 0 }); }
       else if (e.k === 'outofrange') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: 'OUT OF RANGE', age: 0 }); }
+      else if (e.k === 'deploying' || e.k === 'deployed' || e.k === 'repaired' || e.k === 'fireout' || e.k === 'bail' || e.k === 'full') { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 40, text: { deploying: 'SETTING UP', deployed: 'READY TO FIRE', repaired: 'REPAIRED', fireout: 'FIRE OUT', bail: 'BAILED OUT', full: 'FULL' }[e.k], age: 0 }); if (e.k === 'bail' && u) this.fx.blast(u.x * T, u.y * T - 8, false); }
+      else if (e.k === 'collapse') { this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T); this.fx.hit((e.x + 0.5) * T, (e.y + 0.7) * T); }
       else if (e.k === 'wallhit') this.fx.hit((e.x + 0.5) * T, (e.y + 0.5) * T);
       else if (e.k === 'down' && e.abandoned) { const u = B.byId.get(e.id); if (u) this.labels.push({ x: u.x * T, y: u.y * T - 34, text: 'ABANDONED', age: 0 }); }
     }
@@ -162,9 +171,10 @@ export class BattleView {
     const open = ui.open || {};
     // a building opened to a floor plan lies flat on the ground; the rest stand, in order from back to front, with the people between them
     for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor, this.scene.gm); }
+    for (const c of B.collapsed || []) fallenEarth(g, c.x, c.y);
     for (const r of B.rubble) if (B.map.bid[r.y * B.map.w + r.x] < 0) rubble(g, r.x, r.y); // (a breach in a wall that is not a building's, as round a compound)
     if (tier === 'far') { this.drawItems(g, [], open); this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
-    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y).filter((u) => {
+    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled && !u.hidden).sort((a, b) => a.y - b.y).filter((u) => {
       const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
       const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
       if (inside && !v) return false; // inside a roofed building: not seen
