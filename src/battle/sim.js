@@ -434,8 +434,8 @@ function step1(B, u, idxU) {
     else if (B.rules >= 4 && !u.deployed) { if (u.dep === 0) B.events.push({ t: B.tick, k: 'deploying', id: u.id }); u.dep++; if (u.dep >= DEPLOY.seconds * TICK.perSecond) { u.deployed = true; B.events.push({ t: B.tick, k: 'deployed', id: u.id }); } }
     else if (u.cd <= 0) {
       const A = u.arty; const missile = A.missile ? (B.sup.items.item_missile_guided > 0 ? 'item_missile_guided' : B.sup.items.item_missile_cruise > 0 ? 'item_missile_cruise' : null) : null; const need = A.shells || 1;
-      if (B.rules >= 4 && A.designate && !designated(B, u.side, o.x, o.y)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }); }
-      else if (A.missile ? !missile : !(B.sup.items.item_artillery_shell >= need)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
+      if (A.missile ? !missile : !(B.sup.items.item_artillery_shell >= need)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
+      else if (B.rules >= 4 && !designated(B, u.side, o.x, o.y)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }); }
       else {
         const used = missile || 'item_artillery_shell'; const n = missile ? 1 : need; B.sup.items[used] -= n; B.counts.items[used] = (B.counts.items[used] || 0) + n; u.shots++; u.cd = Math.round(A.interval * TICK.perSecond);
         const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)) || B.drones.some((d) => d.side === u.side && dist(d, o) <= UAV.r); const sc = spotted ? SCATTER.spotted : SCATTER.blind;

@@ -96,12 +96,12 @@ export const ARTY = {
   hammer: { range: 45, interval: 6, r: 2.2, dmg: 200, speed: 18 },
   howitzer: { range: 55, interval: 9, r: 3, dmg: 320, speed: 20 },
   // v0.102.2: a rocket launcher fires a salvo of `salvo` small blasts over an area (three shells' worth of stores a salvo) and a missile launcher fires one of the stores' missiles; both need a designated point
-  rainmaker: { range: 50, interval: 14, r: 1.5, dmg: 110, speed: 22, salvo: 12, area: 3.5, shells: 3, designate: true },
-  longbow: { range: 80, interval: 25, speed: 30, missile: true, designate: true },
+  rainmaker: { range: 50, interval: 14, r: 1.5, dmg: 110, speed: 22, salvo: 12, area: 3.5, shells: 3 },
+  longbow: { range: 80, interval: 25, speed: 30, missile: true },
   // an enemy battery: fixed, answers the place a gun of yours fired from (counter-battery) once, after `answer` seconds
   battery: { range: 60, interval: 10, r: 2.4, dmg: 220, speed: 20, answer: 15, scatter: 2.5, shells: 10 },
 };
-/** Designation (rules 4): a strike (a missile, a drone, an aircraft pass, a strategic missile, rocket or missile fire from a launcher) lands on a point only if an enemy within `r` tiles of it is designated: in sight of one of yours or a scout drone now, or spotted within the drone's memory. Guns firing shells are not held to it (they can fire blind, less true). */
+/** Designation (rules 4): a strike (a missile, a drone, an aircraft pass, a strategic missile, a gun's or a launcher's fire mission) lands on a point only if an enemy within `r` tiles of it is designated: in sight of one of yours or a scout drone now, or spotted within the drone's memory (`UAV.memory`). */
 export const DESIGNATE = { r: 3.5 };
 export const SCATTER = { spotted: 0.8, blind: 3.6 };
 /** How long a helicopter can stay over the battle (seconds), then it must go home; and what stops an aircraft pass (a chance a tick for each live anti-air gun in reach). */

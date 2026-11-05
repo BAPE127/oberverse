@@ -55,6 +55,7 @@ test('a carrier lost with four aboard: some die with it by a hash, the rest come
 
 test('a self-propelled gun must set up before a fire mission (five seconds), and moving packs it up again', () => {
   const B = createBattle(mk({ vehicles: [{ id: 'G1', name: 'Hammer', cls: 'artillery', type: 'hammer', armour: 2, firepower: 5, speed: 3 }], support: { items: { item_artillery_shell: 4 }, air: [] } })); const s = open(B); park(B); for (const u of B.units) u.W = { ...u.W, range: 0 }; const G = B.byId.get('G1'); put(G, s.x0 + 2, s.y + 0.5);
+  const foe = B.units.find((u) => u.side === 'e'); put(foe, s.x0 + 30, s.y + 0.5); foe.hp = foe.hpMax = 1e6; B.spotted[foe.id] = B.tick; // (rules 4: the point needs an enemy to designate it)
   issue(B, ['G1'], { type: 'fire', x: s.x0 + 30, y: s.y + 0.5 }); run(B, 40); assert.equal(B.counts.items.item_artillery_shell || 0, 0, 'still setting up'); run(B, 30); assert.equal(G.deployed, true); assert.equal(B.counts.items.item_artillery_shell, 1);
   issue(B, ['G1'], { type: 'move', x: s.x0 + 10, y: s.y + 0.5 }); assert.equal(G.deployed, false, 'moving packs it up'); issue(B, ['G1'], { type: 'fire', x: s.x0 + 30, y: s.y + 0.5 }); run(B, 20); assert.equal(B.counts.items.item_artillery_shell, 1, 'and it must set up again');
 });

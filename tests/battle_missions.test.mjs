@@ -5,6 +5,7 @@ import { buildSetup } from '../src/battle/setup.js';
 import { createBattle, run, runToEnd, issue, callReserve, outcome, replay, step } from '../src/battle/sim.js';
 import { RESERVE, TICK, VIP_HOME } from '../src/content/battle.js';
 import { estimate } from '../src/war/combat.js';
+import { findPath } from '../src/battle/nav.js';
 
 const people = (n) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, role: i % 8 === 0 ? 'machine_gunner' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
 const mk = (o = {}) => buildSetup({ key: o.key || 'M1|x', eng: { goal: o.goal || 'defence', recipe: o.recipe || 'fields', biome: 'rural', style: 'sund', enemy: o.enemy || { troops: 4, armour: 0, air: 0, skill: 1 } }, people: people(o.n || 8), vehicles: [], ai: o.ai || { p: false, e: false }, reserve: o.reserve || [] });
@@ -66,4 +67,11 @@ test('the new missions are offered: over a long run of days a raid, an extractio
   for (let i = 0; i < 400; i++) { days(g, 1); for (const e of g.war.engagements().open) if (!seen.has(e.id)) seen.set(e.id, e); }
   const kinds = new Set([...seen.values()].map((e) => e.kind)); for (const k of ['raid', 'extract', 'rescue']) assert.ok(kinds.has(k), `a ${k} was offered (${[...kinds].join(', ')})`);
   for (const e of seen.values()) if (['raid', 'extract', 'rescue'].includes(e.kind)) { assert.equal(e.goal, e.kind); const B = createBattle(buildSetup({ key: `O|${e.id}`, eng: { goal: e.goal, enemy: e.enemy, recipe: e.recipe, biome: e.terrain, style: e.style }, people: people(8), vehicles: [], ai: { p: true, e: true } })); run(B, 50); assert.ok(B.units.some((u) => u.side === 'e')); }
+});
+
+test('on every kind of ground, whoever is to be got out can walk from the marked ground to your edge, and your people can walk to them (a path exists, across several seeds)', () => {
+  for (const recipe of ['city', 'fields', 'trench', 'compound', 'forest']) for (let k = 0; k < 4; k++) {
+    const B = createBattle(mk({ key: `M7|${recipe}|${k}`, goal: 'extract', recipe })); const v = B.units.find((u) => u.vip); const home = B.map.spawns.p;
+    assert.ok(findPath(B.map, v, home, 'inf').length > 0, `${recipe} ${k}: out`); assert.ok(findPath(B.map, home, v, 'inf').length > 0, `${recipe} ${k}: in`);
+  }
 });

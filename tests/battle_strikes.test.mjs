@@ -54,9 +54,9 @@ test('the Rainmaker: a bought rocket launcher fires twelve rockets over a field 
   // blind: no eyes on the point
   const N = field({ vehicles: [veh('R1', 'rainmaker')], support: { items: { item_artillery_shell: 6 }, air: [] } }); put(N.eye, N.s.x0 + 2, N.s.y + 3); put(N.B.byId.get('R1'), N.s.x0 + 2.5, N.s.y + 0.5);
   issue(N.B, ['R1'], { type: 'fire', x: N.s.x0 + 30.5, y: N.s.y + 0.8 }); run(N.B, 200); assert.ok(N.B.events.some((e) => e.k === 'nodesignate')); assert.equal(N.B.sup.items.item_artillery_shell, 6); assert.equal(N.B.byId.get('R1').order.type, 'hold');
-  // a gun firing shells is not held to it
+  // a gun firing shells is held to it too (the owner's answer: every strike)
   const G = field({ vehicles: [veh('G1', 'hammer')], support: { items: { item_artillery_shell: 3 }, air: [] } }); put(G.eye, G.s.x0 + 2, G.s.y + 3); put(G.B.byId.get('G1'), G.s.x0 + 2.5, G.s.y + 0.5);
-  issue(G.B, ['G1'], { type: 'fire', x: G.s.x0 + 30.5, y: G.s.y + 0.8 }); run(G.B, 200); assert.ok(G.B.sup.items.item_artillery_shell < 3, 'a gun fires blind, less true');
+  issue(G.B, ['G1'], { type: 'fire', x: G.s.x0 + 30.5, y: G.s.y + 0.8 }); run(G.B, 200); assert.ok(G.B.events.some((e) => e.k === 'nodesignate')); assert.equal(G.B.sup.items.item_artillery_shell, 3, 'a gun does not fire blind either');
 });
 
 test('the Longbow: a bought missile launcher fires the stores\' missiles one at a time from far back, the guided one first, at a designated point', () => {

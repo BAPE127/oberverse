@@ -44,7 +44,7 @@ export function battlePanel(ui, body, opts = {}) {
     if (!B) return new Set();
     if (B.tick - S.visTick < 5) return S.vis;
     S.visTick = B.tick; const out = new Set();
-    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
+    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] !== undefined && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
     for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled) for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; if (Math.hypot(u.x - e.x, u.y - e.y) <= sightOf(u) && los(B.map, u.x, u.y, u.z, e.x, e.y, e.z)) { out.add(e.id); break; } }
     for (const e of S.vis) if (!out.has(e) && B.tick - (view.seenAt.get(e) ?? -99) < 20 && B.byId.get(e)?.alive) out.add(e);
     for (const e of out) view.seenAt.set(e, B.tick);
@@ -66,7 +66,7 @@ export function battlePanel(ui, body, opts = {}) {
     const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
-    if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } if (B.rules >= 4 && ids.some((x) => B.byId.get(x).arty.designate) && !designated(B, 'p', t.x, t.y)) { say('Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).'); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } if (B.rules >= 4 && !designated(B, 'p', t.x, t.y)) { say('Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).'); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
     if (mode === 'reverse') { give({ type: 'reverse', x: t.x, y: t.y }, 'back up to the point'); S.mode = null; paintBar(); return; }
     if (mode === 'repair' || mode === 'load') { const f = unitAtPoint(e); if (!f || (mode === 'repair' && !f.mod) || (mode === 'load' && !(f.pax))) { say(mode === 'repair' ? 'Click one of your vehicles.' : 'Click one of your carriers.'); return; } give({ type: mode, target: f.id }, mode === 'repair' ? `repair ${f.name}` : `board ${f.name}`); S.mode = null; paintBar(); return; }
     if (mode === 'escort') { const f = unitAtPoint(e); if (!f) { say('Click one of your units to escort.'); return; } const ids = [...S.sel].filter((x) => x !== f.id); give({ type: 'escort', target: f.id }, `escort ${f.name}`); S.mode = null; paintBar(); void ids; return; }

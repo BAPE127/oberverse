@@ -32328,12 +32328,12 @@ const ARTY = {
   hammer: { range: 45, interval: 6, r: 2.2, dmg: 200, speed: 18 },
   howitzer: { range: 55, interval: 9, r: 3, dmg: 320, speed: 20 },
   // v0.102.2: a rocket launcher fires a salvo of `salvo` small blasts over an area (three shells' worth of stores a salvo) and a missile launcher fires one of the stores' missiles; both need a designated point
-  rainmaker: { range: 50, interval: 14, r: 1.5, dmg: 110, speed: 22, salvo: 12, area: 3.5, shells: 3, designate: true },
-  longbow: { range: 80, interval: 25, speed: 30, missile: true, designate: true },
+  rainmaker: { range: 50, interval: 14, r: 1.5, dmg: 110, speed: 22, salvo: 12, area: 3.5, shells: 3 },
+  longbow: { range: 80, interval: 25, speed: 30, missile: true },
   // an enemy battery: fixed, answers the place a gun of yours fired from (counter-battery) once, after `answer` seconds
   battery: { range: 60, interval: 10, r: 2.4, dmg: 220, speed: 20, answer: 15, scatter: 2.5, shells: 10 },
 };
-/** Designation (rules 4): a strike (a missile, a drone, an aircraft pass, a strategic missile, rocket or missile fire from a launcher) lands on a point only if an enemy within `r` tiles of it is designated: in sight of one of yours or a scout drone now, or spotted within the drone's memory. Guns firing shells are not held to it (they can fire blind, less true). */
+/** Designation (rules 4): a strike (a missile, a drone, an aircraft pass, a strategic missile, a gun's or a launcher's fire mission) lands on a point only if an enemy within `r` tiles of it is designated: in sight of one of yours or a scout drone now, or spotted within the drone's memory (`UAV.memory`). */
 const DESIGNATE = { r: 3.5 };
 const SCATTER = { spotted: 0.8, blind: 3.6 };
 /** How long a helicopter can stay over the battle (seconds), then it must go home; and what stops an aircraft pass (a chance a tick for each live anti-air gun in reach). */
@@ -55091,7 +55091,7 @@ const RELEASE_NOTES = [
     channel: 'development',
     title: 'War: Battle Depth III',
     notes: [
-      'Strikes need a designated point: a missile, a drone, an aircraft pass or a strategic missile lands only where an enemy is in sight of one of yours, under a scout drone, or was spotted a short while ago. Guns firing shells can still fire blind, less true.',
+      'Strikes need a designated point: a missile, a drone, an aircraft pass or a strategic missile lands only where an enemy is in sight of one of yours, under a scout drone, or was spotted a short while ago. Guns firing shells need one too, and launchers fire only at a designated point.',
       'Two new vehicles to buy: the Rainmaker rocket launcher (twelve rockets over a field for three shells from the stores) and the Longbow missile launcher (fires the stores\' missiles from far back). Enemy engagements of sixteen troops or more now bring a battery that answers the place a gun of yours fired from.',
       'Stances (aggressive, defensive, hold fire); reverse, deploy before an SP gun fires, repair by an engineer, board and unload carriers (the carrier\'s loss takes its passengers with it); a heavy blast collapses a trench.',
       'Hold squads back in reserve and call them in; new missions: a raid, bringing an officer out, recovering a downed pilot.',
@@ -77250,8 +77250,8 @@ function step1(B, u, idxU) {
     else if (B.rules >= 4 && !u.deployed) { if (u.dep === 0) B.events.push({ t: B.tick, k: 'deploying', id: u.id }); u.dep++; if (u.dep >= DEPLOY.seconds * TICK.perSecond) { u.deployed = true; B.events.push({ t: B.tick, k: 'deployed', id: u.id }); } }
     else if (u.cd <= 0) {
       const A = u.arty; const missile = A.missile ? (B.sup.items.item_missile_guided > 0 ? 'item_missile_guided' : B.sup.items.item_missile_cruise > 0 ? 'item_missile_cruise' : null) : null; const need = A.shells || 1;
-      if (B.rules >= 4 && A.designate && !designated(B, u.side, o.x, o.y)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }); }
-      else if (A.missile ? !missile : !(B.sup.items.item_artillery_shell >= need)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
+      if (A.missile ? !missile : !(B.sup.items.item_artillery_shell >= need)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'noshells', id: u.id }); }
+      else if (B.rules >= 4 && !designated(B, u.side, o.x, o.y)) { u.order = { type: 'hold' }; u.aim = null; B.events.push({ t: B.tick, k: 'nodesignate', id: u.id }); }
       else {
         const used = missile || 'item_artillery_shell'; const n = missile ? 1 : need; B.sup.items[used] -= n; B.counts.items[used] = (B.counts.items[used] || 0) + n; u.shots++; u.cd = Math.round(A.interval * TICK.perSecond);
         const spotted = B.units.some((p) => p.side === u.side && p.alive && !p.fled && p.kind === 'inf' && dist(p, o) <= sightOf(p) && seeLine(B, p, p.z, o, 0)) || B.drones.some((d) => d.side === u.side && dist(d, o) <= UAV.r); const sc = spotted ? SCATTER.spotted : SCATTER.blind;
@@ -78246,7 +78246,7 @@ function battlePanel(ui, body, opts = {}) {
     if (!B) return new Set();
     if (B.tick - S.visTick < 5) return S.vis;
     S.visTick = B.tick; const out = new Set();
-    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
+    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled && B.spotted[e.id] !== undefined && B.tick - B.spotted[e.id] < UAV.memory * TICK.perSecond) out.add(e.id);
     for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled) for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; if (Math.hypot(u.x - e.x, u.y - e.y) <= sightOf(u) && los(B.map, u.x, u.y, u.z, e.x, e.y, e.z)) { out.add(e.id); break; } }
     for (const e of S.vis) if (!out.has(e) && B.tick - (view.seenAt.get(e) ?? -99) < 20 && B.byId.get(e)?.alive) out.add(e);
     for (const e of out) view.seenAt.set(e, B.tick);
@@ -78268,7 +78268,7 @@ function battlePanel(ui, body, opts = {}) {
     const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
     const mode = S.mode || (shift ? 'amove' : 'move');
     if (mode.startsWith('support:')) { const [, kind, ref] = mode.split(':'); const r = callSupport(B, { kind, x: t.x, y: t.y, ...(ref ? { id: ref } : {}) }); say(r.text); if (r.ok) save(); S.mode = null; paintBar(); return; }
-    if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } if (B.rules >= 4 && ids.some((x) => B.byId.get(x).arty.designate) && !designated(B, 'p', t.x, t.y)) { say('Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).'); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
+    if (mode === 'fire') { const ids = [...S.sel].filter((x) => B.byId.get(x)?.arty && B.byId.get(x).alive); if (!ids.length) { say('Select a mortar, a gun or a howitzer first.'); S.mode = null; paintBar(); return; } if (B.rules >= 4 && !designated(B, 'p', t.x, t.y)) { say('Nothing is designated there: put eyes on the enemy first (a squad in sight, a scout drone or a recon order).'); return; } issue(B, ids, { type: 'fire', x: t.x, y: t.y }); save(); say(`${ids.length} fire at the point.`); S.mode = null; paintBar(); return; }
     if (mode === 'reverse') { give({ type: 'reverse', x: t.x, y: t.y }, 'back up to the point'); S.mode = null; paintBar(); return; }
     if (mode === 'repair' || mode === 'load') { const f = unitAtPoint(e); if (!f || (mode === 'repair' && !f.mod) || (mode === 'load' && !(f.pax))) { say(mode === 'repair' ? 'Click one of your vehicles.' : 'Click one of your carriers.'); return; } give({ type: mode, target: f.id }, mode === 'repair' ? `repair ${f.name}` : `board ${f.name}`); S.mode = null; paintBar(); return; }
     if (mode === 'escort') { const f = unitAtPoint(e); if (!f) { say('Click one of your units to escort.'); return; } const ids = [...S.sel].filter((x) => x !== f.id); give({ type: 'escort', target: f.id }, `escort ${f.name}`); S.mode = null; paintBar(); void ids; return; }

@@ -7,7 +7,7 @@ export const RELEASE_NOTES = [
     channel: 'development',
     title: 'War: Battle Depth III',
     notes: [
-      'Strikes need a designated point: a missile, a drone, an aircraft pass or a strategic missile lands only where an enemy is in sight of one of yours, under a scout drone, or was spotted a short while ago. Guns firing shells can still fire blind, less true.',
+      'Strikes need a designated point: a missile, a drone, an aircraft pass or a strategic missile lands only where an enemy is in sight of one of yours, under a scout drone, or was spotted a short while ago. Guns firing shells need one too, and launchers fire only at a designated point.',
       'Two new vehicles to buy: the Rainmaker rocket launcher (twelve rockets over a field for three shells from the stores) and the Longbow missile launcher (fires the stores\' missiles from far back). Enemy engagements of sixteen troops or more now bring a battery that answers the place a gun of yours fired from.',
       'Stances (aggressive, defensive, hold fire); reverse, deploy before an SP gun fires, repair by an engineer, board and unload carriers (the carrier\'s loss takes its passengers with it); a heavy blast collapses a trench.',
       'Hold squads back in reserve and call them in; new missions: a raid, bringing an officer out, recovering a downed pilot.',

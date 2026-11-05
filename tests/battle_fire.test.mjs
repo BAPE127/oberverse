@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, step, run, issue, callSupport, outcome, replay } from '../src/battle/sim.js';
+import { createBattle, step, run, issue, callSupport, designated, outcome, replay } from '../src/battle/sim.js';
 import { TILE, ARTY } from '../src/content/battle.js';
 import { idx } from '../src/battle/map.js';
 
@@ -24,9 +24,10 @@ test('a fire mission: a gun fires shells from the stores at a point, each takes 
   const C = createBattle(mk({ support: { items: { item_artillery_shell: 3 }, air: [] } })); const s2 = stretch(C, 70); calm(C); put(C.byId.get('G1'), s2.x0 + 1.5, s2.y + 0.5); issue(C, ['G1'], { type: 'fire', x: s2.x0 + 65, y: s2.y + 0.5 }); run(C, 30); assert.equal(C.counts.items.item_artillery_shell || 0, 0, 'out of range: no shell is wasted'); assert.ok(C.events.some((e) => e.k === 'outofrange'));
 });
 
+// (rules 4: a point needs an enemy to designate it; the one here is tough and stays in the memory, so the blind gun may fire, wide)
 test('a spotter cuts the scatter: shells fired at a point someone can see land closer than shells fired blind', () => {
-  const miss = (spotted) => { let total = 0; for (let k = 0; k < 6; k++) { const B = createBattle(mk({ key: `F2|${k}`, support: { items: { item_artillery_shell: 24 }, air: [] }, enemy: { troops: 1, armour: 0, air: 0, skill: 1 } })); B.units.filter((u) => u.side === 'e').forEach((u) => put(u, 100, 5)); const s = stretch(B, 60); calm(B); const G = B.byId.get('G1'); put(G, s.x0 + 1.5, s.y + 0.5); const P = B.byId.get('p0'); put(P, spotted ? s.x0 + 22 : s.x0 + 1, spotted ? s.y + 0.5 : s.y + 4); for (const u of B.units) if (u.side === 'p' && u !== G && u !== P) put(u, s.x0 + 1, s.y + 5);
-    const tx = s.x0 + 30; const ty = s.y + 0.5; issue(B, ['G1'], { type: 'fire', x: tx, y: ty }); run(B, 700); for (const e of B.events.filter((q) => q.k === 'blast')) total += Math.hypot(e.x - tx, e.y - ty); } return total; };
+  const miss = (spotted) => { let total = 0; for (let k = 0; k < 6; k++) { const B = createBattle(mk({ key: `F2|${k}`, support: { items: { item_artillery_shell: 24 }, air: [] }, enemy: { troops: 1, armour: 0, air: 0, skill: 1 } })); const s = stretch(B, 60); calm(B); const foe = B.units.find((u) => u.side === 'e'); B.units.filter((u) => u.side === 'e' && u !== foe).forEach((u) => put(u, 100, 5)); foe.hp = foe.hpMax = 1e6; B.spotted[foe.id] = B.tick; const G = B.byId.get('G1'); put(G, s.x0 + 1.5, s.y + 0.5); const P = B.byId.get('p0'); put(P, spotted ? s.x0 + 22 : s.x0 + 1, spotted ? s.y + 0.5 : s.y + 4); for (const u of B.units) if (u.side === 'p' && u !== G && u !== P) put(u, s.x0 + 1, s.y + 5);
+    const tx = s.x0 + 30; const ty = s.y + 0.5; put(foe, tx, ty); issue(B, ['G1'], { type: 'fire', x: tx, y: ty }); run(B, 700); for (const e of B.events.filter((q) => q.k === 'blast')) total += Math.hypot(e.x - tx, e.y - ty); } return total; };
   const a = miss(true); const b = miss(false); assert.ok(a < b * 0.6, `spotted ${a.toFixed(1)} against blind ${b.toFixed(1)}`);
 });
 
@@ -63,8 +64,9 @@ test('a helicopter has its station time (from rules 3): then it goes home; under
 });
 
 test('fire missions are in the log and replay exactly', () => {
-  const setup = mk({ key: 'F9|r', support: { items: { item_artillery_shell: 6 }, air: [] }, enemy: { troops: 10, armour: 0, air: 0, skill: 1 } }); const B = createBattle(setup); const e = B.map.spawns.e;
-  run(B, 30); issue(B, ['G1'], { type: 'fire', x: B.map.spawns.p.x + 30, y: B.map.spawns.p.y }); run(B, 300); assert.ok(B.counts.items.item_artillery_shell >= 1); const R = replay(setup, B.log, B.tick); const snap = (X) => JSON.stringify(X.units.map((u) => [u.id, +u.x.toFixed(3), +u.y.toFixed(3), Math.round(u.hp), u.alive])); assert.equal(snap(R), snap(B)); assert.deepEqual(R.counts.items, B.counts.items);
+  const setup = mk({ key: 'F9|r', support: { items: { item_artillery_shell: 6 }, air: [] }, enemy: { troops: 10, armour: 0, air: 0, skill: 1 } }); setup.ai = { p: true, e: true }; const B = createBattle(setup); const foe = B.units.find((u) => u.side === 'e');
+  // (rules 4: a gun fires at a designated point, and a replay cannot carry a hand-set spot: let both sides move until the enemy is really in sight)
+  const G = B.byId.get('G1'); const ready = () => designated(B, 'p', foe.x, foe.y) && Math.hypot(foe.x - G.x, foe.y - G.y) <= ARTY.hammer.range; for (let i = 0; i < 1500 && !B.over && !ready(); i++) run(B, 5); assert.ok(ready()); issue(B, ['G1'], { type: 'fire', x: foe.x, y: foe.y }); run(B, 300); assert.ok(B.counts.items.item_artillery_shell >= 1); const R = replay(setup, B.log, B.tick); const snap = (X) => JSON.stringify(X.units.map((u) => [u.id, +u.x.toFixed(3), +u.y.toFixed(3), Math.round(u.hp), u.alive])); assert.equal(snap(R), snap(B)); assert.deepEqual(R.counts.items, B.counts.items);
 });
 
 test('anti-air is not a force on the ground: a battle with enemy guns ends as it would without them (they do not hold a zone and need not be put out)', () => {
