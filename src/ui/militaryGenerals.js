@@ -46,13 +46,19 @@ export function engagementScreen(ui, body, go, open) {
       row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
       row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
   }
-  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', onclick: () => go(W.playEngagement(e.id)) }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
-  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. The overhead battle comes in a later release; for now a general fights it.'));
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
+  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
 }
 
 function reportScreen(ui, body, go, open, e) {
   body.append(back(ui, open, 'Generals'));
-  if (e.state === 'delegated' || e.state === 'tactical') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
+  if (e.state === 'tactical') {
+    const bt = ui.game.war.battle(e.id);
+    body.append(hero({ label: e.client, value: e.title, sub: bt?.result ? `The battle is fought and the result filed. Your people are back on day ${e.order.end}.` : `You have taken this one to the field. Your people are back on day ${e.order.end}, whatever the battle's length.` }),
+      h('div', { class: 'tb-btns' }, bt?.result ? null : h('button', { class: 'tb-btn pri', onclick: () => ui.openPanel('battle', { id: e.id }) }, bt?.tick ? 'Resume the battle' : 'Fight the battle')));
+    return;
+  }
+  if (e.state === 'delegated') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
   if (!e.result) { body.append(hero({ label: e.client, value: e.title, sub: e.state === 'expired' ? (e.why || 'It lapsed.') : 'Turned down.' })); return; }
   const R = e.result;
   body.append(hero({ label: `After action: ${e.place}`, value: R.outcome.replace('_', ' ').replace(/^./, (c) => c.toUpperCase()), tone: R.objectives >= 2 ? 'pos' : R.objectives === 0 ? 'neg' : 'warn', sub: `${R.objectives} of 3 objectives · ${R.paid ? `paid ${n(R.paid)} of ${n(e.pay)}` : `fined ${n(R.fine)}`} · ${R.general}` }),

@@ -9,7 +9,7 @@ import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js'
 import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
 import { hire as hireGeneral, dismiss as dismissGeneral, view as generalsView } from './generals.js';
-import { assess as assessEngagement, delegate as delegateEngagement, play as playEngagement, decline as declineEngagement, view as engagementsView, get as engagementOf, lacks as engagementLacks } from './engagements.js';
+import { assess as assessEngagement, delegate as delegateEngagement, play as playEngagement, battleOf, skirmish as skirmishOf, saveBattle as saveBattleOf, fileBattle as fileBattleOf, decline as declineEngagement, view as engagementsView, get as engagementOf, lacks as engagementLacks } from './engagements.js';
 import { tick as bodiesStep, sync as bodiesSync } from './bodies.js';
 import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
@@ -122,7 +122,11 @@ export class War {
   engagementLacks(id, squads) { const e = engagementOf(this.g, id); return e ? engagementLacks(this.g, e, squads) : []; }
   assess(id, squads, general) { return assessEngagement(this.g, id, squads, general); }
   delegate(id, order) { return delegateEngagement(this.g, id, order); }
-  playEngagement(id) { return playEngagement(this.g, id); }
+  playEngagement(id, squads) { return playEngagement(this.g, id, squads); }
+  battle(id) { return battleOf(this.g, id); }
+  skirmish(recipe, enemy) { return skirmishOf(this.g, recipe, enemy); }
+  saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }
+  fileBattle(id, result) { return fileBattleOf(this.g, id, result); }
   declineEngagement(id) { return declineEngagement(this.g, id); }
 
   contracts() { return contractsView(this.g); }

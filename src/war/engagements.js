@@ -10,6 +10,8 @@ import { reputation } from './contracts.js';
 import { leave } from './squads.js';
 import { resolve, estimate } from './combat.js';
 import { ATLAS } from '../content/atlas.js';
+import { styleOf } from '../content/battle.js';
+import { buildSetup } from '../battle/setup.js';
 import { ENGAGEMENTS as KINDS, ENGAGE as E, GENERALS, terrainOf } from '../content/generals.js';
 import { VEHICLES } from '../content/procurement.js';
 import { CLASSES } from '../content/troops.js';
@@ -92,11 +94,58 @@ function commitForces(game, C, eng, squads, gen) {
   return F;
 }
 
-export function play(game, id) {
-  const eng = find(game, id);
+/**
+ * Lead it yourself (v0.101.0): the forces go to the field exactly as for a general, the state moves to `tactical` (so a general can never also have it), and a battle is set up from the real forces
+ * and the engagement. The battle itself runs in the panel (src/ui/battle.js) and files its result here; the result is applied on the end day, like a delegated one (playing it is not a shortcut
+ * to the money). Until then the battle is saved as its setup, its order log and its tick, and a reload replays it.
+ */
+export function play(game, id, squads) {
+  const C = peekMilitary(game)?.company;
+  const eng = C && find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
+  if (eng.state === 'tactical') return { ok: true, text: 'The battle is waiting for you.', resume: true };
   if (eng.state !== 'open') return { ok: false, text: 'That one has already been given out: once a way is chosen, the other is closed.' };
-  return { ok: false, text: 'The overhead battle arrives in a later release. For now a general fights it.' };
+  if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
+  const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
+  if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
+  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const miss = lacks(game, eng, squads);
+  if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
+  const F = commitForces(game, C, eng, squads, null);
+  const key = `${eng.id}|${salt(game)}`;
+  eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
+  return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
+}
+
+/**
+ * A sandbox fight (the debug command `mil skirmish`, and the smoke test): a battle of twelve made-up soldiers and a tank against the engagement's enemy, on either recipe. It is a real tactical
+ * engagement in every way except that none of the units is a record of the company, so applying its result changes nothing and pays nothing.
+ */
+export function skirmish(game, recipe = 'fields', enemy = { troops: 10, armour: 1, air: 0, skill: 1 }) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'Register the company first.' };
+  const id = nextId(C, 'N');
+  const key = `${id}|${salt(game)}`;
+  const people = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, name: `Recruit ${i + 1}`, role: i === 0 ? 'officer' : i % 6 === 1 ? 'machine_gunner' : i % 6 === 2 ? 'anti_tank' : i % 6 === 3 ? 'medic' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
+  const vehicles = [{ id: 'sv0', name: 'Anvil Mk1 tank', cls: 'tank', armour: 3, firepower: 3, speed: 3 }];
+  const setup = buildSetup({ key, eng: { goal: 'defence', enemy, recipe: recipe === 'city' ? 'city' : 'fields', biome: 'rural', style: recipe === 'city' ? 'halvermouth' : 'sund' }, people, vehicles, ai: { p: false, e: true } });
+  for (const u of setup.units) if (u.side === 'p') u.rec = null; // nothing here is a record of the company
+  ensure(C).push({ id, kind: 'hold', title: 'Skirmish', text: 'A sandbox fight.', client: 'Nobody', clientName: 'Nobody', place: 'the practice ground', terrain: 'rural', goal: 'defence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'tactical', offered: game.clock.day, expires: game.clock.day + 1, order: { squads: [], general: null, generalName: null, day: game.clock.day, end: game.clock.day + 1 }, battle: { key, setup, tick: 0, log: [], result: null }, result: null, recipe, style: 'sund' });
+  return { ok: true, id, text: `Skirmish ${id} is ready.` };
+}
+
+/** The battle's saved state: the setup, the tick and the order log (small). A battle in progress is never re-rolled: it is replayed. */
+export function battleOf(game, id) { const e = peekMilitary(game)?.company && find(game, id); return e?.battle || null; }
+export function saveBattle(game, id, tick, log) { const e = find(game, id); if (!e?.battle || e.battle.result) return false; e.battle.tick = tick; e.battle.log = log.map((x) => ({ t: x.t, ids: x.ids, order: x.order })); return true; }
+/** The played battle is over: file its result (once). It is applied on the engagement's end day. */
+export function fileBattle(game, id, result) {
+  const e = find(game, id);
+  if (!e?.battle) return { ok: false, text: 'There is no battle.' };
+  if (e.battle.result) return { ok: false, text: 'That battle has already been filed.' };
+  e.battle.result = result; e.battle.tick = result.parts?.ticks ?? e.battle.tick;
+  return { ok: true, text: `The result is filed. Your people return on day ${e.order.end}.` };
 }
 
 export function decline(game, id) {
@@ -172,6 +221,10 @@ function offerOne(game, C, day) {
   const pool = fit.length ? fit : states;
   if (!pool.length) return;
   const st = pick(pool, unit(`${s}|place`));
+  // a place inside that state: a city or a town makes a street fight, anything else the open country (docs/WAR.md: Battles)
+  const here = ATLAS.places.filter((pl) => pl.state === st.id);
+  const spot = here.length ? pick(here, unit(`${s}|spot`)) : null;
+  const recipe = spot && (spot.kind === 'c' || spot.kind === 't') ? 'city' : 'fields';
   const scale = 1 + Math.max(0, rep) * E.repScale;
   const needs = { troops: Math.min(60, Math.round(between(K.troops, unit(`${s}|t`)) * scale)), tanks: Math.min(6, Math.round(between(K.tanks, unit(`${s}|tk`)) * Math.sqrt(scale))), helicopters: Math.min(4, Math.round(between(K.helicopters, unit(`${s}|h`)) * Math.sqrt(scale))), medics: Math.min(4, between(K.medics, unit(`${s}|m`))) };
   const mult = K.enemy[0] + unit(`${s}|e`) * (K.enemy[1] - K.enemy[0]);
@@ -179,7 +232,7 @@ function offerOne(game, C, day) {
   const days = between(K.days, unit(`${s}|d`));
   const pay = Math.round((needs.troops * days * E.payPerTroopDay + needs.tanks * days * E.payTank + needs.helicopters * days * E.payHelicopter) / 500) * 500;
   const client = ATLAS.countries[st.country]?.name || 'A client';
-  ensure(C).push({ id: nextId(C, 'N'), kind: kindId, title: K.title.replace('{place}', st.name), text: K.text, client, place: st.name, terrain: terrainOf(st.biome), goal: K.goal, days, needs, enemy, pay, state: 'open', offered: day, expires: day + between(E.lasts, unit(`${s}|x`)), order: null, result: null });
+  ensure(C).push({ id: nextId(C, 'N'), kind: kindId, title: K.title.replace('{place}', spot ? spot.name : st.name), text: K.text, client, place: spot ? spot.name : st.name, region: st.name, placeKind: spot?.kind || null, recipe, style: styleOf(st.country), terrain: terrainOf(st.biome), biome: st.biome || 'rural', goal: K.goal, days, needs, enemy, pay, state: 'open', offered: day, expires: day + between(E.lasts, unit(`${s}|x`)), order: null, result: null });
 }
 
 export function dayTick(game) {

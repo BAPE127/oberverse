@@ -438,7 +438,8 @@ export function runCommand(game, line) {
       if (sub === 'coup') return out(W.setCoup(a, b).text);
       if (sub === 'settle') return out(W.settle(a).text);
       if (sub === 'hit') return out(W.hit(a, Number(b), c || 'debug').text);
-      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source]]', false);
+      if (sub === 'skirmish') { const r = W.skirmish(a === 'city' ? 'city' : 'fields'); return out(r.ok ? `${r.text} Open it with the battle panel (openPanel 'battle', id ${r.id}).` : r.text, r.ok); }
+      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source] | skirmish [city|fields]]', false);
     }
     case 'peace': {
       game.market.state.wars = [];

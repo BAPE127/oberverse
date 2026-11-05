@@ -468,6 +468,17 @@ try {
     const Cmp = g.war.state().company; (Cmp.engagements ||= []).push({ id: 'Nsmoke', kind: 'hold', title: 'Hold Smoke Crossing', text: 'x', client: 'The Ostmark Union', place: 'Smoke Crossing', terrain: 'rural', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 12, armour: 1, air: 0, skill: 1 }, pay: 90000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
     ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
     out.Engagement = /One way or the other/.test(document.querySelector('#modal-body')?.textContent || '');
+    // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors
+    for (const recipe of ['city', 'fields']) {
+      const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
+      const H = ui.battleHandle; const f0 = ui.battleFrames || 0; await new Promise((r) => setTimeout(r, 300));
+      out[`battle_${recipe}`] = Boolean(H) && (ui.battleFrames || 0) > f0 && document.querySelector('.bt-canvas')?.width > 300;
+      const ids = H.B.units.filter((u) => u.side === 'p').map((u) => u.id); H.S.sel = new Set(ids); H.give({ type: 'amove', x: H.B.map.objective.x, y: H.B.map.objective.y }, 'attack-move');
+      H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
+      H.step(6000); await new Promise((r) => setTimeout(r, 200));
+      out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');
+      ui.closePanel();
+    }
     ui.milSub = null;
     ui.milTab = 'Company';
     return out;

@@ -1246,6 +1246,25 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 #watchnote .wn-go { padding: 11px 16px; border-radius: 12px; font: 800 15px system-ui; background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border: 2px solid #ffe08a; cursor: pointer; }
 #watchnote .wn-x { background: transparent; color: #cfcdf5; border: 0; font-size: 16px; cursor: pointer; }
 @keyframes wn-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; } 50% { box-shadow: 0 0 0 9px rgba(242,193,78,.4), 0 10px 30px #000a; } }
+
+/* The battle (v0.101.0): a full-screen panel in the manner of Fleet Command. */
+#modal-panel.battlecmd { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #10101c; color: #e8eaf6; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.battlecmd .panel-head, #modal-panel.battlecmd #modal-tabs { display: none; }
+#modal-panel.battlecmd #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; }
+.bt { height: 100%; user-select: none; }
+.bt button { font: inherit; color: inherit; cursor: pointer; border: 1px solid #4a4aa8; background: #1e1e50; padding: 5px 10px; border-radius: 4px; }
+.bt button.on { background: #3a3aa0; border-color: #9a9aff; }
+.bt-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.bt-top { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 8px 14px; background: linear-gradient(#0a0a18f0, #0a0a18b0); border-bottom: 1px solid #3a3a7a; z-index: 3; font-size: 14px; flex-wrap: wrap; }
+.bt-top .grow { flex: 1; } .bt-p { color: #7af0a0; } .bt-e { color: #ff9a8a; }
+.bt-bar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: #0a0a18e8; border: 1px solid #3a3a7a; border-radius: 8px; z-index: 3; flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+.bt-bar .sep { width: 1px; height: 22px; background: #3a3a7a; margin: 0 4px; }
+.bt-feed { position: absolute; top: 56px; right: 12px; width: 300px; font-size: 12px; line-height: 1.4; color: #cfd3ff; z-index: 2; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.bt-card { position: absolute; left: 12px; bottom: 12px; max-width: 360px; padding: 8px 12px; background: #0a0a18e0; border: 1px solid #3a3a7a; border-radius: 8px; z-index: 3; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.bt-over { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #0a0a18f4; border: 2px solid #6a6aff; border-radius: 10px; padding: 18px 24px; max-width: 480px; z-index: 5; text-align: center; }
+.bt-over.hidden { display: none; }
+.bt-msg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; }
+@media (max-width: 700px) { .bt-feed { display: none; } .bt-card { bottom: 74px; max-width: 70vw; } }
 </style>
 </head>
 <body>
@@ -32173,6 +32192,86 @@ const ENGAGE = {
 return { GENERALS, GENERAL_SEATS, ENGAGEMENTS, TERRAIN_OF, terrainOf, ENGAGE };
 })();
 
+// ---- src/content/battle.js
+__m["src/content/battle.js"] = (function () {
+// The tactical battle (v0.101.0 stage 10a): pure data. Every number the battle simulation reads, in one place, so the aggregate resolver (src/war/combat.js) and the played battle use the
+// same tables where they overlap: the weapons, the armour eras (src/content/troops.js ARMOUR), the class powers (CLASS_POWER) and the cover values. The battle runs at a fixed ten steps a
+// second; a second is ten ticks; chance is a hash of (the engagement's key, the tick, the unit), never a draw, so replaying the same orders gives the same battle.
+const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
+
+/** Tile kinds on a battle map. Walls block sight and movement; windows pass sight and shots but not people; trees block sight; hedges and crops give cover. */
+const TILE = { GROUND: 0, ROAD: 1, WALL: 2, WATER: 3, TREE: 4, HEDGE: 5, FLOOR: 6, DOOR: 7, WINDOW: 8, STAIRS: 9, CROP: 10 };
+
+/** The chance a shot is absorbed by what the target stands in or behind (docs/PROPOSAL_WAR_TACTICAL.md section 5). */
+const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85 };
+
+/** Each floor above the ground adds this much sight and reach (tiles); roofs and low walls stop blocking from above. */
+const HEIGHT = { sight: 3, reach: 1 };
+
+/** Suppression (0 to 100): builds from incoming shots, fades, and moves a unit through four states. Thresholds rise with morale. */
+const SUPPRESS = { decay: 0.3, shaken: 25, pinned: 50, broken: 78, moraleShift: 0.2, rally: 40 };
+
+/** Speeds in tiles a second. */
+const SPEED = { infantry: 1.8, indoors: 1.2, vehicleBase: 1.0, vehiclePerBar: 0.25, helicopter: 3.5 };
+
+/**
+ * Weapons as the battle uses them: an effective interval (the game's automatic weapons fire bursts; a burst is one decision here), a damage per decision, a hit chance at close range, a
+ * reach, how hard it pins (suppression added per shot) and how well it pierces armour (1: full, 0: none). They follow the Arms works' own stats (src/content/arms.js ammo and damage) scaled
+ * to a fight of a few minutes, and the calibration test (tests/battle_calibration.test.mjs) holds them to the aggregate resolver.
+ */
+const WEAPONS = {
+  item_pistol: { range: 8, damage: 18, interval: 1.2, acc: 0.5, suppress: 0.4, pierce: 0 },
+  item_smg: { range: 9, damage: 20, interval: 0.9, acc: 0.55, suppress: 0.6, pierce: 0 },
+  item_shotgun: { range: 6, damage: 40, interval: 1.5, acc: 0.6, suppress: 0.6, pierce: 0 },
+  item_assault_rifle: { range: 14, damage: 24, interval: 1.0, acc: 0.6, suppress: 0.8, pierce: 0.05 },
+  item_lmg: { range: 13, damage: 20, interval: 0.5, acc: 0.4, suppress: 1.6, pierce: 0.05 },
+  item_sniper_rifle: { range: 26, damage: 90, interval: 3.0, acc: 0.85, suppress: 1.5, pierce: 0.2 },
+  item_rpg: { range: 16, damage: 140, interval: 6.0, acc: 0.65, suppress: 8, pierce: 1, rocket: true },
+  tank_gun: { range: 18, damage: 130, interval: 3.0, acc: 0.65, suppress: 10, pierce: 1 },
+  heli_gun: { range: 14, damage: 55, interval: 1.4, acc: 0.6, suppress: 3, pierce: 0.5 },
+  vehicle_mg: { range: 10, damage: 14, interval: 0.5, acc: 0.4, suppress: 1.2, pierce: 0.02 },
+  none: { range: 0, damage: 0, interval: 99, acc: 0, suppress: 0, pierce: 0 },
+};
+
+/** What a unit is: hit points and how it sees. Vehicles' hit points come from their armour bar. */
+const UNITS = {
+  infantry: { hp: 150, sight: 12, speed: SPEED.infantry },
+  tank: { hp: 260, perArmour: 90, sight: 14 },
+  helicopter: { hp: 220, perArmour: 40, sight: 18 },
+  carrier: { hp: 180, perArmour: 50, sight: 12 },
+  other: { hp: 120, perArmour: 30, sight: 12 },
+};
+
+/** Small arms do almost nothing to armour: a weapon's damage to a vehicle is its damage times this plus (1 - this) times its pierce. */
+const ARMOUR_FLOOR = 0.04;
+
+/** What a role adds to its side: medics mend those near them, officers rally, signallers see further. */
+const ROLE = { medic: { heal: 3, radius: 3 }, officer: { rally: 6 }, signaller: { sight: 3 }, marksman: {}, anti_tank: {}, machine_gunner: {} };
+
+/** A battle's length and how its objectives are scored (a share of the enemy put out of action, a ceiling on your own losses, a zone held or taken, a convoy through). */
+/** A soldier put out of action (hit points gone) is dead with this chance (less with plate armour), else badly wounded: the same split the aggregate resolver uses (src/war/combat.js, a third of the casualties dead). */
+const DOWN = { dead: 0.38, woundsLow: 3, woundsHigh: 4 };
+
+const OBJECTIVE = { zone: 4, holdSeconds: 60, captureSeconds: 40, enemyShare: 0.6, ownLossCeiling: 0.35 };
+
+/** The two battle recipes of this release (the other recipes come with the later sub-releases). */
+const RECIPES = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
+
+/** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
+const STYLES = {
+  halvermouth: { floors: [2, 6], roof: '#6a6e74', wall: '#a9564a', trim: '#d8c8a8', window: 'square', note: 'flat and mansard roofs, red and tan brick' },
+  ostmark: { floors: [2, 4], roof: '#a8442e', wall: '#e0d4b4', trim: '#5a4430', window: 'shuttered', note: 'steep red-tile roofs, cream plaster and dark timber' },
+  varnistan: { floors: [1, 3], roof: '#c8b080', wall: '#d8bc88', trim: '#b8905a', window: 'arched', note: 'flat sand roofs, domes, ochre walls' },
+  sund: { floors: [1, 3], roof: '#4a4a52', wall: '#a8503e', trim: '#e8e0d0', window: 'crossbar', note: 'steep tarred gables, painted planks' },
+  windfen: { floors: [4, 6], roof: '#8a8e94', wall: '#b8bcc0', trim: '#4a8aa8', window: 'ribbon', note: 'concrete panels, ribbon windows, balconies' },
+};
+/** The style an atlas country's places use (the others take the nearest of the five until they get their own). */
+const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
+const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
+
+return { TICK, TILE, COVER, HEIGHT, SUPPRESS, SPEED, WEAPONS, UNITS, ARMOUR_FLOOR, ROLE, DOWN, OBJECTIVE, RECIPES, STYLES, STYLE_OF, styleOf };
+})();
+
 // ---- src/war/combat.js
 __m["src/war/combat.js"] = (function () {
 // The one aggregate combat function (v0.100.0 stage 9): what happens when a force meets an enemy and nobody plays it out. Pure: every number comes from its arguments, and "chance" is a hash
@@ -32184,6 +32283,7 @@ __m["src/war/combat.js"] = (function () {
 //   input: { key, days, terrain, goal, enemy:{troops,armour,air,skill}, people:[{id,role,tier,armour,exp,morale,fatigue,armed}], vehicles:[{id,cls,armour,firepower,speed}],
 //            general: null | {offence,defence,logistics,air,intel,risk,bonus}, supplies:{fuel,rockets} }
 const { ENGAGE } = __m["src/content/generals.js"];
+const { DOWN } = __m["src/content/battle.js"];
 const { ARMOUR } = __m["src/content/troops.js"];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -32235,10 +32335,10 @@ function resolve(input, { expected = false } = {}) {
   // losses: a share of the people, more when the odds are bad, scaled by days and by how readily the general accepts them; medics save some; armour stops some
   const r = 1 / Math.max(0.2, ratio);
   const risk = general ? general.risk : 0.5;
-  const rate = clamp((0.03 + 0.06 * r) * (1 + 0.4 * (risk - 0.5)) * Math.sqrt(days / 14), 0.02, 0.45);
+  const rate = clamp((0.10 + 0.36 * r) * (1 + 0.4 * (risk - 0.5)) * Math.sqrt(days / 14), 0.05, 0.6); // (v0.101.0: set against the played battle, tests/battle_calibration.test.mjs)
   const medics = people.filter((p) => p.role === 'medic').length;
-  const deadShare = rate * 0.35 * (1 - Math.min(0.4, 0.08 * medics));
-  const woundShare = rate * 0.65;
+  const deadShare = rate * DOWN.dead * (1 - Math.min(0.4, 0.08 * medics));
+  const woundShare = rate * (1 - DOWN.dead);
   const dead = []; const wounded = [];
   let eDead = 0; let eWounded = 0;
   for (const p of people) {
@@ -32284,6 +32384,62 @@ const ATLAS = {"countries":{"sund":{"name":"Kingdom of Sund","color":"#9ae87a","
 return { ATLAS };
 })();
 
+// ---- src/battle/hash.js
+__m["src/battle/hash.js"] = (function () {
+// Chance for the battle: a hash of strings, never a draw. The same key gives the same number, so a replay reproduces a battle. (No Math.random, no clock.)
+function unit(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; h = Math.imul(h, 3266489917); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+const pick = (arr, u) => arr[Math.min(arr.length - 1, Math.floor(u * arr.length))];
+const between = (a, b, u) => a + Math.floor(u * (b - a + 1));
+
+return { unit, pick, between };
+})();
+
+// ---- src/battle/setup.js
+__m["src/battle/setup.js"] = (function () {
+// A battle's setup (v0.101.0): everything a battle needs, as plain data, made once when an engagement is taken to the field and kept with it. The battle is a pure function of this, the
+// order log and the tick, so nothing that happens to the company's records afterwards (a day's wages, a morale drift) can change it, and a reload replays it.
+//   buildSetup({ key, eng, people, vehicles, ai })
+const { UNITS, SPEED, STYLES } = __m["src/content/battle.js"];
+const { CLASSES, ARMOUR } = __m["src/content/troops.js"];
+const { unit, pick } = __m["src/battle/hash.js"];
+
+const KIND = { tank: 'tank', helicopter: 'helicopter', carrier: 'carrier' };
+const VWEAPON = { tank: 'tank_gun', helicopter: 'heli_gun', carrier: 'vehicle_mg', recon: 'vehicle_mg', artillery: 'tank_gun', antiair: 'vehicle_mg' };
+
+/** `eng`: { id, goal, enemy:{troops,armour,air,skill}, recipe, biome, style }. `people`: [{id,name,role,tier,armour,exp,morale,fatigue,armed}]. `vehicles`: [{id,name,cls,armour,firepower,speed}]. */
+function buildSetup({ key, eng, people, vehicles, ai = {} }) {
+  const units = [];
+  for (const p of people) {
+    const tiers = CLASSES[p.role]?.tiers || {};
+    const weapon = p.armed ? (tiers[p.tier] || tiers[1] || 'item_pistol') : 'none';
+    units.push({ id: p.id, side: 'p', kind: 'inf', role: p.role, name: p.name, rec: { t: 'person', id: p.id }, weapon, hp: UNITS.infantry.hp, accMult: 1 + 0.02 * Math.min(10, p.exp || 0), prot: ARMOUR[p.armour || 1]?.protection || 1, morale: p.morale ?? 70, fatigue: p.fatigue || 0, sight: UNITS.infantry.sight, speed: SPEED.infantry });
+  }
+  for (const v of vehicles) {
+    const kind = KIND[v.cls] || 'other'; const T = UNITS[kind === 'helicopter' ? 'helicopter' : kind] || UNITS.other;
+    units.push({ id: v.id, side: 'p', kind, role: v.cls, name: v.name, rec: { t: 'vehicle', id: v.id }, weapon: VWEAPON[v.cls] || 'none', hp: T.hp + T.perArmour * v.armour, accMult: 0.9 + 0.05 * v.firepower, armourBar: v.armour, morale: 80, sight: T.sight, speed: kind === 'helicopter' ? SPEED.helicopter : SPEED.vehicleBase + SPEED.vehiclePerBar * v.speed });
+  }
+  // the enemy: made from what the engagement says is against you (a count, a skill), nothing else
+  const E = eng.enemy; const skill = E.skill ?? 1;
+  for (let i = 0; i < Math.min(60, E.troops); i++) {
+    const u = unit(`${key}|enemy|role|${i}`);
+    const role = u < 0.55 ? 'rifleman' : u < 0.7 ? 'machine_gunner' : u < 0.8 ? 'anti_tank' : u < 0.86 ? 'marksman' : u < 0.91 ? 'medic' : u < 0.96 ? 'officer' : 'recon';
+    const weapon = role === 'rifleman' || role === 'recon' ? (skill >= 0.95 ? 'item_assault_rifle' : 'item_smg') : role === 'machine_gunner' ? 'item_lmg' : role === 'anti_tank' ? 'item_rpg' : role === 'marksman' ? 'item_sniper_rifle' : 'item_pistol';
+    units.push({ id: `e${i}`, side: 'e', kind: 'inf', role, name: `Enemy ${i + 1}`, rec: null, weapon, hp: UNITS.infantry.hp, accMult: skill, prot: 1, morale: 65 + Math.floor(unit(`${key}|enemy|m|${i}`) * 25), sight: UNITS.infantry.sight, speed: SPEED.infantry });
+  }
+  for (let i = 0; i < Math.round(E.armour); i++) units.push({ id: `et${i}`, side: 'e', kind: 'tank', role: 'tank', name: 'Enemy tank', rec: null, weapon: 'tank_gun', hp: UNITS.tank.hp + UNITS.tank.perArmour * 3, accMult: skill, armourBar: 3, morale: 80, sight: UNITS.tank.sight, speed: SPEED.vehicleBase + SPEED.vehiclePerBar * 3 });
+  for (let i = 0; i < Math.round(E.air); i++) units.push({ id: `eh${i}`, side: 'e', kind: 'helicopter', role: 'helicopter', name: 'Enemy helicopter', rec: null, weapon: 'heli_gun', hp: UNITS.helicopter.hp + UNITS.helicopter.perArmour * 2, accMult: skill, armourBar: 2, morale: 80, sight: UNITS.helicopter.sight, speed: SPEED.helicopter });
+  return { key, map: { recipe: eng.recipe || 'fields', biome: eng.biome || 'rural', style: eng.style || 'sund', seed: key }, goal: eng.goal, units, ai: { p: Boolean(ai.p), e: ai.e !== false } };
+}
+
+
+return { buildSetup, STYLES, pick };
+})();
+
 // ---- src/war/engagements.js
 __m["src/war/engagements.js"] = (function () {
 // Engagements (v0.100.0 stage 9): heavy contracts. A client offers a job that needs squads, tanks and medics you really own (nothing is spawned to meet it); you assign squads and a general,
@@ -32298,6 +32454,8 @@ const { reputation } = __m["src/war/contracts.js"];
 const { leave } = __m["src/war/squads.js"];
 const { resolve, estimate } = __m["src/war/combat.js"];
 const { ATLAS } = __m["src/content/atlas.js"];
+const { styleOf } = __m["src/content/battle.js"];
+const { buildSetup } = __m["src/battle/setup.js"];
 const { ENGAGEMENTS: KINDS, ENGAGE: E, GENERALS, terrainOf } = __m["src/content/generals.js"];
 const { VEHICLES } = __m["src/content/procurement.js"];
 const { CLASSES } = __m["src/content/troops.js"];
@@ -32364,22 +32522,74 @@ function delegate(game, id, { squads, general }) {
   const miss = lacks(game, eng, squads);
   if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
   // every check passed: now the changes
-  const F = forces(game, squads);
-  for (const s of chosen) { s.status = 'away'; }
-  for (const p of F.people) C.personnel.find((x) => x.id === p.id).post = `engagement:${eng.id}`;
-  for (const v of F.vehicles) C.equipment.find((x) => x.id === v.id).status = 'deployed';
-  gen.status = 'away';
+  const F = commitForces(game, C, eng, squads, gen);
   eng.state = 'delegated'; eng.order = { squads: [...squads], general: gen.id, generalName: gen.name, day: game.clock.day, end: game.clock.day + eng.days };
   C.log.push({ day: game.clock.day, text: `${gen.name} takes ${eng.title} for ${eng.client}.` });
   return { ok: true, text: `${gen.name} will fight it with ${F.people.length} soldiers and ${F.vehicles.length} vehicles. The result comes in ${eng.days} days.` };
 }
 
-/** Playing it yourself is the overhead battle (v0.101.0). Until then it is not on offer; once an engagement is given to a general it can never be. */
-function play(game, id) {
-  const eng = find(game, id);
+/** Hold everything an engagement sends: the squads go away, their people are on a post, the vehicles are deployed and the general (if any) is away. Both ways of fighting use this. */
+function commitForces(game, C, eng, squads, gen) {
+  const F = forces(game, squads);
+  for (const s of F.squads) s.status = 'away';
+  for (const p of F.people) C.personnel.find((x) => x.id === p.id).post = `engagement:${eng.id}`;
+  for (const v of F.vehicles) C.equipment.find((x) => x.id === v.id).status = 'deployed';
+  if (gen) gen.status = 'away';
+  return F;
+}
+
+/**
+ * Lead it yourself (v0.101.0): the forces go to the field exactly as for a general, the state moves to `tactical` (so a general can never also have it), and a battle is set up from the real forces
+ * and the engagement. The battle itself runs in the panel (src/ui/battle.js) and files its result here; the result is applied on the end day, like a delegated one (playing it is not a shortcut
+ * to the money). Until then the battle is saved as its setup, its order log and its tick, and a reload replays it.
+ */
+function play(game, id, squads) {
+  const C = peekMilitary(game)?.company;
+  const eng = C && find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
+  if (eng.state === 'tactical') return { ok: true, text: 'The battle is waiting for you.', resume: true };
   if (eng.state !== 'open') return { ok: false, text: 'That one has already been given out: once a way is chosen, the other is closed.' };
-  return { ok: false, text: 'The overhead battle arrives in a later release. For now a general fights it.' };
+  if (!squads?.length) return { ok: false, text: 'Choose at least one squad.' };
+  const chosen = squads.map((sid) => C.squads.find((s) => s.id === sid));
+  if (chosen.some((s) => !s)) return { ok: false, text: 'No such squad.' };
+  const away = chosen.find((s) => s.status !== 'home'); if (away) return { ok: false, text: `${away.name} is away.` };
+  const miss = lacks(game, eng, squads);
+  if (miss.length) return { ok: false, text: `Your forces do not meet this one: ${miss.join('; ')}. Nothing is spawned to make up the difference.` };
+  const F = commitForces(game, C, eng, squads, null);
+  const key = `${eng.id}|${salt(game)}`;
+  eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, ai: { p: false, e: true } }), tick: 0, log: [], result: null };
+  C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
+  return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
+}
+
+/**
+ * A sandbox fight (the debug command `mil skirmish`, and the smoke test): a battle of twelve made-up soldiers and a tank against the engagement's enemy, on either recipe. It is a real tactical
+ * engagement in every way except that none of the units is a record of the company, so applying its result changes nothing and pays nothing.
+ */
+function skirmish(game, recipe = 'fields', enemy = { troops: 10, armour: 1, air: 0, skill: 1 }) {
+  const C = peekMilitary(game)?.company;
+  if (!C?.identity) return { ok: false, text: 'Register the company first.' };
+  const id = nextId(C, 'N');
+  const key = `${id}|${salt(game)}`;
+  const people = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, name: `Recruit ${i + 1}`, role: i === 0 ? 'officer' : i % 6 === 1 ? 'machine_gunner' : i % 6 === 2 ? 'anti_tank' : i % 6 === 3 ? 'medic' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
+  const vehicles = [{ id: 'sv0', name: 'Anvil Mk1 tank', cls: 'tank', armour: 3, firepower: 3, speed: 3 }];
+  const setup = buildSetup({ key, eng: { goal: 'defence', enemy, recipe: recipe === 'city' ? 'city' : 'fields', biome: 'rural', style: recipe === 'city' ? 'halvermouth' : 'sund' }, people, vehicles, ai: { p: false, e: true } });
+  for (const u of setup.units) if (u.side === 'p') u.rec = null; // nothing here is a record of the company
+  ensure(C).push({ id, kind: 'hold', title: 'Skirmish', text: 'A sandbox fight.', client: 'Nobody', clientName: 'Nobody', place: 'the practice ground', terrain: 'rural', goal: 'defence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'tactical', offered: game.clock.day, expires: game.clock.day + 1, order: { squads: [], general: null, generalName: null, day: game.clock.day, end: game.clock.day + 1 }, battle: { key, setup, tick: 0, log: [], result: null }, result: null, recipe, style: 'sund' });
+  return { ok: true, id, text: `Skirmish ${id} is ready.` };
+}
+
+/** The battle's saved state: the setup, the tick and the order log (small). A battle in progress is never re-rolled: it is replayed. */
+function battleOf(game, id) { const e = peekMilitary(game)?.company && find(game, id); return e?.battle || null; }
+function saveBattle(game, id, tick, log) { const e = find(game, id); if (!e?.battle || e.battle.result) return false; e.battle.tick = tick; e.battle.log = log.map((x) => ({ t: x.t, ids: x.ids, order: x.order })); return true; }
+/** The played battle is over: file its result (once). It is applied on the engagement's end day. */
+function fileBattle(game, id, result) {
+  const e = find(game, id);
+  if (!e?.battle) return { ok: false, text: 'There is no battle.' };
+  if (e.battle.result) return { ok: false, text: 'That battle has already been filed.' };
+  e.battle.result = result; e.battle.tick = result.parts?.ticks ?? e.battle.tick;
+  return { ok: true, text: `The result is filed. Your people return on day ${e.order.end}.` };
 }
 
 function decline(game, id) {
@@ -32391,13 +32601,13 @@ function decline(game, id) {
 
 const rocketKeys = (C) => Object.keys(C.stock).filter((k) => k.endsWith(':item_rpg_rocket')).sort();
 
-/** Fight it, once, and apply the result to the real records. Returns the report. */
-function finish(game, C, eng) {
+/**
+ * Apply an outcome to the real records, ONCE, and write the after-action report from what was applied. Both ways of fighting end here: a general's aggregate result (resolve) and a played
+ * battle's (src/battle/sim.js); they return the same shape: { objectives, outcome, ratio, parts, dead:[ids], wounded:[{id,wounds}], lost:[ids], used:{fuel,rockets} }.
+ */
+function applyOutcome(game, C, eng, R) {
   if (eng.result || eng.state === 'resolved') return eng.result;
   const squadIds = eng.order.squads;
-  const { F, input } = inputFor(game, eng, squadIds, eng.order.general);
-  // the forces now are the forces that were sent: posts and 'deployed' are what held them, so read them with the status they were given
-  const R = resolve({ ...input, people: F.people.length ? F.people : input.people });
   const day = game.clock.day;
   const lines = [];
   const name = (id) => C.personnel.find((p) => p.id === id)?.name || id;
@@ -32417,7 +32627,7 @@ function finish(game, C, eng) {
   if (R.used.fuel) { let left = R.used.fuel; const k = 'supply:fuel'; const t = Math.min(left, C.stock[k] || 0); if (t) { takeStock(game, k, t); used[SUPPLIES.fuel.name] = t; } }
   if (R.used.rockets) { let left = R.used.rockets; for (const k of rocketKeys(C)) { const t = Math.min(left, C.stock[k]); if (t) { takeStock(game, k, t); left -= t; used['RPG rockets'] = (used['RPG rockets'] || 0) + t; } if (!left) break; } }
   // the general and the money
-  const gen = C.generals.find((x) => x.id === eng.order.general);
+  const gen = eng.order.general ? C.generals.find((x) => x.id === eng.order.general) : null;
   if (gen) { gen.status = 'home'; if (R.objectives >= 2) gen.wins++; else if (R.objectives === 0) gen.losses++; }
   const rep = C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} };
   const share = [0, 0.45, 0.9, 1][R.objectives];
@@ -32430,11 +32640,19 @@ function finish(game, C, eng) {
   lines.push(`${R.objectives} of 3 objectives. ${dead.length} killed, ${hurt.length} wounded, ${lostV.length} vehicle${lostV.length === 1 ? '' : 's'} lost.`);
   if (Object.keys(used).length) lines.push(`Used: ${Object.entries(used).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')}.`);
   lines.push(R.objectives ? `Paid ${paid.toLocaleString('en-US')} of ${eng.pay.toLocaleString('en-US')} obols.` : `Failed: fined ${fine.toLocaleString('en-US')} obols; ${eng.client} will not call for ${E.ban} days.`);
-  eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round(R.ratio * 100) / 100, parts: R.parts, dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName, paid, fine, lines };
+  eng.result = { day, outcome: R.outcome, objectives: R.objectives, ratio: Math.round((R.ratio || 0) * 100) / 100, parts: R.parts || null, how: R.how || 'general', dead, wounded: hurt, lost: lostV, used, general: eng.order.generalName || null, paid, fine, lines };
   eng.state = 'resolved'; eng.ended = day;
   C.log.push({ day, text: `${eng.title}: ${R.outcome.replace('_', ' ')} (${R.objectives} of 3). ${dead.length} killed.` });
   game.notify?.(`${eng.title} is over: ${R.outcome.replace('_', ' ')}. ${dead.length} killed, ${hurt.length} wounded.`, R.objectives >= 2 ? 'good' : 'warn');
   return eng.result;
+}
+
+/** The end day of a delegated engagement (or a played one): the result is worked out by the general, or the one the played battle filed is used, and applied. */
+function finish(game, C, eng) {
+  if (eng.result || eng.state === 'resolved') return eng.result;
+  const { F, input } = inputFor(game, eng, eng.order.squads, eng.order.general);
+  const R = eng.battle?.result ? { ...eng.battle.result, how: 'played' } : resolve({ ...input, people: F.people.length ? F.people : input.people });
+  return applyOutcome(game, C, eng, R);
 }
 
 function offerOne(game, C, day) {
@@ -32447,6 +32665,10 @@ function offerOne(game, C, day) {
   const pool = fit.length ? fit : states;
   if (!pool.length) return;
   const st = pick(pool, unit(`${s}|place`));
+  // a place inside that state: a city or a town makes a street fight, anything else the open country (docs/WAR.md: Battles)
+  const here = ATLAS.places.filter((pl) => pl.state === st.id);
+  const spot = here.length ? pick(here, unit(`${s}|spot`)) : null;
+  const recipe = spot && (spot.kind === 'c' || spot.kind === 't') ? 'city' : 'fields';
   const scale = 1 + Math.max(0, rep) * E.repScale;
   const needs = { troops: Math.min(60, Math.round(between(K.troops, unit(`${s}|t`)) * scale)), tanks: Math.min(6, Math.round(between(K.tanks, unit(`${s}|tk`)) * Math.sqrt(scale))), helicopters: Math.min(4, Math.round(between(K.helicopters, unit(`${s}|h`)) * Math.sqrt(scale))), medics: Math.min(4, between(K.medics, unit(`${s}|m`))) };
   const mult = K.enemy[0] + unit(`${s}|e`) * (K.enemy[1] - K.enemy[0]);
@@ -32454,7 +32676,7 @@ function offerOne(game, C, day) {
   const days = between(K.days, unit(`${s}|d`));
   const pay = Math.round((needs.troops * days * E.payPerTroopDay + needs.tanks * days * E.payTank + needs.helicopters * days * E.payHelicopter) / 500) * 500;
   const client = ATLAS.countries[st.country]?.name || 'A client';
-  ensure(C).push({ id: nextId(C, 'N'), kind: kindId, title: K.title.replace('{place}', st.name), text: K.text, client, place: st.name, terrain: terrainOf(st.biome), goal: K.goal, days, needs, enemy, pay, state: 'open', offered: day, expires: day + between(E.lasts, unit(`${s}|x`)), order: null, result: null });
+  ensure(C).push({ id: nextId(C, 'N'), kind: kindId, title: K.title.replace('{place}', spot ? spot.name : st.name), text: K.text, client, place: spot ? spot.name : st.name, region: st.name, placeKind: spot?.kind || null, recipe, style: styleOf(st.country), terrain: terrainOf(st.biome), biome: st.biome || 'rural', goal: K.goal, days, needs, enemy, pay, state: 'open', offered: day, expires: day + between(E.lasts, unit(`${s}|x`)), order: null, result: null });
 }
 
 function dayTick(game) {
@@ -32467,7 +32689,7 @@ function dayTick(game) {
   const list = ensure(C);
   for (const eng of list) {
     if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = 'The client found someone else.'; }
-    else if (eng.state === 'delegated' && eng.order.end <= day) finish(game, C, eng);
+    else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
   const open = list.filter((x) => x.state === 'open').length;
@@ -32484,7 +32706,7 @@ function view(game) {
 }
 const get = (game, id) => (peekMilitary(game)?.company ? find(game, id) || null : null);
 
-return { lacks, assess, delegate, play, decline, dayTick, view, get };
+return { lacks, assess, delegate, play, skirmish, battleOf, saveBattle, fileBattle, decline, applyOutcome, dayTick, view, get };
 })();
 
 // ---- src/war/day.js
@@ -32616,7 +32838,7 @@ function profileOf(game, C, p) {
     id: `war_${p.id}`, warId: p.id, name: p.name, shortName: p.name.split(' ')[0], tier: 'minor', origin: 'generated', faction: null, noSnitch: true, warStaff: true,
     role: `${K?.name || 'Soldier'} at ${C.identity.name}.`,
     dialogue: 'dlg_soldier', voice: { wave: pick(['triangle', 'square', 'sine'], 1), pitch: 90 + Math.floor(h(2) * 200), variance: 20, rate: 0.95 + h(3) * 0.3 },
-    appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: 'cap', hatColor: colour,
+    appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: 'helmet', hatColor: colour,
       outfit: colour, legs: '#2a2e22', build: pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
     personality: { traits: ['disciplined', 'steady'], sociability: 0.4, conscientiousness: 0.9, impulsiveness: 0.15, discretion: 0.85, honesty: 0.7, empathy: 0.4 },
     speech: { rumorPrefix: 'In the barracks they say', factPrefix: 'Boss,', refuse: 'That is not something I can discuss, Boss.' },
@@ -32736,7 +32958,7 @@ const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.j
 const { housing: housingOf } = __m["src/war/equipment.js"];
 const { runDay } = __m["src/war/day.js"];
 const { hire: hireGeneral, dismiss: dismissGeneral, view: generalsView } = __m["src/war/generals.js"];
-const { assess: assessEngagement, delegate: delegateEngagement, play: playEngagement, decline: declineEngagement, view: engagementsView, get: engagementOf, lacks: engagementLacks } = __m["src/war/engagements.js"];
+const { assess: assessEngagement, delegate: delegateEngagement, play: playEngagement, battleOf, skirmish: skirmishOf, saveBattle: saveBattleOf, fileBattle: fileBattleOf, decline: declineEngagement, view: engagementsView, get: engagementOf, lacks: engagementLacks } = __m["src/war/engagements.js"];
 const { tick: bodiesStep, sync: bodiesSync } = __m["src/war/bodies.js"];
 const { hire: hireIn, dismiss: dismissOut } = __m["src/war/people.js"];
 const { order: orderUnit, cancel: cancelOrder, setShifts: setLineShifts, upgrade: upgradeWorks, maintain: maintainWorks, view: productionView } = __m["src/war/production.js"];
@@ -32849,7 +33071,11 @@ class War {
   engagementLacks(id, squads) { const e = engagementOf(this.g, id); return e ? engagementLacks(this.g, e, squads) : []; }
   assess(id, squads, general) { return assessEngagement(this.g, id, squads, general); }
   delegate(id, order) { return delegateEngagement(this.g, id, order); }
-  playEngagement(id) { return playEngagement(this.g, id); }
+  playEngagement(id, squads) { return playEngagement(this.g, id, squads); }
+  battle(id) { return battleOf(this.g, id); }
+  skirmish(recipe, enemy) { return skirmishOf(this.g, recipe, enemy); }
+  saveBattle(id, tick, log) { return saveBattleOf(this.g, id, tick, log); }
+  fileBattle(id, result) { return fileBattleOf(this.g, id, result); }
   declineEngagement(id) { return declineEngagement(this.g, id); }
 
   contracts() { return contractsView(this.g); }
@@ -38262,7 +38488,7 @@ function paint(R0, a, f, fr, part, o) {
     }
   });
   R(-2, hy + 12, 4, 1, skin[1]); // the neck
-  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat', 'wizard'].includes(style) || a.hat;
+  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat', 'wizard', 'helmet'].includes(style) || a.hat;
   // --- the face
   if (!up) {
     const ey = hy + 6;
@@ -38346,6 +38572,11 @@ function paint(R0, a, f, fr, part, o) {
     R(-6, hy - 1, 12, 4, c[2]); R(-6, hy - 1, 4, 1, c[4]); R(-5, hy, 3, 2, c[3]); R(3, hy, 3, 3, c[1]);
     if (!up) { if (side) R(dir > 0 ? 4 : -9, hy + 2, 5, 1, style === 'captain' ? '#1e2a3a' : c[0]); else R(-6, hy + 3, 12, 1, style === 'captain' ? '#1e2a3a' : c[0]); }
     if (style === 'captain' && !up) { R(-1, hy, 2, 2, '#c9a24a'); R(-5, hy + 2, 10, 1, '#1e2a3a'); }
+  }
+  if (style === 'helmet') {
+    // v0.101.0: a soldier's helmet (additive: no other style changes): a rounded shell down to the brow and over the ears, a rim, a strap, in the hat colour
+    R(-6, hy - 2, 12, 5, hc[2]); R(-7, hy, 14, 3, hc[2]); R(-5, hy - 3, 10, 1, hc[3]); R(-6, hy - 2, 4, 1, hc[4]); R(-7, hy + 2, 14, 1, hc[1]); R(3, hy - 1, 3, 3, hc[1]); R(-7, hy + 3, 1, 3, hc[0]); R(6, hy + 3, 1, 3, hc[0]);
+    if (!up) R(-6, hy + 3, 12, 1, hc[0]);
   }
   if (style === 'wizard') {
     // v0.52.0: a tall pointed hat, embroidered in silver, the tip bent over (Morganius Spade)
@@ -70347,7 +70578,8 @@ function runCommand(game, line) {
       if (sub === 'coup') return out(W.setCoup(a, b).text);
       if (sub === 'settle') return out(W.settle(a).text);
       if (sub === 'hit') return out(W.hit(a, Number(b), c || 'debug').text);
-      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source]]', false);
+      if (sub === 'skirmish') { const r = W.skirmish(a === 'city' ? 'city' : 'fields'); return out(r.ok ? `${r.text} Open it with the battle panel (openPanel 'battle', id ${r.id}).` : r.text, r.ok); }
+      return out('Usage: mil [check | coup <staged|ended> | settle <how> | hit <structure> <amount> [source] | skirmish [city|fields]]', false);
     }
     case 'peace': {
       game.market.state.wars = [];
@@ -73736,13 +73968,19 @@ function engagementScreen(ui, body, go, open) {
       row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
       row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
   }
-  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', onclick: () => go(W.playEngagement(e.id)) }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
-  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. The overhead battle comes in a later release; for now a general fights it.'));
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, 'Turn it down')));
+  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
 }
 
 function reportScreen(ui, body, go, open, e) {
   body.append(back(ui, open, 'Generals'));
-  if (e.state === 'delegated' || e.state === 'tactical') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
+  if (e.state === 'tactical') {
+    const bt = ui.game.war.battle(e.id);
+    body.append(hero({ label: e.client, value: e.title, sub: bt?.result ? `The battle is fought and the result filed. Your people are back on day ${e.order.end}.` : `You have taken this one to the field. Your people are back on day ${e.order.end}, whatever the battle's length.` }),
+      h('div', { class: 'tb-btns' }, bt?.result ? null : h('button', { class: 'tb-btn pri', onclick: () => ui.openPanel('battle', { id: e.id }) }, bt?.tick ? 'Resume the battle' : 'Fight the battle')));
+    return;
+  }
+  if (e.state === 'delegated') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
   if (!e.result) { body.append(hero({ label: e.client, value: e.title, sub: e.state === 'expired' ? (e.why || 'It lapsed.') : 'Turned down.' })); return; }
   const R = e.result;
   body.append(hero({ label: `After action: ${e.place}`, value: R.outcome.replace('_', ' ').replace(/^./, (c) => c.toUpperCase()), tone: R.objectives >= 2 ? 'pos' : R.objectives === 0 ? 'neg' : 'warn', sub: `${R.objectives} of 3 objectives · ${R.paid ? `paid ${n(R.paid)} of ${n(e.pay)}` : `fined ${n(R.fine)}`} · ${R.general}` }),
@@ -75959,6 +76197,989 @@ function fleetPanel(ui, body, opts = {}) {
 }
 
 return { fleetPanel };
+})();
+
+// ---- src/battle/map.js
+__m["src/battle/map.js"] = (function () {
+// Battle maps (v0.101.0): a grid made from a seed, never from chance. Two recipes this release: CITY (avenues, blocks of buildings with floors, a plaza) and FIELDS (a patchwork of fields
+// with hedgerows, a river and a ford, two villages). A building has a wall all round, windows, one door and a stair; its floors are all the same plan (the stair is how you change floor).
+// Every building is reachable on foot from where the player starts; a test checks it.
+//   generate({ recipe, biome, style, seed })   → the map
+//   walkable(map, x, y)                        whether a person can stand on the tile
+//   blocksSight(map, x, y, z)                  whether the tile stops a look from floor z
+const { TILE, RECIPES, STYLES } = __m["src/content/battle.js"];
+const { unit, pick, between } = __m["src/battle/hash.js"];
+
+const W = TILE.WALL;
+const idx = (m, x, y) => y * m.w + x;
+const inb = (m, x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h;
+const tileAt = (m, x, y) => (inb(m, x, y) ? m.tiles[idx(m, x, y)] : TILE.WALL);
+const walkable = (m, x, y) => { const t = tileAt(m, Math.floor(x), Math.floor(y)); return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS; };
+/** A wall (or a tree) stops a look unless the viewer is above it: a building of f floors blocks a look from any floor below f. */
+function blocksSight(m, x, y, z) {
+  const i = idx(m, x, y); const t = m.tiles[i];
+  if (t === TILE.WALL) return m.bfloors[i] > z;
+  if (t === TILE.TREE) return z === 0;
+  return false;
+}
+
+function blank(recipe, biome, style, seed) {
+  const { w, h } = RECIPES[recipe];
+  return { recipe, biome, style, seed, w, h, tiles: new Uint8Array(w * h), bfloors: new Uint8Array(w * h), bid: new Int16Array(w * h).fill(-1), buildings: [], objective: null, exit: null, spawns: { p: null, e: null } };
+}
+const free = (m, x, y, w, h, pad = 1) => { for (let j = y - pad; j < y + h + pad; j++) for (let i = x - pad; i < x + w + pad; i++) { if (!inb(m, i, j)) return false; const t = m.tiles[idx(m, i, j)]; if (t !== TILE.GROUND || m.bid[idx(m, i, j)] >= 0) return false; } return true; };
+
+/** A building: wall all round, windows every third tile, a door in the middle of the south wall, a stair inside, `floors` floors. */
+function building(m, x, y, w, h, floors) {
+  if (!free(m, x, y, w, h)) return null;
+  const id = m.buildings.length;
+  for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) {
+    const n = idx(m, i, j); m.bid[n] = id; m.bfloors[n] = floors;
+    const edge = i === x || j === y || i === x + w - 1 || j === y + h - 1;
+    m.tiles[n] = edge ? W : TILE.FLOOR;
+    if (edge && (i - x + j - y) % 3 === 1 && i !== x && i !== x + w - 1 && !(j === y + h - 1 && i === x + Math.floor(w / 2))) m.tiles[n] = TILE.WINDOW;
+  }
+  const door = { x: x + Math.floor(w / 2), y: y + h - 1 };
+  m.tiles[idx(m, door.x, door.y)] = TILE.DOOR;
+  const stairs = { x: x + 1, y: y + 1 };
+  if (w >= 5 && h >= 4) m.tiles[idx(m, stairs.x, stairs.y)] = TILE.STAIRS;
+  m.buildings.push({ id, x, y, w, h, floors, door, stairs, style: m.style });
+  return id;
+}
+const road = (m, x0, y0, x1, y1) => { for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) if (inb(m, i, j) && m.tiles[idx(m, i, j)] !== TILE.WALL && m.bid[idx(m, i, j)] < 0) m.tiles[idx(m, i, j)] = TILE.ROAD; };
+
+function city(m) {
+  const u = (tag, i = 0) => unit(`${m.seed}|city|${tag}|${i}`);
+  const S = STYLES[m.style] || STYLES.halvermouth;
+  const xs = [Math.floor(m.w * 0.25), Math.floor(m.w * 0.5), Math.floor(m.w * 0.75)];
+  const ys = [Math.floor(m.h * 0.34), Math.floor(m.h * 0.68)];
+  for (const x of xs) road(m, x - 1, 0, x + 1, m.h - 1);
+  for (const y of ys) road(m, 0, y - 1, m.w - 1, y + 1);
+  road(m, xs[1] - 4, ys[0] + 2, xs[1] + 4, ys[1] - 2); // a plaza where the avenues meet the middle
+  // blocks: pack buildings along each block's rows
+  const bx = [0, ...xs.map((x) => x + 2)]; const bxe = [...xs.map((x) => x - 2), m.w - 1];
+  const by = [0, ...ys.map((y) => y + 2)]; const bye = [...ys.map((y) => y - 2), m.h - 1];
+  let n = 0;
+  for (let a = 0; a < bx.length; a++) for (let b = 0; b < by.length; b++) {
+    for (let row = by[b] + 1; row < bye[b] - 4; row += 8) {
+      let x = bx[a] + 1;
+      while (x < bxe[a] - 5) {
+        const bw = between(6, 10, u('bw', n)); const bh = between(5, 7, u('bh', n)); const f = between(S.floors[0], Math.min(S.floors[1], 6), u('f', n)); n++;
+        if (x + bw < bxe[a] && row + bh < bye[b] && building(m, x, row, bw, bh, f) !== null) x += bw + 2; else x += 3;
+      }
+    }
+  }
+  for (let i = 0; i < 40; i++) { const x = between(1, m.w - 2, u('tx', i)); const y = between(1, m.h - 2, u('ty', i)); if (m.tiles[idx(m, x, y)] === TILE.GROUND && m.bid[idx(m, x, y)] < 0) m.tiles[idx(m, x, y)] = TILE.TREE; }
+  m.objective = { x: xs[1], y: Math.floor((ys[0] + ys[1]) / 2) };
+  m.spawns = { p: { x: 4, y: ys[0] }, e: { x: m.w - 5, y: ys[1] } };
+  m.exit = { x: m.w - 2, y: ys[0] };
+}
+
+function fields(m) {
+  const u = (tag, i = 0) => unit(`${m.seed}|fields|${tag}|${i}`);
+  const S = STYLES[m.style] || STYLES.sund;
+  // fields: vertical strips of crop and bare ground, a hedgerow between each with a gap every few tiles
+  let x = 2; let k = 0;
+  while (x < m.w - 6) {
+    const fw = between(8, 13, u('fw', k)); const crop = u('crop', k) < 0.55; k++;
+    for (let j = 1; j < m.h - 1; j++) for (let i = x; i < Math.min(m.w - 1, x + fw); i++) if (crop && (i + j) % 7 !== 0) m.tiles[idx(m, i, j)] = TILE.CROP;
+    for (let j = 1; j < m.h - 1; j++) if (j % 9 < 7) m.tiles[idx(m, Math.min(m.w - 2, x + fw), j)] = TILE.HEDGE;
+    x += fw + 1;
+  }
+  // a river down the middle with a ford and a bridge, and a track across
+  const rx = Math.floor(m.w * 0.5);
+  for (let j = 0; j < m.h; j++) for (let i = rx - 1; i <= rx + 1; i++) m.tiles[idx(m, i, j)] = TILE.WATER;
+  const ty = Math.floor(m.h / 2);
+  road(m, 0, ty - 1, m.w - 1, ty);
+  for (let i = rx - 1; i <= rx + 1; i++) for (const j of [ty - 1, ty, ty + 9, ty + 10]) m.tiles[idx(m, i, j)] = TILE.ROAD; // the ford, and a bridge below it
+  road(m, rx - 3, ty + 9, rx + 3, ty + 10);
+  // two villages round greens, and a tree line
+  const clear = (cx, cy, r) => { for (let j = cy - r; j <= cy + r; j++) for (let i = cx - r; i <= cx + r; i++) if (inb(m, i, j) && m.tiles[idx(m, i, j)] !== TILE.WATER) m.tiles[idx(m, i, j)] = TILE.GROUND; };
+  const village = (cx, cy, tag) => {
+    clear(cx, cy, 9);
+    const spots = [[-8, -7], [3, -7], [-8, 2], [3, 3], [-2, -2]];
+    spots.forEach(([dx, dy], i) => { const f = between(S.floors[0], Math.min(S.floors[1], 2), u(`vf${tag}`, i)); const bw = between(5, 7, u(`vw${tag}`, i)); const bh = between(5, 6, u(`vh${tag}`, i)); building(m, cx + dx, cy + dy, bw, bh, f); });
+    road(m, cx - 9, cy - 1, cx + 9, cy + 1); road(m, cx - 1, cy - 9, cx + 1, cy + 9);
+  };
+  village(Math.floor(m.w * 0.24), Math.floor(m.h * 0.3), 'a'); village(Math.floor(m.w * 0.74), Math.floor(m.h * 0.68), 'b');
+  for (let i = 0; i < 70; i++) { const tx = between(1, m.w - 2, u('tx', i)); const tyy = between(1, m.h - 2, u('ty', i)); if (m.tiles[idx(m, tx, tyy)] === TILE.GROUND && m.bid[idx(m, tx, tyy)] < 0 && (i % 3 === 0 || tx % 11 === 0)) m.tiles[idx(m, tx, tyy)] = TILE.TREE; }
+  m.objective = { x: rx, y: ty };
+  m.spawns = { p: { x: 3, y: ty }, e: { x: m.w - 4, y: ty } };
+  m.exit = { x: m.w - 2, y: ty };
+}
+
+/** Whether every building's door can be reached on foot from the player's start. (Used by the generator, and by the tests.) */
+function reachable(m) {
+  const seen = new Uint8Array(m.w * m.h); const q = [[m.spawns.p.x, m.spawns.p.y]]; seen[idx(m, m.spawns.p.x, m.spawns.p.y)] = 1;
+  while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx; const ny = y + dy; if (inb(m, nx, ny) && !seen[idx(m, nx, ny)] && walkable(m, nx, ny)) { seen[idx(m, nx, ny)] = 1; q.push([nx, ny]); } } }
+  return { seen, ok: m.buildings.every((b) => seen[idx(m, b.door.x, b.door.y)]) && seen[idx(m, m.objective.x, m.objective.y)] === 1 && seen[idx(m, m.spawns.e.x, m.spawns.e.y)] === 1 };
+}
+
+/** A path of road from a to b, used if the generator left a building cut off (it rarely does). */
+function carve(m, a, b) {
+  let x = a.x; let y = a.y;
+  const clear = (i) => { if (m.bid[i] < 0 && (m.tiles[i] === TILE.WALL || m.tiles[i] === TILE.WINDOW || m.tiles[i] === TILE.TREE || m.tiles[i] === TILE.WATER)) m.tiles[i] = TILE.ROAD; };
+  clear(idx(m, x, y)); // (the start itself: a tree can stand in front of a door)
+  while (x !== b.x || y !== b.y) { if (x !== b.x) x += Math.sign(b.x - x); else y += Math.sign(b.y - y); const i = idx(m, x, y); if (m.tiles[i] === TILE.WALL || m.tiles[i] === TILE.WINDOW || m.tiles[i] === TILE.TREE || m.tiles[i] === TILE.WATER) { if (m.bid[i] < 0) m.tiles[i] = TILE.ROAD; } }
+}
+
+function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = 'seed' } = {}) {
+  const m = blank(recipe, biome, style, String(seed));
+  if (recipe === 'city') city(m); else fields(m);
+  // make sure nothing is cut off: link any building whose door cannot be reached to the objective by a road
+  for (let pass = 0; pass < 3; pass++) {
+    const r = reachable(m); if (r.ok) break;
+    for (const b of m.buildings) if (!r.seen[idx(m, b.door.x, b.door.y)]) carve(m, { x: b.door.x, y: b.door.y + 1 }, m.objective);
+    carve(m, m.spawns.p, m.objective); carve(m, m.spawns.e, m.objective);
+  }
+  // the spawn tiles themselves are ground
+  for (const s of [m.spawns.p, m.spawns.e, m.objective]) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const n = idx(m, s.x + i, s.y + j); if (inb(m, s.x + i, s.y + j) && m.bid[n] < 0 && m.tiles[n] !== TILE.ROAD) m.tiles[n] = TILE.GROUND; }
+  return m;
+}
+
+return { idx, inb, tileAt, walkable, blocksSight, reachable, generate };
+})();
+
+// ---- src/battle/nav.js
+__m["src/battle/nav.js"] = (function () {
+// Moving and seeing on a battle map (v0.101.0): A* on the tile grid, and a look along a line that walls and trees can stop. Pure: no canvas, no chance.
+const { TILE } = __m["src/content/battle.js"];
+const { idx, inb, tileAt, blocksSight } = __m["src/battle/map.js"];
+
+/** Whether a unit of this kind can stand on a tile: people go anywhere a person can; vehicles stay off hedges and out of buildings; helicopters go over everything. */
+function canStand(m, x, y, kind) {
+  if (!inb(m, x, y)) return false;
+  const t = m.tiles[idx(m, x, y)];
+  if (kind === 'heli') return true;
+  if (kind === 'inf') return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS;
+  return t === TILE.GROUND || t === TILE.ROAD || t === TILE.CROP;
+}
+const cost = (t) => (t === TILE.ROAD ? 1 : t === TILE.HEDGE ? 1.8 : t === TILE.CROP ? 1.3 : t === TILE.DOOR ? 1.4 : 1.1);
+
+/** A* (eight directions; no cutting a corner past a wall). Returns [{x,y}...] from the next tile to the goal, or [] when there is no way. `kind` is 'inf', 'veh' or 'heli'. */
+function findPath(m, from, to, kind = 'inf') {
+  const sx = Math.floor(from.x); const sy = Math.floor(from.y); let gx = Math.floor(to.x); let gy = Math.floor(to.y);
+  if (kind === 'heli') return [{ x: gx + 0.5, y: gy + 0.5 }];
+  if (!canStand(m, gx, gy, kind)) { // the nearest tile that can be stood on
+    let best = null;
+    for (let r = 1; r < 8 && !best; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (canStand(m, gx + i, gy + j, kind) && (!best || Math.hypot(i, j) < best.d)) best = { x: gx + i, y: gy + j, d: Math.hypot(i, j) };
+    if (!best) return []; gx = best.x; gy = best.y;
+  }
+  if (sx === gx && sy === gy) return [];
+  const N = m.w * m.h; const g = new Float32Array(N).fill(1e9); const prev = new Int32Array(N).fill(-1); const closed = new Uint8Array(N);
+  const open = [[0, idx(m, sx, sy)]]; g[idx(m, sx, sy)] = 0;
+  const h = (x, y) => { const dx = Math.abs(x - gx); const dy = Math.abs(y - gy); return Math.max(dx, dy) + 0.41 * Math.min(dx, dy); };
+  let found = false;
+  while (open.length) {
+    let bi = 0; for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+    const [, cur] = open.splice(bi, 1)[0];
+    if (closed[cur]) continue; closed[cur] = 1;
+    const cx = cur % m.w; const cy = (cur / m.w) | 0;
+    if (cx === gx && cy === gy) { found = true; break; }
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const nx = cx + di; const ny = cy + dj;
+      if (!canStand(m, nx, ny, kind)) continue;
+      if (di && dj && (!canStand(m, cx + di, cy, kind) || !canStand(m, cx, cy + dj, kind))) continue;
+      const n = idx(m, nx, ny); if (closed[n]) continue;
+      const ng = g[cur] + (di && dj ? 1.41 : 1) * cost(m.tiles[n]);
+      if (ng < g[n]) { g[n] = ng; prev[n] = cur; open.push([ng + h(nx, ny), n]); }
+    }
+  }
+  if (!found) return [];
+  const path = []; let c = idx(m, gx, gy);
+  while (c !== idx(m, sx, sy)) { path.push({ x: (c % m.w) + 0.5, y: ((c / m.w) | 0) + 0.5 }); c = prev[c]; }
+  return path.reverse();
+}
+
+/** A look from one tile to another along a straight line (Bresenham): stopped by a wall or tree that stands higher than the viewer. Neither end blocks. */
+function los(m, ax, ay, az, bx, by, bz) {
+  let x0 = Math.floor(ax); let y0 = Math.floor(ay); const x1 = Math.floor(bx); const y1 = Math.floor(by);
+  const z = Math.max(az, bz);
+  const dx = Math.abs(x1 - x0); const dy = Math.abs(y1 - y0); const sx = x0 < x1 ? 1 : -1; const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  while (x0 !== x1 || y0 !== y1) {
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x0 += sx; }
+    if (e2 < dx) { err += dx; y0 += sy; }
+    if ((x0 !== x1 || y0 !== y1) && inb(m, x0, y0) && blocksSight(m, x0, y0, z)) return false;
+  }
+  return true;
+}
+
+
+return { canStand, findPath, los, tileAt };
+})();
+
+// ---- src/battle/sim.js
+__m["src/battle/sim.js"] = (function () {
+// The battle (v0.101.0 stage 10a): a pure, deterministic simulation. Ten steps a second; every chance is a hash of (the engagement's key, the tick, the unit); nothing reads a clock, a draw
+// or the game. The same setup and the same orders give the same battle, so a save is a setup, an order log and a tick, and a reload replays it to where it was (`replay`).
+//
+//   createBattle(setup)                 a battle from a setup (src/battle/setup.js)
+//   issue(B, ids, order)                give your units an order (logged for the replay): move, amove, hold, garrison, retreat
+//   step(B) / run(B, ticks)             advance one tick / many
+//   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
+//   replay(setup, log, tick)            the battle again, from the start, to a tick
+const { TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN } = __m["src/content/battle.js"];
+const { OUTCOMES } = __m["src/war/combat.js"];
+const { generate, idx, inb, tileAt, walkable } = __m["src/battle/map.js"];
+const { findPath, los, canStand } = __m["src/battle/nav.js"];
+const { unit: chance } = __m["src/battle/hash.js"];
+
+const dt = 1 / TICK.perSecond;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const isVeh = (u) => u.kind !== 'inf';
+
+function createBattle(setup) {
+  const map = generate(setup.map);
+  const B = { key: setup.key, setup, map, tick: 0, units: [], byId: new Map(), log: [], over: false, why: null, goal: setup.goal, maxTicks: setup.maxTicks || TICK.maxSeconds * TICK.perSecond,
+    ai: { p: Boolean(setup.ai?.p), e: setup.ai?.e !== false }, counts: { rockets: 0, fuel: 0 }, hold: 0, cap: 0, start: { p: 0, e: 0 }, events: [], captured: false, convoyOut: false };
+  const place = (side, specs) => {
+    const s = side === 'p' ? map.spawns.p : map.spawns.e;
+    const taken = new Set();
+    specs.forEach((spec) => {
+      let spot = null;
+      for (let r = 0; r < 14 && !spot; r++) for (let j = -r; j <= r && !spot; j++) for (let i = -r; i <= r && !spot; i++) {
+        if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
+        const x = s.x + i; const y = s.y + j; const k = `${x},${y}`;
+        if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0) spot = { x, y, k };
+      }
+      spot ||= { x: s.x, y: s.y, k: 'x' }; taken.add(spot.k);
+      const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5);
+      B.units.push(u); B.byId.set(u.id, u);
+    });
+  };
+  place('p', setup.units.filter((x) => x.side === 'p')); place('e', setup.units.filter((x) => x.side === 'e'));
+  B.start.p = B.units.filter((u) => u.side === 'p').length; B.start.e = B.units.filter((u) => u.side === 'e').length;
+  B.startAcc = { p: B.units.filter((u) => u.side === 'p' && u.rec).length };
+  return B;
+}
+
+function makeUnit(spec, side, x, y) {
+  const W = WEAPONS[spec.weapon] || WEAPONS.none;
+  return { id: spec.id, side, kind: spec.kind, role: spec.role, name: spec.name, rec: spec.rec || null, x, y, z: 0, wantZ: 0, hp: spec.hp, hpMax: spec.hp, morale: spec.morale ?? 70, supp: 0, state: 'steady', weapon: spec.weapon, W,
+    fatigue: spec.fatigue || 0, accMult: spec.accMult ?? 1, prot: spec.prot ?? 1, armourBar: spec.armourBar ?? 0, speed: spec.speed, sight: spec.sight, cd: Math.floor(chance(`${spec.id}|cd0`) * W.interval * TICK.perSecond), target: null, order: { type: 'hold' }, path: [], alive: true, fled: false, broken: false,
+    moving: false, stairsT: 0, shots: 0, kills: 0, travelled: 0, gstage: null, post: null, hurt: 0 };
+}
+
+// ---- orders
+function issue(B, ids, order) {
+  B.log.push({ t: B.tick, ids: [...ids], order: { ...order } });
+  for (const id of ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, order); }
+}
+function setOrder(B, u, order) {
+  u.order = { ...order }; u.path = []; u.target = u.order.type === 'move' ? null : u.target; u.gstage = null; u.post = null;
+  const kind = u.kind === 'inf' ? 'inf' : u.kind === 'helicopter' ? 'heli' : 'veh';
+  if (order.type === 'move' || order.type === 'amove') u.path = findPath(B.map, u, order, kind);
+  else if (order.type === 'retreat') { const s = u.side === 'p' ? B.map.spawns.p : B.map.spawns.e; u.order.x = s.x < B.map.w / 2 ? 1 : B.map.w - 2; u.order.y = Math.floor(u.y); u.path = findPath(B.map, u, u.order, kind); }
+  else if (order.type === 'garrison') { const b = B.map.buildings[order.b]; if (b && u.kind === 'inf') { u.gstage = 'go'; u.path = findPath(B.map, u, { x: b.stairs.x + 0.5, y: b.stairs.y + 0.5 }, 'inf'); u.order.floor = Math.min(order.floor ?? b.floors - 1, b.floors - 1); } else u.order = { type: 'hold' }; }
+}
+
+// ---- seeing, covering, hitting
+const eyeZ = (u) => u.z;
+function sightOf(u) { return u.sight + HEIGHT.sight * u.z + (u.role === 'signaller' ? ROLE.signaller.sight : 0); }
+const reachOf = (u) => u.W.range + HEIGHT.reach * u.z;
+function coverFor(B, t, from) {
+  if (isVeh(t)) return 0;
+  const tile = tileAt(B.map, Math.floor(t.x), Math.floor(t.y));
+  if (tile === TILE.FLOOR || tile === TILE.DOOR || tile === TILE.STAIRS) {
+    const x = Math.floor(t.x); const y = Math.floor(t.y);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(B.map, x + dx, y + dy) === TILE.WINDOW) return COVER.window;
+    return COVER.building;
+  }
+  if (tile === TILE.HEDGE) return COVER.hedge; if (tile === TILE.CROP) return COVER.crop;
+  const x = Math.floor(t.x); const y = Math.floor(t.y); const sx = Math.sign(from.x - t.x); const sy = Math.sign(from.y - t.y);
+  const n = tileAt(B.map, x + sx, y + sy); const n2 = tileAt(B.map, x + sx, y); const n3 = tileAt(B.map, x, y + sy);
+  return [n, n2, n3].some((q) => q === TILE.WALL || q === TILE.HEDGE || q === TILE.TREE) ? COVER.tree : 0;
+}
+const stateOf = (u) => { const m = (u.morale - 70) * SUPPRESS.moraleShift; return u.supp >= SUPPRESS.broken + m ? 'broken' : u.supp >= SUPPRESS.pinned + m ? 'pinned' : u.supp >= SUPPRESS.shaken + m ? 'shaken' : 'steady'; };
+
+function visible(B, u, e) { return dist(u, e) <= sightOf(u) && los(B.map, u.x, u.y, eyeZ(u), e.x, e.y, eyeZ(e)); }
+
+function pickTarget(B, u) {
+  let best = null; let bd = 1e9;
+  for (const e of B.units) {
+    if (e.side === u.side || !e.alive || e.fled) continue;
+    const d = dist(u, e); if (d > sightOf(u) || d >= bd) continue;
+    if (!los(B.map, u.x, u.y, eyeZ(u), e.x, e.y, eyeZ(e))) continue;
+    const pref = u.role === 'anti_tank' && !isVeh(e) ? 6 : 0; // an anti-tank soldier looks for armour first
+    if (d + pref >= bd) continue;
+    best = e; bd = d + pref;
+  }
+  return best;
+}
+
+function fire(B, u, t) {
+  const W = u.W; u.shots++;
+  if (W.rocket && u.side === 'p') B.counts.rockets++;
+  const d = dist(u, t);
+  const stateMul = u.state === 'shaken' ? 0.7 : u.state === 'pinned' ? 0.5 : 1;
+  const cover = coverFor(B, t, u);
+  const move = u.moving ? 0.55 : 1; const tmove = t.moving ? 0.85 : 1;
+  const p = Math.min(0.95, W.acc * u.accMult * stateMul * move * tmove * (1 - cover) * (1 - 0.45 * (d / Math.max(1, reachOf(u)))) * (1 - 0.04 * Math.max(0, t.z - u.z)) * (1 - (u.fatigueP || 0)));
+  const roll = chance(`${B.key}|${B.tick}|${u.id}|h`);
+  const hit = roll < p;
+  // suppression lands on the target and a little on its neighbours, hit or miss
+  const s = W.suppress * (1 - cover * 0.5) * (hit ? 1 : 0.6);
+  for (const n of B.units) if (n.alive && n.side === t.side && !n.fled) { const dd = dist(n, t); if (dd < 2) n.supp = Math.min(100, n.supp + (n === t ? s : s * 0.5 * (1 - dd / 2))); }
+  if (!hit) return;
+  let dmg = W.damage * (0.8 + 0.4 * chance(`${B.key}|${B.tick}|${u.id}|d`));
+  if (isVeh(t)) dmg *= ARMOUR_FLOOR + (1 - ARMOUR_FLOOR) * W.pierce * (t.kind === 'helicopter' ? 1.2 : 1);
+  else dmg /= t.prot;
+  t.hp -= dmg; t.hurt += dmg; t.lastBy = u.id;
+  if (t.hp <= 0 && t.alive) {
+    t.alive = false; t.hp = 0; u.kills++; B.events.push({ t: B.tick, k: 'down', id: t.id, by: u.id });
+    for (const n of B.units) if (n.alive && n.side === t.side && !n.fled && dist(n, t) < 6) n.morale = Math.max(0, n.morale - (n.role === 'officer' ? 1 : 3)); // a friend falls near
+    if (t.role === 'officer') for (const n of B.units) if (n.alive && n.side === t.side) n.morale = Math.max(0, n.morale - 4);
+  }
+}
+
+// ---- moving
+function moveAlong(B, u, speed) {
+  u.moving = false;
+  if (!u.path.length) return false;
+  let left = speed * dt;
+  while (left > 0 && u.path.length) {
+    const nx = u.path[0]; const d = Math.hypot(nx.x - u.x, nx.y - u.y);
+    if (d <= left) { u.x = nx.x; u.y = nx.y; left -= d; u.path.shift(); u.travelled += d; } else { u.x += ((nx.x - u.x) / d) * left; u.y += ((nx.y - u.y) / d) * left; u.travelled += left; left = 0; }
+    u.moving = true;
+  }
+  return u.moving;
+}
+const speedOf = (B, u) => (u.kind === 'inf' ? (B.map.bid[idx(B.map, Math.floor(u.x), Math.floor(u.y))] >= 0 ? SPEED.indoors : SPEED.infantry) * (1 - 0.3 * (u.fatigueP || 0)) : u.speed);
+
+function garrisonStep(B, u) {
+  const b = B.map.buildings[u.order.b];
+  if (u.gstage === 'go') {
+    if (!u.path.length) { u.gstage = 'up'; u.stairsT = 0; }
+    return;
+  }
+  if (u.gstage === 'up') {
+    if (u.z === u.order.floor) { u.gstage = 'post'; const foe = B.units.find((e) => e.side !== u.side && e.alive); const aim = foe || B.map.objective; let best = null; let bd = 1e9;
+      for (let j = b.y + 1; j < b.y + b.h - 1; j++) for (let i = b.x + 1; i < b.x + b.w - 1; i++) { if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tileAt(B.map, i + dx, j + dy) === TILE.WINDOW)) continue; const d = Math.hypot(i - aim.x, j - aim.y); if (d < bd) { bd = d; best = { x: i + 0.5, y: j + 0.5 }; } }
+      u.post = best; u.path = best ? findPath(B.map, u, best, 'inf') : []; return; }
+    u.stairsT++; if (u.stairsT >= 12) { u.stairsT = 0; u.z += Math.sign(u.order.floor - u.z); }
+    return;
+  }
+  // 'post': stands at the window and holds
+}
+
+function step1(B, u, idxU) {
+  if (!u.alive || u.fled) return;
+  u.supp = Math.max(0, u.supp - SUPPRESS.decay);
+  const ns = stateOf(u);
+  if (ns === 'broken' && !u.broken) { u.broken = true; setOrder(B, u, { type: 'retreat' }); B.events.push({ t: B.tick, k: 'broke', id: u.id }); }
+  if (u.broken && u.supp < SUPPRESS.rally + (u.morale - 70) * 0.2) u.broken = false; // rallied
+  u.state = u.broken ? 'broken' : ns;
+  u.fatigueP = Math.min(0.3, (u.fatigue || 0) / 400);
+  if (u.role === 'medic' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n !== u && n.hp < n.hpMax && !isVeh(n) && dist(n, u) <= ROLE.medic.radius) n.hp = Math.min(n.hpMax, n.hp + ROLE.medic.heal);
+  if (u.role === 'officer' && B.tick % 10 === 0) for (const n of B.units) if (n.alive && n.side === u.side && n.supp > 0 && dist(n, u) <= ROLE.officer.rally) n.supp = Math.max(0, n.supp - 2);
+  u.cd--;
+  if (u.W.range > 0 && B.tick % TICK.decide === idxU % TICK.decide) u.target = (() => { const t = pickTarget(B, u); return t ? t.id : null; })();
+  const tgt = u.target ? B.byId.get(u.target) : null;
+  const canShoot = tgt && tgt.alive && !tgt.fled && u.W.range > 0 && !u.broken && dist(u, tgt) <= reachOf(u) && u.cd <= 0 && los(B.map, u.x, u.y, eyeZ(u), tgt.x, tgt.y, eyeZ(tgt));
+  const o = u.order;
+  const hold = o.type === 'hold' || (o.type === 'garrison' && u.gstage === 'post');
+  const engaged = tgt && tgt.alive && dist(u, tgt) <= reachOf(u) && u.W.range > 0;
+  // an infantryman fires standing; on a move order he keeps moving; on attack-move he stops to fight what he can hit
+  let moves = false;
+  if (!u.broken && (u.state !== 'pinned' || o.type === 'retreat')) {
+    if (o.type === 'move' || o.type === 'retreat') moves = true;
+    else if (o.type === 'amove' && !engaged) moves = true;
+    else if (o.type === 'garrison' && (u.gstage === 'go' || u.gstage === 'post') && u.path.length) moves = true;
+  } else if (u.broken) moves = true;
+  if (u.broken && !u.path.length) setOrder(B, u, { type: 'retreat' });
+  if (canShoot && !(moves && u.kind === 'inf' && o.type === 'move' && u.state === 'shaken')) { fire(B, u, tgt); u.cd = Math.max(1, Math.round(u.W.interval * TICK.perSecond * (u.state === 'shaken' ? 1.2 : 1))); }
+  if (moves) { moveAlong(B, u, speedOf(B, u)); } else u.moving = false;
+  if (o.type === 'garrison') garrisonStep(B, u);
+  if (u.order.type === 'move' && !u.path.length) u.order = { type: 'hold' };
+  if (u.order.type === 'amove' && !u.path.length && !engaged) u.order = { type: 'hold' };
+  if (u.order.type === 'retreat' && !u.path.length) { if (u.broken || u.side === 'p') { u.fled = true; B.events.push({ t: B.tick, k: 'fled', id: u.id }); } else u.order = { type: 'hold' }; }
+  void hold;
+}
+
+// ---- the enemy's (and, for a headless battle, your) mind: simple, by goal
+function ai(B, side) {
+  const mine = B.units.filter((u) => u.side === side && u.alive && !u.fled);
+  const attacking = (B.goal === 'offence' && side === 'p') || (B.goal === 'defence' && side === 'e');
+  const obj = B.map.objective; const exit = B.map.exit;
+  mine.forEach((u, i) => {
+    if (u.broken || u.order.type === 'retreat') return;
+    if (B.goal === 'logistics' && side === 'p') { if (isVeh(u) && u.kind !== 'helicopter' && u.order.type === 'hold' && !u.path.length) setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); else if (!isVeh(u) && u.order.type === 'hold') setOrder(B, u, { type: 'amove', x: exit.x, y: exit.y }); return; }
+    if (attacking) {
+      if (u.order.type === 'hold' && !(u.target && B.byId.get(u.target)?.alive)) {
+        // go for the objective; once it is reached with nobody in sight, go and find the nearest enemy still standing (the AI knows where they are)
+        const near = Math.hypot(u.x - obj.x, u.y - obj.y) < 5;
+        const foe = near ? B.units.filter((e) => e.side !== side && e.alive && !e.fled).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0] : null;
+        setOrder(B, u, foe ? { type: 'amove', x: foe.x, y: foe.y } : { type: 'amove', x: obj.x + ((i % 5) - 2), y: obj.y + ((i % 3) - 1) });
+      }
+      return;
+    }
+    // defending: infantry take the nearest building to the objective, the rest hold round it
+    if (u.order.type === 'hold' && u.gstage === null && u.kind === 'inf' && B.tick < 20 && B.map.buildings.length) {
+      const bs = B.map.buildings.slice().sort((a, b) => Math.hypot(a.x - obj.x, a.y - obj.y) - Math.hypot(b.x - obj.x, b.y - obj.y)).slice(0, 4);
+      const b = bs[i % bs.length]; if (Math.hypot(b.x - obj.x, b.y - obj.y) < 20 && i % 3 !== 2) setOrder(B, u, { type: 'garrison', b: b.id, floor: Math.min(b.floors - 1, 1) });
+      else setOrder(B, u, { type: 'move', x: obj.x + ((i % 5) - 2) * 2, y: obj.y + ((i % 4) - 1) * 2 });
+    }
+  });
+}
+
+function zoneCount(B, side) {
+  const o = B.map.objective; let n = 0;
+  for (const u of B.units) if (u.side === side && u.alive && !u.fled && dist(u, o) <= OBJECTIVE.zone) n++;
+  return n;
+}
+
+function step(B) {
+  if (B.over) return B;
+  if (B.tick % 20 === 0) { if (B.ai.e) ai(B, 'e'); if (B.ai.p) ai(B, 'p'); }
+  B.units.forEach((u, i) => step1(B, u, i));
+  B.tick++;
+  // objectives
+  const pz = zoneCount(B, 'p'); const ez = zoneCount(B, 'e');
+  if (B.goal === 'defence') { if (pz > 0 || ez === 0) B.hold++; else B.hold = Math.max(0, B.hold - 1); }
+  if (B.goal === 'offence') { if (pz > 0 && ez === 0) B.cap++; else B.cap = Math.max(0, B.cap - 1); if (B.cap >= OBJECTIVE.captureSeconds * TICK.perSecond) B.captured = true; }
+  if (B.goal === 'logistics') for (const u of B.units) if (u.side === 'p' && u.alive && isVeh(u) && u.kind !== 'helicopter' && Math.hypot(u.x - B.map.exit.x, u.y - B.map.exit.y) < 3) B.convoyOut = true;
+  const live = (s) => B.units.filter((u) => u.side === s && u.alive && !u.fled).length;
+  if (!live('p')) { B.over = true; B.why = 'your force is gone'; }
+  else if (!live('e')) { B.over = true; B.why = 'the enemy is beaten'; }
+  else if (B.captured) { B.over = true; B.why = 'the objective is taken'; }
+  else if (B.convoyOut) { B.over = true; B.why = 'the convoy is through'; }
+  else if (B.tick >= B.maxTicks) { B.over = true; B.why = 'time'; }
+  return B;
+}
+function run(B, ticks) { for (let i = 0; i < ticks && !B.over; i++) step(B); return B; }
+function runToEnd(B) { while (!B.over) step(B); return B; }
+
+/** The result, in the shape the engagement's apply step takes. Valid once the battle is over (or at any moment, as it stands). */
+function outcome(B) {
+  const mine = B.units.filter((u) => u.side === 'p' && u.rec); const foes = B.units.filter((u) => u.side === 'e');
+  const downFoes = foes.filter((u) => !u.alive || u.fled).length; const downMine = mine.filter((u) => !u.alive).length; // (put out of action: dead or wounded)
+  let primary;
+  if (B.goal === 'defence') primary = B.hold >= OBJECTIVE.holdSeconds * TICK.perSecond || (B.over && B.why !== 'your force is gone' && zoneCount(B, 'e') === 0 && B.units.some((u) => u.side === 'p' && u.alive && !u.fled)) || (B.over && B.why === 'time' && B.units.some((u) => u.side === 'p' && u.alive && !u.fled) && zoneCount(B, 'e') <= zoneCount(B, 'p'));
+  else if (B.goal === 'offence') primary = B.captured;
+  else primary = B.convoyOut;
+  const ob = [primary, foes.length ? downFoes / foes.length >= OBJECTIVE.enemyShare : true, mine.length ? downMine / mine.length <= OBJECTIVE.ownLossCeiling : true];
+  const objectives = ob.filter(Boolean).length;
+  const dead = []; const wounded = []; const lost = [];
+  for (const u of mine) {
+    if (!u.alive) {
+      if (u.rec.t !== 'person') { lost.push(u.rec.id); continue; }
+      // put out of action: dead with a chance (less with plate armour), else badly wounded; a hash, so a replay agrees
+      if (chance(`${B.key}|down|${u.id}`) < Math.min(0.8, DOWN.dead / u.prot)) dead.push(u.rec.id);
+      else wounded.push({ id: u.rec.id, wounds: DOWN.woundsLow + Math.floor(chance(`${B.key}|dw|${u.id}`) * (DOWN.woundsHigh - DOWN.woundsLow + 1)) });
+      continue;
+    }
+    if (u.rec.t === 'person' && u.hp / u.hpMax < 0.75) wounded.push({ id: u.rec.id, wounds: Math.max(1, Math.min(2, Math.ceil((1 - u.hp / u.hpMax) * 4))) });
+  }
+  const fuel = Math.ceil(mine.filter((u) => u.rec.t === 'vehicle').reduce((a, u) => a + u.travelled, 0) / 60);
+  return { how: 'played', objectives, outcome: OUTCOMES[objectives], objectivesMet: ob, dead, wounded, lost, used: { fuel, rockets: B.counts.rockets }, ratio: foes.length ? mine.length / foes.length : 1, parts: { ticks: B.tick, why: B.why, killed: downFoes, of: foes.length, own: downMine, ownOf: mine.length } };
+}
+
+/** The battle again from the start, with the orders as they were given, to a tick. Equal to the battle that was played. */
+function replay(setup, log, tick) {
+  const B = createBattle(setup);
+  const q = log.slice().sort((a, b) => a.t - b.t); let i = 0;
+  while (B.tick < tick && !B.over) {
+    while (i < q.length && q[i].t <= B.tick) { for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
+    step(B);
+  }
+  while (i < q.length && q[i].t <= B.tick) { for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
+  return B;
+}
+
+
+return { isVeh, createBattle, issue, step, run, runToEnd, outcome, replay, inb, walkable, sightOf, coverFor, stateOf, reachOf };
+})();
+
+// ---- src/engine/drawWarVehicles.js
+__m["src/engine/drawWarVehicles.js"] = (function () {
+// War vehicles on the game's own pixel idiom (v0.101.0, the look renderer): a tank, a helicopter, a carrier and a plain truck, painted once facing east on a small canvas with a 1-px ink outline, lit
+// from the upper left, shaded on the right, and turned by sixteenths of a turn (cached by kind, palette, state and heading, as src/engine/carSprites.js does). Sized to the game's tile (32 px):
+// a tank is about a tile and a half long, a person is about one tile tall. Browser only (it makes canvases); nothing here is read by the simulation.
+const INK = '#1b1a24';
+const STEPS = 16;
+const cache = new Map();
+
+const PALETTE = {
+  p: { hull: '#5e7a46', hull2: '#46603a', dark: '#2e3e26', light: '#8aa264', track: '#2a2a30', accent: '#e8c84a' },
+  e: { hull: '#8a5a48', hull2: '#6e4438', dark: '#3e2822', light: '#b08068', track: '#2a2628', accent: '#d8402e' },
+};
+const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v + k))); return `#${[f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+
+/** A 1-px ink outline round whatever is painted on the canvas (the game's sprites all have one). */
+function outlined(src) {
+  const w = src.width; const h = src.height; const out = mkCanvas(w, h); const g = out.getContext('2d'); g.imageSmoothingEnabled = false;
+  const tmp = mkCanvas(w, h); const t = tmp.getContext('2d'); t.drawImage(src, 0, 0); t.globalCompositeOperation = 'source-in'; t.fillStyle = INK; t.fillRect(0, 0, w, h);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) g.drawImage(tmp, dx, dy);
+  g.drawImage(src, 0, 0);
+  return out;
+}
+const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+
+/** Painted facing east, centred on a 56 x 56 canvas. */
+function paint(kind, P, state) {
+  const c = mkCanvas(56, 56); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const dead = state === 'wreck';
+  const hull = dead ? '#3a3638' : P.hull; const hull2 = dead ? '#2a2628' : P.hull2; const hi = dead ? '#4e4a4c' : P.light;
+  if (kind === 'tank') {
+    R(g, 8, 17, 38, 5, P.track); R(g, 8, 34, 38, 5, P.track); for (let x = 9; x < 46; x += 3) { R(g, x, 18, 1, 3, shade(P.track, 24)); R(g, x, 35, 1, 3, shade(P.track, 24)); }
+    R(g, 10, 21, 34, 14, hull); R(g, 10, 21, 34, 2, hi); R(g, 10, 33, 34, 2, hull2); R(g, 40, 22, 4, 12, hull2); R(g, 12, 24, 4, 8, shade(hull, -14)); R(g, 41, 25, 2, 6, shade(hull, 18));
+    if (!dead) { R(g, 21, 23, 14, 10, hull2); R(g, 22, 24, 12, 8, hull); R(g, 22, 24, 12, 2, hi); R(g, 24, 26, 4, 4, P.dark); R(g, 33, 27, 18, 2, P.dark); R(g, 33, 27, 18, 1, shade(P.dark, 30)); R(g, 28, 25, 2, 2, P.accent); }
+    else { R(g, 22, 24, 12, 9, '#2c282a'); R(g, 30, 30, 14, 2, '#26222a'); R(g, 14, 25, 3, 3, '#c8541a'); }
+  } else if (kind === 'carrier') {
+    for (let k = 0; k < 3; k++) { R(g, 12 + k * 11, 15, 6, 3, P.track); R(g, 12 + k * 11, 38, 6, 3, P.track); }
+    R(g, 10, 18, 36, 20, hull); R(g, 10, 18, 36, 2, hi); R(g, 10, 36, 36, 2, hull2); R(g, 40, 19, 6, 18, hull2); R(g, 14, 22, 18, 12, shade(hull, -10)); R(g, 20, 24, 8, 8, P.dark); R(g, 28, 27, 10, 2, P.dark); R(g, 42, 21, 3, 3, '#e8e4c0'); R(g, 42, 33, 3, 3, '#e8e4c0');
+    if (dead) { R(g, 14, 22, 18, 12, '#2a2628'); }
+  } else if (kind === 'helicopter') {
+    R(g, 10, 25, 20, 6, hull); R(g, 8, 26, 4, 4, hull2); R(g, 28, 22, 14, 12, hull); R(g, 28, 22, 14, 2, hi); R(g, 32, 24, 8, 6, '#6ec8e8'); R(g, 32, 24, 8, 1, '#c8f0ff'); R(g, 10, 24, 2, 8, P.accent);
+    R(g, 14, 21, 12, 14, hull2); R(g, 14, 21, 12, 1, hi); R(g, 24, 20, 6, 2, P.dark); R(g, 24, 34, 6, 2, P.dark); R(g, 6, 24, 2, 8, hull2); // skids/tail rotor
+    if (dead) { R(g, 14, 21, 28, 14, '#3a3638'); R(g, 22, 25, 10, 6, '#c8541a'); }
+  } else { // a truck or jeep
+    R(g, 12, 18, 30, 20, hull); R(g, 12, 18, 30, 2, hi); R(g, 12, 36, 30, 2, hull2); R(g, 34, 20, 8, 16, shade(hull, -8)); R(g, 36, 22, 4, 12, '#6ec8e8'); R(g, 13, 21, 18, 14, hull2); R(g, 14, 22, 16, 12, shade(hull, -22));
+    for (const [x, y] of [[14, 16], [14, 38], [34, 16], [34, 38]]) R(g, x, y, 6, 3, P.track);
+    if (dead) R(g, 13, 21, 28, 14, '#2a2628');
+  }
+  return outlined(c);
+}
+
+/** A vehicle's sprite at a heading (radians, 0 = east), cached. `state`: 'ok' or 'wreck'. */
+function vehicleSprite(kind, side, heading, state = 'ok') {
+  const step = ((Math.round(heading / (Math.PI * 2) * STEPS) % STEPS) + STEPS) % STEPS;
+  const key = `${kind}|${side}|${state}|${step}`;
+  let s = cache.get(key);
+  if (!s) {
+    const base = paint(kind === 'other' ? 'truck' : kind, PALETTE[side] || PALETTE.p, state);
+    s = mkCanvas(64, 64); const g = s.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.translate(32, 32); g.rotate((step / STEPS) * Math.PI * 2); g.drawImage(base, -28, -28);
+    cache.set(key, s);
+  }
+  return s;
+}
+
+/** A tank's turret turns on its own: the sprite above has it fixed; this draws a thin barrel line toward the target for emphasis. */
+function drawVehicle(ctx, kind, side, x, y, heading, { wreck = false, time = 0 } = {}) {
+  const spr = vehicleSprite(kind, side, heading, wreck ? 'wreck' : 'ok');
+  ctx.fillStyle = 'rgba(16,14,36,0.28)'; ctx.fillRect(Math.round(x) - 14, Math.round(y) + 4, 28, 6); // a flat shadow under it
+  if (kind === 'helicopter' && !wreck) {
+    ctx.fillStyle = 'rgba(16,14,36,0.22)'; ctx.fillRect(Math.round(x) - 10, Math.round(y) + 12, 22, 5); // the shadow falls away from it
+    ctx.drawImage(spr, Math.round(x) - 32, Math.round(y) - 40);
+    // the rotor: a live disc with two blades
+    const a = time * 22; ctx.save(); ctx.translate(Math.round(x), Math.round(y) - 12); ctx.fillStyle = 'rgba(30,28,40,0.18)'; ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 17, Math.sin(a) * 17); ctx.lineTo(-Math.cos(a) * 17, -Math.sin(a) * 17); ctx.moveTo(Math.cos(a + 1.57) * 17, Math.sin(a + 1.57) * 17); ctx.lineTo(-Math.cos(a + 1.57) * 17, -Math.sin(a + 1.57) * 17); ctx.stroke(); ctx.restore();
+    return;
+  }
+  ctx.drawImage(spr, Math.round(x) - 32, Math.round(y) - 32);
+}
+
+return { PALETTE, vehicleSprite, drawVehicle };
+})();
+
+// ---- src/engine/drawBattle.js
+__m["src/engine/drawBattle.js"] = (function () {
+// The battle on the screen (v0.101.0, the look renderer + the tactical engine's drawing): the ground baked once, buildings seen from above with a roof (or opened to one floor's plan), people on the
+// game's own people sprites (with the new helmet), vehicles, effects, and three camera tiers: far (banners), command (everything at the game's own scale) and close (the same sprites, enlarged by
+// whole numbers). Browser only. It reads a battle (src/battle/sim.js) and never changes it.
+const { drawPerson } = __m["src/engine/drawPeople.js"];
+const { drawWeaponSprite } = __m["src/engine/drawPixelWeapons.js"];
+const { drawVehicle } = __m["src/engine/drawWarVehicles.js"];
+const { TILE, STYLES } = __m["src/content/battle.js"];
+const { LOOKS, DEFAULT_LOOK } = __m["src/content/troops.js"];
+const { unit } = __m["src/battle/hash.js"];
+
+const TP = 32; // pixels a tile is drawn at, at command zoom
+const INK = '#1b1a24';
+const GROUND = {
+  rural: ['#6b8b4b', '#5f7f43', '#779657'], taiga: ['#5d7d58', '#527250', '#6b8a64'], desert: ['#c9b27a', '#bda56e', '#d6c08a'], steppe: ['#9aa35a', '#8d9650', '#a8b068'], tundra: ['#8fa0a0', '#839494', '#9bacac'], jungle: ['#3f6f3a', '#376433', '#497d44'], snow: ['#dfe6ea', '#d0d9de', '#eaf0f2'],
+};
+const palFor = (biome) => GROUND[biome] || GROUND.rural;
+const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v + k))); return `#${[f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, '0')).join('')}`; };
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const WLOOK = { item_assault_rifle: 'ar', item_smg: 'smg', item_lmg: 'lmg', item_rpg: 'rpg', item_sniper_rifle: 'sniper', item_pistol: 'pistol', item_shotgun: 'shotgun' };
+
+/** The ground, painted once for a map: grass with a little grain, roads, water, crops in rows, hedges, trees. (Building tiles are painted over by the building pass.) */
+function bakeGround(map) {
+  const c = mkCanvas(map.w * TP, map.h * TP); const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const pal = palFor(map.biome === 'rural' ? 'rural' : map.biome);
+  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+    const t = map.tiles[y * map.w + x]; const X = x * TP; const Y = y * TP; const u = unit(`${map.seed}|g|${x}|${y}`);
+    g.fillStyle = pal[Math.floor(u * 3)]; g.fillRect(X, Y, TP, TP);
+    for (let k = 0; k < 4; k++) { g.fillStyle = shade(pal[(Math.floor(u * 3) + 1) % 3], k * 3 - 4); g.fillRect(X + Math.floor(unit(`${map.seed}|n${k}|${x}|${y}`) * 28) + 2, Y + Math.floor(unit(`${map.seed}|m${k}|${x}|${y}`) * 28) + 2, 2, 2); }
+    if (t === TILE.ROAD) { g.fillStyle = '#5a5a60'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#66666c'; g.fillRect(X + 4, Y + 6, 3, 2); g.fillRect(X + 18, Y + 20, 3, 2); g.fillStyle = '#4c4c52'; g.fillRect(X, Y + TP - 2, TP, 2); }
+    else if (t === TILE.WATER) { g.fillStyle = '#3d6f9e'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#5a92c2'; g.fillRect(X + 4 + (y % 3) * 4, Y + 8, 10, 2); g.fillRect(X + 14, Y + 22, 12, 2); }
+    else if (t === TILE.CROP) { g.fillStyle = '#9aa83c'; g.fillRect(X, Y, TP, TP); g.fillStyle = '#7e8c2e'; for (let r = 3; r < TP; r += 6) g.fillRect(X, Y + r, TP, 2); g.fillStyle = '#b8c456'; for (let r = 1; r < TP; r += 6) g.fillRect(X + 3, Y + r, 4, 1); }
+    else if (t === TILE.HEDGE) { g.fillStyle = '#3d5a30'; g.fillRect(X, Y + 6, TP, 22); g.fillStyle = '#4f7040'; g.fillRect(X, Y + 6, TP, 4); g.fillStyle = INK; g.fillRect(X, Y + 4, TP, 2); g.fillRect(X, Y + 28, TP, 2); g.fillStyle = '#6a8e52'; g.fillRect(X + 4, Y + 10, 3, 3); g.fillRect(X + 16, Y + 16, 3, 3); }
+  }
+  for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) if (map.tiles[y * map.w + x] === TILE.TREE) {
+    const X = x * TP + 16; const Y = y * TP + 20; g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(X - 10, Y + 6, 24, 8);
+    g.fillStyle = INK; g.fillRect(X - 12, Y - 16, 24, 24); g.fillRect(X - 10, Y - 18, 20, 28); g.fillStyle = '#35592e'; g.fillRect(X - 11, Y - 15, 22, 22); g.fillStyle = '#4a7a3c'; g.fillRect(X - 10, Y - 16, 14, 12); g.fillStyle = '#6a9a52'; g.fillRect(X - 8, Y - 14, 6, 4); g.fillStyle = '#26421f'; g.fillRect(X + 2, Y - 4, 8, 8);
+  }
+  return c;
+}
+
+/** A building from above: its roof in its style's colours, a facade strip with a row of windows per floor, a door, and a shadow. */
+function roof(g, b, style) {
+  const S = STYLES[style] || STYLES.halvermouth; const X = b.x * TP; const Y = b.y * TP; const W = b.w * TP; const H = b.h * TP;
+  g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(X + 6, Y + 6, W, H);
+  g.fillStyle = INK; g.fillRect(X - 1, Y - 1, W + 2, H + 2);
+  g.fillStyle = S.roof; g.fillRect(X, Y, W, H - 12);
+  g.fillStyle = shade(S.roof, 26); g.fillRect(X, Y, W, 4); g.fillStyle = shade(S.roof, -22); g.fillRect(X, Y + H - 16, W, 4);
+  g.fillStyle = shade(S.roof, -12); for (let i = 8; i < W - 6; i += 12) g.fillRect(X + i, Y + 6, 2, H - 24); // ridges/tiles
+  g.fillStyle = S.trim; g.fillRect(X, Y, 4, H - 12); g.fillRect(X + W - 4, Y, 4, H - 12);
+  // facade: a wall strip with a row of windows for each floor, then the door
+  g.fillStyle = S.wall; g.fillRect(X, Y + H - 12, W, 12); g.fillStyle = shade(S.wall, -26); g.fillRect(X, Y + H - 3, W, 3);
+  for (let f = 0; f < Math.min(b.floors, 3); f++) { g.fillStyle = '#2a3a50'; for (let i = 6; i < W - 10; i += 14) g.fillRect(X + i, Y + H - 10 + f * 3, 6, 2); }
+  g.fillStyle = '#5a3a24'; g.fillRect(X + Math.floor(b.w / 2) * TP + 8, Y + H - 14, 14, 14);
+  g.fillStyle = INK; g.font = 'bold 12px monospace'; g.textAlign = 'center'; g.fillText(String(b.floors), X + W / 2, Y + (H - 12) / 2 + 4);
+}
+
+/** One floor of a building as a plan: walls, boards, windows, the stair, and a label. */
+function plan(g, map, b, floor) {
+  const X = b.x * TP; const Y = b.y * TP;
+  for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) {
+    const t = map.tiles[j * map.w + i]; const x = i * TP; const y = j * TP;
+    if (t === TILE.WALL) { g.fillStyle = INK; g.fillRect(x, y, TP, TP); g.fillStyle = '#7a6a5c'; g.fillRect(x + 2, y + 2, TP - 4, TP - 4); g.fillStyle = '#9a8a78'; g.fillRect(x + 2, y + 2, TP - 4, 3); }
+    else if (t === TILE.WINDOW) { g.fillStyle = INK; g.fillRect(x, y, TP, TP); g.fillStyle = '#7a6a5c'; g.fillRect(x + 2, y + 2, TP - 4, TP - 4); g.fillStyle = '#8ad0e8'; g.fillRect(x + 6, y + 8, TP - 12, TP - 16); g.fillStyle = '#d6f2ff'; g.fillRect(x + 6, y + 8, TP - 12, 3); }
+    else { g.fillStyle = (i + j) % 2 ? '#b9a07a' : '#c4ab84'; g.fillRect(x, y, TP, TP); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(x, y + TP - 2, TP, 2); if (t === TILE.DOOR) { g.fillStyle = '#5a3a24'; g.fillRect(x + 2, y + 4, TP - 4, TP - 8); } if (t === TILE.STAIRS) { g.fillStyle = '#6a5a48'; for (let k = 0; k < 5; k++) g.fillRect(x + 4, y + 4 + k * 5, TP - 8, 3); g.fillStyle = '#e8c84a'; g.font = 'bold 14px monospace'; g.textAlign = 'center'; g.fillText(floor < b.floors - 1 ? '▲' : '▼', x + TP / 2, y + TP / 2 + 5); } }
+  }
+  g.fillStyle = 'rgba(16,14,36,0.78)'; g.fillRect(X, Y - 18, 118, 16); g.fillStyle = '#ffe8a0'; g.font = 'bold 11px monospace'; g.textAlign = 'left'; g.fillText(`FLOOR ${floor + 1} OF ${b.floors}`, X + 4, Y - 6);
+}
+
+const dirOf = (u, to) => { const dx = to.x - u.x; const dy = to.y - u.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
+const appearance = (u, side, look) => {
+  const h = (k) => unit(`${u.id}|ap|${k}`); const skin = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(h(1) * 5)];
+  const cloth = side === 'p' ? (LOOKS.primary[look.primary] || '#5e7a46') : '#8a5a48';
+  return { skin, hair: ['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a'][Math.floor(h(2) * 4)], hairStyle: 'helmet', hatColor: cloth, outfit: cloth, legs: '#2a2e22', build: ['thin', 'average', 'broad', 'wiry'][Math.floor(h(3) * 4)], height: 0.97 + h(4) * 0.1, accessories: [], accent: side === 'p' ? (LOOKS.band[look.band] || '#e8c84a') : '#d8402e' };
+};
+
+/** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
+class BattleView {
+  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.ground = null; this.map = null; this.t = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); }
+  attach(B, looks = {}) { this.B = B; this.map = B.map; this.ground = bakeGround(B.map); this.looks = looks; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); }
+  tier() { return this.cam.zoom < 0.55 ? 'far' : this.cam.zoom > 1.8 ? 'close' : 'command'; }
+  toWorld(sx, sy) { const r = this.cv.getBoundingClientRect(); return { x: (sx - r.left) / this.cam.zoom + this.cam.x, y: (sy - r.top) / this.cam.zoom + this.cam.y }; }
+  toTile(sx, sy) { const w = this.toWorld(sx, sy); return { x: w.x / TP, y: w.y / TP }; }
+  center(tx, ty) { this.cam.x = tx * TP - this.cv.width / 2 / this.cam.zoom; this.cam.y = ty * TP - this.cv.height / 2 / this.cam.zoom; this.clamp(); }
+  clamp() { const mw = this.map.w * TP; const mh = this.map.h * TP; const vw = this.cv.width / this.cam.zoom; const vh = this.cv.height / this.cam.zoom; this.cam.x = Math.max(-40, Math.min(mw - vw + 40, this.cam.x)); this.cam.y = Math.max(-40, Math.min(mh - vh + 40, this.cam.y)); }
+  zoomBy(f, sx, sy) { const before = this.toWorld(sx, sy); const z = Math.max(0.3, Math.min(4, this.cam.zoom * f)); this.cam.zoom = z <= 1.05 && z >= 0.95 ? 1 : Math.abs(z - 3) < 0.2 ? 3 : z; const r = this.cv.getBoundingClientRect(); this.cam.x = before.x - (sx - r.left) / this.cam.zoom; this.cam.y = before.y - (sy - r.top) / this.cam.zoom; this.clamp(); }
+
+  /** The enemies the player's units can see now (and for a moment after). */
+  seen(B) {
+    const out = new Set();
+    for (const e of B.units) {
+      if (e.side !== 'e' || !e.alive || e.fled) continue;
+      const vis = this.visible?.(e);
+      if (vis) { out.add(e.id); this.seenAt.set(e.id, B.tick); } else if (B.tick - (this.seenAt.get(e.id) ?? -999) < 20) out.add(e.id);
+    }
+    return out;
+  }
+
+  /** What changed since the last frame becomes effects: shots, hits, kills. */
+  effects(B) {
+    for (const u of B.units) {
+      const s0 = this.lastShots.get(u.id) ?? u.shots; if (u.shots > s0) { const t = u.target ? B.byId.get(u.target) : null; if (t) { const dx = t.x - u.x; const dy = t.y - u.y; const d = Math.hypot(dx, dy) || 1; this.fx.muzzle(u.x * TP, u.y * TP - 12, dx / d, dy / d); this.fx.tracer(u.x * TP, u.y * TP - 12, t.x * TP, t.y * TP - 12, u.side); if (u.W.pierce >= 1 || u.W.rocket) this.fx.blast(t.x * TP, t.y * TP - 8); } }
+      this.lastShots.set(u.id, u.shots);
+      const h0 = this.lastHp.get(u.id) ?? u.hp; if (u.hp < h0 - 0.5) this.fx.hit(u.x * TP, u.y * TP - 10); if (h0 > 0 && u.hp <= 0) this.fx.blast(u.x * TP, u.y * TP - 8, u.kind !== 'inf'); this.lastHp.set(u.id, u.hp);
+      if (!u.alive && u.kind !== 'inf' && B.tick % 8 === 0) this.fx.smoke(u.x * TP, u.y * TP - 6);
+    }
+  }
+
+  draw(B, ui = {}) {
+    const g = this.ctx; const cam = this.cam; this.t += 1 / 60; const tier = this.tier();
+    g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#10101c'; g.fillRect(0, 0, this.cv.width, this.cv.height);
+    g.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom, -cam.y * cam.zoom);
+    g.drawImage(this.ground, 0, 0);
+    // the objective and the way out
+    const o = B.map.objective; g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.beginPath(); g.arc(o.x * TP + 16, o.y * TP + 16, 4 * TP, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+    if (B.goal === 'logistics') { g.strokeStyle = 'rgba(120,255,160,0.9)'; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
+    const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id));
+    // buildings: a roof, unless one is opened to a floor plan
+    const open = ui.open || {};
+    for (const b of B.map.buildings) { const v = open[b.id]; if (v) plan(g, B.map, b, v.floor); else roof(g, b, b.style); }
+    if (tier === 'far') { this.banners(g, B, seen, ui); this.fx.draw(g); g.setTransform(1, 0, 0, 1, 0, 0); return; }
+    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled).sort((a, b) => a.y - b.y);
+    for (const u of list) {
+      const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
+      const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
+      if (inside && !v) continue; // inside a roofed building: not seen
+      if (inside && v && v.floor !== u.z && !(v.ground && u.z === 0)) continue; // on a floor that is not the one shown
+      this.unit(g, u, B, ui);
+    }
+    this.fx.draw(g);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  unit(g, u, B, ui) {
+    const px = u.x * TP; const py = u.y * TP;
+    if (ui.selected?.has(u.id)) { g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(px, py + 2, u.kind === 'inf' ? 11 : 20, u.kind === 'inf' ? 5 : 8, 0, 0, Math.PI * 2); g.stroke(); }
+    if (u.kind === 'inf') {
+      const t = u.target ? B.byId.get(u.target) : null; const ang = u.path?.[0] ? dirOf(u, u.path[0]) : t ? dirOf(u, t) : (u.side === 'p' ? 'right' : 'left');
+      if (!u.alive) { g.save(); g.translate(px, py); g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(-9, -1, 18, 3); g.fillStyle = u.side === 'p' ? '#5e7a46' : '#8a5a48'; g.fillRect(-9, -4, 16, 5); g.fillStyle = INK; g.fillRect(-10, -5, 2, 7); g.restore(); return; }
+      const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) };
+      const dir = ang === 'left' ? -1 : 1; const wl = WLOOK[u.weapon];
+      const held = wl ? (c) => { c.save(); c.translate(ang === 'left' ? -14 : ang === 'right' ? 2 : -6, -13); if (ang === 'left') { c.scale(-1, 1); c.translate(-12, 0); } drawWeaponSprite(c, wl, 1); c.restore(); } : null;
+      drawPerson(g, appearance(u, u.side, look), { x: px, y: py, facing: ang, animTime: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, scale: 1 }, held);
+      void dir;
+      if (u.state !== 'steady') { g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(px - 3, py - 36, 6, 3); }
+    } else {
+      const heading = u.path?.[0] ? Math.atan2(u.path[0].y - u.y, u.path[0].x - u.x) : u.target && B.byId.get(u.target) ? Math.atan2(B.byId.get(u.target).y - u.y, B.byId.get(u.target).x - u.x) : (u.side === 'p' ? 0 : Math.PI);
+      drawVehicle(g, u.kind, u.side, px, py, heading, { wreck: !u.alive, time: this.t });
+    }
+    if (u.alive && (u.hp < u.hpMax || ui.selected?.has(u.id))) { const w = u.kind === 'inf' ? 16 : 30; const y = py - (u.kind === 'inf' ? 32 : u.kind === 'helicopter' ? 52 : 26); g.fillStyle = INK; g.fillRect(px - w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(px - w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(px - w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
+  }
+
+  /** The far tier: a banner for each group of units (a flag, a number, a bar). */
+  banners(g, B, seen, ui) {
+    const cell = 6; const groups = new Map();
+    for (const u of B.units) { if (!u.alive || u.fled || (u.side === 'e' && !seen.has(u.id))) continue; const k = `${u.side}|${Math.floor(u.x / cell)}|${Math.floor(u.y / cell)}`; const q = groups.get(k) || { side: u.side, n: 0, x: 0, y: 0, hp: 0, max: 0, sel: false, veh: false }; q.n++; q.x += u.x; q.y += u.y; q.hp += u.hp; q.max += u.hpMax; q.sel ||= Boolean(ui.selected?.has(u.id)); q.veh ||= u.kind !== 'inf'; groups.set(k, q); }
+    for (const q of groups.values()) {
+      const x = (q.x / q.n) * TP; const y = (q.y / q.n) * TP; const c = q.side === 'p' ? '#5ec27a' : '#e86a58';
+      g.fillStyle = INK; g.fillRect(x - 15, y - 33, 4, 38); g.fillRect(x - 12, y - 33, 34, 20); g.fillStyle = c; g.fillRect(x - 11, y - 31, 32, 16); g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(x - 11, y - 31, 32, 3);
+      g.fillStyle = INK; g.font = 'bold 14px monospace'; g.textAlign = 'center'; g.fillText(`${q.veh ? '▣' : ''}${q.n}`, x + 5, y - 19);
+      g.fillStyle = INK; g.fillRect(x - 12, y - 11, 34, 5); g.fillStyle = '#e8e4c0'; g.fillRect(x - 11, y - 10, Math.round((32 * q.hp) / q.max), 3);
+      if (q.sel) { g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.strokeRect(x - 17, y - 35, 42, 44); }
+    }
+  }
+}
+
+
+return { TP, bakeGround, BattleView, GROUND };
+})();
+
+// ---- src/engine/drawBattleFx.js
+__m["src/engine/drawBattleFx.js"] = (function () {
+// Fire, smoke, dust and tracers in the game's pixel look (v0.101.0, the look renderer). Every particle is drawn as hard art pixels (two screen pixels each) from a small palette ramp: fire on seven
+// colours from near white to deep red, smoke on five greys, dust on five browns, translucent areas dithered with a 4x4 ordered pattern, and a dark rim on each blob, like the 1-px ink on the
+// game's sprites. No gradients. There are at most `CAP` particles; the oldest go first. This is only paint: the simulation never reads it, and its few "random" numbers are hashes.
+const { unit } = __m["src/battle/hash.js"];
+
+const FIRE = ['#fff4b8', '#ffd24a', '#ff9a24', '#e8581a', '#b02a12', '#6a1408', '#2a0a08'];
+const SMOKE = ['#a8a8b6', '#7e7e8c', '#585864', '#383842', '#1e1e26'];
+const DUST = ['#e0cdb0', '#c0aa8c', '#98826a', '#6e5c44', '#4a3c2c'];
+const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]].map((r) => r.map((v) => (v + 0.5) / 16));
+const CAP = 600;
+const PX = 2; // one art pixel is two screen pixels
+
+class FxLayer {
+  constructor(seed = 'fx') { this.seed = seed; this.p = []; this.lines = []; this.n = 0; }
+  h(k) { return unit(`${this.seed}|${this.n}|${k}`); }
+  add(q) { this.p.push(q); if (this.p.length > CAP) this.p.shift(); }
+  muzzle(x, y, dx, dy) { this.n++; this.add({ k: 'flash', x: x + dx * 10, y: y + dy * 10, vx: 0, vy: 0, age: 0, life: 3, s: 2 }); }
+  tracer(x0, y0, x1, y1, side) { this.lines.push({ x0, y0, x1, y1, side, age: 0, life: 3 }); if (this.lines.length > 80) this.lines.shift(); }
+  hit(x, y) { this.n++; for (let i = 0; i < 4; i++) this.add({ k: 'spark', x, y, vx: (this.h(`a${i}`) - 0.5) * 3, vy: (this.h(`b${i}`) - 0.5) * 3 - 0.6, age: 0, life: 6 + Math.floor(this.h(`c${i}`) * 4), s: 1 }); this.add({ k: 'dust', x, y, vx: 0, vy: -0.2, age: 0, life: 14, s: 2 }); }
+  blast(x, y, big = false) {
+    this.n++; const m = big ? 2 : 1;
+    this.add({ k: 'fire', x, y, vx: 0, vy: 0, age: 0, life: 12 * m, s: 5 * m });
+    for (let i = 0; i < 7 * m; i++) this.add({ k: 'fire', x: x + (this.h(`x${i}`) - 0.5) * 12 * m, y: y + (this.h(`y${i}`) - 0.5) * 10 * m, vx: (this.h(`vx${i}`) - 0.5) * 1.2, vy: -0.4 - this.h(`vy${i}`) * 0.8, age: 0, life: 9 + Math.floor(this.h(`l${i}`) * 8), s: 3 * m });
+    for (let i = 0; i < 5 * m; i++) this.add({ k: 'smoke', x: x + (this.h(`sx${i}`) - 0.5) * 10, y: y - 4, vx: (this.h(`svx${i}`) - 0.5) * 0.5, vy: -0.5 - this.h(`svy${i}`) * 0.4, age: 0, life: 40 + Math.floor(this.h(`sl${i}`) * 30), s: 4 * m });
+  }
+  smoke(x, y) { this.n++; this.add({ k: 'smoke', x: x + (this.h('sx') - 0.5) * 8, y, vx: (this.h('sv') - 0.3) * 0.6, vy: -0.6, age: 0, life: 50, s: 4 }); }
+  step() {
+    for (const q of this.p) { q.age++; q.x += q.vx; q.y += q.vy; if (q.k === 'smoke') { q.vx += 0.01; q.s += 0.05; } if (q.k === 'spark') q.vy += 0.25; }
+    this.p = this.p.filter((q) => q.age < q.life);
+    for (const l of this.lines) l.age++;
+    this.lines = this.lines.filter((l) => l.age < l.life);
+  }
+  /** Draw in world pixels (the caller has applied the camera). */
+  draw(ctx) {
+    for (const l of this.lines) { ctx.fillStyle = l.side === 'p' ? '#e8ffe0' : '#ffd9a0'; const n = 6; for (let i = 0; i < n; i++) { const t = (i + l.age * 0.9) / (n + 3); if (t > 1) continue; ctx.fillRect(Math.round((l.x0 + (l.x1 - l.x0) * t) / PX) * PX, Math.round((l.y0 + (l.y1 - l.y0) * t) / PX) * PX, PX, PX); } }
+    for (const q of this.p) {
+      const f = q.age / q.life; const r = Math.max(1, Math.round(q.s));
+      let ramp; let level;
+      if (q.k === 'fire' || q.k === 'flash' || q.k === 'spark') { ramp = FIRE; level = Math.min(6, Math.floor(f * 7)); if (q.k === 'flash') level = f > 0.5 ? 2 : 0; if (q.k === 'spark') level = Math.min(3, Math.floor(f * 4)); }
+      else if (q.k === 'dust') { ramp = DUST; level = Math.min(4, Math.floor(f * 5)); } else { ramp = SMOKE; level = Math.min(4, Math.floor(0.4 * 5 + f * 2)); }
+      const alpha = q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+        if (i * i + j * j > r * r + 1) continue;
+        const px = Math.round(q.x / PX) * PX + i * PX; const py = Math.round(q.y / PX) * PX + j * PX;
+        if (alpha < 1 && alpha < BAYER[(py / PX) & 3 & 3][(px / PX) & 3 & 3]) continue;
+        const rim = i * i + j * j > (r - 1) * (r - 1);
+        ctx.fillStyle = rim && q.k !== 'spark' && q.k !== 'flash' ? ramp[Math.min(ramp.length - 1, level + 2)] : ramp[level];
+        ctx.fillRect(px, py, PX, PX);
+      }
+    }
+  }
+}
+
+return { FxLayer };
+})();
+
+// ---- src/ui/battle.js
+__m["src/ui/battle.js"] = (function () {
+// The battle (v0.101.0, stage 10a): a full-screen panel in the manner of Fleet Command. It shows a battle (src/battle/sim.js) on the look renderer (src/engine/drawBattle.js): a camera with
+// three tiers (far: banners, command: everything at the game's own scale, close: the same sprites enlarged), selection by click or box, orders (move, attack-move, hold, garrison, retreat), a
+// view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
+// the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
+const { h } = __m["src/ui/panels.js"];
+const { createBattle, step, issue, outcome, replay, sightOf, isVeh } = __m["src/battle/sim.js"];
+const { los } = __m["src/battle/nav.js"];
+const { BattleView, TP } = __m["src/engine/drawBattle.js"];
+const { FxLayer } = __m["src/engine/drawBattleFx.js"];
+const { TICK } = __m["src/content/battle.js"];
+
+const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
+const mmss = (ticks) => { const s = Math.floor(ticks / TICK.perSecond); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+function battlePanel(ui, body, opts = {}) {
+  const g = ui.game; const W = g.war; const id = opts.id;
+  const eng = W.engagement(id); const bt = W.battle(id);
+  body.classList.add('bt');
+  if (!eng || !bt) { body.append(h('div', { class: 'bt-msg' }, 'There is no battle to fight.', h('button', { onclick: () => ui.closePanel() }, 'Close'))); return { title: '', className: 'battlecmd' }; }
+  const canvas = h('canvas', { class: 'bt-canvas' }); const top = h('div', { class: 'bt-top' }); const bar = h('div', { class: 'bt-bar' }); const feed = h('div', { class: 'bt-feed' }); const card = h('div', { class: 'bt-card' }); const over = h('div', { class: 'bt-over hidden' });
+  body.append(canvas, top, bar, feed, card, over);
+
+  const B = bt.result ? null : (bt.tick > 0 ? replay(bt.setup, bt.log, bt.tick) : createBattle(bt.setup));
+  const view = new BattleView(canvas); const squadLooks = {};
+  for (const s of W.squads()) for (const m of s.members) squadLooks[m] = s.look;
+  const S = { speed: 1, acc: 0, sel: new Set(), mode: null, gFloor: 1, ground: new Set(), drag: null, keys: new Set(), done: Boolean(bt.result), lastSave: 0, vis: new Set(), visTick: -99, log: [], filed: Boolean(bt.result) };
+  let raf = 0; let last = performance.now(); let closed = false;
+
+  const say = (t) => { S.log.unshift(t); S.log.length = Math.min(S.log.length, 7); feed.replaceChildren(...S.log.map((x) => h('div', {}, x))); };
+  const save = () => { if (B && !S.filed) W.saveBattle(id, B.tick, B.log); };
+
+  if (B) {
+    view.fx = new FxLayer(bt.key); view.attach(B, squadLooks);
+    const mine = B.units.filter((u) => u.side === 'p');
+    const cx = mine.reduce((a, u) => a + u.x, 0) / (mine.length || 1); const cy = mine.reduce((a, u) => a + u.y, 0) / (mine.length || 1);
+    view.cam.zoom = 1;
+    const fit = () => { const r = canvas.getBoundingClientRect(); canvas.width = Math.max(320, Math.round(r.width)); canvas.height = Math.max(240, Math.round(r.height)); };
+    fit(); view.center(cx, cy);
+    say(`${eng.title}: ${mine.length} of yours against ${B.units.filter((u) => u.side === 'e').length}.`);
+  }
+
+  // ---- what the player's side can see (computed a few times a second)
+  const seenSet = () => {
+    if (!B) return new Set();
+    if (B.tick - S.visTick < 5) return S.vis;
+    S.visTick = B.tick; const out = new Set();
+    for (const e of B.units) if (e.side === 'e' && e.alive && !e.fled) for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; if (Math.hypot(u.x - e.x, u.y - e.y) <= sightOf(u) && los(B.map, u.x, u.y, u.z, e.x, e.y, e.z)) { out.add(e.id); break; } }
+    for (const e of S.vis) if (!out.has(e) && B.tick - (view.seenAt.get(e) ?? -99) < 20 && B.byId.get(e)?.alive) out.add(e);
+    for (const e of out) view.seenAt.set(e, B.tick);
+    S.vis = out; return out;
+  };
+
+  // ---- which buildings are opened, and to which floor
+  const opened = () => {
+    const o = {};
+    for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled || u.kind !== 'inf') continue; const b = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]; if (b < 0) continue; const cur = o[b] || { floor: 0 }; cur.floor = Math.max(cur.floor, u.z); o[b] = cur; }
+    for (const k of Object.keys(o)) if (S.ground.has(Number(k))) { o[k].upper = o[k].floor; o[k].floor = 0; o[k].ground = true; }
+    return o;
+  };
+
+  // ---- orders
+  const give = (order, label) => { const ids = [...S.sel].filter((x) => B.byId.get(x)?.alive); if (!ids.length) { say('Select someone first.'); return; } issue(B, ids, order); save(); say(`${ids.length} ${label}.`); };
+  const buildingAt = (t) => { const b = B.map.bid[Math.floor(t.y) * B.map.w + Math.floor(t.x)]; return b >= 0 ? B.map.buildings[b] : null; };
+  const target = (e, shift) => {
+    const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
+    const mode = S.mode || (shift ? 'amove' : 'move');
+    if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
+    else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
+    S.mode = null; paintBar();
+  };
+  const unitAtPoint = (e) => { const w = view.toWorld(e.clientX, e.clientY); let best = null; let bd = 22 / view.cam.zoom + 8; for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; const d = Math.hypot(u.x * TP - w.x, u.y * TP - 10 - w.y); if (d < bd) { bd = d; best = u; } } return best; };
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!B) return; canvas.setPointerCapture(e.pointerId);
+    if (e.button === 2) { if (S.sel.size) target(e, e.shiftKey); return; }
+    if (e.button === 1 || e.altKey) { S.drag = { pan: true, x: e.clientX, y: e.clientY }; return; }
+    if (S.mode && S.sel.size) { target(e, e.shiftKey); return; }
+    S.drag = { x: e.clientX, y: e.clientY, x1: e.clientX, y1: e.clientY, sel: true, shift: e.shiftKey };
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const d = S.drag; if (!d) return;
+    if (d.pan) { view.cam.x -= (e.clientX - d.x) / view.cam.zoom; view.cam.y -= (e.clientY - d.y) / view.cam.zoom; d.x = e.clientX; d.y = e.clientY; view.clamp(); return; }
+    d.x1 = e.clientX; d.y1 = e.clientY;
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    const d = S.drag; S.drag = null; if (!d || !d.sel) return;
+    const moved = Math.hypot(d.x1 - d.x, d.y1 - d.y) > 6;
+    if (!d.shift) S.sel.clear();
+    if (moved) { const a = view.toWorld(Math.min(d.x, d.x1), Math.min(d.y, d.y1)); const b = view.toWorld(Math.max(d.x, d.x1), Math.max(d.y, d.y1)); for (const u of B.units) if (u.side === 'p' && u.alive && !u.fled && u.x * TP >= a.x && u.x * TP <= b.x && u.y * TP >= a.y && u.y * TP <= b.y) S.sel.add(u.id); }
+    else { const u = unitAtPoint(e); if (u) { if (d.shift && S.sel.has(u.id)) S.sel.delete(u.id); else S.sel.add(u.id); } }
+    paintCard();
+  });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); if (B) view.zoomBy(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); }, { passive: false });
+  const onKey = (e) => {
+    if (closed || !B) return; const k = e.key.toLowerCase();
+    if (k === 'escape') { e.stopPropagation(); close(); return; }
+    if (k === ' ') { S.speed = S.speed ? 0 : 1; paintBar(); e.preventDefault(); }
+    else if (k === '1' || k === '2' || k === '3') { S.speed = [1, 4, 16][Number(k) - 1]; paintBar(); }
+    else if (k === 'h') give({ type: 'hold' }, 'hold'); else if (k === 'r') give({ type: 'retreat' }, 'retreat');
+    else if (k === 'a') { S.mode = 'amove'; paintBar(); } else if (k === 'm') { S.mode = 'move'; paintBar(); } else if (k === 'g') { S.mode = 'garrison'; paintBar(); }
+    else if (k === 'c') { const u = [...S.sel].map((x) => B.byId.get(x)).filter(Boolean)[0]; if (u) view.center(u.x, u.y); }
+    else if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) { S.keys.add(k); e.preventDefault(); }
+  };
+  const onKeyUp = (e) => S.keys.delete(e.key.toLowerCase());
+  window.addEventListener('keydown', onKey, true); window.addEventListener('keyup', onKeyUp, true);
+
+  // ---- the chrome
+  const paintTop = () => {
+    if (!B) { top.replaceChildren(h('b', {}, eng.title), h('span', {}, 'Battle filed'), h('span', { class: 'grow' }), h('button', { onclick: () => close() }, '✕')); return; }
+    const mine = B.units.filter((u) => u.side === 'p'); const alive = mine.filter((u) => u.alive && !u.fled).length; const foes = B.units.filter((u) => u.side === 'e' && u.alive && !u.fled).length;
+    const goal = { defence: `Hold the marked ground (${Math.min(100, Math.round((B.hold / (60 * TICK.perSecond)) * 100))}%)`, offence: `Take the marked ground (${Math.min(100, Math.round((B.cap / (40 * TICK.perSecond)) * 100))}%)`, logistics: 'Get a vehicle through to the green gate' }[B.goal];
+    top.replaceChildren(h('b', {}, eng.title), h('span', {}, goal), h('span', {}, `⏱ ${mmss(B.tick)} / ${mmss(B.maxTicks)}`), h('span', { class: 'grow' }), h('span', { class: 'bt-p' }, `Yours ${alive}/${mine.length}`), h('span', { class: 'bt-e' }, `Enemy in sight ${[...seenSet()].length}`), h('span', { title: 'the camera tier' }, `🔭 ${view.tier()}`), h('button', { onclick: () => close() }, '✕ Leave'));
+  };
+  const paintBar = () => {
+    const mk = (label, k, fn) => h('button', { class: S.mode === k ? 'on' : '', onclick: fn }, label);
+    bar.replaceChildren(...SPEEDS.map(([v, l]) => h('button', { class: S.speed === v ? 'on' : '', onclick: () => { S.speed = v; paintBar(); } }, l)), h('span', { class: 'sep' }),
+      mk('Move', 'move', () => { S.mode = S.mode === 'move' ? null : 'move'; paintBar(); }), mk('Attack-move', 'amove', () => { S.mode = S.mode === 'amove' ? null : 'amove'; paintBar(); }),
+      h('button', { onclick: () => give({ type: 'hold' }, 'hold') }, 'Hold'), mk('Garrison', 'garrison', () => { S.mode = S.mode === 'garrison' ? null : 'garrison'; paintBar(); }),
+      h('button', { onclick: () => { S.gFloor = (S.gFloor + 1) % 6; paintBar(); } }, `Floor ${S.gFloor + 1}`), h('button', { onclick: () => give({ type: 'retreat' }, 'retreat') }, 'Retreat'), h('span', { class: 'sep' }),
+      h('button', { onclick: () => view.zoomBy(1.25, canvas.width / 2, canvas.height / 2) }, '＋'), h('button', { onclick: () => view.zoomBy(0.8, canvas.width / 2, canvas.height / 2) }, '－'),
+      ...(B ? Object.entries(opened()).map(([b, v]) => h('button', { class: S.ground.has(Number(b)) ? 'on' : '', title: 'what to show of this building', onclick: () => { const n = Number(b); if (S.ground.has(n)) S.ground.delete(n); else S.ground.add(n); paintBar(); } }, `🏢${Number(b) + 1}: ${S.ground.has(Number(b)) ? 'ground floor' : `floor ${v.floor + 1}`}`)) : []));
+  };
+  const paintCard = () => {
+    const us = [...S.sel].map((x) => B?.byId.get(x)).filter(Boolean);
+    if (!us.length) { card.replaceChildren(h('small', {}, B ? 'Click a soldier or drag a box. Right-click to move (Shift: attack-move). Space pauses. Mouse wheel zooms; drag with Alt to pan.' : '')); return; }
+    const by = {}; for (const u of us) by[u.role] = (by[u.role] || 0) + 1;
+    card.replaceChildren(h('b', {}, `${us.length} selected`), h('small', {}, Object.entries(by).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(', ')), h('small', {}, `Average health ${Math.round((us.reduce((a, u) => a + u.hp / u.hpMax, 0) / us.length) * 100)}% · ${us.filter((u) => u.state !== 'steady').length} shaken or worse`));
+  };
+  paintTop(); paintBar(); paintCard();
+
+  // ---- the end of the battle
+  const finish = () => {
+    if (S.filed) return; S.filed = true; S.done = true;
+    const o = outcome(B); const r = W.fileBattle(id, o);
+    ui.audio?.sfx?.(o.objectives >= 2 ? 'sfx_coin' : 'sfx_fail');
+    over.classList.remove('hidden');
+    over.replaceChildren(h('h3', {}, o.objectives >= 2 ? 'The field is yours' : o.objectives === 1 ? 'A hard-won partial result' : 'The battle is lost'), h('p', {}, `${o.outcome.replace('_', ' ')} · ${o.objectives} of 3 objectives · ${B.why}.`), h('p', {}, `${o.dead.length} killed, ${o.wounded.length} wounded, ${o.lost.length} vehicle${o.lost.length === 1 ? '' : 's'} lost. ${r.text}`), h('p', {}, 'The records change when your people come home: then the pay arrives and the after-action report is written.'), h('button', { onclick: () => close() }, 'Close'));
+  };
+  if (S.filed && !B) { over.classList.remove('hidden'); over.replaceChildren(h('h3', {}, 'The battle is over'), h('p', {}, `Result filed: ${bt.result.outcome.replace('_', ' ')}, ${bt.result.objectives} of 3 objectives. Your people return on day ${eng.order.end}.`), h('button', { onclick: () => close() }, 'Close')); }
+
+  // ---- the loop
+  const frame = (now) => {
+    if (closed) return; raf = requestAnimationFrame(frame);
+    const dtm = Math.min(0.1, (now - last) / 1000); last = now;
+    if (!B) return;
+    const r = canvas.getBoundingClientRect(); if (canvas.width !== Math.round(r.width) || canvas.height !== Math.round(r.height)) { canvas.width = Math.max(320, Math.round(r.width)); canvas.height = Math.max(240, Math.round(r.height)); }
+    const pan = 700 * dtm / view.cam.zoom; for (const k of S.keys) { if (k === 'arrowleft') view.cam.x -= pan; if (k === 'arrowright') view.cam.x += pan; if (k === 'arrowup') view.cam.y -= pan; if (k === 'arrowdown') view.cam.y += pan; view.clamp(); }
+    if (!B.over && S.speed) { S.acc += dtm * TICK.perSecond * S.speed; let n = 0; while (S.acc >= 1 && !B.over && n < 80) { step(B); view.fx.step(); S.acc -= 1; n++; } if (n === 80) S.acc = 0; }
+    if (B.over && !S.filed) finish();
+    view.effects(B);
+    view.visible = (e) => seenSet().has(e.id);
+    view.draw(B, { selected: S.sel, open: opened(), seen: seenSet() });
+    if (S.drag?.sel && Math.hypot(S.drag.x1 - S.drag.x, S.drag.y1 - S.drag.y) > 6) { const g2 = canvas.getContext('2d'); const rr = canvas.getBoundingClientRect(); g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#7af0a0'; g2.lineWidth = 1; g2.strokeRect(Math.min(S.drag.x, S.drag.x1) - rr.left, Math.min(S.drag.y, S.drag.y1) - rr.top, Math.abs(S.drag.x1 - S.drag.x), Math.abs(S.drag.y1 - S.drag.y)); }
+    if (B.tick % 10 === 0) { paintTop(); paintCard(); }
+    if (B.tick - S.lastSave >= 100) { S.lastSave = B.tick; save(); }
+    ui.battleFrames = (ui.battleFrames || 0) + 1;
+  };
+  raf = requestAnimationFrame(frame);
+
+  function close() {
+    if (closed) return; closed = true; cancelAnimationFrame(raf); save();
+    window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true);
+    ui.closePanel();
+  }
+  // the smoke test and the debug commands drive the same battle
+  ui.battleHandle = { B, S, view, give, step: (n = 1) => { for (let i = 0; i < n && !B.over; i++) { step(B); view.fx.step(); } if (B.over && !S.filed) finish(); }, finish, close, save };
+  return { title: '', className: 'battlecmd', onClose: () => { if (!closed) { closed = true; cancelAnimationFrame(raf); save(); window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); } ui.battleHandle = null; } };
+}
+
+
+return { battlePanel, isVeh };
 })();
 
 // ---- src/ui/logbook.js
@@ -79925,6 +81146,7 @@ const { dealerPanel } = __m["src/ui/dealer.js"];
 const { farmlandPanel, farmplotPanel, coopPanel, livestockPanel } = __m["src/ui/farm.js"];
 const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 const { fleetPanel } = __m["src/ui/fleetCommand.js"];
+const { battlePanel } = __m["src/ui/battle.js"]; // v0.101.0
 const { logbookPanel } = __m["src/ui/logbook.js"];
 const { cashierPanel, casinoTablePanel } = __m["src/ui/casino.js"];
 const { spadeTablePanel } = __m["src/ui/spadeTable.js"];
@@ -79942,6 +81164,7 @@ PANELS.livestock = livestockPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
+PANELS.battle = battlePanel; // v0.101.0: the tactical battle, full screen
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;

@@ -1236,3 +1236,22 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 #watchnote .wn-go { padding: 11px 16px; border-radius: 12px; font: 800 15px system-ui; background: linear-gradient(#f6cf6a, #d99a2b); color: #2a1a00; border: 2px solid #ffe08a; cursor: pointer; }
 #watchnote .wn-x { background: transparent; color: #cfcdf5; border: 0; font-size: 16px; cursor: pointer; }
 @keyframes wn-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(242,193,78,.25), 0 10px 30px #000a; } 50% { box-shadow: 0 0 0 9px rgba(242,193,78,.4), 0 10px 30px #000a; } }
+
+/* The battle (v0.101.0): a full-screen panel in the manner of Fleet Command. */
+#modal-panel.battlecmd { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #10101c; color: #e8eaf6; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.battlecmd .panel-head, #modal-panel.battlecmd #modal-tabs { display: none; }
+#modal-panel.battlecmd #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; }
+.bt { height: 100%; user-select: none; }
+.bt button { font: inherit; color: inherit; cursor: pointer; border: 1px solid #4a4aa8; background: #1e1e50; padding: 5px 10px; border-radius: 4px; }
+.bt button.on { background: #3a3aa0; border-color: #9a9aff; }
+.bt-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.bt-top { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 14px; align-items: center; padding: 8px 14px; background: linear-gradient(#0a0a18f0, #0a0a18b0); border-bottom: 1px solid #3a3a7a; z-index: 3; font-size: 14px; flex-wrap: wrap; }
+.bt-top .grow { flex: 1; } .bt-p { color: #7af0a0; } .bt-e { color: #ff9a8a; }
+.bt-bar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: #0a0a18e8; border: 1px solid #3a3a7a; border-radius: 8px; z-index: 3; flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+.bt-bar .sep { width: 1px; height: 22px; background: #3a3a7a; margin: 0 4px; }
+.bt-feed { position: absolute; top: 56px; right: 12px; width: 300px; font-size: 12px; line-height: 1.4; color: #cfd3ff; z-index: 2; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.bt-card { position: absolute; left: 12px; bottom: 12px; max-width: 360px; padding: 8px 12px; background: #0a0a18e0; border: 1px solid #3a3a7a; border-radius: 8px; z-index: 3; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.bt-over { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #0a0a18f4; border: 2px solid #6a6aff; border-radius: 10px; padding: 18px 24px; max-width: 480px; z-index: 5; text-align: center; }
+.bt-over.hidden { display: none; }
+.bt-msg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; }
+@media (max-width: 700px) { .bt-feed { display: none; } .bt-card { bottom: 74px; max-width: 70vw; } }

@@ -16,6 +16,7 @@ import { dealerPanel } from './dealer.js';
 import { farmlandPanel, farmplotPanel, coopPanel, livestockPanel } from './farm.js';
 import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
+import { battlePanel } from './battle.js'; // v0.101.0
 import { logbookPanel } from './logbook.js';
 import { cashierPanel, casinoTablePanel } from './casino.js';
 import { spadeTablePanel } from './spadeTable.js';
@@ -33,6 +34,7 @@ PANELS.livestock = livestockPanel;
 PANELS.armsbench = armsBenchPanel;
 PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
+PANELS.battle = battlePanel; // v0.101.0: the tactical battle, full screen
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;

@@ -48,3 +48,27 @@ export function storeMissile(g, pid = 'ms_sentinel') {
   A.state.storage.push(rec);
   return rec;
 }
+
+/**
+ * A company at war strength (v0.101.0): stages 1 to 3 built, an officer, twelve riflemen, two medics and an anti-tank soldier equipped and in two squads (A has the tank and the medics),
+ * a general, and an engagement made to order (hold, rural, six days) that the two squads together meet. Returns { g, C, a, b, eng, squads, general }.
+ */
+export function armedCompany(seed, { engagement = {}, rocket = 0 } = {}) {
+  const g = warGame(seed, { cash: 20_000_000 }); buildAll(g, 3); g.war.buySupply('uniform', 40); g.war.buySupply('rations', 2000); g.war.buySupply('fuel', 40); g.war.buySupply('medicine', 20);
+  cageGoods(g, 'aw1', { item_smg: 30, item_assault_rifle: 30, item_pistol: 10, item_rpg: 4, item_rpg_rocket: rocket });
+  for (const [item, n] of [['item_smg', 30], ['item_assault_rifle', 30], ['item_pistol', 10], ['item_rpg', 4]]) g.war.transfer({ source: 'arms', works: 'aw1', item, qty: n });
+  if (rocket) g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_rpg_rocket', qty: rocket });
+  for (const role of ['officer', ...Array(12).fill('rifleman'), 'medic', 'medic', 'anti_tank']) assert.ok(g.war.hire(role).ok, role);
+  days(g, 10);
+  for (const role of ['rifleman', 'medic', 'officer', 'anti_tank']) { g.war.setTier(role, role === 'rifleman' ? 2 : 1); g.war.equipClass(role); }
+  const a = g.war.squadCreate().id; const b = g.war.squadCreate().id;
+  assert.ok(g.war.squadLeader(a, g.war.people().find((p) => p.role === 'officer').id).ok);
+  let rifles = 0;
+  for (const p of g.war.people().filter((x) => x.role !== 'officer')) assert.ok(g.war.squadAssign(p.role === 'anti_tank' || p.role === 'medic' ? a : (rifles++ < 6 ? a : b), p.id).ok);
+  const C = g.war.state().company;
+  C.equipment.push({ id: 'Ex1', kind: 'vehicle', type: 'anvil', name: 'Anvil Mk1 tank', source: 'works', origin: null, location: 'facility:motor_pool', status: 'stored', assignedTo: null, day: 1 });
+  assert.ok(g.war.squadVehicle(a, 'Ex1').ok); assert.ok(g.war.hireGeneral('odalys').ok);
+  const eng = { id: 'Nt1', kind: 'hold', title: 'Hold Test Crossing', text: 'x', client: 'The Ostmark Union', clientName: 'The Ostmark Union', place: 'Test Crossing', terrain: 'rural', biome: 'rural', recipe: 'fields', style: 'sund', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 10, armour: 1, air: 0, skill: 1 }, pay: 90_000, state: 'open', offered: g.clock.day, expires: g.clock.day + 30, order: null, result: null, ...engagement };
+  (C.engagements ||= []).push(eng);
+  return { g, C, a, b, eng, squads: [a, b], general: g.war.generals().hired[0].id };
+}

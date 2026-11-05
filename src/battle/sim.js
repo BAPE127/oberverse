@@ -273,4 +273,4 @@ export function replay(setup, log, tick) {
   while (i < q.length && q[i].t <= B.tick) { for (const id of q[i].ids) { const u = B.byId.get(id); if (u && u.alive && u.side === 'p') setOrder(B, u, q[i].order); } B.log.push(q[i]); i++; }
   return B;
 }
-export { inb, walkable, sightOf, coverFor, stateOf, reachOf, step1 as stepUnit };
+export { inb, walkable, sightOf, coverFor, stateOf, reachOf };

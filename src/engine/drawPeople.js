@@ -169,7 +169,7 @@ function paint(R0, a, f, fr, part, o) {
     }
   });
   R(-2, hy + 12, 4, 1, skin[1]); // the neck
-  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat', 'wizard'].includes(style) || a.hat;
+  const hatStyle = ['hat', 'tophat', 'cap', 'captain', 'hardhat', 'wizard', 'helmet'].includes(style) || a.hat;
   // --- the face
   if (!up) {
     const ey = hy + 6;
@@ -253,6 +253,11 @@ function paint(R0, a, f, fr, part, o) {
     R(-6, hy - 1, 12, 4, c[2]); R(-6, hy - 1, 4, 1, c[4]); R(-5, hy, 3, 2, c[3]); R(3, hy, 3, 3, c[1]);
     if (!up) { if (side) R(dir > 0 ? 4 : -9, hy + 2, 5, 1, style === 'captain' ? '#1e2a3a' : c[0]); else R(-6, hy + 3, 12, 1, style === 'captain' ? '#1e2a3a' : c[0]); }
     if (style === 'captain' && !up) { R(-1, hy, 2, 2, '#c9a24a'); R(-5, hy + 2, 10, 1, '#1e2a3a'); }
+  }
+  if (style === 'helmet') {
+    // v0.101.0: a soldier's helmet (additive: no other style changes): a rounded shell down to the brow and over the ears, a rim, a strap, in the hat colour
+    R(-6, hy - 2, 12, 5, hc[2]); R(-7, hy, 14, 3, hc[2]); R(-5, hy - 3, 10, 1, hc[3]); R(-6, hy - 2, 4, 1, hc[4]); R(-7, hy + 2, 14, 1, hc[1]); R(3, hy - 1, 3, 3, hc[1]); R(-7, hy + 3, 1, 3, hc[0]); R(6, hy + 3, 1, 3, hc[0]);
+    if (!up) R(-6, hy + 3, 12, 1, hc[0]);
   }
   if (style === 'wizard') {
     // v0.52.0: a tall pointed hat, embroidered in silver, the tip bent over (Morganius Spade)
