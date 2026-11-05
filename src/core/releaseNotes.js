@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.0',
+    date: '2026-11-05',
+    channel: 'development',
+    title: 'War: Strategic Command',
+    notes: [
+      'A strategic map: the world is cut into about four thousand provinces (terrain, roads, railways, ports, victory points), and a theatre is drawn from the world\'s own shape with its rivers, borders and the front line.',
+      'Raise battalions from your real squads and vehicles (a recipe asks for tanks, carriers, medics, signallers and more, and refuses with what is short); they own those squads and vehicles while they stand. Design your own templates.',
+      'Enlist for a side in a theatre where two nations are fighting: its ships carry your battalions over in days and it pays a retainer for everyone in the theatre and a bonus for every victory point you take.',
+      'Move, attack, defend, hold and withdraw. An attack opens an engagement: play it yourself, give it to a general, or break off. The result is written once and moves the front.',
+      'Supply, air, sea, fog from intelligence and the nations\' own wars come in the releases after this one. A battle saved before this release replays as it was played.',
+    ],
+  },
+  {
     version: '0.102.2',
     date: '2026-11-05',
     channel: 'development',

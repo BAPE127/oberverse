@@ -6,7 +6,7 @@ Pictures (`docs/mockups/`): `proposal-war-strategic-map.png` (the Halden Front),
 
 ## 1. The map: provinces on the atlas
 
-- **Provinces** cut each atlas state into pieces by a jittered lattice about 1.7° apart: about **1,300 provinces on land worldwide**, about 100 in the Halden window shown. Each province has an id that never changes, a state, a controller, neighbours, and a terrain.
+- **Provinces** cut each atlas state into pieces by a jittered lattice about 1.7° apart: about **4,100 provinces on land worldwide** (corrected in v0.103.0: the 1,300 first written here did not match the lattice), about 100 in the Halden window shown. Each province has an id that never changes, a state, a controller, neighbours, and a terrain.
 - **Terrain types**: plains, farmland, forest, hills, mountains, marsh, urban, desert, jungle, coast. They come from the atlas biomes and relief (the same functions as the pictures). Terrain scatter (trees, peaks, hills, farm squares) is drawn from the biome so the map reads as land.
 - **Province data**: infrastructure (0 to 5; sets how fast supply moves and how fast you repair), rail (a line between provinces), port, airfield, fort level (0 to 5), victory points (a town or port), resistance, occupation, weather (rain, mud, snow, heat), and supply.
 - **Zones**: sea zones for fleets and convoys (the Halden Gulf, the Ostmark Sea, ...), air zones for wings. They are coarser than provinces.
@@ -66,5 +66,5 @@ Resources bar (manpower, fuel, ammo, supplies, tanks ready, helicopters, aircraf
 
 | Release | Adds |
 | --- | --- |
-| v0.117.0 (11a) | provinces, controllers, terrain and the map screen with modes; the template designer and raising a battalion from real items; orders and movement; supply and hubs; the engagement window; AI nations' weekly battles; the order of battle |
+| v0.117.0 (11a) (built as v0.103.0, v0.103.1 and v0.103.2) | provinces, controllers, terrain and the map screen with modes; the template designer and raising a battalion from real items; orders and movement; supply and hubs; the engagement window; AI nations' weekly battles; the order of battle |
 | v0.117.1 (11b) | air wings, naval fleets and convoys, landings, helicopters moving troops, intel levels and satellites, international contracts |

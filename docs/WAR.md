@@ -136,6 +136,42 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 
 **Orders added:** `smoke`, `suppress` (a point; no target needed; pins whoever stands within two and a half tiles) and `breach` (a tank or an anti-tank soldier (a rocket or the tank gun, not a rifle) opens a wall segment: two tank shells, and the wall becomes rubble that does not stop a look or a person). Orders and support are in the log, so a save replays them.
 
+## Strategic command (v0.103.0)
+
+Release 6a of the war update: the strategic layer's ground, units and orders. The proposal (`PROPOSAL_WAR_STRATEGIC.md`) is built in three releases (103.0, 103.1, 103.2); this is the first.
+
+| Piece | Where |
+| --- | --- |
+| Provinces: lattice cut of every state, terrain, roads, railways | `src/world/provinces.js`, `tests/strategic_provinces.test.mjs` |
+| The numbers (terrain, infrastructure, march, sealift, retainer, garrison, slots) | `src/content/strategic.js` |
+| Templates, battalions, theatres, enlisting, sealift, orders, marches, contact | `src/war/strategic.js`, `tests/strategic_war.test.mjs` |
+| A battle on the map is an engagement | `openStrategic` in `src/war/engagements.js`, `src/war/hooks.js` |
+| The map, the panels, the screens | `src/ui/strategic.js`, `src/engine/drawStrategic.js` |
+| Saved record | `world.military.war`: `control` (only provinces that changed hands), `templates`, `battalions`, `employer`, `hour`, `log`, `paid` |
+
+**Decisions made first** (the owner's): staged release; strategic orders create engagements; the whole world exists with stable ids, only active theatres tick; a battalion owns its squads and vehicles; the employer provides the sealift; you enlist for a side with a retainer and a bonus.
+
+**Provinces.** 4,115 over the land (the proposal's 1,300 was wrong; the lattice in its own mock-up gives about 100 in the Halden window and about four thousand worldwide). Ids are lattice cells and are pinned by a test: a change to the atlas that moves one will fail it.
+
+**What a battalion is.** Squads (with their vehicles) bound to a template. The recipe's slots become needs by soldier role and vehicle class (a rifle section is a squad with a soldier in it; a tank slot needs a tank in the chosen squads); the raise screen shows each need against what the choice brings. The stats on the right of the map are derived, not stored; organisation is stored.
+
+**The employer.** `enlist` needs the licence, a theatre with two sides that is fighting (a land theatre always is; others when the arms market has them at war), and a side. The staging province is the side's best port-and-infrastructure province in the theatre. Sealift both ways takes `max(2, distance / 700)` days; nothing is paid at sea or at home. Retainer: 170 obols a soldier a day and a vehicle rate by class (a tank 1,400). Ground taken pays 25,000 a victory point and adds reputation.
+
+**Orders.** `move` goes through ground the employer's side holds (Dijkstra by march hours inside the theatre); `attack` goes into an adjacent enemy-held province (organisation 30 or more); `defend` digs in; `withdraw` is a move to the staging province. A leg takes `distance × 1.25 / (speed × terrain × infrastructure × railway)` hours. `advance` runs the hours since last time from the game's clock (at most 40 days at once) and is called by the hourly tick, the daily tick and the map screen.
+
+**Contact.** The garrison is `5 + 3 fort + 2 vp + 4 (urban) + 2 infrastructure` troops with a spread of ±15 percent by the province's own hash (armour one for a fort of two, more for a capital), zero once the ground is yours. The result is the engagement's: objectives two or more take the province. Organisation falls by 12, 22, 40 or 65 for 3, 2, 1 or 0 objectives.
+
+## Honest limits (v0.103.0)
+
+- **The strategic exchange of the proposal is not here.** There is no hourly battle between battalions, no combat width, reserve or plan bonus: a contact is one engagement, decided by the same aggregate function or the played battle as every other. The stats shown for a battalion are derived for the player to read and are **not** used by the resolver (the engagement's forces are the real squads and vehicles, as before).
+- **No supply, fuel, weather, intelligence levels or fog.** The panel says so where supply would be. The enemy is shown with a reported garrison size; there is no uncertainty yet. (103.1)
+- **The enemy does nothing.** Garrisons are static: they do not counter-attack, reinforce, retake ground or move; defending and digging in therefore only builds entrenchment, which nothing yet reads. The nations' wars are 103.1.
+- **No air, sea or landings.** A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.2.
+- **Employers and money.** The retainer rates are starting figures, set from the existing engagement pay rates and not calibrated against the company's costs; reputation moves only with ground taken. Discharging is allowed only with every battalion at home; ground keeps the owners it has when you go.
+- **Strategic engagements** are not the client's contracts: no pay of their own, no client reputation, no ban; if nobody decides one in three days the battalion breaks off. The ordinary contract offers (hold, retake, raid, extract, rescue) are unchanged and are not yet tied to provinces on the map.
+- **Drawing.** Battalions are banners with two bars, not the mock-up's figurines; the map's modes Supply, Weather, Air, Naval, Intel and Contracts are greyed buttons; the ground is drawn from the world's shape, so coasts are the world's own and the province borders are the exact cut. A theatre draws once per session in about three seconds (a progress count shows).
+- **Scale.** Only the theatre you enlisted in is baked and drawn; the whole world's provinces exist for lookups (about 1.3 seconds the first time) but nothing outside an enlisted theatre is simulated.
+
 ## Battle depth III (v0.102.2)
 
 Release 5c of the war update: what v0.102.1's report listed as not done (except fog from strategic intel, which belongs to the strategic layer in v0.103.0).
