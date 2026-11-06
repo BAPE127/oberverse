@@ -66,5 +66,5 @@ Resources bar (manpower, fuel, ammo, supplies, tanks ready, helicopters, aircraf
 
 | Release | Adds |
 | --- | --- |
-| v0.117.0 (11a) (built as v0.103.0, v0.103.1 and v0.103.2) | provinces, controllers, terrain and the map screen with modes; the template designer and raising a battalion from real items; orders and movement; supply and hubs; the engagement window; AI nations' weekly battles; the order of battle |
+| v0.117.0 (11a) (built as v0.103.0, v0.103.1 and, still to come, v0.103.3) | provinces, controllers, terrain and the map screen with modes; the template designer and raising a battalion from real items; orders and movement; supply and hubs; the engagement window; AI nations' weekly battles; the order of battle |
 | v0.117.1 (11b) | air wings, naval fleets and convoys, landings, helicopters moving troops, intel levels and satellites, international contracts |

@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.2] — 2026-11-06 — War: The Command Terminal (development build)
+
+The owner asked for the mercenary business to be run from a terminal in the world, like the arms and aerospace terminals, not from an app, and for the Arms company to supply it free, with the option to buy from other manufacturers when the works fall behind. (The air, sea, landing and international-contract work planned for 103.2 moves to 103.3.)
+
+**The command terminal.** A terminal stands in the site office at Hollowmoor Lot (mock-up `docs/mockups/proposal-war-terminal-supply.png`). It is a full-screen panel with a side bar: Overview (the base's buildings), People, Squads, Armoury, Supply, Base, Generals & engagements, Contracts, Production and the Strategic map. The tablet's Military app now only founds the company (register, money in and out, licence, lot, site office) and shows a status card.
+
+**The supply link.** Set a standing level per item the Arms works make; every morning the works ship what their export cages hold toward it, free (no sale, no entry). Crates are opened for the purpose. A works can be marked "makes for the company": its idle stations retool to what the company is short of and go back when the level is met. What the works cannot keep up with can be bought from other manufacturers at 1.4 times its value, paid by the company, in two days.
+
+**A bug the link exposed.** The Arms stations make crates but the transfer to the company only read loose items, so real production could not reach the company. Transfers now count crates.
+
+**Edited existing files.** Tests: none changed. Tools: `tools/smoke-test.mjs` (the Military-app checks now run on the terminal's pages; the tablet checks the first steps and that the old segment bar is gone) and `tools/validate-content.mjs` (the `war` interact kind). Existing tests that pin the Military app's presence (`war_company`, `tablet_groups`, `tablet_home`) are unchanged and pass.
+
+New tests: `war_supply_link` (4) and `war_terminal` (1). See `docs/WAR.md`, "The command terminal and the supply link".
+
 ## [0.103.1] — 2026-11-06 — War: Strategic Command II (development build)
 
 Second of the three strategic releases (103.0 the map, battalions and orders; **103.1** the war fights back, supply, weather, intelligence; 103.2 air, sea, landings, contracts). The owner's answers: counter-attacks at different levels, the AI fairly smart and depending on the country, supply only weakens, and a clear way to buy the licence and begin the base.

@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.2',
+    date: '2026-11-06',
+    channel: 'development',
+    title: 'War: The Command Terminal',
+    notes: [
+      'The mercenary business is run from a command terminal in the site office at Hollowmoor Lot, like the arms and aerospace terminals: people, squads, the armoury, supply, generals, contracts, the base and the war map. The tablet only founds the company and tells you how things stand.',
+      'The Arms company supplies the mercenaries free: set a level for each weapon, round, rocket, shell, missile or drone and the works ship what their cages hold every morning. A works can be told to make for the company. What the works cannot keep up with can be bought from other manufacturers, dearer, in two days.',
+      'Fixed: crates from the Arms works could not be moved to the company; transfers now count crates.',
+    ],
+  },
+  {
     version: '0.103.1',
     date: '2026-11-06',
     channel: 'development',

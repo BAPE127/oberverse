@@ -136,6 +136,26 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 
 **Orders added:** `smoke`, `suppress` (a point; no target needed; pins whoever stands within two and a half tiles) and `breach` (a tank or an anti-tank soldier (a rocket or the tank gun, not a rifle) opens a wall segment: two tank shells, and the wall becomes rubble that does not stop a look or a person). Orders and support are in the log, so a save replays them.
 
+## The command terminal and the supply link (v0.103.2)
+
+**The terminal.** The business is no longer run from the tablet. A **command terminal** stands in the site office at Hollowmoor Lot (mock-up `docs/mockups/proposal-war-terminal-supply.png`, source `docs/mockups/src/war-terminal.html`), in the same family as the arms and aerospace terminals: a full-screen panel with a side bar of pages. The pages are the screens the Military app used to carry (People, Squads, Armoury, Base, Generals & engagements, Contracts, Production), plus an **Overview** (the base's buildings: order, repair, rebuild) and **Supply**; **Strategic map** opens from the side bar and "Decide the battle" on the map opens the terminal on that engagement. The **tablet's Military app only founds the company**: register, put money in (and take it out), the licence, the lot, the site office (the Getting started steps), and a status card ("how things stand") that tells you where to go. The app still appears with an arms licence or a registered company (three existing tests pin that). The terminal is a prop in the generated interior of the site office (`terminal` on the building in `src/content/maps/hollowmoor.js`, placed by `src/world/interiors.js`, `interact.kind: 'war'`), so an old save gets it on loading; it is reached only once Mason's Os has built the office.
+
+**The supply link** (`src/war/link.js`, constants `LINK` in `src/content/procurement.js`). Supplies from the Arms company are **free to the war company**: at the terminal you set a **standing level** per item the Arms works make (guns, rockets, shells, missiles, drones; ARMS_TRANSFERABLE). Each morning every owned works ships what its **export cage** holds toward each level, at no charge: the stock moves between your own companies, no sale and no entry, and only what the cage really holds moves. The works' stations make **crates** (one crate is five weapons, `CRATE`), so a cage item is its loose items plus its crates; taking some opens crates and the rest of an opened crate stays in the cage as loose items (`src/war/cage.js`). The manual transfer (Supply, "Aircraft, missiles and one-off moves") reads crates the same way: before this release it only saw loose items, which the stations never make, so real production could not reach the company. Uniforms, rations, medicine, spares, fuel and parts are not arms; the company still buys those from suppliers as before.
+
+**Producing to demand.** A works can be marked **"makes for the company"**. Its idle stations (nothing in hand) are retooled to the items the company is short of (level, less the stores, what is on its way and what the cages hold), shortest first and no more stations on an item than its shortfall in crates asks for, using only recipes that station can make and that are researched; the station remembers what it was making (`forCompany`) and goes back to it when the level is met, or when the switch is turned off, finishing the unit in hand first. A works that is not marked is never touched. (It is a switch you set, not a manager duty: the arms manager's own jobs are unchanged.)
+
+**Buying elsewhere.** Where the works cannot keep up (no station making it, or too slow), the terminal shows what is short and a button to buy it from **other manufacturers**: `LINK.markup` (1.4) times the item's value, paid by the company from its own account, in the stores in `LINK.days` (2) days as `arms:bought:<item>` (usable like any arms stock, never returnable). You cannot buy past the level, and what is on its way counts toward it.
+
+**Saved:** `company.link = { want, works, inbound, flow, log, day }`, made on first use (see SAVE_FORMAT.md).
+
+## Honest limits (v0.103.2)
+
+- Nothing was calibrated: the markup (1.4), the two days, the retool rule (one station per four crates of shortfall) are starting figures.
+- Retooling only changes idle stations of a works you marked; it does not hire staff, order parts or check that a station is staffed, so a retooled station without workers or parts simply waits. The terminal shows "unstaffed" stations.
+- Buying elsewhere has no supplier stock, no price movement and no embargo or war effect; it is one price at one markup.
+- The map screen can be opened from the terminal only; the tablet no longer opens it. There is one terminal (the site office); the Command HQ has none yet.
+- A free shipment is limited by the stores' room; when the stores are full nothing ships and purchases wait at the door.
+
 ## Strategic command II (v0.103.1)
 
 | Piece | Where |
@@ -163,13 +183,13 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 - **A formation attacks one province at a time and only from where it stands**: no flanking, no encirclement, no cutting of supply by design (cunning countries pick weak spots but do not aim at your supply line).
 - **Fuel and ammunition.** Fuel is burnt by vehicles in the theatre at a flat rate and only changes the aggregate result; ammunition and rations are not tracked (supply stands for them). A played battle does not read fuel.
 - **Weather** is regional by coarse cells and a hash, not a climate model; it does not change a played battle's map.
-- **Intelligence** has no air or satellite source yet (103.2): your battalions, recon companies and ground are all there is. An enemy formation out of sight is not drawn and not counted.
+- **Intelligence** has no air or satellite source yet (103.3): your battalions, recon companies and ground are all there is. An enemy formation out of sight is not drawn and not counted.
 - **A contract's end.** If your employer loses everything in the theatre your battalions are shipped home and the contract ends with nothing owed either way; the retainer for the days served has been paid already.
 - **The debug switch `war.aiOff`** stops the nations (it is what the older tests use); it is not reachable from the game.
 
 ## Strategic command (v0.103.0)
 
-Release 6a of the war update: the strategic layer's ground, units and orders. The proposal (`PROPOSAL_WAR_STRATEGIC.md`) is built in three releases (103.0, 103.1, 103.2); this is the first.
+Release 6a of the war update: the strategic layer's ground, units and orders. The proposal (`PROPOSAL_WAR_STRATEGIC.md`) is built in three releases (103.0, 103.1, 103.3; 103.2 became the command terminal); this is the first.
 
 | Piece | Where |
 | --- | --- |
@@ -196,7 +216,7 @@ Release 6a of the war update: the strategic layer's ground, units and orders. Th
 
 - **The strategic exchange of the proposal is not here.** There is no hourly battle between battalions, no combat width, reserve or plan bonus: a contact is one engagement, decided by the same aggregate function or the played battle as every other. The stats shown for a battalion are derived for the player to read and are **not** used by the resolver (the engagement's forces are the real squads and vehicles, as before).
 - (103.0's limits on supply, fog and a static enemy are answered in 103.1, above.)
-- **No air, sea or landings.** A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.2.
+- **No air, sea or landings.** A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.3.
 - **Employers and money.** The retainer rates are starting figures, set from the existing engagement pay rates and not calibrated against the company's costs; reputation moves only with ground taken. Discharging is allowed only with every battalion at home; ground keeps the owners it has when you go.
 - **Strategic engagements** are not the client's contracts: no pay of their own, no client reputation, no ban; if nobody decides one in three days the battalion breaks off. The ordinary contract offers (hold, retake, raid, extract, rescue) are unchanged and are not yet tied to provinces on the map.
 - **Drawing.** Battalions are banners with two bars, not the mock-up's figurines; the map's modes Supply, Weather, Air, Naval, Intel and Contracts are greyed buttons; the ground is drawn from the world's shape, so coasts are the world's own and the province borders are the exact cut. A theatre draws once per session in about three seconds (a progress count shows).
