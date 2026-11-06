@@ -41,3 +41,16 @@ export const SLOTS = {
   },
 };
 export const MAX_LINE = 25;
+
+// ---- v0.103.1: supply, weather, intelligence (src/war/supply.js)
+export const WEATHER = {
+  clear: { name: 'Clear', speed: 1, flow: 1, org: 0, colour: '#e8d878' }, rain: { name: 'Rain', speed: 0.85, flow: 1.15, org: 0, colour: '#6fa8dc' }, mud: { name: 'Mud', speed: 0.6, flow: 1.45, org: 1, colour: '#8a6a44' },
+  snow: { name: 'Snow', speed: 0.65, flow: 1.35, org: 2, colour: '#f0f4ff' }, heat: { name: 'Heat', speed: 0.9, flow: 1.1, org: 2, colour: '#e8884a' },
+};
+/** Supply level 0 to 100 at a hub; what each step across ground loses (by the infrastructure of the province entered), what a railway and a plain road make of it, and rough ground. */
+export const SUPPLY = { hub: 100, loss: [0, 24, 18, 13, 9, 6], rail: 0.5, road: 0.8, trackless: 1.6, ground: { mountains: 1.6, marsh: 1.4, jungle: 1.4, forest: 1.2, hills: 1.2, desert: 1.15 } };
+/** What a shortage of supply does (it only weakens): below `full` an army recovers less each day, below `low` it loses organisation, and fights with less morale and more fatigue. */
+export const WEAKEN = { full: 70, low: 25, restFloor: 0.25, drain: 3, speedFloor: 0.8, morale: 0.45, fatigue: 30 };
+export const FUEL = { perVehicleDay: 0.3 };
+/** What a report says: its error at each level of intelligence, and how far your battalions see (steps of provinces) without and with a recon company. */
+export const INTEL = { error: { 0: 0.7, 1: 0.35, 2: 0.08 }, reach: { plain: { known: 0, spotted: 1 }, recon: { known: 1, spotted: 2 } } };

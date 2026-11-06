@@ -25,6 +25,8 @@ export function createBattle(setup) {
   B.reserve = mine.filter((x) => x.reserve); // (held off the map until called: rules 4)
   placeUnits(B, 'p', mine.filter((x) => !x.reserve)); placeUnits(B, 'e', setup.units.filter((x) => x.side === 'e'));
   for (const v of B.units) if (v.vip) { const at = standNear(B, map.objective.x, map.objective.y, 'inf'); if (at) { v.x = at.x; v.y = at.y; } } // (a person to be got out starts at the marked ground)
+  // v0.103.1: a battle on the strategic map begins with what your intelligence of the province gives: known (everything is marked), spotted (most of it), unseen (nothing: you find the enemy in the field)
+  if (setup.intel === 0 || setup.intel === 1 || setup.intel === 2) for (const u of B.units) if (u.side === 'e' && (setup.intel === 2 || (setup.intel === 1 && chance(`${B.key}|intel|${u.id}`) < 0.6))) B.spotted[u.id] = 0;
   B.start.p = B.units.filter((u) => u.side === 'p').length; B.start.e = B.units.filter((u) => u.side === 'e').length;
   B.startAcc = { p: B.units.filter((u) => u.side === 'p' && u.rec).length };
   return B;

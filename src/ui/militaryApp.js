@@ -38,6 +38,17 @@ export function militaryApp(ui, body, open) {
   body.append(
     hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. ${V.licensed ? 'Licensed' : 'Not licensed yet'} · ${V.lotOwned ? 'Hollowmoor Lot owned' : 'no ground yet'}.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
     tiles([{ n: String(n(cap.beds)), t: 'beds' }, { n: String(n(cap.stores)), t: 'stores' }, { n: prot ? 'safe' : 'at risk', t: 'the base', tone: prot ? '' : 'warn' }]));
+  // v0.103.1: getting started: the four steps to a first building, each with its button and the plain reason it cannot be pressed yet
+  const siteOffice = V.lotOwned ? W.facilities().find((f) => f.id === 'site_office') : null;
+  if (!siteOffice || siteOffice.state === 'none') {
+    const costs = { licence: LOT.licence, lot: LOT.price, office: W.quote('site_office')?.cost ?? 20000 }; const need = (V.licensed ? 0 : costs.licence) + (V.lotOwned ? 0 : costs.lot) + costs.office;
+    const step = (done, title, sub, action) => row({ icon: done ? '✅' : '➤', title, sub, tone: done ? 'good' : '', action: done ? null : action });
+    body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'Getting started: your first building'), list(
+      step(V.cash >= need, `Put ${n(need)} obols into the company`, `The company pays for everything itself, from its own account (it holds ${n(V.cash)}). You hold ${n(g.player.money)}.`, h('button', { class: 'tb-mini pri', disabled: g.player.money < need - V.cash, onclick: () => go(W.fund(need - V.cash)) }, `Pay in ${n(Math.max(0, need - V.cash))}`)),
+      step(V.licensed, `Buy the Civic Office licence · ${n(costs.licence)}`, 'The Civic Office\'s paperwork for a private security company. Mason\'s Os cannot get a building permit without it.', h('button', { class: 'tb-mini pri', disabled: V.cash < costs.licence, onclick: () => go(W.buyLicence()) }, 'Buy the licence')),
+      step(V.lotOwned, `Buy Hollowmoor Lot · ${n(costs.lot)}`, V.licensed ? 'Fenced ground with a gate, from the Land Registry: where the base is built.' : 'Needs the licence first: the Land Registry sells only to licensed companies.', h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < costs.lot, onclick: () => go(W.buyLot()) }, 'Buy the lot')),
+      step(false, `Order the site office · ${n(costs.office)}`, V.lotOwned ? 'Mason\'s Os builds it in a few days; the rest of the base opens stage by stage after it.' : 'Needs the lot first.', h('button', { class: 'tb-mini pri', disabled: !V.lotOwned || V.cash < costs.office, onclick: () => go(W.commission('site_office')) }, 'Order it'))));
+  }
   // money in and out: the only two acts that cross between you and the company
   const amount = h('input', { type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px;padding:8px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px' });
   const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));

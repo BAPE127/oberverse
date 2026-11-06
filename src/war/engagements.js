@@ -31,7 +31,7 @@ const maxOpen = (rep) => Math.min(E.maxOpen, E.open + Math.floor(Math.max(0, rep
 
 // ---- the real forces behind an assignment
 const tierHeld = (p) => (p.weapon && CLASSES[p.role]?.tiers?.[2] && p.weapon.endsWith(`:${CLASSES[p.role].tiers[2]}`) ? 2 : 1);
-function forces(game, squadIds) {
+function forces(game, squadIds, eng = null) {
   const C = peekMilitary(game).company;
   const squads = squadIds.map((id) => C.squads.find((s) => s.id === id)).filter(Boolean);
   const people = []; const vehicles = [];
@@ -39,6 +39,7 @@ function forces(game, squadIds) {
     for (const m of s.members) { const p = C.personnel.find((x) => x.id === m); if (p && p.status === 'active') people.push({ id: p.id, name: p.name, role: p.role, tier: tierHeld(p), armour: p.armour || 1, exp: p.exp || 0, morale: p.morale ?? 70, fatigue: p.fatigue || 0, armed: Boolean(p.weapon) }); }
     for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); const V = x && VEHICLES[x.type]; if (V && (x.status === 'assigned' || x.status === 'deployed')) vehicles.push({ id: x.id, name: x.name, type: x.type, cls: V.class, armour: V.armour, firepower: V.firepower, speed: V.speed }); }
   }
+  if (eng?.strategic) hooks.strategicForceMod?.(game, eng, people); // (a battalion short of supply fights with less morale and more fatigue; the records are not touched)
   return { squads, people, vehicles };
 }
 const stockSum = (C, suffix) => Object.entries(C.stock).filter(([k]) => k === suffix || k.endsWith(`:${suffix}`)).reduce((a, [, n]) => a + n, 0);
@@ -50,19 +51,19 @@ export function lacks(game, eng, squadIds) {
   return Object.entries(eng.needs).filter(([k, n]) => have[k] < n).map(([k, n]) => `${n - have[k]} more ${k === 'troops' ? 'soldier' : k.slice(0, -1)}${n - have[k] === 1 ? '' : 's'} (${n} needed, ${have[k]} sent)`);
 }
 
-function inputFor(game, eng, squadIds, generalId) {
+function inputFor(game, eng, squadIds, generalId, reported = false) {
   const C = peekMilitary(game).company;
-  const F = forces(game, squadIds);
+  const F = forces(game, squadIds, eng);
   const G = generalId ? GENERALS[C.generals.find((x) => x.id === generalId)?.gen] : null;
-  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, goal: eng.goal, enemy: eng.enemy, people: F.people, vehicles: F.vehicles,
-    general: G ? { ...G, bonus: G.terrain?.[eng.terrain] ?? 0 } : null, supplies: { fuel: stockSum(C, 'supply:fuel'), rockets: stockSum(C, 'item_rpg_rocket') } } };
+  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, goal: eng.goal, enemy: reported && eng.reported ? { ...eng.enemy, ...eng.reported } : eng.enemy, people: F.people, vehicles: F.vehicles,
+    general: G ? { ...G, bonus: G.terrain?.[eng.terrain] ?? 0 } : null, supplies: { fuel: eng.strategic ? hooks.strategicFuel?.(game, eng) ?? stockSum(C, 'supply:fuel') : stockSum(C, 'supply:fuel'), rockets: stockSum(C, 'item_rpg_rocket') } } };
 }
 
 /** The estimate before you commit: the same function that will decide it, with the luck taken out. */
 export function assess(game, id, squadIds, generalId) {
   const eng = find(game, id);
   if (!eng) return { ok: false, text: 'No such engagement.' };
-  const { input } = inputFor(game, eng, squadIds, generalId);
+  const { input } = inputFor(game, eng, squadIds, generalId, true); // (the estimate uses what is reported of the enemy, not what is there)
   const e = estimate(input);
   return { ok: true, lacks: lacks(game, eng, squadIds), estimate: { words: e.words, ratio: e.ratio, chance: e.chance, lossPeople: Math.round(e.expected.dead + e.expected.wounded), deadExpected: Math.round(e.expected.dead * 10) / 10, vehiclesExpected: Math.round(e.expected.lost * 10) / 10, parts: e.parts } };
 }
@@ -90,7 +91,7 @@ export function delegate(game, id, { squads, general }) {
 
 /** Hold everything an engagement sends: the squads go away, their people are on a post, the vehicles are deployed and the general (if any) is away. Both ways of fighting use this. */
 function commitForces(game, C, eng, squads, gen) {
-  const F = forces(game, squads);
+  const F = forces(game, squads, eng);
   for (const s of F.squads) s.status = 'away';
   for (const p of F.people) C.personnel.find((x) => x.id === p.id).post = `engagement:${eng.id}`;
   for (const v of F.vehicles) C.equipment.find((x) => x.id === v.id).status = 'deployed';
@@ -121,7 +122,7 @@ export function play(game, id, squads, reserves = []) {
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, intel: eng.strategic?.intel, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
@@ -167,11 +168,11 @@ export function decline(game, id) {
  * A battle on the strategic map (v0.103.0): a battalion has made contact with an enemy-held province. It is an engagement like any other (play it, give it to a general, or break off), with
  * the battalion's squads as the force, the province's garrison as the enemy, and no pay of its own (the employer's retainer and bonus pay for the war). Returns its id.
  */
-export function openStrategic(game, { battalion, province, enemy, recipe, terrain, style, title }) {
+export function openStrategic(game, { battalion, province, enemy, reported = null, intel = 2, recipe, terrain, style, title, defend = false, formation = null }) {
   const C = peekMilitary(game)?.company; if (!C?.identity) return null;
   const day = game.clock.day; const st = ATLAS.states.find((x) => x.id === province.state);
   const id = nextId(C, 'N');
-  ensure(C).push({ id, kind: 'strategic', title, text: `A battalion has made contact in ${province.name}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.name, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id } });
+  ensure(C).push({ id, kind: 'strategic', title, text: defend ? `An enemy formation has come against ${province.name}. Play it yourself, give it to a general, or give the ground up.` : `A battalion has made contact in ${province.name}. Play it yourself, give it to a general, or break off.`, client: 'Your employer', clientName: 'Your employer', place: province.name, region: st?.name || province.state, placeKind: null, recipe, style, terrain, biome: terrain, goal: defend ? 'defence' : 'offence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, reported, pay: 0, state: 'open', offered: day, expires: day + 3, strategic: { bn: battalion.id, prov: province.id, defend, fid: formation, intel } });
   return id;
 }
 

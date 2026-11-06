@@ -20,7 +20,9 @@ import { ATLAS } from '../content/atlas.js';
 import { VEHICLES } from '../content/procurement.js';
 import { CLASSES } from '../content/troops.js';
 import { CARRY, styleOf } from '../content/battle.js';
-import { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE } from '../content/strategic.js';
+import { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL } from '../content/strategic.js';
+import { weatherOf, supplyMap, intelMap, estimate } from './supply.js';
+import { stockOf, takeStock } from './equipment.js';
 import { CLASS_POWER } from './combat.js';
 import { hooks } from './hooks.js';
 import { openStrategic } from './engagements.js';
@@ -43,12 +45,26 @@ const note = (w, game, text) => { w.log.push({ day: game.clock.day, text }); whi
 
 // ---- the ground: who holds what
 export const controllerOf = (game, p) => warOf(game)?.control?.[p.id] ?? p.country;
+// ---- supply, weather, intelligence (src/war/supply.js): recomputed from the ground and the day, never saved
+export const ctlOf = (game) => (p) => controllerOf(game, p);
+export const weatherNow = (game, p) => weatherOf(p, game.clock.day);
+export const supplyAt = (game, p, side) => { const s = side || warOf(game)?.employer?.side; return s ? supplyMap(provinces(), ctlOf(game), s, game.clock.day)[p.n] : 100; };
+const reconOf = (game, bn) => { const P = providedBy(game, bn.squads); return (P.cls.recon || 0) + (P.role.recon || 0) > 0; };
+/** What the employer's side knows of each province: 2 known (its own ground, and next to a recon company), 1 spotted (next to a battalion or ground it holds), 0 unseen. */
+export function intelLevels(game) {
+  const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces();
+  const src = w.battalions.filter((b) => b.status === 'theatre').map((b) => ({ n: provinceById(b.pos).n, ...(reconOf(game, b) ? INTEL.reach.recon : INTEL.reach.plain) }));
+  for (const s of hooks.allySources?.(game) || []) src.push(s);
+  for (const p of P) if (controllerOf(game, p) === e.side && p.state && inTheatre(theatreOf(game, e.theatre))(p)) src.push({ n: p.n, known: 0, spotted: 1 });
+  return intelMap(P, ctlOf(game), e.side, src);
+}
+export const intelAt = (game, p) => intelLevels(game)?.[p.n] ?? 0;
 const homeProvince = () => provinceAt(52.6, -21.5); // Fort Gullcrest's province: where a battalion is raised
 const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
-/** What an enemy-held province holds: from its fort, its victory points, its size and its infrastructure, with a spread by the province's own hash. Taken ground holds nothing. */
+/** What a province holds while its own country holds it: from its fort, its victory points, its size and its infrastructure, with a spread by the province's own hash. Taken ground holds nothing. */
 export function garrisonOf(game, p) {
-  const w = warOf(game); const e = w?.employer; if (!e || controllerOf(game, p) === e.side) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 };
+  if (controllerOf(game, p) !== p.country) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a formation stands on it
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
   const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread));
   const armour = (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
@@ -148,7 +164,7 @@ export function statsOf(game, bn) {
   const mounted = P.carriage >= people.length; const speeds = hulls.map((x) => MARCH.base + MARCH.perBar * (VEHICLES[x.type]?.speed || 2));
   let speed = Math.min(mounted ? Infinity : MARCH.foot, speeds.length ? Math.min(...speeds) : Infinity); if (!Number.isFinite(speed)) speed = MARCH.foot; speed = Math.round(speed);
   const parts = P.people + P.vehicles; const start = bn.start.people + bn.start.vehicles;
-  return { strength: Math.round(100 * Math.min(1, parts / Math.max(1, start))), org: Math.round(bn.org), soft, hard, defence: Math.round(people.length * 3 + armour), armour, speed, width: Math.min(60, P.squads * 4 + P.vehicles * 2), people: people.length, vehicles: P.vehicles, mounted, entrench: bn.entrench, hardness: parts ? Math.round((100 * P.vehicles) / parts) : 0 };
+  return { strength: Math.round(100 * Math.min(1, parts / Math.max(1, start))), org: Math.round(bn.org), soft, hard, defence: Math.round(people.length * 3 + armour), armour, speed, width: Math.min(60, P.squads * 4 + P.vehicles * 2), people: people.length, vehicles: P.vehicles, mounted, entrench: bn.entrench, supply: bn.status === 'theatre' ? Math.round(supplyAt(game, provinceById(bn.pos))) : 100, fuelShort: Math.round((bn.fuelShort || 0) * 100), hardness: parts ? Math.round((100 * P.vehicles) / parts) : 0 };
 }
 
 // ---- theatres and employers
@@ -201,9 +217,13 @@ export function recall(game, id) {
 
 // ---- orders and marches
 const friendly = (game, p) => controllerOf(game, p) === warOf(game).employer.side;
+/** Hours for a column doing `speed` km/h to go from one province to the next: by ground, infrastructure, railway and the weather where it is going. */
+export function marchHours(game, speed, from, to) {
+  const d = km(from, to) * MARCH.detour; const fx = TERRAIN_FX[to.terrain]?.speed ?? 1; const infra = INFRA_SPEED[Math.min(from.infra, to.infra)] ?? 0.6; const rail = from.rail.includes(to.n) ? MARCH.rail : 1; const wx = WEATHER[weatherNow(game, to)].speed;
+  return Math.max(1, d / (Math.max(1, speed) * fx * infra * rail * wx));
+}
 function legHours(game, bn, from, to) {
-  const st = statsOf(game, bn); const d = km(from, to) * MARCH.detour; const fx = TERRAIN_FX[to.terrain]?.speed ?? 1; const infra = INFRA_SPEED[Math.min(from.infra, to.infra)] ?? 0.6; const rail = from.rail.includes(to.n) ? MARCH.rail : 1;
-  return Math.max(1, d / (Math.max(1, st.speed) * fx * infra * rail));
+  const st = statsOf(game, bn); const sup = Math.max(0, Math.min(1, st.supply / 100)); return marchHours(game, Math.max(1, st.speed) * (WEAKEN.speedFloor + (1 - WEAKEN.speedFloor) * sup), from, to);
 }
 function route(game, bn, to) { // the cheapest way through ground the employer holds, inside the theatre
   const w = warOf(game); const th = theatreOf(game, w.employer.theatre); const P = provinces(); const here = provinceById(bn.pos);
@@ -247,12 +267,24 @@ function arrive(game, w, bn, hour) {
   else if (bn.status === 'returning') { posting(game, bn, false); bn.status = 'home'; bn.pos = bn.home; bn.arrive = null; note(w, game, `${bn.name} is home.`); game.notify?.(`${bn.name} is home.`, 'info'); }
   void hour;
 }
+/** Everything an enemy holds a province with: its garrison and the formations standing in it. */
+export function hostileForce(game, prov) {
+  const g = garrisonOf(game, prov); const F = hooks.presentForce?.(game, prov) || { troops: 0, armour: 0 };
+  const troops = g.troops + F.troops; return { ...g, troops, armour: g.armour + F.armour, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0 };
+}
 function contact(game, w, bn, prov) {
-  const C = peekMilitary(game)?.company; const g = garrisonOf(game, prov);
+  const real = hostileForce(game, prov); const lvl = intelAt(game, prov) + (reconOf(game, bn) ? 1 : 0); const k = `${prov.id}|${w.hour}`;
+  const reported = { troops: estimate(real.troops, Math.min(2, lvl), `${k}t`), armour: estimate(real.armour, Math.min(2, lvl), `${k}a`) };
   bn.moving = null; bn.order = { type: 'hold' };
-  const id = openStrategic(game, { battalion: bn, province: prov, enemy: g, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
   if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.name}.`); game.notify?.(`${bn.name} is in contact at ${prov.name}: choose how to fight it.`, 'warn'); }
-  void C;
+}
+/** An enemy formation has come against a province where a battalion of yours stands: the same choice, with you defending. Returns the engagement id. */
+export function defend(game, w, bn, prov, formation) {
+  const enemy = { troops: formation.troops, armour: formation.armour, air: 0, aa: 0, battery: formation.troops >= 28 ? 1 : 0, skill: formation.skill || 1 };
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy, reported: enemy, intel: 2, recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${countryName(formation.country)} attacks ${bn.name} at ${prov.name}`, defend: true, formation: formation.id });
+  if (id) { bn.engaged = id; bn.moving = null; bn.order = { type: 'hold' }; note(w, game, `${countryName(formation.country)} attacks ${bn.name} at ${prov.name}.`); game.notify?.(`${countryName(formation.country)} is attacking ${bn.name} at ${prov.name}: choose how to fight it.`, 'warn'); }
+  return id;
 }
 export const recipeOf = (p) => (p.terrain === 'urban' ? 'city' : p.fort >= 3 ? 'compound' : p.fort >= 2 ? 'trench' : p.terrain === 'forest' || p.terrain === 'jungle' ? 'forest' : 'fields');
 export const battleTerrain = (p) => (p.terrain === 'forest' || p.terrain === 'jungle' ? 'forest' : p.terrain === 'hills' || p.terrain === 'mountains' ? 'mountain' : p.terrain === 'desert' ? 'desert' : p.terrain === 'urban' ? 'urban' : 'rural');
@@ -275,6 +307,7 @@ export function advance(game) {
         } else if (bn.order.type === 'defend' && h % BATTALION.entrenchHours === 0) bn.entrench = Math.min(BATTALION.entrenchMax, bn.entrench + 1);
       }
     }
+    if (w.employer) hooks.aiHour?.(game, w, h);
   }
   w.hour = to;
 }
@@ -287,8 +320,16 @@ export function dayTick(game) {
   let pay = 0;
   for (const bn of w.battalions) {
     if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); pay += P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); }
-    if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
+    if (bn.status === 'theatre') {
+      // fuel: a vehicle in the theatre burns some of the company's own stock each day; short of it, the vehicles count for less in a fight (they are never stopped)
+      const P = providedBy(game, bn.squads); const need = Math.ceil(P.vehicles * FUEL.perVehicleDay * 10) / 10; const have = Math.min(need, stockOf(game, 'supply:fuel')); if (have > 0) takeStock(game, 'supply:fuel', Math.ceil(have)); bn.fuelShort = need > 0 ? Math.max(0, 1 - Math.ceil(have) / need) : 0;
+      // supply: it only weakens: less rest below `full`, a drain below `low`, and the weather's toll on a thin supply
+      const sup = supplyAt(game, provinceById(bn.pos)) / 100; const wx = WEATHER[weatherNow(game, provinceById(bn.pos))];
+      if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay * (sup * 100 >= WEAKEN.full ? 1 : WEAKEN.restFloor + (1 - WEAKEN.restFloor) * (sup * 100 / WEAKEN.full)));
+      if (sup * 100 < WEAKEN.low) bn.org = Math.max(0, bn.org - WEAKEN.drain); if (sup * 100 < WEAKEN.full) bn.org = Math.max(0, bn.org - wx.org);
+    } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
+  if (w.employer) hooks.aiDay?.(game, w);
   if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
@@ -297,12 +338,15 @@ function resolved(game, C, eng, R) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
   const prov = provinceById(eng.strategic.prov); const obj = R.objectives; bn.engaged = null; bn.order = { type: 'hold' }; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[obj]);
   let line = `${bn.name} at ${prov.name}: `;
-  if (obj >= 2) {
+  if (eng.strategic.defend) {
+    if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj); }
+  } else if (obj >= 2) {
+    hooks.attackWon?.(game, prov);
     w.control[prov.id] = w.employer.side; bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
     const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
     line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;
-  } else line += obj === 1 ? 'a stalemate: the enemy still holds.' : 'repulsed.';
+  } else { line += obj === 1 ? 'a stalemate: the enemy still holds.' : 'repulsed.'; hooks.attackFailed?.(game, prov, obj); }
   // the squads came back from the field: they belong to the battalion again
   const live = []; for (const sid of bn.squads) { const s = C.squads.find((q) => q.id === sid); if (!s) continue; if (!s.members.length && !s.equipment.length) { C.squads = C.squads.filter((q) => q !== s); continue; } live.push(sid); s.status = 'battalion'; s.battalion = bn.id; for (const e of s.equipment) { const x = C.equipment.find((q) => q.id === e); if (x && x.status === 'assigned') x.status = 'deployed'; } }
   bn.squads = live; posting(game, bn, true); const cmd = C.personnel.find((p) => p.id === bn.commander);
@@ -310,22 +354,36 @@ function resolved(game, C, eng, R) {
   if (!bn.squads.length) { w.battalions = w.battalions.filter((b) => b !== bn); line += ' Nothing is left of it.'; }
   note(w, game, line);
 }
+/** A province is lost with a battalion of yours in it: the enemy takes it and the battalion falls back to the best ground next door (or, cut off, to the landing). */
+function fallBack(game, w, bn, prov, obj) {
+  w.control[prov.id] = w.employer.enemy; const P = provinces(); const th = theatreOf(game, w.employer.theatre);
+  const next = prov.neighbours.map((n) => P[n]).filter((q) => inTheatre(th)(q) && controllerOf(game, q) === w.employer.side).sort((a, b) => supplyAt(game, b) - supplyAt(game, a) || (a.id < b.id ? -1 : 1))[0] || provinceById(w.employer.staging);
+  bn.pos = next.id; bn.path = []; bn.moving = null; bn.org = Math.max(0, bn.org - 10);
+  return `${obj === 1 ? 'the line gives way' : 'overrun'}: ${prov.name} is lost and the battalion falls back to ${next.name}.`;
+}
 function withdrawn(game, C, eng) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
+  if (eng.strategic.defend) { const prov = provinceById(eng.strategic.prov); bn.engaged = null; bn.order = { type: 'hold' }; const line = fallBack(game, w, bn, prov, 0); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, 0); note(w, game, `${bn.name} gives up ${prov.name}: ${line}`); return; }
   bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${provinceById(eng.strategic.prov).name}.`);
 }
 hooks.strategicResolved = resolved; hooks.strategicWithdrawn = withdrawn;
+hooks.strategicForceMod = (game, eng, people) => {
+  const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
+  const f = WEAKEN.morale + (1 - WEAKEN.morale) * (sup / WEAKEN.full); for (const p of people) { p.morale = Math.round((p.morale ?? 70) * f); p.fatigue = Math.min(100, (p.fatigue || 0) + Math.round((1 - f) * WEAKEN.fatigue * 2)); }
+};
+hooks.strategicFuel = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn?.fuelShort) return null; const need = Math.ceil(providedBy(game, bn.squads).vehicles * eng.days * FUEL.perVehicleDay); return Math.round(need * (1 - bn.fuelShort)); };
 
 // ---- what the screen shows
 export function view(game) {
   const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return null;
   advance(game);
   const th = w.employer ? theatreOf(game, w.employer.theatre) : null; const P = provinces();
+  const intel = w.employer ? intelLevels(game) : new Uint8Array(P.length); const sup = w.employer ? supplyMap(P, ctlOf(game), w.employer.side, game.clock.day) : null;
   const area = th ? P.filter(inTheatre(th)) : []; const ids = new Set(area.map((p) => p.id));
   const bns = w.battalions.map((b) => ({ ...b, stats: statsOf(game, b), commanderName: C.personnel.find((p) => p.id === b.commander)?.name || null, template: templates(game).find((t) => t.id === b.template) || null, squadNames: b.squads.map((s) => C.squads.find((q) => q.id === s)?.name).filter(Boolean) }));
   return {
     hour: nowHour(game), employer: w.employer ? { ...w.employer, sideName: countryName(w.employer.side), enemyName: countryName(w.employer.enemy), theatreName: th?.name } : null, theatre: th, theatres: theatres(game),
-    provinces: area.map((p) => ({ ...p, controller: controllerOf(game, p), garrison: garrisonOf(game, p) })), neighbourIds: ids,
+    provinces: area.map((p) => { const ctl = controllerOf(game, p); const lvl = intel[p.n]; const real = ctl === w.employer?.enemy ? hostileForce(game, p) : null; return { ...p, controller: ctl, weather: weatherNow(game, p), supply: w.employer ? Math.round(sup[p.n]) : 0, intel: lvl, garrisonReport: real ? { troops: estimate(real.troops, lvl, `${p.id}|g|${Math.floor(w.hour / 24)}`), armour: estimate(real.armour, lvl, `${p.id}|a|${Math.floor(w.hour / 24)}`), level: lvl } : null }; }), neighbourIds: ids, formations: w.employer ? hooks.formationsView?.(game, intel) || [] : [],
     battalions: bns, templates: templates(game), log: w.log.slice(-12).reverse(), paid: w.paid || 0,
     squadsFree: C.squads.filter((s) => s.status === 'home').map((s) => ({ id: s.id, name: s.name, size: s.members.length, vehicles: s.equipment.length })),
   };

@@ -451,6 +451,7 @@ try {
     while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
     const text = document.querySelector('#modal-body')?.textContent || '';
     out.company = /Smoke Test Company/.test(text) && /Site office/.test(text) && /Stage 1/.test(text);
+    out.guide = /Getting started: your first building/.test(text) && /Order the site office/.test(text) && /Hollowmoor Lot/.test(text); // v0.103.1: the first steps are laid out with their buttons
     // v0.99.0: the Military app's four pages (Company, Transfers, Production, Contracts) and a segment bar that is not squeezed away
     const bar = [...document.querySelectorAll('#modal-body .tb-seg')].find((x) => x.children.length === 4);
     out.fourSegments = Boolean(bar) && bar.getBoundingClientRect().height > 30;
