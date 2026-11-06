@@ -289,7 +289,9 @@ export function dayTick(game) {
   C.days.eng = day;
   const list = ensure(C);
   for (const eng of list) {
-    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
+    if (eng.state === 'open' && eng.expires <= day && eng.strategic?.defend && hooks.strategicSquads?.(game, eng).length) { // an attack on a battalion nobody decided: the general on the front fights it (the proposal's rule), with no general of yours
+      const sq = hooks.strategicSquads(game, eng); eng.state = 'delegated'; eng.order = { squads: [...sq], general: null, generalName: null, day: eng.offered, end: day }; commitForces(game, C, eng, sq, null); finish(game, C, eng);
+    } else if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');

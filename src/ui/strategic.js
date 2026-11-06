@@ -9,7 +9,7 @@ import { ATLAS } from '../content/atlas.js';
 import { SLOTS, MAX_LINE } from '../content/strategic.js';
 import { TERRAIN_FX, WEATHER, INTEL } from '../content/strategic.js';
 
-const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [6, '⏩ 6 h/s'], [24, '⏭ 1 d/s']];
+const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [4, '⏩ 4 h/s'], [12, '⏭ fastest']]; // (the world's own minute ticks cost about 85 ms an hour, so the fastest is about ten hours a second)
 const num = (n) => Number(n).toLocaleString('en-US');
 const bar = (v, colour) => h('div', { class: 'stc-bar' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%;background:${colour}` }));
 const BAKED = new Map(); // a theatre's ground, drawn once per session
@@ -112,7 +112,7 @@ export function strategicPanel(ui, body) {
   const sigs = { top: () => [S.speed, W.cash(), S.view.paid, S.view.employer?.side], left: () => [S.view.battalions.map((b) => [b.id, b.status, b.pos, b.engaged, b.stats.org, b.stats.strength, b.stats.people]), S.sel, S.view.employer?.side], right: () => [S.view.battalions.find((b) => b.id === S.sel)?.id, JSON.stringify(S.view.battalions.find((b) => b.id === S.sel)?.stats), S.view.battalions.find((b) => b.id === S.sel)?.status, S.view.battalions.find((b) => b.id === S.sel)?.pos, S.view.battalions.find((b) => b.id === S.sel)?.engaged, S.view.battalions.find((b) => b.id === S.sel)?.order.type, S.mode, S.view.employer?.side], bottom: () => [S.layer, S.view.log[0]?.text] };
   const paints = { top: paintTop, left: paintLeft, right: paintRight, bottom: paintBottom };
   /** A battalion newly in contact (yours attacking, or an attack on you) stops the clock: the war does not wait for you to look. */
-  const newContact = () => { const v = W.strategic(); const now = new Set((v?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged)); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
+  const newContact = () => { const now = new Set(W.contacts()); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
   const refresh = (force = true) => { ensureMap(); if (!S.view) return; S.sig ||= {}; for (const k of Object.keys(paints)) { const sg = JSON.stringify(sigs[k]()); if (force || sg !== S.sig[k]) { S.sig[k] = sg; paints[k](); } } };
 
   // ---- tooltips, picking, orders
@@ -170,7 +170,7 @@ export function strategicPanel(ui, body) {
   // ---- the loop
   const frame = (now) => {
     if (S.closed) return; raf = requestAnimationFrame(frame); const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) { S.acc = 0; break; } } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
+    if (S.speed > 0) { S.acc = Math.min(2, S.acc + dt * S.speed); if (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) S.acc = 0; } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
     if (S.map) draw();
   };
   const onResize = () => resize(); window.addEventListener('resize', onResize); resize();

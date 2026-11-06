@@ -59,10 +59,10 @@ export const supplyAt = (game, p, side) => { const s = side || warOf(game)?.empl
 const reconOf = (game, bn) => { const P = providedBy(game, bn.squads); return (P.cls.recon || 0) + (P.role.recon || 0) > 0; };
 /** What the employer's side knows of each province: 2 known (its own ground, and next to a recon company), 1 spotted (next to a battalion or ground it holds), 0 unseen. */
 export function intelLevels(game) {
-  const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces();
+  const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces(); const th = theatreOf(game, e.theatre); const inTh = inTheatre(th);
   const src = w.battalions.filter((b) => b.status === 'theatre').map((b) => ({ n: provinceById(b.pos).n, ...(reconOf(game, b) ? INTEL.reach.recon : INTEL.reach.plain) }));
   for (const s of hooks.allySources?.(game) || []) src.push(s);
-  for (const p of P) if (controllerOf(game, p) === e.side && p.state && inTheatre(theatreOf(game, e.theatre))(p)) src.push({ n: p.n, known: 0, spotted: 1 });
+  for (const p of P) if (inTh(p) && controllerOf(game, p) === e.side) src.push({ n: p.n, known: 0, spotted: 1 });
   return intelMap(P, ctlOf(game), e.side, src);
 }
 export const intelAt = (game, p) => intelLevels(game)?.[p.n] ?? 0;
@@ -326,7 +326,7 @@ export function ensureEmployer(game) {
   if (controllerOf(game, cur) === e.side) return;
   const next = staging(game, th, e.side, true);
   if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
-  note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad');
+  if (!e.collapsed) { e.collapsed = true; note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad'); }
   for (const bn of w.battalions) if (bn.status === 'theatre' && !bn.engaged) { const days = sealDays(provinceById(bn.pos), provinceById(bn.home)); bn.status = 'returning'; bn.arrive = nowHour(game) + days * 24; bn.target = bn.home; bn.order = { type: 'hold' }; bn.moving = null; }
   if (!w.battalions.some((b) => b.status === 'theatre')) { w.employer = null; w.ai = null; }
 }
@@ -391,6 +391,7 @@ hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
   const f = WEAKEN.morale + (1 - WEAKEN.morale) * (sup / WEAKEN.full); for (const p of people) { p.morale = Math.round((p.morale ?? 70) * f); p.fatigue = Math.min(100, (p.fatigue || 0) + Math.round((1 - f) * WEAKEN.fatigue * 2)); }
 };
+hooks.strategicSquads = (game, eng) => warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn)?.squads || [];
 hooks.strategicFortify = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); const p = provinceById(eng.strategic.prov); return 1 + EXCHANGE.fort * p.fort + EXCHANGE.entrench * (bn?.entrench || 0); };
 hooks.strategicFuel = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn?.fuelShort) return null; const need = Math.ceil(providedBy(game, bn.squads).vehicles * eng.days * FUEL.perVehicleDay); return Math.round(need * (1 - bn.fuelShort)); };
 

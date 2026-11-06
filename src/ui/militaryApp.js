@@ -10,7 +10,7 @@ import { peopleScreen, squadsScreen, armouryScreen, baseScreen } from './militar
 import { LOT } from '../content/facilities.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const STATE = { none: 'not ordered', permit: 'waiting on the permit', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
+const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
 const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
 
 export function militaryApp(ui, body, open) {
@@ -87,5 +87,6 @@ function register(ui, body, go) {
   const input = h('input', { type: 'text', value: draft, placeholder: 'A name for the company', maxlength: '40', style: 'width:100%;padding:10px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px', oninput: (e) => { ui.milName = e.target.value; } });
   body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, input));
   body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(ui.game.war.found(ui.milName || '')) }, 'Register the company')));
+  body.append(help('Where do I start?', 'Four steps, all here: register the company (free), put money into its account, buy the Civic Office licence, then buy Hollowmoor Lot and order the site office; Mason\'s Os builds the base from there. You do not need the arms dealer\'s licence to start, but the Arms works\' guns, shells and missiles (Lucas Eastrise at Pipecreek Armory sells the licence) are what your soldiers will carry.'));
   body.append(help('What it will take', `The licence is ${LOT.licence.toLocaleString('en-US')} obols and Hollowmoor Lot ${LOT.price.toLocaleString('en-US')}, then the buildings. Registering costs nothing.`));
 }

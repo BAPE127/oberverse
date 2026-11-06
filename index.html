@@ -32905,7 +32905,9 @@ function dayTick(game) {
   C.days.eng = day;
   const list = ensure(C);
   for (const eng of list) {
-    if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
+    if (eng.state === 'open' && eng.expires <= day && eng.strategic?.defend && hooks.strategicSquads?.(game, eng).length) { // an attack on a battalion nobody decided: the general on the front fights it (the proposal's rule), with no general of yours
+      const sq = hooks.strategicSquads(game, eng); eng.state = 'delegated'; eng.order = { squads: [...sq], general: null, generalName: null, day: eng.offered, end: day }; commitForces(game, C, eng, sq, null); finish(game, C, eng);
+    } else if (eng.state === 'open' && eng.expires <= day) { eng.state = 'expired'; eng.ended = day; eng.why = eng.strategic ? 'The battalion broke off while nobody decided.' : 'The client found someone else.'; if (eng.strategic) hooks.strategicWithdrawn?.(game, C, eng); }
     else if ((eng.state === 'delegated' || eng.state === 'tactical') && eng.order.end <= day) finish(game, C, eng);
   }
   const built = C.facilities.some((f) => f.id === 'command' && f.state === 'built');
@@ -33684,10 +33686,10 @@ const supplyAt = (game, p, side) => { const s = side || warOf(game)?.employer?.s
 const reconOf = (game, bn) => { const P = providedBy(game, bn.squads); return (P.cls.recon || 0) + (P.role.recon || 0) > 0; };
 /** What the employer's side knows of each province: 2 known (its own ground, and next to a recon company), 1 spotted (next to a battalion or ground it holds), 0 unseen. */
 function intelLevels(game) {
-  const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces();
+  const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces(); const th = theatreOf(game, e.theatre); const inTh = inTheatre(th);
   const src = w.battalions.filter((b) => b.status === 'theatre').map((b) => ({ n: provinceById(b.pos).n, ...(reconOf(game, b) ? INTEL.reach.recon : INTEL.reach.plain) }));
   for (const s of hooks.allySources?.(game) || []) src.push(s);
-  for (const p of P) if (controllerOf(game, p) === e.side && p.state && inTheatre(theatreOf(game, e.theatre))(p)) src.push({ n: p.n, known: 0, spotted: 1 });
+  for (const p of P) if (inTh(p) && controllerOf(game, p) === e.side) src.push({ n: p.n, known: 0, spotted: 1 });
   return intelMap(P, ctlOf(game), e.side, src);
 }
 const intelAt = (game, p) => intelLevels(game)?.[p.n] ?? 0;
@@ -33951,7 +33953,7 @@ function ensureEmployer(game) {
   if (controllerOf(game, cur) === e.side) return;
   const next = staging(game, th, e.side, true);
   if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
-  note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad');
+  if (!e.collapsed) { e.collapsed = true; note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad'); }
   for (const bn of w.battalions) if (bn.status === 'theatre' && !bn.engaged) { const days = sealDays(provinceById(bn.pos), provinceById(bn.home)); bn.status = 'returning'; bn.arrive = nowHour(game) + days * 24; bn.target = bn.home; bn.order = { type: 'hold' }; bn.moving = null; }
   if (!w.battalions.some((b) => b.status === 'theatre')) { w.employer = null; w.ai = null; }
 }
@@ -34016,6 +34018,7 @@ hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
   const f = WEAKEN.morale + (1 - WEAKEN.morale) * (sup / WEAKEN.full); for (const p of people) { p.morale = Math.round((p.morale ?? 70) * f); p.fatigue = Math.min(100, (p.fatigue || 0) + Math.round((1 - f) * WEAKEN.fatigue * 2)); }
 };
+hooks.strategicSquads = (game, eng) => warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn)?.squads || [];
 hooks.strategicFortify = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); const p = provinceById(eng.strategic.prov); return 1 + EXCHANGE.fort * p.fort + EXCHANGE.entrench * (bn?.entrench || 0); };
 hooks.strategicFuel = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn?.fuelShort) return null; const need = Math.ceil(providedBy(game, bn.squads).vehicles * eng.days * FUEL.perVehicleDay); return Math.round(need * (1 - bn.fuelShort)); };
 
@@ -34623,6 +34626,8 @@ class War {
   // ---- the strategic war (v0.103.0)
   strategic() { return stView(this.g); }
   /** The two armies in the theatre: how each fights, its reserve and its formations in the field. */
+  /** The engagements battalions are in right now (cheap: the map screen asks every frame). */
+  contacts() { return (this.peek()?.war?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged); }
   armies() { return warHooks.aiProfile?.(this.g) || null; }
   profileOf(country) { return aiProfileOf(country); }
   strategicTick() { stAdvance(this.g); }
@@ -75334,7 +75339,7 @@ const { peopleScreen, squadsScreen, armouryScreen, baseScreen } = __m["src/ui/mi
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const STATE = { none: 'not ordered', permit: 'waiting on the permit', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
+const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
 const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
 
 function militaryApp(ui, body, open) {
@@ -75411,6 +75416,7 @@ function register(ui, body, go) {
   const input = h('input', { type: 'text', value: draft, placeholder: 'A name for the company', maxlength: '40', style: 'width:100%;padding:10px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px', oninput: (e) => { ui.milName = e.target.value; } });
   body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, input));
   body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(ui.game.war.found(ui.milName || '')) }, 'Register the company')));
+  body.append(help('Where do I start?', 'Four steps, all here: register the company (free), put money into its account, buy the Civic Office licence, then buy Hollowmoor Lot and order the site office; Mason\'s Os builds the base from there. You do not need the arms dealer\'s licence to start, but the Arms works\' guns, shells and missiles (Lucas Eastrise at Pipecreek Armory sells the licence) are what your soldiers will carry.'));
   body.append(help('What it will take', `The licence is ${LOT.licence.toLocaleString('en-US')} obols and Hollowmoor Lot ${LOT.price.toLocaleString('en-US')}, then the buildings. Registering costs nothing.`));
 }
 
@@ -79554,7 +79560,7 @@ const { ATLAS } = __m["src/content/atlas.js"];
 const { SLOTS, MAX_LINE } = __m["src/content/strategic.js"];
 const { TERRAIN_FX, WEATHER, INTEL } = __m["src/content/strategic.js"];
 
-const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [6, '⏩ 6 h/s'], [24, '⏭ 1 d/s']];
+const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [4, '⏩ 4 h/s'], [12, '⏭ fastest']]; // (the world's own minute ticks cost about 85 ms an hour, so the fastest is about ten hours a second)
 const num = (n) => Number(n).toLocaleString('en-US');
 const bar = (v, colour) => h('div', { class: 'stc-bar' }, h('i', { style: `width:${Math.max(0, Math.min(100, v))}%;background:${colour}` }));
 const BAKED = new Map(); // a theatre's ground, drawn once per session
@@ -79657,7 +79663,7 @@ function strategicPanel(ui, body) {
   const sigs = { top: () => [S.speed, W.cash(), S.view.paid, S.view.employer?.side], left: () => [S.view.battalions.map((b) => [b.id, b.status, b.pos, b.engaged, b.stats.org, b.stats.strength, b.stats.people]), S.sel, S.view.employer?.side], right: () => [S.view.battalions.find((b) => b.id === S.sel)?.id, JSON.stringify(S.view.battalions.find((b) => b.id === S.sel)?.stats), S.view.battalions.find((b) => b.id === S.sel)?.status, S.view.battalions.find((b) => b.id === S.sel)?.pos, S.view.battalions.find((b) => b.id === S.sel)?.engaged, S.view.battalions.find((b) => b.id === S.sel)?.order.type, S.mode, S.view.employer?.side], bottom: () => [S.layer, S.view.log[0]?.text] };
   const paints = { top: paintTop, left: paintLeft, right: paintRight, bottom: paintBottom };
   /** A battalion newly in contact (yours attacking, or an attack on you) stops the clock: the war does not wait for you to look. */
-  const newContact = () => { const v = W.strategic(); const now = new Set((v?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged)); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
+  const newContact = () => { const now = new Set(W.contacts()); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
   const refresh = (force = true) => { ensureMap(); if (!S.view) return; S.sig ||= {}; for (const k of Object.keys(paints)) { const sg = JSON.stringify(sigs[k]()); if (force || sg !== S.sig[k]) { S.sig[k] = sg; paints[k](); } } };
 
   // ---- tooltips, picking, orders
@@ -79715,7 +79721,7 @@ function strategicPanel(ui, body) {
   // ---- the loop
   const frame = (now) => {
     if (S.closed) return; raf = requestAnimationFrame(frame); const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) { S.acc = 0; break; } } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
+    if (S.speed > 0) { S.acc = Math.min(2, S.acc + dt * S.speed); if (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) S.acc = 0; } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
     if (S.map) draw();
   };
   const onResize = () => resize(); window.addEventListener('resize', onResize); resize();

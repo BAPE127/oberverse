@@ -79,6 +79,7 @@ test('an enemy formation that reaches a battalion of yours opens an engagement w
   // an enemy column set on the province the battalion stands in (put there by hand: how it got there is the AI's business, tested above)
   const from = provinces().find((p) => controllerOf(g, p) === e.enemy && p.neighbours.includes(here.n)); assert.ok(from, 'enemy ground borders the landing'); void foe;
   spawn(g, w, 'enemy', profileOf(e.enemy), 3, 30, from, here); hours(g, 1); for (let i = 0; i < 400 && !bn.engaged; i++) hours(g, 3); assert.ok(bn.engaged, 'contact'); const eng = C.engagements.find((x) => x.id === bn.engaged);
+  w.aiOff = true; // (the nations stand still while this one fight is decided)
   assert.ok(eng.strategic.defend && eng.goal === 'defence' && eng.pay === 0); assert.ok(eng.enemy.troops >= 20); assert.ok(!g.war.recall(id).ok);
   const gen = g.war.generals().hired[0].id; assert.ok(g.war.delegate(eng.id, { squads: bn.squads, general: gen }).ok); g.clock.total += 1440 * 3; g.war.dailyTick();
   assert.equal(eng.state, 'resolved'); assert.equal(bn.engaged, null); const held = eng.result.objectives >= 2; const f = aiState(g, w).formations.find((x) => x.id === eng.strategic.fid);
@@ -102,4 +103,12 @@ test('the war goes on without you, is saved, and a hundred days of it cost a few
   const moved = Object.keys(w.control).length; assert.ok(moved > 0 || w.log.length > 3, 'the front is alive'); const ai = aiState(g, w); assert.ok(ai.next > 0, 'formations were made');
   const g2 = roundtrip(g); const w2 = g2.war.state().war; assert.equal(w2.ai.next, ai.next); assert.deepEqual(w2.ai.pool, ai.pool); assert.equal(JSON.stringify(w2.control), JSON.stringify(w.control)); assert.deepEqual(g2.war.check(), []);
   const arm = g2.war.armies(); assert.ok(arm.enemy.doctrine && arm.ally.doctrine && arm.enemy.pool >= 0);
+});
+
+test('an attack nobody decides is fought by the battalion without a general when the three days run out, not surrendered', () => {
+  const { g, C, w, bn } = atFront(1608); const e = w.employer; const here = provinceById(bn.pos);
+  const from = provinces().find((p) => controllerOf(g, p) === e.enemy && p.neighbours.includes(here.n)); spawn(g, w, 'enemy', profileOf(e.enemy), 3, 30, from, here); for (let i = 0; i < 400 && !bn.engaged; i++) hours(g, 3); assert.ok(bn.engaged);
+  const eng = C.engagements.find((x) => x.id === bn.engaged); for (let d = 0; d < 6 && eng.state !== 'resolved'; d++) { g.clock.total += 1440; g.war.dailyTick(); }
+  assert.equal(eng.state, 'resolved'); assert.equal(eng.result.how, 'general', 'resolved by the aggregate'); assert.equal(eng.result.general, null); assert.equal(bn.engaged, null); assert.deepEqual(g.war.check(), []);
+  assert.ok(w.log.some((l) => /attack is thrown back|falls back|overrun|line gives way/.test(l.text)));
 });

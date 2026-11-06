@@ -135,6 +135,8 @@ export class War {
   // ---- the strategic war (v0.103.0)
   strategic() { return stView(this.g); }
   /** The two armies in the theatre: how each fights, its reserve and its formations in the field. */
+  /** The engagements battalions are in right now (cheap: the map screen asks every frame). */
+  contacts() { return (this.peek()?.war?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged); }
   armies() { return warHooks.aiProfile?.(this.g) || null; }
   profileOf(country) { return aiProfileOf(country); }
   strategicTick() { stAdvance(this.g); }
