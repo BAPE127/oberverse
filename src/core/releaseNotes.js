@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.1',
+    date: '2026-11-06',
+    channel: 'development',
+    title: 'War: Strategic Command II',
+    notes: [
+      'The war fights back: the other side (and your employer) put formations in the field at three levels: probes at the weakest point, counter-attacks to retake what was lost, and offensives. Each nation fights its own way: some go for the nearest ground at any odds, some will not attack at poor odds, some hunt what is weak. When an enemy force reaches a battalion of yours you defend it, played or by a general, or give the ground up.',
+      'Supply from hubs (ports and capitals), weather that changes the march, and intelligence levels (unseen, spotted, known): you now see the enemy only as far as your battalions and ground let you, and what you see is a report. A battle begins with what you know of the province. A shortage of supply or fuel only weakens a battalion.',
+      'Map modes Supply, Weather and Intel; the armies on the map; time stops when a battle begins. The front moves without you, and if your employer\'s landing falls it moves too.',
+      'Getting started: the Military app now lays out the four steps to a first building (the money, the licence, the lot, the site office) with a button and a reason for each.',
+      'A battle saved before this release replays as it was played.',
+    ],
+  },
+  {
     version: '0.103.0',
     date: '2026-11-05',
     channel: 'development',

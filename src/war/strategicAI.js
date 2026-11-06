@@ -70,7 +70,7 @@ export function front(game, w, side) { // [from, to] pairs: ground of this side 
   for (const p of P) { if (!inTheatre(th)(p) || controllerOf(game, p) !== mine) continue; for (const n of p.neighbours) { const q = P[n]; if (inTheatre(th)(q) && controllerOf(game, q) === countryOfSide(w, other(side))) out.push([p, q]); } }
   return out;
 }
-const value = (game, w, to, side) => 1 + to.vp * 3 + (to.capital ? 6 : 0) + (to.port ? 2 : 0) + (side === 'enemy' && to.id === w.employer.staging ? 10 : 0) + (w.lost.some((l) => l.pid === to.id && l.from === countryOfSide(w, side) && game.clock.day - l.day <= 12) ? 5 : 0);
+const value = (game, w, to, side) => 1 + (side === 'enemy' && w.battalions.some((b) => b.status === 'theatre' && b.pos === to.id) ? 4 : 0) + to.vp * 3 + (to.capital ? 6 : 0) + (to.port ? 2 : 0) + (side === 'enemy' && to.id === w.employer.staging ? 10 : 0) + (w.lost.some((l) => l.pid === to.id && l.from === countryOfSide(w, side) && game.clock.day - l.day <= 12) ? 5 : 0);
 
 /** Choose the target for a force of `size` (and skill) that could attack from any of `pairs`: [from, to]. Returns { from, to, odds } or null. */
 export function choose(game, w, side, prof, size, armour, pairs) {
@@ -79,7 +79,7 @@ export function choose(game, w, side, prof, size, armour, pairs) {
     const d = defenders(game, w, to, side); const odds = fPower(f) / Math.max(1, d.power); const v = value(game, w, to, side);
     if (odds < AI.odds[prof.doctrine]) continue;
     let score;
-    if (prof.doctrine === 'blunt') score = 1000 - Math.hypot(from.lat - to.lat, from.lon - to.lon) * 10 + v * 0.01;
+    if (prof.doctrine === 'blunt') score = 1000 - Math.hypot(from.lat - to.lat, from.lon - to.lon) * 10 + v * 0.01 + (d.bn ? 150 : 0); // (the nearest ground; and a foreign force on it draws a blunt army like a flag)
     else if (prof.doctrine === 'methodical') score = v * odds ** 1.5;
     else score = v * odds ** 1.5 * (1 + (d.weak ? 0.5 : 0) + (d.empty ? 0.8 : 0));
     if (!best || score > best.score || (score === best.score && to.id < best.to.id)) best = { from, to, odds, score };
@@ -103,13 +103,13 @@ function think(game, w, side) {
   for (const f of mine) {
     if (f.engaged || f.moving) continue; f.idle ??= h;
     if (f.level === 3 && f.troops >= 8 && f.org >= 40) { const pairs = front(game, w, side).filter(([from]) => from.id === f.prov); const c = choose(game, w, side, prof, f.troops, f.armour, pairs); if (c) { f.moving = { to: c.to.id, left: marchHours(game, speedOf(f), c.from, c.to), attack: true }; f.idle = null; continue; } }
-    if (h - f.idle >= AI.idleHours || f.troops < 4) { ai.pool[country] = poolOf(ai, country) + Math.round(f.troops * 0.7); ai.formations = ai.formations.filter((x) => x !== f); }
+    if (h - f.idle >= AI.idleHours || f.troops < 4) { ai.pool[country] = poolOf(ai, country) + Math.round(f.troops * 0.9); ai.formations = ai.formations.filter((x) => x !== f); }
   }
   const active = ai.formations.filter((f) => f.side === side).length; if (active >= AI.maxFormations) return;
   const pool = poolOf(ai, country); const pairs = front(game, w, side); if (!pairs.length) return;
   // level 2: retake what was lost, after the country's reaction time
   const lost = lostFor(game, w, country).filter((l) => nowHour(game) - l.hour >= AI.react[prof.doctrine]);
-  if (lost.length && cd('counter') && pool >= AI.counter.min) {
+  if (lost.length && cd('counter') && pool >= AI.counter.min && pool >= prof.poolMax * AI.counter.keep) {
     const L = lost[lost.length - 1]; const to = provinceById(L.pid); const from = pairs.filter(([, t]) => t.id === to.id).sort((a, b) => b[0].infra - a[0].infra || (a[0].id < b[0].id ? -1 : 1))[0]?.[0];
     if (from) {
       const d = defenders(game, w, to, side); const size = Math.min(Math.round(pool * AI.counter.share), Math.max(AI.counter.min, Math.round((d.troops + d.armour * EXCHANGE.armour) * AI.counter.factor / prof.skill + (prof.doctrine === 'blunt' ? 2 : 6))));

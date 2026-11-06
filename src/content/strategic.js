@@ -74,8 +74,8 @@ export const COUNTRY_AI_DEFAULT = { skill: 0.9, doctrine: 'blunt', text: 'A smal
 export const AI = {
   thinkHours: 12, poolPer: 300, startShare: 0.8, regen: 0.12, maxFormations: 3, speedFoot: 6, speedArmour: 12, odds: { blunt: 0.3, methodical: 1.0, cunning: 0.9 }, abort: 0.6,
   react: { blunt: 48, methodical: 24, cunning: 12 },
-  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 2, base: 0.1, perAggression: 0.4 },
-  counter: { min: 8, share: 0.5, cooldownDays: 1, expireDays: 8, factor: 1.5 },
+  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 4, base: 0.06, perAggression: 0.25 },
+  counter: { min: 8, share: 0.35, cooldownDays: 3, expireDays: 8, factor: 1.5, keep: 0.25 },
   offensive: { aggression: 0.45, poolShare: 0.5, share: 0.6, max: 70, cooldownDays: 10, chance: 0.35, ratio: 1.4 },
   idleHours: 24, rebuildDays: 10,
 };

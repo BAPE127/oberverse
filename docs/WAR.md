@@ -136,6 +136,37 @@ Release 5 of the war update, "War: Battle Depth": vehicles with modules and faci
 
 **Orders added:** `smoke`, `suppress` (a point; no target needed; pins whoever stands within two and a half tiles) and `breach` (a tank or an anti-tank soldier (a rocket or the tank gun, not a rifle) opens a wall segment: two tank shells, and the wall becomes rubble that does not stop a look or a person). Orders and support are in the log, so a save replays them.
 
+## Strategic command II (v0.103.1)
+
+| Piece | Where |
+| --- | --- |
+| Supply, weather, intelligence (pure) | `src/war/supply.js`, `src/content/strategic.js` (`SUPPLY`, `WEAKEN`, `WEATHER`, `INTEL`, `FUEL`), `tests/strategic_supply.test.mjs` |
+| The nations: profiles, formations, the three levels, the exchange | `src/war/strategicAI.js`, `COUNTRY_AI`, `AI` and `EXCHANGE` in the content file, `tests/strategic_ai.test.mjs` |
+| An attack on you; the ground, the fall-back, the landing | `defend`, `fallBack`, `ensureEmployer`, `setControl` in `src/war/strategic.js`; `openStrategic` in `src/war/engagements.js` |
+| Fog in battles from intelligence | `setup.intel` in `src/battle/setup.js`, `createBattle` in `src/battle/sim.js` |
+| The first-steps guide | `src/ui/militaryApp.js` |
+| Layers, formations on the map, the armies panel | `src/ui/strategic.js`, `bakeLayer` in `src/engine/drawStrategic.js` |
+
+**Engagement or exchange.** You fight by engagements (play, a general, or give up the ground); the armies fight each other by the exchange. Nothing you do is ever resolved by the exchange.
+
+**The exchange.** Power is `(troops + 5.5 × armour) × skill × (0.4 + 0.6 × organisation)`; the defender's is multiplied by the ground's defence and `1 + 0.07 × fort + 0.05 × entrenchment`. Each hour each side loses a share of what it began with (1.8 percent, by the square root of the odds, with 20 percent luck from a hash), organisation falls with the losses; the defender breaks at organisation 25; after 36 hours the attacker wins if it has the defender under 40 percent and is standing.
+
+**Levels.** A *probe* is 6 to 14 men (10 percent of the reserve) chosen at the weakest point, at most every four days, with a chance of `0.06 + 0.25 × aggression` each twelve hours. A *counter-attack* answers a province lost in the last eight days after the country's reaction time (blunt 48 h, methodical 24, cunning 12), at most 35 percent of the reserve and only if a quarter of it is kept back, sized from the garrison, and a smart country waits if it cannot reach its odds. An *offensive* needs 50 percent of the reserve and ten days since the last; a blunt country or one with aggression 0.45 or more rolls for it, a methodical or cunning one starts it when its reserve outweighs the front by 1.4 (a cunning one also when something is empty or weak). Targets are scored by value (victory points, a capital, a port, the landing, a province it lost, a battalion of yours on it) times odds to the power 1.5; a blunt country prefers the nearest and a foreign force on it; a cunning one adds half again for a weak battalion and four fifths for an empty province.
+
+**Supply.** `SUPPLY.loss` by the infrastructure of the province entered (24, 18, 13, 9, 6), times 0.5 along a railway and 0.8 along any road (1.6 with none), times the ground (mountains 1.6, marsh and jungle 1.4, forest and hills 1.2, desert 1.15) and the weather's flow (mud 1.45, snow 1.35, rain 1.15). Weakening: below 70 the daily rest is scaled down to a quarter; below 25 a battalion loses 3 organisation a day; in a fight morale is scaled between 45 and 100 percent and fatigue rises; the march is scaled between 80 and 100 percent.
+
+## Honest limits (v0.103.1)
+
+- **Nothing here is calibrated.** The sizes of formations, the reserves, how often each level comes and what a battalion can bear were set by reasoning and by watching simulated wars (a lone sixteen-soldier battalion at the front is overrun in a few weeks by a blunt country; a methodical one hardly attacks it): the real company, with more battalions and a general, will see something different. All the numbers are in `src/content/strategic.js`.
+- **Only two actors are simulated.** The enemy and the employer; nothing else fights in the theatre (no third nation, no partisans). Formations are abstract (troops, armour, organisation): no named units, no supply of their own beyond the pool, no air or navy.
+- **The exchange is the proposal's combat in miniature**: no combat width, no reserve rotation, no plans or planning bonus, no breakthrough or piercing; and the stats shown for a battalion are still for you to read.
+- **A formation attacks one province at a time and only from where it stands**: no flanking, no encirclement, no cutting of supply by design (cunning countries pick weak spots but do not aim at your supply line).
+- **Fuel and ammunition.** Fuel is burnt by vehicles in the theatre at a flat rate and only changes the aggregate result; ammunition and rations are not tracked (supply stands for them). A played battle does not read fuel.
+- **Weather** is regional by coarse cells and a hash, not a climate model; it does not change a played battle's map.
+- **Intelligence** has no air or satellite source yet (103.2): your battalions, recon companies and ground are all there is. An enemy formation out of sight is not drawn and not counted.
+- **A contract's end.** If your employer loses everything in the theatre your battalions are shipped home and the contract ends with nothing owed either way; the retainer for the days served has been paid already.
+- **The debug switch `war.aiOff`** stops the nations (it is what the older tests use); it is not reachable from the game.
+
 ## Strategic command (v0.103.0)
 
 Release 6a of the war update: the strategic layer's ground, units and orders. The proposal (`PROPOSAL_WAR_STRATEGIC.md`) is built in three releases (103.0, 103.1, 103.2); this is the first.
@@ -164,8 +195,7 @@ Release 6a of the war update: the strategic layer's ground, units and orders. Th
 ## Honest limits (v0.103.0)
 
 - **The strategic exchange of the proposal is not here.** There is no hourly battle between battalions, no combat width, reserve or plan bonus: a contact is one engagement, decided by the same aggregate function or the played battle as every other. The stats shown for a battalion are derived for the player to read and are **not** used by the resolver (the engagement's forces are the real squads and vehicles, as before).
-- **No supply, fuel, weather, intelligence levels or fog.** The panel says so where supply would be. The enemy is shown with a reported garrison size; there is no uncertainty yet. (103.1)
-- **The enemy does nothing.** Garrisons are static: they do not counter-attack, reinforce, retake ground or move; defending and digging in therefore only builds entrenchment, which nothing yet reads. The nations' wars are 103.1.
+- (103.0's limits on supply, fog and a static enemy are answered in 103.1, above.)
 - **No air, sea or landings.** A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.2.
 - **Employers and money.** The retainer rates are starting figures, set from the existing engagement pay rates and not calibrated against the company's costs; reputation moves only with ground taken. Discharging is allowed only with every battalion at home; ground keeps the owners it has when you go.
 - **Strategic engagements** are not the client's contracts: no pay of their own, no client reputation, no ban; if nobody decides one in three days the battalion breaks off. The ordinary contract offers (hold, retake, raid, extract, rescue) are unchanged and are not yet tied to provinces on the map.

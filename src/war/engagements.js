@@ -55,7 +55,7 @@ function inputFor(game, eng, squadIds, generalId, reported = false) {
   const C = peekMilitary(game).company;
   const F = forces(game, squadIds, eng);
   const G = generalId ? GENERALS[C.generals.find((x) => x.id === generalId)?.gen] : null;
-  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, goal: eng.goal, enemy: reported && eng.reported ? { ...eng.enemy, ...eng.reported } : eng.enemy, people: F.people, vehicles: F.vehicles,
+  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, fortify: eng.strategic?.defend ? hooks.strategicFortify?.(game, eng) : 1, goal: eng.goal, enemy: reported && eng.reported ? { ...eng.enemy, ...eng.reported } : eng.enemy, people: F.people, vehicles: F.vehicles,
     general: G ? { ...G, bonus: G.terrain?.[eng.terrain] ?? 0 } : null, supplies: { fuel: eng.strategic ? hooks.strategicFuel?.(game, eng) ?? stockSum(C, 'supply:fuel') : stockSum(C, 'supply:fuel'), rockets: stockSum(C, 'item_rpg_rocket') } } };
 }
 

@@ -44,7 +44,7 @@ function parts(input) {
     const trait = goal === 'defence' ? general.defence : goal === 'offence' ? general.offence : general.logistics;
     generalMult = clamp(1 + 0.045 * (trait - 3) + (enemy.air > 0 ? 0.015 * (general.air - 3) : 0) + 0.01 * (general.intel - 3) + 0.03 * (general.bonus || 0), 0.85, 1.2);
   }
-  const our = (troops + armour) * terrainMult * generalMult;
+  const our = (troops + armour) * terrainMult * generalMult * (input.fortify || 1); // (v0.103.1: a fort and a dug-in line help the side that holds them)
   const theirs = Math.max(0.5, (enemy.troops + enemy.armour * 5.5 + enemy.air * 6) * (enemy.skill ?? 1));
   return { troops, armour, terrainMult, generalMult, our, theirs, sup };
 }

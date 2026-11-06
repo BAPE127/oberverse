@@ -20,7 +20,7 @@ import { ATLAS } from '../content/atlas.js';
 import { VEHICLES } from '../content/procurement.js';
 import { CLASSES } from '../content/troops.js';
 import { CARRY, styleOf } from '../content/battle.js';
-import { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL } from '../content/strategic.js';
+import { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL, EXCHANGE } from '../content/strategic.js';
 import { weatherOf, supplyMap, intelMap, estimate } from './supply.js';
 import { stockOf, takeStock } from './equipment.js';
 import { CLASS_POWER } from './combat.js';
@@ -391,6 +391,7 @@ hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
   const f = WEAKEN.morale + (1 - WEAKEN.morale) * (sup / WEAKEN.full); for (const p of people) { p.morale = Math.round((p.morale ?? 70) * f); p.fatigue = Math.min(100, (p.fatigue || 0) + Math.round((1 - f) * WEAKEN.fatigue * 2)); }
 };
+hooks.strategicFortify = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); const p = provinceById(eng.strategic.prov); return 1 + EXCHANGE.fort * p.fort + EXCHANGE.entrench * (bn?.entrench || 0); };
 hooks.strategicFuel = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn?.fuelShort) return null; const need = Math.ceil(providedBy(game, bn.squads).vehicles * eng.days * FUEL.perVehicleDay); return Math.round(need * (1 - bn.fuelShort)); };
 
 // ---- what the screen shows

@@ -18148,7 +18148,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.103.0';
+const GAME_VERSION = '0.103.1';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -32478,7 +32478,7 @@ function parts(input) {
     const trait = goal === 'defence' ? general.defence : goal === 'offence' ? general.offence : general.logistics;
     generalMult = clamp(1 + 0.045 * (trait - 3) + (enemy.air > 0 ? 0.015 * (general.air - 3) : 0) + 0.01 * (general.intel - 3) + 0.03 * (general.bonus || 0), 0.85, 1.2);
   }
-  const our = (troops + armour) * terrainMult * generalMult;
+  const our = (troops + armour) * terrainMult * generalMult * (input.fortify || 1); // (v0.103.1: a fort and a dug-in line help the side that holds them)
   const theirs = Math.max(0.5, (enemy.troops + enemy.armour * 5.5 + enemy.air * 6) * (enemy.skill ?? 1));
   return { troops, armour, terrainMult, generalMult, our, theirs, sup };
 }
@@ -32671,7 +32671,7 @@ function inputFor(game, eng, squadIds, generalId, reported = false) {
   const C = peekMilitary(game).company;
   const F = forces(game, squadIds, eng);
   const G = generalId ? GENERALS[C.generals.find((x) => x.id === generalId)?.gen] : null;
-  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, goal: eng.goal, enemy: reported && eng.reported ? { ...eng.enemy, ...eng.reported } : eng.enemy, people: F.people, vehicles: F.vehicles,
+  return { F, input: { key: `${eng.id}|${salt(game)}`, days: eng.days, terrain: eng.terrain, fortify: eng.strategic?.defend ? hooks.strategicFortify?.(game, eng) : 1, goal: eng.goal, enemy: reported && eng.reported ? { ...eng.enemy, ...eng.reported } : eng.enemy, people: F.people, vehicles: F.vehicles,
     general: G ? { ...G, bonus: G.terrain?.[eng.terrain] ?? 0 } : null, supplies: { fuel: eng.strategic ? hooks.strategicFuel?.(game, eng) ?? stockSum(C, 'supply:fuel') : stockSum(C, 'supply:fuel'), rockets: stockSum(C, 'item_rpg_rocket') } } };
 }
 
@@ -33547,8 +33547,8 @@ const COUNTRY_AI_DEFAULT = { skill: 0.9, doctrine: 'blunt', text: 'A small army 
 const AI = {
   thinkHours: 12, poolPer: 300, startShare: 0.8, regen: 0.12, maxFormations: 3, speedFoot: 6, speedArmour: 12, odds: { blunt: 0.3, methodical: 1.0, cunning: 0.9 }, abort: 0.6,
   react: { blunt: 48, methodical: 24, cunning: 12 },
-  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 2, base: 0.1, perAggression: 0.4 },
-  counter: { min: 8, share: 0.5, cooldownDays: 1, expireDays: 8, factor: 1.5 },
+  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 4, base: 0.06, perAggression: 0.25 },
+  counter: { min: 8, share: 0.35, cooldownDays: 3, expireDays: 8, factor: 1.5, keep: 0.25 },
   offensive: { aggression: 0.45, poolShare: 0.5, share: 0.6, max: 70, cooldownDays: 10, chance: 0.35, ratio: 1.4 },
   idleHours: 24, rebuildDays: 10,
 };
@@ -33645,7 +33645,7 @@ const { ATLAS } = __m["src/content/atlas.js"];
 const { VEHICLES } = __m["src/content/procurement.js"];
 const { CLASSES } = __m["src/content/troops.js"];
 const { CARRY, styleOf } = __m["src/content/battle.js"];
-const { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL } = __m["src/content/strategic.js"];
+const { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL, EXCHANGE } = __m["src/content/strategic.js"];
 const { weatherOf, supplyMap, intelMap, estimate } = __m["src/war/supply.js"];
 const { stockOf, takeStock } = __m["src/war/equipment.js"];
 const { CLASS_POWER } = __m["src/war/combat.js"];
@@ -34016,6 +34016,7 @@ hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
   const f = WEAKEN.morale + (1 - WEAKEN.morale) * (sup / WEAKEN.full); for (const p of people) { p.morale = Math.round((p.morale ?? 70) * f); p.fatigue = Math.min(100, (p.fatigue || 0) + Math.round((1 - f) * WEAKEN.fatigue * 2)); }
 };
+hooks.strategicFortify = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); const p = provinceById(eng.strategic.prov); return 1 + EXCHANGE.fort * p.fort + EXCHANGE.entrench * (bn?.entrench || 0); };
 hooks.strategicFuel = (game, eng) => { const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn?.fuelShort) return null; const need = Math.ceil(providedBy(game, bn.squads).vehicles * eng.days * FUEL.perVehicleDay); return Math.round(need * (1 - bn.fuelShort)); };
 
 // ---- what the screen shows
@@ -34357,7 +34358,7 @@ function front(game, w, side) { // [from, to] pairs: ground of this side next to
   for (const p of P) { if (!inTheatre(th)(p) || controllerOf(game, p) !== mine) continue; for (const n of p.neighbours) { const q = P[n]; if (inTheatre(th)(q) && controllerOf(game, q) === countryOfSide(w, other(side))) out.push([p, q]); } }
   return out;
 }
-const value = (game, w, to, side) => 1 + to.vp * 3 + (to.capital ? 6 : 0) + (to.port ? 2 : 0) + (side === 'enemy' && to.id === w.employer.staging ? 10 : 0) + (w.lost.some((l) => l.pid === to.id && l.from === countryOfSide(w, side) && game.clock.day - l.day <= 12) ? 5 : 0);
+const value = (game, w, to, side) => 1 + (side === 'enemy' && w.battalions.some((b) => b.status === 'theatre' && b.pos === to.id) ? 4 : 0) + to.vp * 3 + (to.capital ? 6 : 0) + (to.port ? 2 : 0) + (side === 'enemy' && to.id === w.employer.staging ? 10 : 0) + (w.lost.some((l) => l.pid === to.id && l.from === countryOfSide(w, side) && game.clock.day - l.day <= 12) ? 5 : 0);
 
 /** Choose the target for a force of `size` (and skill) that could attack from any of `pairs`: [from, to]. Returns { from, to, odds } or null. */
 function choose(game, w, side, prof, size, armour, pairs) {
@@ -34366,7 +34367,7 @@ function choose(game, w, side, prof, size, armour, pairs) {
     const d = defenders(game, w, to, side); const odds = fPower(f) / Math.max(1, d.power); const v = value(game, w, to, side);
     if (odds < AI.odds[prof.doctrine]) continue;
     let score;
-    if (prof.doctrine === 'blunt') score = 1000 - Math.hypot(from.lat - to.lat, from.lon - to.lon) * 10 + v * 0.01;
+    if (prof.doctrine === 'blunt') score = 1000 - Math.hypot(from.lat - to.lat, from.lon - to.lon) * 10 + v * 0.01 + (d.bn ? 150 : 0); // (the nearest ground; and a foreign force on it draws a blunt army like a flag)
     else if (prof.doctrine === 'methodical') score = v * odds ** 1.5;
     else score = v * odds ** 1.5 * (1 + (d.weak ? 0.5 : 0) + (d.empty ? 0.8 : 0));
     if (!best || score > best.score || (score === best.score && to.id < best.to.id)) best = { from, to, odds, score };
@@ -34390,13 +34391,13 @@ function think(game, w, side) {
   for (const f of mine) {
     if (f.engaged || f.moving) continue; f.idle ??= h;
     if (f.level === 3 && f.troops >= 8 && f.org >= 40) { const pairs = front(game, w, side).filter(([from]) => from.id === f.prov); const c = choose(game, w, side, prof, f.troops, f.armour, pairs); if (c) { f.moving = { to: c.to.id, left: marchHours(game, speedOf(f), c.from, c.to), attack: true }; f.idle = null; continue; } }
-    if (h - f.idle >= AI.idleHours || f.troops < 4) { ai.pool[country] = poolOf(ai, country) + Math.round(f.troops * 0.7); ai.formations = ai.formations.filter((x) => x !== f); }
+    if (h - f.idle >= AI.idleHours || f.troops < 4) { ai.pool[country] = poolOf(ai, country) + Math.round(f.troops * 0.9); ai.formations = ai.formations.filter((x) => x !== f); }
   }
   const active = ai.formations.filter((f) => f.side === side).length; if (active >= AI.maxFormations) return;
   const pool = poolOf(ai, country); const pairs = front(game, w, side); if (!pairs.length) return;
   // level 2: retake what was lost, after the country's reaction time
   const lost = lostFor(game, w, country).filter((l) => nowHour(game) - l.hour >= AI.react[prof.doctrine]);
-  if (lost.length && cd('counter') && pool >= AI.counter.min) {
+  if (lost.length && cd('counter') && pool >= AI.counter.min && pool >= prof.poolMax * AI.counter.keep) {
     const L = lost[lost.length - 1]; const to = provinceById(L.pid); const from = pairs.filter(([, t]) => t.id === to.id).sort((a, b) => b[0].infra - a[0].infra || (a[0].id < b[0].id ? -1 : 1))[0]?.[0];
     if (from) {
       const d = defenders(game, w, to, side); const size = Math.min(Math.round(pool * AI.counter.share), Math.max(AI.counter.min, Math.round((d.troops + d.armour * EXCHANGE.armour) * AI.counter.factor / prof.skill + (prof.doctrine === 'blunt' ? 2 : 6))));
@@ -56210,6 +56211,19 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.103.1',
+    date: '2026-11-06',
+    channel: 'development',
+    title: 'War: Strategic Command II',
+    notes: [
+      'The war fights back: the other side (and your employer) put formations in the field at three levels: probes at the weakest point, counter-attacks to retake what was lost, and offensives. Each nation fights its own way: some go for the nearest ground at any odds, some will not attack at poor odds, some hunt what is weak. When an enemy force reaches a battalion of yours you defend it, played or by a general, or give the ground up.',
+      'Supply from hubs (ports and capitals), weather that changes the march, and intelligence levels (unseen, spotted, known): you now see the enemy only as far as your battalions and ground let you, and what you see is a report. A battle begins with what you know of the province. A shortage of supply or fuel only weakens a battalion.',
+      'Map modes Supply, Weather and Intel; the armies on the map; time stops when a battle begins. The front moves without you, and if your employer\'s landing falls it moves too.',
+      'Getting started: the Military app now lays out the four steps to a first building (the money, the licence, the lot, the site office) with a button and a reason for each.',
+      'A battle saved before this release replays as it was played.',
+    ],
+  },
   {
     version: '0.103.0',
     date: '2026-11-05',
