@@ -74,7 +74,7 @@ test('a dedicated works retools its idle stations to what the company is short o
   days(g, 1); assert.equal(g.arms.recipeOf(st).single, 'item_pistol', 'a works that is not dedicated is left alone');
   assert.ok(g.war.setSupplyWorks('aw1', true).ok);
   days(g, 1);
-  assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle', 'it now makes what the company is short of'); assert.equal(st.forCompany, 'pistol');
+  assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle', 'it now makes what the company is short of'); assert.deepEqual(st.forCompany, { was: 'pistol', set: 'assault' });
   assert.equal(g.war.supplyLink().rows.find((r) => r.item === 'item_assault_rifle').makers, 1);
   st.progress = 5; // mid-unit: the level is met, but the unit in hand is finished first
   cageGoods(g, 'aw1', { item_assault_rifle: 8 });
@@ -82,4 +82,41 @@ test('a dedicated works retools its idle stations to what the company is short o
   days(g, 1); assert.equal(g.arms.recipeOf(st).single, 'item_pistol', 'and back to its own work'); assert.equal(st.forCompany, undefined);
   assert.ok(g.war.setSupplyLevel('item_smg', 5).ok); days(g, 1); assert.equal(g.arms.recipeOf(st).single, 'item_smg');
   assert.ok(g.war.setSupplyWorks('aw1', false).ok); assert.equal(g.arms.recipeOf(st).single, 'item_pistol', 'switching it off puts the station back');
+});
+
+test('turning a works off mid-unit still puts the station back once it is idle, and a recipe the player sets by hand is never taken back', () => {
+  const g = warGame(906); buildAll(g, 2);
+  runCommand(g, 'works aw1'); runCommand(g, 'stations');
+  g.arms.state.research.done.assault = true; g.arms.state.research.done.smg = true;
+  const st = g.arms.place('aw1', 'item_st_assembly', 10, 5).entity;
+  g.arms.setRecipe(st.id, 'pistol');
+  g.war.setSupplyLevel('item_assault_rifle', 8); g.war.setSupplyWorks('aw1', true); days(g, 1);
+  assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle');
+  st.progress = 5; // a unit in hand
+  g.war.setSupplyWorks('aw1', false); assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle', 'the unit in hand is finished first');
+  days(g, 1); assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle', 'still mid-unit');
+  st.progress = 0; days(g, 1);
+  assert.equal(g.arms.recipeOf(st).single, 'item_pistol', 'back to what it made, though its works is no longer dedicated'); assert.equal(st.forCompany, undefined);
+  // the player takes a retooled station back by hand: the link lets it go
+  g.war.setSupplyWorks('aw1', true); days(g, 1); assert.equal(g.arms.recipeOf(st).single, 'item_assault_rifle');
+  assert.ok(g.arms.setRecipe(st.id, 'smg').ok);
+  days(g, 3); assert.equal(g.arms.recipeOf(st).single, 'item_smg', 'the player\'s choice stands'); assert.equal(st.forCompany, undefined);
+});
+
+test('the arms manager\'s "keep the line running" never touches a station the link has retooled, so the two do not fight', () => {
+  const g = warGame(907); buildAll(g, 2);
+  runCommand(g, 'works aw1'); runCommand(g, 'stations'); g.inventory.add('item_st_assembly', 1, { silent: true });
+  g.arms.state.research.done.assault = true;
+  const a = g.arms.place('aw1', 'item_st_assembly', 10, 5).entity; const b = g.arms.place('aw1', 'item_st_assembly', 14, 5).entity;
+  g.arms.setRecipe(a.id, 'pistol'); // b has no recipe: the manager's job
+  g.war.setSupplyLevel('item_assault_rifle', 40); g.war.setSupplyWorks('aw1', true);
+  const seen = [];
+  for (let d = 0; d < 8; d++) {
+    days(g, 1);
+    const plan = g.corp.management.planAutomation();
+    if (plan.length) plan[0].run();
+    seen.push([g.arms.recipeOf(a)?.single, g.arms.recipeOf(b)?.single].join('|'));
+  }
+  assert.ok(g.arms.recipeOf(a) && g.arms.recipeOf(b), 'every station has a recipe');
+  assert.equal(new Set(seen.slice(2)).size, 1, `the stations settle and stay: ${seen.join(' ')}`);
 });

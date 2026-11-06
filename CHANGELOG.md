@@ -14,7 +14,7 @@ The owner asked for the mercenary business to be run from a terminal in the worl
 
 **Edited existing files.** Tests: none changed. Tools: `tools/smoke-test.mjs` (the Military-app checks now run on the terminal's pages; the tablet checks the first steps and that the old segment bar is gone) and `tools/validate-content.mjs` (the `war` interact kind). Existing tests that pin the Military app's presence (`war_company`, `tablet_groups`, `tablet_home`) are unchanged and pass.
 
-New tests: `war_supply_link` (4) and `war_terminal` (1). See `docs/WAR.md`, "The command terminal and the supply link".
+New tests: `war_supply_link` (6: levels and crates, manual crate transfer, buying elsewhere, retooling, stopping mid-unit and the player's own choice, and the arms manager not fighting the link) and `war_terminal` (1). See `docs/WAR.md`, "The command terminal and the supply link".
 
 ## [0.103.1] — 2026-11-06 — War: Strategic Command II (development build)
 

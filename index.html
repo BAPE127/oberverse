@@ -31400,15 +31400,26 @@ function setDedicated(game, works, on) {
   const C = company(game); if (!C?.identity) return { ok: false, text: 'You have no company.' };
   if (!worksIds(game).includes(works)) return { ok: false, text: 'You do not own that works.' };
   const L = linkOf(C);
-  if (on) L.works[works] = true; else { delete L.works[works]; restore(game, works, () => true); }
+  if (on) L.works[works] = true; else { delete L.works[works]; sweep(game, L, new Set()); for (const m of game.arms.cells(works).machines) delete m.linkSkip; }
   return { ok: true, text: on ? `${game.arms.def(works).name} will make what the company is short of when its stations are idle, and go back to what they made once the stores are full.` : `${game.arms.def(works).name} goes back to its own work.` };
 }
 
-/** Put the stations of a works that were retooled back to what they were making (those the test lets go). */
-function restore(game, works, ok) {
+/** A station the link retooled carries `forCompany: { was, set }`: the recipe it made before and the one the link put on. */
+function release(A, m) {
+  const f = m.forCompany; if (!f) { delete m.forCompany; return; }
+  if (m.setting !== f.set) { delete m.forCompany; m.linkSkip = true; return; } // the player has taken the station back: it is theirs, and the link leaves it alone
+  if (m.progress > 0) return; // finish the unit in hand first
+  delete m.forCompany;
+  if (f.was && A.cfg.recipes[f.was]) A.setRecipe(m.id, f.was); else { m.setting = null; m.progress = 0; }
+}
+
+/** Every owned works, dedicated or not: a retooled station goes back once its works is no longer dedicated or its item is no longer wanted. */
+function sweep(game, L, wanted) {
   const A = game.arms;
-  for (const m of A.cells(works).machines) if (m.forCompany !== undefined && ok(m)) {
-    if (!(m.progress > 0)) { if (m.forCompany && A.cfg.recipes[m.forCompany]) A.setRecipe(m.id, m.forCompany); delete m.forCompany; }
+  for (const wh of worksIds(game)) for (const m of A.cells(wh).machines) {
+    if (m.forCompany === undefined) continue;
+    const r = A.recipeOf(m); const out = r && (r.single || r.out);
+    if (!L.works[wh] || !(out && wanted.has(out))) release(A, m);
   }
 }
 
@@ -31477,21 +31488,13 @@ function retool(game, C, L) {
   const wanted = new Set(unmet.map((x) => x.item));
   const assigned = {};
   for (const x of unmet) assigned[x.item] = makers(game, x.item).length;
+  sweep(game, L, wanted);
   for (const wh of worksIds(game)) {
     if (!L.works[wh]) continue;
     const machines = A.cells(wh).machines.filter((m) => m.kind !== 'lab').sort((a, b) => (a.id < b.id ? -1 : 1));
-    // go back: a station made for the company whose item is no longer short
-    for (const m of machines) {
-      if (m.forCompany === undefined) continue;
-      const r = A.recipeOf(m); const out = r && (r.single || r.out);
-      if (out && wanted.has(out)) continue;
-      if (m.progress > 0) continue; // finish the unit in hand
-      if (m.forCompany && A.cfg.recipes[m.forCompany]) A.setRecipe(m.id, m.forCompany);
-      delete m.forCompany;
-    }
     // take idle stations for the shortest items
     for (const m of machines) {
-      if (m.forCompany !== undefined || m.progress > 0) continue;
+      if (m.forCompany !== undefined || m.progress > 0 || m.linkSkip) continue;
       const cur = A.recipeOf(m); const curOut = cur && (cur.single || cur.out);
       if (curOut && wanted.has(curOut)) continue;
       for (const x of unmet) {
@@ -31502,7 +31505,7 @@ function retool(game, C, L) {
         const was = m.setting;
         const r = A.setRecipe(m.id, rec.rid);
         if (!r.ok) continue;
-        m.forCompany = was || '';
+        m.forCompany = { was: was || '', set: rec.rid };
         assigned[x.item] += 1;
         break;
       }
