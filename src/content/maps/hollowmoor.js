@@ -32,6 +32,8 @@ const buildings = Object.values(FACILITIES).map((F) => {
   return {
     id: `hm_${F.slot}`, name: F.name, mapLabel: F.name, x, y, w, h, roof: F.roof || '#6a6a58', wall: F.wall || '#a8a690', trim: '#3a3a30', sign: F.sign, signColor: '#e8e0c8', flatRoof: true, trade: F.trade, facility: F.id,
     door: { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', facility: F.id, message: `${F.name}: Mason's Os has not built it yet.` } },
+    // v0.103.2: the company's command terminal stands in the site office: the whole business is run from it (people, squads, armoury, supply, generals, contracts, the strategic map)
+    ...(F.id === 'site_office' ? { terminal: { interact: { kind: 'war', action: 'terminal', name: 'command terminal' }, examine: 'The company\'s command terminal: a ruggedised screen on a steel desk, bolted down. Roster, stores, supply orders, contracts and the war map, all on one screen. A sticky note: "NOT A TABLET. DO NOT TAKE HOME."' } } : {}),
   };
 });
 

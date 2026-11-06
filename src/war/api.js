@@ -6,6 +6,7 @@ import { register as registerStructure, apply as applyDamage, repair as repairSt
 import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
 import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
+import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
 import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
 import { hire as hireGeneral, dismiss as dismissGeneral, view as generalsView } from './generals.js';
@@ -77,6 +78,11 @@ export class War {
   buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
   housing() { return housingOf(this.g); }
   equipment() { return this.peek()?.company?.equipment || []; }
+  // ---- v0.103.2: the supply link with the Arms company (free standing levels; the shortfall bought from other manufacturers)
+  supplyLink() { return linkView(this.g); }
+  setSupplyLevel(item, qty) { return linkWant(this.g, item, qty); }
+  setSupplyWorks(works, on) { return linkWorks(this.g, works, on); }
+  buyElsewhere(item, qty) { return linkBuy(this.g, item, qty); }
   stock() { return this.peek()?.company?.stock || {}; }
   transfers() { return this.peek()?.transfers || []; }
 

@@ -1290,3 +1290,18 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .stc-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .stc-slot { width: 64px; height: 56px; border: 2px solid #3a3794; border-radius: 8px; display: grid; place-items: center; text-align: center; cursor: pointer; background: #1c1a52; } .stc-slot span { font-size: 20px; } .stc-slot small { font-size: 10px; } .stc-add { font-size: 11px !important; }
 
 .stc-army { margin: 8px 0; padding: 7px 9px; border: 2px solid #2d2a6e; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-army b { color: #ffd966; }
+
+/* v0.103.2: the company's command terminal (src/ui/militaryTerminal.js) */
+#modal-panel.milterm-panel { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #0b0a24; color: #e8eaf6; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.milterm-panel .panel-head, #modal-panel.milterm-panel #modal-tabs { display: none; }
+#modal-panel.milterm-panel #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.milterm { display: flex; flex-direction: column; height: 100%; }
+.mt-top { display: flex; align-items: center; gap: 22px; padding: 10px 16px; background: #0c0a24; border-bottom: 2px solid #2d2a6e; flex-wrap: wrap; }
+.mt-top h1 { margin: 0; font-size: 17px; letter-spacing: .06em; color: #ffe27a; } .mt-top small { display: block; font-size: 10px; letter-spacing: .08em; color: #a8a6d8; } .mt-top b { font-size: 18px; color: #ffe27a; } .mt-top .sp { flex: 1; }
+.mt-x { padding: 6px 12px; border: 2px solid #3a3794; border-radius: 8px; background: #1c1a52; color: inherit; cursor: pointer; }
+.mt-wrap { display: grid; grid-template-columns: 220px 1fr; flex: 1; min-height: 0; }
+.mt-nav { padding: 10px; border-right: 2px solid #2d2a6e; background: #0f0d30; display: grid; gap: 6px; align-content: start; overflow-y: auto; }
+.mt-item { padding: 9px 11px; border: 2px solid #2d2a6e; border-radius: 8px; display: flex; justify-content: space-between; gap: 8px; background: transparent; color: inherit; cursor: pointer; text-align: left; font-size: 14px; }
+.mt-item.on { border-color: #ffe066; background: #1c1a52; } .mt-item em { font-style: normal; color: #8fd9a8; font-size: 12px; } .mt-item em.w { color: #ffb070; }
+.mt-main { padding: 14px 18px; overflow-y: auto; min-height: 0; } .mt-page { max-width: 880px; margin: 0 auto; }
+@media (max-width: 760px) { .mt-wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .mt-nav { grid-auto-flow: column; overflow-x: auto; border-right: none; border-bottom: 2px solid #2d2a6e; } .mt-item { white-space: nowrap; } }

@@ -18,6 +18,7 @@ import { armsBenchPanel } from './armsbench.js';
 import { fleetPanel } from './fleetCommand.js';
 import { battlePanel } from './battle.js'; // v0.101.0
 import { strategicPanel } from './strategic.js'; // v0.103.0
+import { militaryTerminalPanel } from './militaryTerminal.js'; // v0.103.2
 import { logbookPanel } from './logbook.js';
 import { cashierPanel, casinoTablePanel } from './casino.js';
 import { spadeTablePanel } from './spadeTable.js';
@@ -37,6 +38,7 @@ PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
 PANELS.battle = battlePanel; // v0.101.0: the tactical battle, full screen
 PANELS.strategic = strategicPanel; // v0.103.0: the strategic map, full screen
+PANELS.militaryterminal = militaryTerminalPanel; // v0.103.2: the company's command terminal in the site office
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;

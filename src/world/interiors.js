@@ -129,6 +129,12 @@ function generatedInterior(S, b) {
     spots: {},
     props: furnish(kind, W, H, dx, id, hash(b.x, b.y)),
   };
+  // v0.103.2: a building may carry a terminal (the company's command terminal in its site office): it stands in the top row, in place of whatever the room's furniture put there
+  if (b.terminal && dx >= 0) {
+    const tx = Math.max(1, Math.min(W - 2, Math.floor(W / 2)));
+    def.props = def.props.filter((p) => !(p.y <= 1 && (p.y + (p.h || 1)) > 1 && p.x <= tx && p.x + (p.w || 1) > tx));
+    def.props.push({ id: `${id}_terminal`, type: 'terminal', x: tx, y: 1, interact: b.terminal.interact, examine: b.terminal.examine });
+  }
   // where you'd stand: inside the door, or (a room with no door) the first clear floor
   const covered = (x, y) => def.props.some((p) => x >= p.x && x < p.x + (p.w || 1) && y >= p.y && y < p.y + (p.h || 1));
   let entry = dx >= 0 ? { x: dx, y: H - 2, facing: 'up' } : null;

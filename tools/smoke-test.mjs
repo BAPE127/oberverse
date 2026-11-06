@@ -450,25 +450,20 @@ try {
     g.war.found('Smoke Test Company'); g.war.fund(300000); g.war.buyLicence(); g.war.buyLot();
     while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
     const text = document.querySelector('#modal-body')?.textContent || '';
-    out.company = /Smoke Test Company/.test(text) && /Site office/.test(text) && /Stage 1/.test(text);
+    out.company = /Smoke Test Company/.test(text);
     out.guide = /Getting started: your first building/.test(text) && /Order the site office/.test(text) && /Hollowmoor Lot/.test(text); // v0.103.1: the first steps are laid out with their buttons
-    // v0.99.0: the Military app's four pages (Company, Transfers, Production, Contracts) and a segment bar that is not squeezed away
-    const bar = [...document.querySelectorAll('#modal-body .tb-seg')].find((x) => x.children.length === 4);
-    out.fourSegments = Boolean(bar) && bar.getBoundingClientRect().height > 30;
-    for (const [tab, re] of [['Transfers', /Free between your companies/], ['Production', /tanks and helicopters only/], ['Contracts', /Security contracts/]]) {
-      ui.milTab = tab; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
-      out[tab] = re.test(document.querySelector('#modal-body')?.textContent || '');
-    }
-    // v0.100.0: the People, Squads and Armoury screens open from the Company page
-    ui.milTab = 'Company';
-    for (const [sub, re] of [['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/], ['Base', /Capacity is real|ready/], ['Generals', /Available to hire/]]) {
-      ui.milSub = sub; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
-      out[sub] = re.test(document.querySelector('#modal-body')?.textContent || '');
+    out.noPages = !document.querySelector('#modal-body .tb-seg'); // v0.103.2: the tablet only founds the company; the business is run from the command terminal
+    // v0.103.2: the command terminal in the site office: its pages (the old Military app pages, the Overview and the new Supply page) all open
+    ui.termPage = null; ui.milSub = null; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 250));
+    out.terminal = Boolean(document.querySelector('.mt-nav')) && /Smoke Test Company/.test(document.querySelector('.mt-main')?.textContent || '') && /Stage 1/.test(document.querySelector('.mt-main')?.textContent || '') && document.querySelector('#modal-panel')?.classList.contains('milterm-panel');
+    for (const [page, re] of [['Supply', /Supply from the arms company/], ['Production', /tanks and helicopters only/], ['Contracts', /Security contracts/], ['People', /on the books/], ['Squads', /Form a squad/], ['Armoury', /Class, weapons and look/], ['Base', /Capacity is real|ready/], ['Generals', /Available to hire/]]) {
+      [...document.querySelectorAll('.mt-nav .mt-item')].find((b) => b.textContent.startsWith(page === 'Generals' ? 'Generals' : page))?.click(); await new Promise((r) => setTimeout(r, 200));
+      out[`terminal_${page}`] = re.test(document.querySelector('.mt-main')?.textContent || '');
     }
     // v0.100.0: an engagement is planned from a screen that says what is missing (nothing is spawned)
     const Cmp = g.war.state().company; (Cmp.engagements ||= []).push({ id: 'Nsmoke', kind: 'hold', title: 'Hold Smoke Crossing', text: 'x', client: 'The Ostmark Union', place: 'Smoke Crossing', terrain: 'rural', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 12, armour: 1, air: 0, skill: 1 }, pay: 90000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
-    ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
-    out.Engagement = /One way or the other/.test(document.querySelector('#modal-body')?.textContent || '');
+    ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; ui.termPage = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 250));
+    out.Engagement = /One way or the other/.test(document.querySelector('.mt-main')?.textContent || '');
     // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors
     for (const recipe of ['city', 'fields']) {
       const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
@@ -488,11 +483,11 @@ try {
     [...document.querySelectorAll('.stc-modal button')].find((b) => /Close/.test(b.textContent))?.click(); [...document.querySelectorAll('.stc-left button')].find((b) => /Raise a battalion/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 150));
     out.strategic_raise = /RAISE A BATTALION/.test(document.querySelector('.stc-modal')?.textContent || '') && /WHAT THIS NEEDS/.test(document.querySelector('.stc-modal')?.textContent || '');
     ui.closePanel();
-    ui.milSub = null;
+    ui.milSub = null; ui.termPage = null;
     ui.milTab = 'Company';
     return out;
   });
-  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company, lists the base\'s buildings and shows its four pages', Object.values(war).every(Boolean), JSON.stringify(war));
+  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company and shows the first steps, and the command terminal opens all its pages', Object.values(war).every(Boolean), JSON.stringify(war));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

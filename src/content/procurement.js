@@ -82,3 +82,10 @@ export const ARMS_TRANSFERABLE = ['item_pistol', 'item_smg', 'item_shotgun', 'it
 
 /** What a transfer leaves behind: the trail (never money) keeps this many entries. */
 export const TRANSFER_LOG = 80;
+
+/**
+ * The supply link (v0.103.2): the company keeps standing levels of what the Arms works make. The works ships what its export cage holds toward each level every morning, free (it is
+ * your own company's stock moving, not a sale). What the works cannot keep up with can be bought from other manufacturers at `markup` times the item's value, arriving in `days` days.
+ * `max` is the highest level that can be asked for; `flowDays` is how long the weekly figures run.
+ */
+export const LINK = { markup: 1.4, days: 2, max: 999, flowDays: 7, maxLog: 30 };

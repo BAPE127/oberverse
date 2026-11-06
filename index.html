@@ -1300,6 +1300,21 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .stc-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .stc-slot { width: 64px; height: 56px; border: 2px solid #3a3794; border-radius: 8px; display: grid; place-items: center; text-align: center; cursor: pointer; background: #1c1a52; } .stc-slot span { font-size: 20px; } .stc-slot small { font-size: 10px; } .stc-add { font-size: 11px !important; }
 
 .stc-army { margin: 8px 0; padding: 7px 9px; border: 2px solid #2d2a6e; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-army b { color: #ffd966; }
+
+/* v0.103.2: the company's command terminal (src/ui/militaryTerminal.js) */
+#modal-panel.milterm-panel { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #0b0a24; color: #e8eaf6; box-shadow: none; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#modal-panel.milterm-panel .panel-head, #modal-panel.milterm-panel #modal-tabs { display: none; }
+#modal-panel.milterm-panel #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.milterm { display: flex; flex-direction: column; height: 100%; }
+.mt-top { display: flex; align-items: center; gap: 22px; padding: 10px 16px; background: #0c0a24; border-bottom: 2px solid #2d2a6e; flex-wrap: wrap; }
+.mt-top h1 { margin: 0; font-size: 17px; letter-spacing: .06em; color: #ffe27a; } .mt-top small { display: block; font-size: 10px; letter-spacing: .08em; color: #a8a6d8; } .mt-top b { font-size: 18px; color: #ffe27a; } .mt-top .sp { flex: 1; }
+.mt-x { padding: 6px 12px; border: 2px solid #3a3794; border-radius: 8px; background: #1c1a52; color: inherit; cursor: pointer; }
+.mt-wrap { display: grid; grid-template-columns: 220px 1fr; flex: 1; min-height: 0; }
+.mt-nav { padding: 10px; border-right: 2px solid #2d2a6e; background: #0f0d30; display: grid; gap: 6px; align-content: start; overflow-y: auto; }
+.mt-item { padding: 9px 11px; border: 2px solid #2d2a6e; border-radius: 8px; display: flex; justify-content: space-between; gap: 8px; background: transparent; color: inherit; cursor: pointer; text-align: left; font-size: 14px; }
+.mt-item.on { border-color: #ffe066; background: #1c1a52; } .mt-item em { font-style: normal; color: #8fd9a8; font-size: 12px; } .mt-item em.w { color: #ffb070; }
+.mt-main { padding: 14px 18px; overflow-y: auto; min-height: 0; } .mt-page { max-width: 880px; margin: 0 auto; }
+@media (max-width: 760px) { .mt-wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .mt-nav { grid-auto-flow: column; overflow-x: auto; border-right: none; border-bottom: 2px solid #2d2a6e; } .mt-item { white-space: nowrap; } }
 </style>
 </head>
 <body>
@@ -6007,6 +6022,8 @@ const buildings = Object.values(FACILITIES).map((F) => {
   return {
     id: `hm_${F.slot}`, name: F.name, mapLabel: F.name, x, y, w, h, roof: F.roof || '#6a6a58', wall: F.wall || '#a8a690', trim: '#3a3a30', sign: F.sign, signColor: '#e8e0c8', flatRoof: true, trade: F.trade, facility: F.id,
     door: { x: x + Math.floor(w / 2), y: y + h - 1, lock: { key: 'item_none', facility: F.id, message: `${F.name}: Mason's Os has not built it yet.` } },
+    // v0.103.2: the company's command terminal stands in the site office: the whole business is run from it (people, squads, armoury, supply, generals, contracts, the strategic map)
+    ...(F.id === 'site_office' ? { terminal: { interact: { kind: 'war', action: 'terminal', name: 'command terminal' }, examine: 'The company\'s command terminal: a ruggedised screen on a steel desk, bolted down. Roster, stores, supply orders, contracts and the war map, all on one screen. A sticky note: "NOT A TABLET. DO NOT TAKE HOME."' } } : {}),
   };
 });
 
@@ -17703,6 +17720,12 @@ function generatedInterior(S, b) {
     spots: {},
     props: furnish(kind, W, H, dx, id, hash(b.x, b.y)),
   };
+  // v0.103.2: a building may carry a terminal (the company's command terminal in its site office): it stands in the top row, in place of whatever the room's furniture put there
+  if (b.terminal && dx >= 0) {
+    const tx = Math.max(1, Math.min(W - 2, Math.floor(W / 2)));
+    def.props = def.props.filter((p) => !(p.y <= 1 && (p.y + (p.h || 1)) > 1 && p.x <= tx && p.x + (p.w || 1) > tx));
+    def.props.push({ id: `${id}_terminal`, type: 'terminal', x: tx, y: 1, interact: b.terminal.interact, examine: b.terminal.examine });
+  }
   // where you'd stand: inside the door, or (a room with no door) the first clear floor
   const covered = (x, y) => def.props.some((p) => x >= p.x && x < p.x + (p.w || 1) && y >= p.y && y < p.y + (p.h || 1));
   let entry = dx >= 0 ? { x: dx, y: H - 2, facing: 'up' } : null;
@@ -30997,7 +31020,14 @@ const ARMS_TRANSFERABLE = ['item_pistol', 'item_smg', 'item_shotgun', 'item_assa
 /** What a transfer leaves behind: the trail (never money) keeps this many entries. */
 const TRANSFER_LOG = 80;
 
-return { VEHICLE_CLASSES, VEHICLES, NEVER_BUILT, SUPPLIES, ARMS_TRANSFERABLE, TRANSFER_LOG };
+/**
+ * The supply link (v0.103.2): the company keeps standing levels of what the Arms works make. The works ships what its export cage holds toward each level every morning, free (it is
+ * your own company's stock moving, not a sale). What the works cannot keep up with can be bought from other manufacturers at `markup` times the item's value, arriving in `days` days.
+ * `max` is the highest level that can be asked for; `flowDays` is how long the weekly figures run.
+ */
+const LINK = { markup: 1.4, days: 2, max: 999, flowDays: 7, maxLog: 30 };
+
+return { VEHICLE_CLASSES, VEHICLES, NEVER_BUILT, SUPPLIES, ARMS_TRANSFERABLE, TRANSFER_LOG, LINK };
 })();
 
 // ---- src/war/equipment.js
@@ -31068,7 +31098,7 @@ function stockName(game, key) {
   const [kind, a, b] = key.split(':');
   if (kind === 'supply') return SUPPLY_NAME(a);
   const item = game.content?.items?.[b];
-  return `${item?.name || b}${a ? ` (from ${game.arms?.def?.(a)?.name || a})` : ''}`;
+  return `${item?.name || b}${a === 'bought' ? ' (bought elsewhere)' : a ? ` (from ${game.arms?.def?.(a)?.name || a})` : ''}`;
 }
 let SUPPLIES_CACHE = SUPPLIES;
 function SUPPLY_NAME(id) { return SUPPLIES_CACHE?.[id]?.name || id; }
@@ -31099,6 +31129,49 @@ const heldOf = (C, item) => Object.keys(C?.stock || {}).filter((k) => k.endsWith
 return { reserved, heldOf };
 })();
 
+// ---- src/war/cage.js
+__m["src/war/cage.js"] = (function () {
+// The Arms works' export cage, as the company reads it (v0.103.2). The works' stations make whole CRATES (src/content/arms.js: one crate is CRATE.units weapons); the company's stores count
+// single items. So an item in the cage is whatever singles are there plus the crates of it, and taking some unpacks crates (the rest of an opened crate stays in the cage as singles, so nothing
+// is lost). Reads and writes the cage container only.
+const { CRATE } = __m["src/content/arms.js"];
+
+const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
+
+/** The crate item that holds this single item, or null (a shell or a breach charge is made loose). */
+function crateOf(game, item) {
+  for (const r of Object.values(game.content.arms.recipes)) if (r.single === item) return r.out;
+  return null;
+}
+
+/** How many of an item a works' cage holds, loose and in crates. */
+function cageCount(game, works, item) {
+  const cage = cageOf(game, works); if (!cage) return 0;
+  const crate = crateOf(game, item);
+  return (cage.items?.[item] || 0) + (crate ? (cage.items?.[crate] || 0) * CRATE.units : 0);
+}
+
+/** Take `qty` of an item out of a cage (loose first, then crates). Returns how many were taken (never more than the cage holds). */
+function cageTake(game, works, item, qty) {
+  const cage = cageOf(game, works); if (!cage) return 0;
+  qty = Math.min(qty, cageCount(game, works, item)); if (qty < 1) return 0;
+  let left = qty;
+  const loose = Math.min(left, cage.items[item] || 0);
+  if (loose) { cage.items[item] -= loose; left -= loose; if (!cage.items[item]) delete cage.items[item]; }
+  const crate = crateOf(game, item);
+  if (left && crate) {
+    const crates = Math.ceil(left / CRATE.units);
+    cage.items[crate] -= crates; if (!cage.items[crate]) delete cage.items[crate];
+    const rest = crates * CRATE.units - left;
+    if (rest) cage.items[item] = (cage.items[item] || 0) + rest;
+  }
+  game.bus.emit('container:changed', { id: game.arms.def(works).outCrate });
+  return qty;
+}
+
+return { cageOf, crateOf, cageCount, cageTake };
+})();
+
 // ---- src/war/transfers.js
 __m["src/war/transfers.js"] = (function () {
 // Transfers (v0.99.0 stage 4): moving real things between your other companies and the war company. The rules, all of them tested:
@@ -31113,9 +31186,9 @@ const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } = __m["src/war/equipment.js"];
 const { ARMS_TRANSFERABLE, TRANSFER_LOG } = __m["src/content/procurement.js"];
 const { reserved, heldOf } = __m["src/war/reserve.js"];
+const { cageOf, cageCount, cageTake } = __m["src/war/cage.js"];
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
-const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
 
 function note(game, entry) {
   const m = ensureMilitary(game);
@@ -31134,9 +31207,8 @@ function aeroStored(game) {
 function offers(game) {
   const out = { aero: aeroStored(game), arms: [], ships: [] };
   for (const works of game.arms.ownedIds()) {
-    const cage = cageOf(game, works);
     for (const item of ARMS_TRANSFERABLE) {
-      const have = cage?.items?.[item] || 0;
+      const have = cageCount(game, works, item);
       if (have > 0) out.arms.push({ source: 'arms', works, item, name: game.content.items[item]?.name || item, have, from: game.arms.def(works).name });
     }
   }
@@ -31167,14 +31239,12 @@ function transfer(game, spec) {
     if (qty < 1) return { ok: false, text: 'Move at least one.' };
     if (!ARMS_TRANSFERABLE.includes(spec.item)) return { ok: false, text: 'The company takes weapons, rounds, missiles and drones from the Arms works, nothing else.' };
     if (!game.arms.ownedIds().includes(spec.works)) return { ok: false, text: 'You do not own that works.' };
-    const cage = cageOf(game, spec.works);
-    const have = cage?.items?.[spec.item] || 0;
+    const have = cageCount(game, spec.works, spec.item);
     if (have < qty) return { ok: false, text: `The export cage holds ${have}.` };
     const why = roomFor(game, 'stock', qty);
     if (why) return { ok: false, text: why };
-    cage.items[spec.item] -= qty;
+    cageTake(game, spec.works, spec.item, qty);
     addStock(game, `arms:${spec.works}:${spec.item}`, qty);
-    game.bus.emit('container:changed', { id: game.arms.def(spec.works).outCrate });
     const name = game.content.items[spec.item]?.name || spec.item;
     note(game, { from: `arms:${spec.works}`, to: 'company', what: spec.item, name, qty, status: 'done' });
     return { ok: true, text: `${qty} × ${name} move from ${game.arms.def(spec.works).name} to the company's stores. Free.` };
@@ -31202,6 +31272,7 @@ function giveBack(game, spec) {
   const qty = Math.floor(Number(spec.qty) || 0);
   const m = /^arms:([^:]+):(.+)$/.exec(spec.key || '');
   if (!m) return { ok: false, text: 'Only what came from the Arms works goes back.' };
+  if (m[1] === 'bought') return { ok: false, text: 'What was bought from other manufacturers has nowhere to go back to.' };
   if (qty < 1) return { ok: false, text: 'Move at least one.' };
   if (stockOf(game, spec.key) < qty) return { ok: false, text: `The company holds ${stockOf(game, spec.key)}.` };
   const hold = reserved(C).items[m[2]] || 0; if (hold && heldOf(C, m[2]) - qty < hold) return { ok: false, text: `${hold} of those are set aside for a battle in progress: ${Math.max(0, heldOf(C, m[2]) - hold)} can go back now.` };
@@ -31257,6 +31328,207 @@ function buySupply(game, id, qty) {
 }
 
 return { buyVehicle, buySupply };
+})();
+
+// ---- src/war/link.js
+__m["src/war/link.js"] = (function () {
+// The supply link between the Arms company and the war company (v0.103.2). The company keeps STANDING LEVELS of what the Arms works make (guns, rounds, rockets, shells, missiles, drones):
+//   free        every morning each works ships what its export cage holds toward each level, at no charge. It is the same stock moving between your own companies: no sale, no entry, no money.
+//   real stock  only what the cage actually holds moves (loose items, and crates opened for the purpose); a works that has made nothing ships nothing
+//   dedicated   a works marked "makes for the company" retools its idle stations to the items the company is short of, and goes back to what they were making when the level is met
+//   elsewhere   what the works cannot keep up with can be bought from other manufacturers at LINK.markup times the item's value, paid by the company from its own account, arriving in LINK.days days
+// Reads and writes `company.link`, the company's stock (through equipment.js), the cages (through cage.js), and the Arms works' station settings (through game.arms.setRecipe).
+const { peekMilitary } = __m["src/war/state.js"];
+const { addStock, roomFor, nextId } = __m["src/war/equipment.js"];
+const { pay } = __m["src/war/company.js"];
+const { cageCount, cageTake } = __m["src/war/cage.js"];
+const { heldOf } = __m["src/war/reserve.js"];
+const { CRATE } = __m["src/content/arms.js"];
+const { ARMS_TRANSFERABLE, LINK } = __m["src/content/procurement.js"];
+
+const company = (game) => peekMilitary(game)?.company || null;
+function linkOf(C) {
+  C.link ||= { want: {}, works: {}, inbound: [], flow: { since: 0, free: 0, bought: 0, spent: 0 }, log: [], day: 0 };
+  return C.link;
+}
+const items = (game) => game.content.items;
+const nameOf = (game, item) => items(game)[item]?.name || item;
+const worksIds = (game) => (game.arms?.ownedIds?.() || []).slice().sort();
+const cagesHold = (game, item) => worksIds(game).reduce((a, w) => a + cageCount(game, w, item), 0);
+const inboundOf = (L, item) => L.inbound.filter((x) => x.item === item).reduce((a, x) => a + x.qty, 0);
+const say = (L, game, text) => { L.log.push({ day: game.clock.day, text }); while (L.log.length > LINK.maxLog) L.log.shift(); };
+
+/** What one unit costs from another manufacturer. */
+function unitPrice(game, item) {
+  const v = game.arms?.value?.(item) || items(game)[item]?.arms?.value || items(game)[item]?.price || 0;
+  return Math.max(1, Math.round(v * LINK.markup));
+}
+
+/** The recipes (by id) that make an item, with the station kind each needs. */
+function recipesFor(game, item) {
+  return Object.entries(game.content.arms.recipes).filter(([, r]) => r.single === item || r.out === item).map(([rid, r]) => ({ rid, station: r.station, manual: Boolean(r.manual) }));
+}
+
+/** How short the company is of an item: the level asked for, less what the stores hold, what is on its way, and what the cages will ship tomorrow. */
+function shortOf(game, C, L, item) {
+  const want = L.want[item] || 0;
+  const have = heldOf(C, item);
+  const inbound = inboundOf(L, item);
+  const caged = cagesHold(game, item);
+  return { want, have, inbound, caged, toShip: Math.max(0, Math.min(want - have, caged)), short: Math.max(0, want - have - inbound - caged) };
+}
+
+/** Which stations (machines) of the owned works make an item right now. */
+function makers(game, item) {
+  const A = game.arms; const out = [];
+  for (const wh of worksIds(game)) for (const m of A.cells(wh).machines) { if (m.kind === 'lab') continue; const r = A.recipeOf(m); if (r && (r.single === item || r.out === item)) out.push({ wh, m, staffed: Boolean(A.workerAt(m)) }); }
+  return out;
+}
+
+function setWant(game, item, qty) {
+  const C = company(game); if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!ARMS_TRANSFERABLE.includes(item)) return { ok: false, text: 'The company keeps weapons, rounds, rockets, shells, missiles and drones from the Arms works, nothing else.' };
+  qty = Math.floor(Number(qty)); if (!(qty >= 0)) return { ok: false, text: 'That is not a number.' };
+  if (qty > LINK.max) return { ok: false, text: `The highest level is ${LINK.max}.` };
+  const L = linkOf(C);
+  if (qty === 0) delete L.want[item]; else L.want[item] = qty;
+  return { ok: true, text: qty ? `The company will keep ${qty} × ${nameOf(game, item)} in the stores.` : `The company no longer keeps ${nameOf(game, item)} in the stores.` };
+}
+
+/** Tell a works to make for the company (or stop). */
+function setDedicated(game, works, on) {
+  const C = company(game); if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!worksIds(game).includes(works)) return { ok: false, text: 'You do not own that works.' };
+  const L = linkOf(C);
+  if (on) L.works[works] = true; else { delete L.works[works]; restore(game, works, () => true); }
+  return { ok: true, text: on ? `${game.arms.def(works).name} will make what the company is short of when its stations are idle, and go back to what they made once the stores are full.` : `${game.arms.def(works).name} goes back to its own work.` };
+}
+
+/** Put the stations of a works that were retooled back to what they were making (those the test lets go). */
+function restore(game, works, ok) {
+  const A = game.arms;
+  for (const m of A.cells(works).machines) if (m.forCompany !== undefined && ok(m)) {
+    if (!(m.progress > 0)) { if (m.forCompany && A.cfg.recipes[m.forCompany]) A.setRecipe(m.id, m.forCompany); delete m.forCompany; }
+  }
+}
+
+/** Buy what the works cannot make from other manufacturers: paid now, in the stores in LINK.days days. */
+function buyElsewhere(game, item, qty) {
+  const C = company(game); if (!C?.identity) return { ok: false, text: 'You have no company.' };
+  if (!ARMS_TRANSFERABLE.includes(item)) return { ok: false, text: 'Not an item the company keeps.' };
+  qty = Math.floor(Number(qty) || 0); if (qty < 1) return { ok: false, text: 'Buy at least one.' };
+  const L = linkOf(C); const S = shortOf(game, C, L, item);
+  if (!S.want) return { ok: false, text: `Set a level for ${nameOf(game, item)} first.` };
+  if (S.have + S.inbound + qty > S.want) return { ok: false, text: `That is more than the level of ${S.want}: ${Math.max(0, S.want - S.have - S.inbound)} would fill it.` };
+  const why = roomFor(game, 'stock', S.have + S.inbound + qty); // the stores must be able to hold what is already there and what is coming
+  if (why && roomFor(game, 'stock', qty)) return { ok: false, text: why };
+  const cost = unitPrice(game, item) * qty;
+  const r = pay(game, cost, `Other manufacturers: ${qty} × ${nameOf(game, item)}`);
+  if (!r.ok) return r;
+  L.inbound.push({ id: nextId(C, 'B'), item, qty, due: game.clock.day + LINK.days });
+  refreshFlow(game, L); L.flow.spent += cost;
+  say(L, game, `Bought ${qty} × ${nameOf(game, item)} from other manufacturers (${cost.toLocaleString('en-US')} obols), due in ${LINK.days} days.`);
+  return { ok: true, text: `${qty} × ${nameOf(game, item)} ordered from other manufacturers: ${cost.toLocaleString('en-US')} obols, in the stores in ${LINK.days} days.` };
+}
+
+function refreshFlow(game, L) {
+  if (game.clock.day - L.flow.since >= LINK.flowDays) L.flow = { since: game.clock.day, free: 0, bought: 0, spent: 0 };
+}
+
+/** Every morning: the purchases that are due arrive, the dedicated works retool, and each works ships toward the levels. Marked per day, so a day run twice changes nothing. */
+function dayTick(game) {
+  const C = company(game); if (!C?.identity) return;
+  const L = linkOf(C); const day = game.clock.day;
+  if (L.day >= day) return; L.day = day;
+  refreshFlow(game, L);
+  // purchases arriving (they wait if the stores are full)
+  for (const b of L.inbound.slice()) {
+    if (b.due > day) continue;
+    if (roomFor(game, 'stock', b.qty)) continue;
+    addStock(game, `arms:bought:${b.item}`, b.qty); L.flow.bought += b.qty;
+    L.inbound = L.inbound.filter((x) => x !== b);
+    say(L, game, `${b.qty} × ${nameOf(game, b.item)} arrived from other manufacturers.`);
+  }
+  // the free shipment from the cages
+  for (const item of Object.keys(L.want).sort()) {
+    let need = L.want[item] - heldOf(C, item);
+    if (need < 1) continue;
+    let moved = 0;
+    for (const wh of worksIds(game)) {
+      if (need < 1) break;
+      const take = Math.min(need, cageCount(game, wh, item), Math.max(0, freeRoom(game)));
+      if (take < 1) continue;
+      const got = cageTake(game, wh, item, take);
+      addStock(game, `arms:${wh}:${item}`, got); need -= got; moved += got;
+      const m = peekMilitary(game);
+      m.transfers.push({ id: nextId(C, 'T'), day, from: `arms:${wh}`, to: 'company', what: item, name: nameOf(game, item), qty: got, status: 'done', by: 'supply link' });
+    }
+    if (moved) { L.flow.free += moved; say(L, game, `${moved} × ${nameOf(game, item)} shipped free from the Arms works.`); }
+  }
+  const m = peekMilitary(game); while (m.transfers.length > 80) m.transfers.shift();
+  retool(game, C, L);
+}
+function freeRoom(game) { return game.war.housing().stores.free; }
+
+/** Dedicated works: idle stations make what the company is short of; when it is not, they go back. */
+function retool(game, C, L) {
+  const A = game.arms;
+  const unmet = Object.keys(L.want).map((item) => ({ item, ...shortOf(game, C, L, item) })).filter((x) => x.want - x.have - x.inbound - x.caged > 0).sort((a, b) => (b.want - b.have) / b.want - (a.want - a.have) / a.want || (a.item < b.item ? -1 : 1));
+  const wanted = new Set(unmet.map((x) => x.item));
+  const assigned = {};
+  for (const x of unmet) assigned[x.item] = makers(game, x.item).length;
+  for (const wh of worksIds(game)) {
+    if (!L.works[wh]) continue;
+    const machines = A.cells(wh).machines.filter((m) => m.kind !== 'lab').sort((a, b) => (a.id < b.id ? -1 : 1));
+    // go back: a station made for the company whose item is no longer short
+    for (const m of machines) {
+      if (m.forCompany === undefined) continue;
+      const r = A.recipeOf(m); const out = r && (r.single || r.out);
+      if (out && wanted.has(out)) continue;
+      if (m.progress > 0) continue; // finish the unit in hand
+      if (m.forCompany && A.cfg.recipes[m.forCompany]) A.setRecipe(m.id, m.forCompany);
+      delete m.forCompany;
+    }
+    // take idle stations for the shortest items
+    for (const m of machines) {
+      if (m.forCompany !== undefined || m.progress > 0) continue;
+      const cur = A.recipeOf(m); const curOut = cur && (cur.single || cur.out);
+      if (curOut && wanted.has(curOut)) continue;
+      for (const x of unmet) {
+        const enough = Math.max(1, Math.ceil((x.want - x.have - x.inbound - x.caged) / CRATE.units / 4));
+        if (assigned[x.item] >= enough) continue;
+        const rec = recipesFor(game, x.item).find((q) => q.station === m.kind && A.recipeUnlocked(q.rid));
+        if (!rec) continue;
+        const was = m.setting;
+        const r = A.setRecipe(m.id, rec.rid);
+        if (!r.ok) continue;
+        m.forCompany = was || '';
+        assigned[x.item] += 1;
+        break;
+      }
+    }
+  }
+}
+
+/** Everything the Supply page shows. */
+function view(game) {
+  const C = company(game); if (!C?.identity) return null;
+  const L = linkOf(C); refreshFlow(game, L);
+  const rows = ARMS_TRANSFERABLE.filter((item) => game.content.items[item]).map((item) => {
+    const S = shortOf(game, C, L, item); const mk = makers(game, item);
+    const recs = recipesFor(game, item); const can = recs.some((q) => game.arms.recipeUnlocked(q.rid));
+    const buyQty = Math.max(0, S.want - S.have - S.inbound);
+    const state = !S.want ? 'off' : S.have >= S.want ? 'full' : S.have + S.inbound >= S.want ? 'inbound' : S.have + S.inbound + S.caged >= S.want ? 'shipping' : mk.length ? 'making' : 'idle';
+    return { item, name: nameOf(game, item), ...S, makers: mk.length, staffed: mk.filter((x) => x.staffed).length, canMake: can, unit: unitPrice(game, item), buyQty, buyCost: buyQty * unitPrice(game, item), state };
+  });
+  return {
+    rows, flow: { ...L.flow }, inbound: L.inbound.map((b) => ({ ...b, name: nameOf(game, b.item) })), log: L.log.slice().reverse(),
+    works: worksIds(game).map((w) => ({ id: w, name: game.arms.def(w).name, dedicated: Boolean(L.works[w]), stations: game.arms.cells(w).machines.filter((m) => m.kind !== 'lab').length, retooled: game.arms.cells(w).machines.filter((m) => m.forCompany !== undefined).length })),
+    markup: LINK.markup, days: LINK.days,
+  };
+}
+
+return { linkOf, unitPrice, setWant, setDedicated, buyElsewhere, dayTick, view };
 })();
 
 // ---- src/content/troops.js
@@ -34055,6 +34327,7 @@ const { dayTick: jobs } = __m["src/war/contracts.js"];
 const { dayTick: living } = __m["src/war/base.js"];
 const { dayTick: battles } = __m["src/war/engagements.js"];
 const { dayTick: strategic } = __m["src/war/strategic.js"];
+const { dayTick: supplyLink } = __m["src/war/link.js"];
 
 function runDay(game) {
   construction(game);
@@ -34066,6 +34339,7 @@ function runDay(game) {
   normalise(C);
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   works(game);
+  supplyLink(game); // v0.103.2: the Arms works ship toward the company's standing levels, free
   jobs(game);
   battles(game);
   strategic(game);
@@ -34497,6 +34771,7 @@ const { register: registerStructure, apply: applyDamage, repair: repairStructure
 const { found: foundCompany, rename: renameCompany, fund: fundCompany, take: takeFromCompany, pay: companyPay, buyLicence: licenceBuy, buyLot: lotBuy, view: companyView, cash: companyCash } = __m["src/war/company.js"];
 const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } = __m["src/war/transfers.js"];
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
+const { view: linkView, setWant: linkWant, setDedicated: linkWorks, buyElsewhere: linkBuy } = __m["src/war/link.js"];
 const { housing: housingOf } = __m["src/war/equipment.js"];
 const { runDay } = __m["src/war/day.js"];
 const { hire: hireGeneral, dismiss: dismissGeneral, view: generalsView } = __m["src/war/generals.js"];
@@ -34568,6 +34843,11 @@ class War {
   buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
   housing() { return housingOf(this.g); }
   equipment() { return this.peek()?.company?.equipment || []; }
+  // ---- v0.103.2: the supply link with the Arms company (free standing levels; the shortfall bought from other manufacturers)
+  supplyLink() { return linkView(this.g); }
+  setSupplyLevel(item, qty) { return linkWant(this.g, item, qty); }
+  setSupplyWorks(works, on) { return linkWorks(this.g, works, on); }
+  buyElsewhere(item, qty) { return linkBuy(this.g, item, qty); }
   stock() { return this.peek()?.company?.stock || {}; }
   transfers() { return this.peek()?.transfers || []; }
 
@@ -55586,6 +55866,7 @@ class Game {
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
       case 'aerospace': return { terminal: 'Use the aerospace terminal', board: 'Read the share board', sale: 'Read the sale notice' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
+      case 'war': return 'Use the command terminal'; // v0.103.2
       case 'farm': return this.farm.label(prop);
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
@@ -55695,6 +55976,8 @@ class Game {
         return this.dairy.interact(prop);
       case 'aerospace':
         return this.aero.interact(prop);
+      case 'war':
+        return { type: 'panel', panel: 'militaryterminal' }; // v0.103.2: the company's command terminal in the site office
       case 'farm':
         return this.farm.interact(prop);
       case 'workstation':
@@ -75015,332 +75298,17 @@ function intelApp(ui, body, open) {
 return { groupApp, milestonesApp, economyApp, exchangeApp, companiesApp, intelApp };
 })();
 
-// ---- src/ui/militaryTransfers.js
-__m["src/ui/militaryTransfers.js"] = (function () {
-// The Military app's Transfers page (v0.99.0; mock-up proposal-war-oberpad-company.png page 2): what can move free from your other companies, what the company holds, and what suppliers sell.
-// Every button calls game.war; nothing here changes a record.
-const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
-const { VEHICLES, VEHICLE_CLASSES, SUPPLIES } = __m["src/content/procurement.js"];
-const { stockName } = __m["src/war/equipment.js"];
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
-
-function transfersTab(ui, body, go) {
-  const g = ui.game; const W = g.war;
-  const O = W.offers(); const H = W.housing(); const eq = W.equipment(); const st = Object.entries(W.stock());
-  const free = O.aero.length + O.arms.reduce((a, x) => a + x.have, 0);
-  body.append(
-    hero({ label: 'Free between your companies', value: `${n(free)} to move`, sub: 'Moving an item is not a sale: no money, no fee, no entry. What moves is gone from where it was.' }),
-    tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: `${n(H.stores.used)}/${n(H.stores.total)}`, t: 'stores' }]));
-  if (O.aero.length) body.append(label('From Aerospace · stored military aircraft and strategic products'), list(...O.aero.map((a) => row({ icon: a.line === 'missile' ? '🚀' : '✈️', title: a.name, sub: a.line === 'missile' ? `Strategic product, in the secure store · takes 20 places in the stores` : `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
-  if (O.arms.length) body.append(label('From the Arms works · export cages'), list(...O.arms.map((a) => row({ icon: '🔫', title: `${a.name} · ${a.have}`, sub: a.from, tag: 'free', tone: 'good',
-    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: 1 })) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: a.have })) }, 'All')) }))));
-  if (!O.aero.length && !O.arms.length) body.append(list(row({ icon: '—', title: 'Nothing waiting', sub: 'Stored military aircraft from Aerospace and weapons, rockets, missiles and drones from an Arms works\' export cage can move here.' })));
-  body.append(label('What the company holds'));
-  body.append(list(...(eq.length || st.length ? [
-    ...eq.map((x) => row({ icon: x.kind === 'aircraft' ? '✈️' : x.kind === 'missile' ? '🚀' : x.kind === 'helicopter' ? '🚁' : '🚙', title: `${x.name} · ${x.id}`, sub: `${x.location.replace('facility:', '').replace('_', ' ')} · ${x.status}${x.assignedTo ? ` · ${x.assignedTo}` : ''}`, tag: x.source === 'aero' ? 'from Aerospace' : x.source,
-      action: x.origin && x.status === 'stored' && !x.assignedTo ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ id: x.id })) }, 'Return') : null })),
-    ...st.map(([key, q]) => row({ icon: key.startsWith('arms:') ? '🔫' : '📦', title: `${stockName(g, key)} · ${n(q)}`, sub: key.startsWith('arms:') ? 'from the Arms works' : 'bought', action: key.startsWith('arms:') ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ key, qty: q })) }, 'Return all') : null })),
-  ] : [row({ icon: '—', title: 'Nothing yet', sub: 'Build the armoury cage for stores, a motor pool for vehicles and hangars for aircraft.' })])));
-  body.append(fold(ui, 'MilBuy', 'Buy from suppliers ›', (box) => {
-    const byClass = {};
-    for (const v of Object.values(VEHICLES)) if (v.source === 'bought') (byClass[v.class] ||= []).push(v);
-    for (const [cls, vs] of Object.entries(byClass)) box.append(label(VEHICLE_CLASSES[cls]), list(...vs.map((v) => row({ icon: '🚙', title: v.name, sub: v.text, tag: `${n(v.price)}`, action: h('button', { class: 'tb-mini pri', disabled: W.cash() < v.price, onclick: () => go(W.buyVehicle(v.id)) }, 'Buy') }))));
-    box.append(label('Supplies and parts'), list(...Object.entries(SUPPLIES).map(([id, s]) => row({ icon: s.group === 'part' ? '⚙️' : '📦', title: s.name, sub: s.text, tag: `${n(s.price)}`, action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price, onclick: () => go(W.buySupply(id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price * 10, onclick: () => go(W.buySupply(id, 10)) }, '10')) }))));
-  }));
-  body.append(fold(ui, 'MilTrail', 'The trail of moves ›', (box) => box.append(list(...(W.transfers().length ? W.transfers().slice().reverse().map((t) => row({ icon: t.status === 'returned' ? '↩️' : '➡️', title: `${t.qty} × ${t.name}`, sub: `Day ${t.day} · ${t.from} → ${t.to}` })) : [row({ icon: '—', title: 'No moves yet', sub: 'A transfer is a line here, never a money entry.' })])))));
-  body.append(help('Rules of a transfer', 'It is free and happens in one step: it is either done or nothing changes. An item that is assigned, in use or destroyed cannot be returned, and what was bought or built here has nowhere to go back to. The company never builds planes, missiles, guns or ships.'));
-}
-
-return { transfersTab };
-})();
-
-// ---- src/ui/militaryProduction.js
-__m["src/ui/militaryProduction.js"] = (function () {
-// The Military app's Production page (v0.99.0; mock-up proposal-war-oberpad-company.png page 3): tanks and helicopters only. Lines and why one is blocked, the queue, the parts the queue needs,
-// the crew, and the works' own condition. Every button calls game.war.
-const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
-const { PEOPLE } = __m["src/content/production.js"];
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
-const bar = (f, bad) => h('div', { style: 'height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:4px 0' }, h('div', { style: `height:6px;border-radius:3px;width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%;background:${bad ? '#e0705a' : '#8fd18f'}` }));
-
-function productionTab(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const P = W.production();
-  const SEG = [{ id: 'tank', label: 'Tanks' }, { id: 'helicopter', label: 'Helicopters' }, { id: 'queue', label: 'Queue' }];
-  const tab = SEG.some((x) => x.id === ui.milProd) ? ui.milProd : 'tank';
-  const running = P.lines.filter((l) => l.model).length;
-  body.append(
-    hero({ label: 'Production · tanks and helicopters only', value: `${running} line${running === 1 ? '' : 's'} working`, sub: `${P.technicians} technician${P.technicians === 1 ? '' : 's'} on the books. Planes, missiles, guns and ships are never made here: they come from your other companies.` }),
-    tiles([{ n: String(P.orders.reduce((a, o) => a + o.left, 0)), t: 'units waiting' }, { n: String(P.lines.filter((l) => l.blocked).length), t: 'blocked' }, { n: n(g.war.cash()), t: 'company cash' }]));
-  body.append(segments(SEG, tab, (t) => { ui.milProd = t; open('Military'); }));
-  if (tab === 'queue') { queue(ui, body, go, P, W); return; }
-  const works = tab === 'tank' ? 'tank_factory' : 'helicopter_works';
-  const WK = P.works.find((x) => x.id === works);
-  if (!WK.built) { body.append(list(row({ icon: '🏭', title: `No ${WK.name.toLowerCase()} yet`, sub: 'Build it from the Company page (stage 3: it needs the stage before it).' }))); return; }
-  for (const l of P.lines.filter((x) => x.works === works)) {
-    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
-      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `Line ${l.id} · ${l.blocked && !l.model ? 'blocked' : l.model ? 'working' : 'idle'}`), h('small', {}, l.model ? `${P.models.find((m) => m.id === l.model).name} · ${Math.round(l.progress * 100)}%` : l.blocked || 'Waiting for an order')),
-        h('span', {}, h('button', { class: 'tb-mini', disabled: l.shifts <= 1, onclick: () => go(W.shifts(l.id, l.shifts - 1)) }, '−'), ` Shifts: ${l.shifts} `, h('button', { class: 'tb-mini', disabled: l.shifts >= 3, onclick: () => go(W.shifts(l.id, l.shifts + 1)) }, '+'))),
-      bar(l.progress, Boolean(l.blocked)), l.blocked && l.model ? h('small', { style: 'color:#e0a070' }, l.blocked) : null, h('small', {}, `Crew needed: ${l.crew} technicians`)));
-  }
-  body.append(list(row({ icon: '🛠️', title: `${WK.name} · level ${WK.level}`, sub: `Wear ${WK.wear}% · builds at ${Math.round(WK.eff * 100)}% speed`,
-    action: h('span', {}, WK.upgrade != null ? h('button', { class: 'tb-mini pri', disabled: g.war.cash() < WK.upgrade, onclick: () => go(W.upgrade(works)) }, `Upgrade ${n(WK.upgrade)}`) : null, ' ', WK.wear >= 5 ? h('button', { class: 'tb-mini', disabled: g.war.cash() < WK.maintain, onclick: () => go(W.maintain(works)) }, `Mend ${n(WK.maintain)}`) : null) })));
-  body.append(label('Order'));
-  body.append(list(...P.models.filter((m) => m.works === works).map((m) => row({ icon: works === 'tank_factory' ? '🛡️' : '🚁', title: `${m.name}`, sub: `${m.days} days · ${Object.entries(m.parts).map(([k, q]) => `${q} ${k}`).join(', ')} · fee ${n(m.fee)}`, tag: n(m.price),
-    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 3)) }, '3')) }))));
-  body.append(help('How a line works', 'A line starts a unit when its parts are in the stores, its fee can be paid and its technicians are free; the fee and the parts are spent then. More shifts finish a unit sooner and need more technicians. A line that cannot start, or cannot house what it made, says why.'));
-}
-
-function queue(ui, body, go, P, W) {
-  body.append(label('Orders'));
-  body.append(list(...(P.orders.length ? P.orders.map((o) => row({ icon: '📋', title: `${o.name} · ${o.done}/${o.qty} done`, sub: `${o.left} not yet started`, action: o.left ? h('button', { class: 'tb-mini', onclick: () => go(W.cancelOrder(o.id)) }, 'Cancel the rest') : null })) : [row({ icon: '—', title: 'No orders', sub: 'Order tanks or helicopters on their pages.' })])));
-  body.append(label('Parts this queue needs'));
-  body.append(list(...(P.needs.length ? P.needs.map((x) => row({ icon: '⚙️', title: x.name, sub: `${x.have} in the stores, ${x.need} needed`, tag: x.have >= x.need ? '✓' : `short ${x.need - x.have}`, tone: x.have >= x.need ? 'good' : 'warn' })) : [row({ icon: '—', title: 'Nothing needed', sub: 'Parts are bought on the Transfers page (Buy from suppliers).' })])));
-  body.append(label('The crew'));
-  const people = W.people();
-  body.append(list(...Object.entries(PEOPLE).map(([role, def]) => row({ icon: role === 'guard' ? '💂' : '🧑‍🏭', title: `${def.name}s · ${people.filter((p) => p.role === role).length}`, sub: `${def.text} ${def.wage} obols a day each.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(role)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !people.some((p) => p.role === role && !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(people.filter((p) => p.role === role && !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let one go')) }))));
-}
-
-return { productionTab };
-})();
-
-// ---- src/ui/militaryContracts.js
-__m["src/ui/militaryContracts.js"] = (function () {
-// The Military app's Contracts page (v0.99.0; mock-up proposal-war-oberpad-command.png page 5): open offers, jobs under way, and the record. A job the firm cannot staff or equip says so.
-const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
-const { PEOPLE } = __m["src/content/production.js"];
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const RISK = { low: 'low risk', medium: 'medium', high: 'high' };
-
-function contractsTab(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const V = W.contracts();
-  const guards = W.people().filter((p) => p.role === 'guard');
-  const SEG = [{ id: 'open', label: 'Open', badge: V.open.length || 0 }, { id: 'active', label: 'Active' }, { id: 'done', label: 'Done' }];
-  const tab = SEG.some((x) => x.id === ui.milCon) ? ui.milCon : 'open';
-  body.append(
-    hero({ label: 'Security contracts', value: `${V.reputation} reputation`, sub: `${V.wins} won, ${V.losses} lost. A good name brings more offers and bigger jobs; a failure costs money and a client.`, tone: V.reputation < 0 ? 'neg' : '' }),
-    tiles([{ n: String(guards.length), t: 'guards' }, { n: String(guards.filter((p) => !p.post).length), t: 'free' }, { n: String(V.active.length), t: 'under way' }]),
-    list(row({ icon: '💂', title: 'Guards', sub: `${PEOPLE.guard.wage} obols a day each. Each takes a pistol and the job a radio, from your stores.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire('guard')) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !guards.some((p) => !p.post), onclick: () => go(W.dismiss(guards.filter((p) => !p.post).slice(-1)[0]?.id)) }, 'Let one go')) })));
-  body.append(segments(SEG, tab, (t) => { ui.milCon = t; open('Military'); }));
-  if (tab === 'open') {
-    body.append(list(...(V.open.length ? V.open.map((c) => h('div', {},
-      row({ icon: '📑', title: c.title, sub: `${c.days} days · ${c.guards} guards · client: ${c.clientName}. ${c.text} Offer closes day ${c.expires}.`, tag: `${n(c.pay)} · ${RISK[c.risk]}`,
-        action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: c.lacks.length > 0, onclick: () => go(W.accept(c.id)) }, 'Take'), ' ', h('button', { class: 'tb-mini', onclick: () => go(W.decline(c.id)) }, 'No')) }),
-      c.lacks.length ? h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one. Needs ${c.lacks.join(', ')}.`) : null)) : [row({ icon: '—', title: 'No offers just now', sub: 'Clients call now and then. A licensed company with a good name hears more often.' })])));
-  } else if (tab === 'active') {
-    body.append(list(...(V.active.length ? V.active.map((c) => row({ icon: '🛡️', title: c.title, sub: `${c.guards} guards on the post for ${c.daysLeft} more day${c.daysLeft === 1 ? '' : 's'} · ${Math.round(c.chance * 100)}% to end well · client: ${c.clientName}`, tag: n(c.pay) })) : [row({ icon: '—', title: 'Nothing under way', sub: 'Take a job from Open. The pay comes only when it ends well.' })])));
-  } else {
-    body.append(list(...(V.done.length ? V.done.map((c) => row({ icon: c.state === 'done' ? '✅' : c.state === 'failed' ? '❌' : '⌛', title: c.title, sub: c.state === 'done' ? `Done · paid ${n(c.pay)}` : c.state === 'failed' ? `It went wrong · fined ${n(c.fine)}` : c.state === 'declined' ? 'Turned down' : c.why || 'Lapsed', tag: `day ${c.ended}` })) : [row({ icon: '—', title: 'No finished jobs', sub: 'Done, lost and lapsed jobs are kept here.' })])));
-  }
-  const Eg = W.engagements();
-  const eg = tab === 'open' ? Eg.open : tab === 'active' ? Eg.active : Eg.done;
-  if (eg.length) body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'Engagements — fought by a general'), list(...eg.map((x) => row({ icon: '🗺️', title: x.title, sub: tab === 'open' ? `${x.client} · ${x.days} days · needs ${x.needs.troops} soldiers${x.needs.tanks ? `, ${x.needs.tanks} tanks` : ''}` : tab === 'active' ? `${x.order.generalName} · ${x.daysLeft} days to go` : x.result ? `${x.result.outcome.replace('_', ' ')} · ${x.result.objectives} of 3` : x.why || x.state, tag: n(x.pay),
-    action: h('button', { class: 'tb-mini pri', onclick: () => { ui.milEng = x.id; ui.milSub = 'Engagement'; ui.milTab = 'Company'; open('Military'); } }, tab === 'open' ? 'Plan' : 'Report') }))));
-  body.append(fold(ui, 'MilClients', 'Reputation · clients · lost jobs ›', (box) => box.append(list(...(V.clients.length ? V.clients.map((c) => row({ icon: '🏢', title: c.name, sub: `${c.done} done, ${c.failed} lost${c.banned ? ' · will not call for now' : ''}` })) : [row({ icon: '—', title: 'No clients yet', sub: 'Every job you finish or lose is counted here.' })])))));
-  body.append(help('How contracts work', 'Each job asks for guards, a pistol each and a radio, and nothing heavy. The pay arrives only when the job ends well and goes to the company\'s account. If it goes wrong the company owes a fine and the client looks elsewhere for a month. You can run the whole company as a guard firm.'));
-}
-
-return { contractsTab };
-})();
-
-// ---- src/ui/militaryGenerals.js
-__m["src/ui/militaryGenerals.js"] = (function () {
-// The Military app's Generals and engagement screens (v0.100.0 stage 9; mock-up proposal-war-oberpad-command.png panels 4 and 6): hire a general, plan an engagement with real squads, see the
-// estimate (the same function that decides it), delegate, and read the after-action report. Every button calls game.war.
-const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
-const back = (ui, open, to = null) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = to; open('Military'); } }, to ? '‹ Generals' : '‹ Company'));
-const stars = (v) => '●'.repeat(v) + '○'.repeat(5 - v);
-const pct = (v) => `${Math.round(v * 100)}%`;
-const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
-
-function generalsScreen(ui, body, go, open) {
-  const W = ui.game.war; const G = W.generals(); const E = W.engagements();
-  body.append(back(ui, open),
-    hero({ label: 'Generals', value: `${G.hired.length} of ${G.seats} desks`, sub: 'A general fights an engagement for you with the squads you choose. Each has real strengths; you see an estimate before you commit, and a fee is paid every day they are on the books.' }),
-    tiles([{ n: String(E.open.length), t: 'engagements offered' }, { n: String(E.active.length), t: 'under way' }, { n: String(G.hired.filter((g) => g.status === 'home').length), t: 'generals home' }]));
-  if (E.open.length || E.active.length) body.append(label('Engagements'), list(...E.open.map((x) => row({ icon: '🗺️', title: x.title, sub: `${x.client} · ${x.days} days · needs ${x.needs.troops} soldiers${x.needs.tanks ? `, ${x.needs.tanks} tank${x.needs.tanks > 1 ? 's' : ''}` : ''}${x.needs.helicopters ? `, ${x.needs.helicopters} helicopter${x.needs.helicopters > 1 ? 's' : ''}` : ''}, ${x.needs.medics} medic${x.needs.medics > 1 ? 's' : ''}`, tag: n(x.pay), action: h('button', { class: 'tb-mini pri', onclick: () => { ui.milEng = x.id; ui.milSub = 'Engagement'; open('Military'); } }, 'Plan') })),
-    ...E.active.map((x) => row({ icon: '⚔️', title: x.title, sub: `${x.order.generalName} has it · ${x.daysLeft} days to go`, tag: 'under way' }))));
-  body.append(label('Your generals'), list(...(G.hired.length ? G.hired.map((g) => row({ icon: '🎖️', title: `${g.name} · ${g.fee.toLocaleString('en-US')} a day`, sub: `${g.style} · ${g.wins} won, ${g.losses} lost · ${g.status === 'home' ? 'at the command post' : 'away with a force'}`, action: h('button', { class: 'tb-mini', disabled: g.status !== 'home', onclick: () => go(W.dismissGeneral(g.id)) }, 'Let go') })) : [row({ icon: '—', title: 'No general yet', sub: G.seats ? 'Hire one below.' : 'Build the command post first: it has a desk for a general for every five desks.' })])));
-  body.append(label('Available to hire'), list(...G.pool.map((g) => row({ icon: '🎖️', title: `${g.name} · ${g.fee.toLocaleString('en-US')} a day`, sub: `${g.style}. ${g.text}\nOffence ${stars(g.offence)}  Defence ${stars(g.defence)}  Logistics ${stars(g.logistics)}  Air ${stars(g.air)}  Intel ${stars(g.intel)} · accepts losses ${pct(g.risk)}`, action: h('button', { class: 'tb-mini pri', disabled: G.hired.length >= G.seats, onclick: () => go(W.hireGeneral(g.id)) }, 'Hire') }))));
-  body.append(help('How generals work', 'You choose the squads and the general; the engagement is then closed to being played any other way. The result comes from the forces, the supplies, the ground and the general, with a seeded element of chance that a reload cannot change. The dead, the wounded and the lost vehicles are real and stay lost.'));
-}
-
-function engagementScreen(ui, body, go, open) {
-  const W = ui.game.war; const e = W.engagement(ui.milEng);
-  if (!e) { ui.milSub = 'Generals'; body.append(back(ui, open, null), list(row({ icon: '—', title: 'No such engagement', sub: 'It has gone.' }))); return; }
-  if (e.state !== 'open') { reportScreen(ui, body, go, open, e); return; }
-  const S = W.squads(); const G = W.generals().hired.filter((g) => g.status === 'home');
-  const bn = e.strategic ? W.strategic()?.battalions.find((b) => b.id === e.strategic.bn) : null; // (a battle on the strategic map is fought by the battalion that made contact)
-  const chosen = bn ? [...bn.squads] : (ui.milEngSquads ||= []).filter((id) => S.some((s) => s.id === id && s.status === 'home'));
-  if (!bn) ui.milEngSquads = chosen;
-  const gen = G.some((g) => g.id === ui.milEngGen) ? ui.milEngGen : G[0]?.id || '';
-  const lacks = W.engagementLacks(e.id, chosen);
-  body.append(back(ui, open, 'Generals'),
-    hero({ label: `${e.client} · ${e.terrain} ground`, value: e.title, sub: `${e.text} ${e.days} days. Pays ${n(e.pay)} (a share of it if only some objectives are met). Offer closes day ${e.expires}.` }),
-    tiles([{ n: `${e.needs.troops}`, t: 'soldiers needed' }, { n: `${e.needs.tanks}/${e.needs.helicopters}`, t: 'tanks / helicopters' }, { n: `${e.needs.medics}`, t: 'medics needed' }]),
-    list(row({ icon: '👁️', title: 'What is known of the enemy', sub: `About ${e.enemy.troops} troops${e.enemy.armour ? `, ${e.enemy.armour} armour` : ''}${e.enemy.air ? `, air cover` : ''}. Reports are rough: the estimate below is not a promise.` })));
-  if (bn) body.append(label('Fought by'), list(row({ icon: '🪖', title: bn.name, sub: `${bn.stats.people} soldiers, ${bn.stats.vehicles} vehicles · organisation ${bn.stats.org} · ${bn.squadNames.join(', ')}` })));
-  else body.append(label('Squads to send'), list(...(S.length ? S.map((s) => row({ icon: chosen.includes(s.id) ? '☑️' : '⬜', title: `${s.name} · ${s.size} soldiers`, sub: `${s.leaderName ? `Led by ${s.leaderName}` : 'No leader'}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}${s.status !== 'home' ? ' · away' : ''}`,
-    onclick: s.status === 'home' ? () => { ui.milEngSquads = chosen.includes(s.id) ? chosen.filter((x) => x !== s.id) : [...chosen, s.id]; open('Military'); } : null })) : [row({ icon: '—', title: 'No squads', sub: 'Form squads from People and Squads first. Nothing is spawned for you.' })])));
-  if (!bn && chosen.length > 1) { const held = (ui.milEngReserve || []).filter((x) => chosen.includes(x)); body.append(label('Hold back in reserve (when you lead it yourself)'), list(...chosen.map((sid) => row({ icon: held.includes(sid) ? '☑️' : '⬜', title: S.find((s) => s.id === sid)?.name || sid, sub: held.includes(sid) ? 'Kept off the field until you call it; takes no losses if never called' : 'Goes in with the rest', onclick: () => { ui.milEngReserve = held.includes(sid) ? held.filter((x) => x !== sid) : [...held, sid]; open('Military'); } })))); }
-  body.append(label('General'), list(row({ icon: '🎖️', title: G.length ? 'Assign' : 'No general at home', sub: G.length ? 'Who fights it' : 'Hire one from Generals.', action: G.length ? select(G.map((g) => [g.id, `${g.name}`]), gen, (v) => { ui.milEngGen = v; open('Military'); }) : null })));
-  if (lacks.length) body.append(h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one: ${lacks.join('; ')}. Nothing is spawned to make up the difference.`));
-  if (chosen.length && gen) {
-    const A = W.assess(e.id, chosen, gen); const es = A.estimate;
-    body.append(label('Assessment (an estimate, not a promise)'), list(
-      row({ icon: '📝', title: es.words, sub: `Odds ${es.ratio.toFixed(2)} to 1 · expected losses: about ${es.deadExpected} killed, ${es.lossPeople - Math.round(es.deadExpected)} wounded, ${es.vehiclesExpected} vehicles` }),
-      row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
-      row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
-  }
-  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen, (ui.milEngReserve || []).filter((x) => chosen.includes(x))); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, bn ? (e.strategic.defend ? 'Give the ground up' : 'Break off') : 'Turn it down')));
-  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
-}
-
-function reportScreen(ui, body, go, open, e) {
-  body.append(back(ui, open, 'Generals'));
-  if (e.state === 'tactical') {
-    const bt = ui.game.war.battle(e.id);
-    body.append(hero({ label: e.client, value: e.title, sub: bt?.result ? `The battle is fought and the result filed. Your people are back on day ${e.order.end}.` : `You have taken this one to the field. Your people are back on day ${e.order.end}, whatever the battle's length.` }),
-      h('div', { class: 'tb-btns' }, bt?.result ? null : h('button', { class: 'tb-btn pri', onclick: () => ui.openPanel('battle', { id: e.id }) }, bt?.tick ? 'Resume the battle' : 'Fight the battle')));
-    return;
-  }
-  if (e.state === 'delegated') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
-  if (!e.result) { body.append(hero({ label: e.client, value: e.title, sub: e.state === 'expired' ? (e.why || 'It lapsed.') : 'Turned down.' })); return; }
-  const R = e.result;
-  body.append(hero({ label: `After action: ${e.place}`, value: R.outcome.replace('_', ' ').replace(/^./, (c) => c.toUpperCase()), tone: R.objectives >= 2 ? 'pos' : R.objectives === 0 ? 'neg' : 'warn', sub: `${R.objectives} of 3 objectives · ${R.paid ? `paid ${n(R.paid)} of ${n(e.pay)}` : `fined ${n(R.fine)}`} · ${R.general}` }),
-    tiles([{ n: String(R.dead.length), t: 'killed' }, { n: String(R.wounded.length), t: 'wounded' }, { n: String(R.lost.length), t: 'vehicles lost' }]),
-    list(...R.lines.map((l) => row({ icon: '📋', title: l }))));
-  body.append(fold(ui, 'MilAar', 'Who fell · who was hurt · what is lost ›', (box) => box.append(list(...R.dead.map((d) => row({ icon: '✝', title: `${d.name} · ${d.role}`, sub: 'killed' })), ...R.wounded.map((d) => row({ icon: '🩹', title: `${d.name} · ${d.role}`, sub: `wounded (${d.wounds})` })), ...R.lost.map((d) => row({ icon: '💥', title: d.name, sub: 'destroyed' })), (R.dead.length + R.wounded.length + R.lost.length) ? null : row({ icon: '—', title: 'No losses', sub: '' })))));
-}
-
-return { generalsScreen, engagementScreen };
-})();
-
-// ---- src/ui/militaryPeople.js
-__m["src/ui/militaryPeople.js"] = (function () {
-// The Military app's People, Squads and Armoury screens (v0.100.0; mock-ups proposal-war-troop-customizer.png and -loadouts-1/2.png): who works for the company, who is in which squad, and what
-// each class carries. Reached from the Company page. Every button calls game.war; nothing here changes a record.
-const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
-const { CLASSES, TROOP_CLASSES, ARMOUR, LOOKS, SQUAD } = __m["src/content/troops.js"];
-const { ARMS_TRANSFERABLE } = __m["src/content/procurement.js"];
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
-const back = (ui, open) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = null; open('Military'); } }, '‹ Company'));
-const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
-
-function peopleScreen(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const P = W.people(); const H = W.housing(); const cap = W.capacity();
-  body.append(back(ui, open),
-    hero({ label: 'People', value: `${P.length} on the books`, sub: `${cap.beds} beds · ${P.filter((p) => p.status === 'training').length} of ${cap.training} training places in use. Every person costs a daily wage and needs a bed; a soldier needs a uniform from the stores and days of training.` }),
-    tiles([{ n: String(P.filter((p) => p.status === 'active').length), t: 'working' }, { n: String(P.filter((p) => p.status === 'training').length), t: 'training' }, { n: String(Math.max(0, cap.beds - P.length)), t: 'beds free' }]));
-  body.append(list(...Object.entries(CLASSES).map(([id, K]) => {
-    const mine = P.filter((p) => p.role === id);
-    return row({ icon: K.group === 'troop' ? '🪖' : id === 'guard' ? '💂' : '🧑‍🏭', title: `${K.name} · ${mine.length}`, sub: `${K.text} ${K.wage} a day${K.train ? ` · ${K.train} days of training` : ''}${mine.some((p) => p.status === 'training') ? ` · ${mine.filter((p) => p.status === 'training').length} training` : ''}`,
-      action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(id)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !mine.some((p) => !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(mine.filter((p) => !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let go')) });
-  })));
-  body.append(fold(ui, 'MilRoll', 'The roll — everyone by name ›', (box) => box.append(list(...(P.length ? P.map((p) => row({ icon: '👤', title: `${p.name} · ${CLASSES[p.role]?.name}`, sub: `${p.status}${p.status === 'training' ? ` until day ${p.trainedDay}` : ''}${p.assignedTo ? ` · squad ${p.assignedTo}` : ''}${p.post ? ` · ${p.post}` : ''} · morale ${p.morale ?? 70}` })) : [row({ icon: '—', title: 'Nobody yet', sub: 'Build the bunkhouse, then hire.' })])))));
-  body.append(help('Training and uniforms', 'A soldier trains for a few days at the range or the training ground (each takes a place while they train) and needs a uniform from the stores; guards and technicians start at once. Wages are paid every day from the company\'s own money.'));
-}
-
-function squadsScreen(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const S = W.squads(); const P = W.people();
-  const free = P.filter((p) => TROOP_CLASSES.includes(p.role) && p.status === 'active' && p.assignedTo == null);
-  const officers = P.filter((p) => CLASSES[p.role]?.leads && p.status === 'active');
-  const vehicles = W.equipment().filter((e) => ['vehicle', 'helicopter'].includes(e.kind) && e.status === 'stored');
-  body.append(back(ui, open),
-    hero({ label: 'Squads', value: `${S.length} squad${S.length === 1 ? '' : 's'}`, sub: `A squad has an officer for a leader, up to ${SQUAD.max} soldiers and the vehicles you give it. Each soldier and vehicle is in one squad or none.` }),
-    tiles([{ n: String(free.length), t: 'soldiers free' }, { n: String(vehicles.length), t: 'vehicles free' }, { n: String(officers.length), t: 'officers' }]),
-    h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(W.squadCreate()) }, 'Form a squad')));
-  for (const s of S) {
-    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
-      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `${s.name} · ${s.size}`), h('small', {}, `Leader: ${s.leaderName || 'none yet'} · ${s.armed} armed · morale ${s.morale}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}`)), h('button', { class: 'tb-mini', onclick: () => go(W.squadDisband(s.id)) }, 'Stand down')),
-      h('small', {}, Object.entries(s.byClass).map(([k, q]) => `${q} ${CLASSES[k].name.toLowerCase()}`).join(', ') || 'No one yet'),
-      h('div', { class: 'tb-btns', style: 'margin-top:6px;flex-wrap:wrap' },
-        free.length ? select([['', 'Add a soldier…'], ...free.map((p) => [p.id, `${p.name} (${CLASSES[p.role].name})`])], '', (v) => v && go(W.squadAssign(s.id, v))) : null,
-        officers.length ? select([['', 'Leader…'], ...officers.map((p) => [p.id, p.name])], s.leader || '', (v) => v && go(W.squadLeader(s.id, v))) : null,
-        vehicles.length ? select([['', 'Give a vehicle…'], ...vehicles.map((x) => [x.id, `${x.name} ${x.id}`])], '', (v) => v && go(W.squadVehicle(s.id, v))) : null),
-      s.members.length ? fold(ui, `MilSq${s.id}`, 'Members ›', (box) => box.append(list(...s.members.map((m) => { const p = P.find((x) => x.id === m); return row({ icon: s.leader === m ? '⭐' : '🪖', title: `${p.name} · ${CLASSES[p.role].name}`, sub: p.weapon ? 'armed' : 'unarmed', action: h('button', { class: 'tb-mini', onclick: () => go(W.squadRemove(m)) }, 'Out') }); })))) : null));
-  }
-}
-
-function armouryScreen(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const P = W.people(); const st = W.stock(); const C = W.company();
-  const stockOf = (item) => Object.entries(st).filter(([k]) => k.endsWith(`:${item}`) || k === item).reduce((a, [, q]) => a + q, 0);
-  body.append(back(ui, open),
-    hero({ label: 'Armoury', value: 'Class, weapons and look', sub: 'A class carries the weapon of its tier, taken from the stores: a weapon in a soldier\'s hands is not in the stores. Tiers 3 to 5 and armour eras 3 and 4 are future research.' }),
-    tiles([{ n: String(stockOf(ARMS_TRANSFERABLE[0]) + 0), t: 'pistols in stores' }, { n: String(st['supply:uniform'] || 0), t: 'uniforms' }, { n: String(st['supply:plate_carrier'] || 0), t: 'plate carriers' }]));
-  body.append(list(...TROOP_CLASSES.concat(['guard']).map((id) => {
-    const K = CLASSES[id]; const mine = P.filter((p) => p.role === id); const tier = C?.tiers?.[id] ?? 1;
-    const armed = mine.filter((p) => p.weapon).length;
-    const tiers = Object.keys(K.tiers).map(Number);
-    return h('div', {}, row({ icon: '🔫', title: `${K.name} · ${armed}/${mine.length} armed`, sub: `${tiers.map((t) => `T${t}: ${g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])} in stores)`).join(' · ')}${K.gadget ? ` · carries ${K.gadget.replace('supply:', '')}` : ''}`,
-      action: h('span', {}, ...tiers.map((t) => h('button', { class: `tb-mini${t === tier ? ' pri' : ''}`, onclick: () => go(W.setTier(id, t)) }, `T${t}`)), ' ', h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.equipClass(id)) }, 'Equip all'), ' ', K.group === 'troop' ? h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.armourClass(id, mine.every((p) => p.armour === 2) ? 1 : 2)) }, mine.length && mine.every((p) => p.armour === 2) ? 'Plates off' : 'Plates on') : null) }));
-  })));
-  body.append(fold(ui, 'MilLook', 'Looks — colours for a squad (free, cosmetic) ›', (box) => {
-    const S = W.squads();
-    if (!S.length) { box.append(list(row({ icon: '—', title: 'No squads yet', sub: 'Form a squad first, then give it a look.' }))); return; }
-    const pick = ui.milLookSquad && S.find((s) => s.id === ui.milLookSquad) ? ui.milLookSquad : S[0].id;
-    const s = S.find((x) => x.id === pick);
-    const set = (k) => (v) => go(W.squadLook(pick, { [k]: v }));
-    box.append(list(row({ icon: '🎨', title: 'Squad', sub: 'Choose one', action: select(S.map((x) => [x.id, x.name]), pick, (v) => { ui.milLookSquad = v; open('Military'); }) }),
-      row({ icon: '▪', title: 'Colour', action: select(Object.keys(LOOKS.primary).map((k) => [k, k.replace('_', ' ')]), s.look.primary, set('primary')) }),
-      row({ icon: '▦', title: 'Pattern', action: select(LOOKS.pattern.map((k) => [k, k]), s.look.pattern, set('pattern')) }),
-      row({ icon: '★', title: 'Insignia', action: select(LOOKS.insignia.map((k) => [k, k]), s.look.insignia, set('insignia')) }),
-      row({ icon: '⛑', title: 'Crest', action: select(LOOKS.crest.map((k) => [k, k]), s.look.crest, set('crest')) }),
-      row({ icon: '🎗', title: 'Band', action: select(Object.keys(LOOKS.band).map((k) => [k, k]), s.look.band, set('band')) })));
-  }));
-  body.append(help('What changes a number', 'The tier (weapon) and the armour era are real: they change what the soldier can do and what they cost. Colours, pattern, insignia, crest and band are free and change nothing.'));
-}
-
-const PART = { strength: 'at work (not training or wounded)', morale: 'morale', armed: 'armed', fed: 'fed today', housed: 'with a bed' };
-
-/** The Base screen (v0.100.0 stage 8): what the base has, what it lacks, and what readiness is made of. */
-function baseScreen(ui, body, go, open) {
-  const g = ui.game; const W = g.war; const B = W.baseView(); const H = W.housing();
-  body.append(back(ui, open),
-    hero({ label: 'The base', value: `${B.readiness}% ready`, tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : 'pos', sub: B.short.length ? B.short.join(' · ') : 'Everyone is fed, housed and treated.' }),
-    tiles([{ n: `${B.people}/${B.beds}`, t: 'people / beds' }, { n: `${B.rations}`, t: 'rations left' }, { n: `${B.morale}`, t: 'average morale' }]));
-  body.append(list(...Object.entries(B.factors).map(([k, v]) => row({ icon: '▪', title: PART[k] || k, sub: `${Math.round(v * 100)}%`, tag: `${Math.round(v * 100)}%`, tone: v >= 0.8 ? 'good' : v >= 0.5 ? '' : 'warn' }))));
-  body.append(list(
-    row({ icon: '🍲', title: 'Meals', sub: `${B.meals} hot meals a day from the mess; everyone eats a ration a day from the stores.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(W.buySupply('rations', 50)) }, 'Rations ×50') }),
-    row({ icon: '🏥', title: 'Medical', sub: `${B.treat} treatment places · ${B.wounded} wounded · ${B.medicine} medicine in the stores.`, action: h('button', { class: 'tb-mini', onclick: () => go(W.buySupply('medicine', 10)) }, 'Medicine ×10') }),
-    row({ icon: '🛏️', title: 'Beds', sub: `${B.beds} beds for ${B.people} people.` }),
-    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} of ${H.stores.total} places used.` })));
-  body.append(help('Capacity is real', 'A base that is too small loses morale and readiness: people without a bed or a meal, and wounded beyond the treatment places, drag it down. Nothing here is free: rations and medicine are bought, and wages are paid every day.'));
-}
-
-return { peopleScreen, squadsScreen, armouryScreen, baseScreen };
-})();
-
 // ---- src/ui/militaryApp.js
 __m["src/ui/militaryApp.js"] = (function () {
-// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
-// the lot, order the base's buildings, and see what the base can hold. Every button calls game.war; nothing here writes the record.
+// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern). Since v0.103.2 it only FOUNDS the company: register it, pay money in,
+// buy the licence and the lot, order the site office, and see how things stand. The business itself (people, squads, the armoury, supply, generals, contracts, the base's other buildings and the
+// strategic map) is run from the command terminal in the site office at Hollowmoor Lot (src/ui/militaryTerminal.js). Every button calls game.war; nothing here writes the record.
 const { h } = __m["src/ui/panels.js"];
-const { hero, tiles, row, help, fold, note, n, segments } = __m["src/ui/tabletKit.js"];
-const { transfersTab } = __m["src/ui/militaryTransfers.js"];
-const { productionTab } = __m["src/ui/militaryProduction.js"];
-const { contractsTab } = __m["src/ui/militaryContracts.js"];
-const { generalsScreen, engagementScreen } = __m["src/ui/militaryGenerals.js"];
-const { peopleScreen, squadsScreen, armouryScreen, baseScreen } = __m["src/ui/militaryPeople.js"];
+const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
 const { LOT } = __m["src/content/facilities.js"];
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
-const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
 
 function militaryApp(ui, body, open) {
   const g = ui.game;
@@ -75350,18 +75318,6 @@ function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
-  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }, { id: 'Production', label: 'Production' }, { id: 'Contracts', label: 'Contracts' }];
-  const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
-  body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
-  if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
-  if (tab === 'Production') { productionTab(ui, body, go, open); return; }
-  if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
-  if (ui.milSub === 'People') { peopleScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Squads') { squadsScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Generals') { generalsScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Engagement') { engagementScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Base') { baseScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Armoury') { armouryScreen(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(
@@ -75390,21 +75346,17 @@ function militaryApp(ui, body, open) {
       action: V.licensed ? null : h('button', { class: 'tb-mini pri', disabled: V.cash < LOT.licence, onclick: () => go(W.buyLicence()) }, 'Buy') }),
     row({ icon: '🗺️', title: LOT.name, sub: V.lotOwned ? 'Fenced, with a gate. Walk there from the Yards\' west road.' : 'Ground for the base, with a fence and a gate. Needs the licence first.', tag: V.lotOwned ? '✓' : `${n(LOT.price)}`, tone: V.lotOwned ? 'good' : 'warn',
       action: V.lotOwned ? null : h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < LOT.price, onclick: () => go(W.buyLot()) }, 'Buy') })));
-  if (V.lotOwned) {
-    const fac = W.facilities();
-    for (const stage of [1, 2, 3]) {
-      const rows = fac.filter((f) => f.stage === stage);
-      if (!rows.length) continue;
-      body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, STAGES[stage] + (rows[0].open ? '' : ' (opens when the stage before is built)')));
-      body.append(list(...rows.map((f) => row({ icon: f.state === 'built' ? '🏠' : f.state === 'none' ? '📐' : '🚧', title: f.name, sub: f.state === 'none' ? `${f.text || ''} ${n(f.cost)} obols.` : `${STATE[f.state]}${f.daysLeft != null && f.state !== 'built' && f.state !== 'ruin' ? ` · ${f.daysLeft} days` : ''}${f.state === 'built' && f.gate === 'damaged' ? ' · damaged' : ''}`,
-        tag: f.state === 'built' ? '✓' : f.state === 'none' ? '' : '…', tone: f.state === 'built' ? 'good' : '',
-        action: f.state === 'none' ? h('button', { class: 'tb-mini pri', disabled: !f.canOrder || V.cash < f.cost, onclick: () => go(W.commission(f.id)) }, 'Order')
-          : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
-    }
+  // v0.103.2: the business is run from the command terminal in the site office; the tablet says how things stand and where to go
+  const m = W.state(); const bns = m?.war?.battalions || []; const sup = W.supplyLink(); const short = sup ? sup.rows.filter((r) => r.want && r.have < r.want).length : 0; const E = W.engagements();
+  const office = V.lotOwned ? W.facilities().find((f) => f.id === 'site_office') : null;
+  if (office && office.state !== 'none') {
+    const built = office.state === 'built';
+    body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'How things stand'), list(
+      row({ icon: '🖥️', title: built ? 'Command terminal' : 'The site office is not finished', sub: built ? 'Run the company from the terminal in the site office at Hollowmoor Lot (the Yards\' west road, then the lot\'s gate): people, squads, the armoury, supply, generals, contracts, the other buildings and the war map.' : `${STATE[office.state]}${office.daysLeft != null ? ` · ${office.daysLeft} days to go` : ''}. The terminal is inside it.`, tone: built ? 'good' : '' }),
+      row({ icon: '🪖', title: `${W.people().length} people · ${W.squads().length} squads · ${bns.length} battalions`, sub: `${bns.filter((b) => b.status !== 'home').length} away.` }),
+      row({ icon: '📦', title: short ? `${short} supply level${short === 1 ? '' : 's'} short` : 'Supplies', sub: short ? 'The arms works are behind on some of what the company keeps. See Supply at the terminal.' : 'Nothing short.', tone: short ? 'warn' : '' }),
+      row({ icon: '🗺️', title: E.open.length ? `${E.open.length} engagement${E.open.length === 1 ? '' : 's'} offered` : 'No engagements offered', sub: E.active.length ? `${E.active.length} under way.` : '' })));
   }
-  body.append(list(row({ icon: '🗺️', title: 'Strategic map', sub: 'Raise battalions from your squads, enlist in a theatre, and give them orders on the provinces.', tag: '›', onclick: () => ui.openPanel('strategic') })));
-  const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
-  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.'), sub('Generals', '🎖️', `Generals · ${W.generals().hired.length}`, 'Hire generals and give them engagements.'), sub('Base', '🏕️', `The base · ${W.baseView().readiness}% ready`, 'Beds, meals, medical, morale and what readiness is made of.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
     'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
   body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));
@@ -79655,7 +79607,7 @@ function strategicPanel(ui, body) {
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
       h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('div', { class: 'stc-meters' }, ...[['Supply', s.supply, s.supply >= 70 ? '#3ddc84' : s.supply >= 25 ? '#e8b84a' : '#e05a4a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, `${val}%`)))), h('p', { class: 'stc-note' }, `${s.supply < 70 ? 'Short of supply: it recovers slowly and fights with less morale; it is never stopped. ' : ''}${s.fuelShort ? `Short of fuel (${s.fuelShort}%): its vehicles count for less. ` : ''}Weather here: ${WEATHER[(v.provinces.find((q) => q.id === b.pos) || {}).weather || 'clear'].name}.`),
       h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
-      b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.openPanel('tablet', { tab: 'Military' }); } }, 'Decide the battle')) : null,
+      b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.termPage = 'Engagement'; ui.openPanel('militaryterminal'); } }, 'Decide the battle')) : null,
       h('div', { class: 'stc-btns' }, b.status === 'home' ? h('button', { class: 'pri', disabled: !v.employer, title: v.employer ? '' : 'Enlist first', onclick: () => act(W.deploy(b.id)) }, 'Send to the theatre') : null, b.status === 'theatre' ? h('button', { disabled: Boolean(b.engaged || b.moving), onclick: () => act(W.recall(b.id)) }, 'Bring home') : null, b.status === 'home' ? h('button', { onclick: () => act(W.standDown(b.id)) }, 'Stand down') : null)].filter(Boolean));
   };
   const paintBottom = () => { const v = S.view; bottom.replaceChildren(h('div', { class: 'stc-modes' }, ...['Terrain', 'Control', 'Supply', 'Weather', 'Intel'].map((m) => h('button', { class: (S.layer || 'Terrain') === m ? 'on' : '', onclick: () => { S.layer = m; refresh(); } }, m)), ...['Air', 'Naval', 'Contracts'].map((m) => h('button', { disabled: true, title: 'a later release' }, m))), h('div', { class: 'stc-plans' }, v.log[0] ? `LOG ▸ ${v.log[0].text}` : 'LOG ▸ nothing yet')); };
@@ -79730,6 +79682,441 @@ function strategicPanel(ui, body) {
 }
 
 return { strategicPanel };
+})();
+
+// ---- src/ui/militaryTransfers.js
+__m["src/ui/militaryTransfers.js"] = (function () {
+// The Military app's Transfers page (v0.99.0; mock-up proposal-war-oberpad-company.png page 2): what can move free from your other companies, what the company holds, and what suppliers sell.
+// Every button calls game.war; nothing here changes a record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
+const { VEHICLES, VEHICLE_CLASSES, SUPPLIES } = __m["src/content/procurement.js"];
+const { stockName } = __m["src/war/equipment.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+
+function transfersTab(ui, body, go) {
+  const g = ui.game; const W = g.war;
+  const O = W.offers(); const H = W.housing(); const eq = W.equipment(); const st = Object.entries(W.stock());
+  const free = O.aero.length + O.arms.reduce((a, x) => a + x.have, 0);
+  body.append(
+    hero({ label: 'Free between your companies', value: `${n(free)} to move`, sub: 'Moving an item is not a sale: no money, no fee, no entry. What moves is gone from where it was.' }),
+    tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: `${n(H.stores.used)}/${n(H.stores.total)}`, t: 'stores' }]));
+  if (O.aero.length) body.append(label('From Aerospace · stored military aircraft and strategic products'), list(...O.aero.map((a) => row({ icon: a.line === 'missile' ? '🚀' : '✈️', title: a.name, sub: a.line === 'missile' ? `Strategic product, in the secure store · takes 20 places in the stores` : `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
+  if (O.arms.length) body.append(label('From the Arms works · export cages'), list(...O.arms.map((a) => row({ icon: '🔫', title: `${a.name} · ${a.have}`, sub: a.from, tag: 'free', tone: 'good',
+    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: 1 })) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: a.have })) }, 'All')) }))));
+  if (!O.aero.length && !O.arms.length) body.append(list(row({ icon: '—', title: 'Nothing waiting', sub: 'Stored military aircraft from Aerospace and weapons, rockets, missiles and drones from an Arms works\' export cage can move here.' })));
+  body.append(label('What the company holds'));
+  body.append(list(...(eq.length || st.length ? [
+    ...eq.map((x) => row({ icon: x.kind === 'aircraft' ? '✈️' : x.kind === 'missile' ? '🚀' : x.kind === 'helicopter' ? '🚁' : '🚙', title: `${x.name} · ${x.id}`, sub: `${x.location.replace('facility:', '').replace('_', ' ')} · ${x.status}${x.assignedTo ? ` · ${x.assignedTo}` : ''}`, tag: x.source === 'aero' ? 'from Aerospace' : x.source,
+      action: x.origin && x.status === 'stored' && !x.assignedTo ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ id: x.id })) }, 'Return') : null })),
+    ...st.map(([key, q]) => row({ icon: key.startsWith('arms:') ? '🔫' : '📦', title: `${stockName(g, key)} · ${n(q)}`, sub: key.startsWith('arms:') ? 'from the Arms works' : 'bought', action: key.startsWith('arms:') ? h('button', { class: 'tb-mini', onclick: () => go(W.giveBack({ key, qty: q })) }, 'Return all') : null })),
+  ] : [row({ icon: '—', title: 'Nothing yet', sub: 'Build the armoury cage for stores, a motor pool for vehicles and hangars for aircraft.' })])));
+  body.append(fold(ui, 'MilBuy', 'Buy from suppliers ›', (box) => {
+    const byClass = {};
+    for (const v of Object.values(VEHICLES)) if (v.source === 'bought') (byClass[v.class] ||= []).push(v);
+    for (const [cls, vs] of Object.entries(byClass)) box.append(label(VEHICLE_CLASSES[cls]), list(...vs.map((v) => row({ icon: '🚙', title: v.name, sub: v.text, tag: `${n(v.price)}`, action: h('button', { class: 'tb-mini pri', disabled: W.cash() < v.price, onclick: () => go(W.buyVehicle(v.id)) }, 'Buy') }))));
+    box.append(label('Supplies and parts'), list(...Object.entries(SUPPLIES).map(([id, s]) => row({ icon: s.group === 'part' ? '⚙️' : '📦', title: s.name, sub: s.text, tag: `${n(s.price)}`, action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price, onclick: () => go(W.buySupply(id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', disabled: W.cash() < s.price * 10, onclick: () => go(W.buySupply(id, 10)) }, '10')) }))));
+  }));
+  body.append(fold(ui, 'MilTrail', 'The trail of moves ›', (box) => box.append(list(...(W.transfers().length ? W.transfers().slice().reverse().map((t) => row({ icon: t.status === 'returned' ? '↩️' : '➡️', title: `${t.qty} × ${t.name}`, sub: `Day ${t.day} · ${t.from} → ${t.to}` })) : [row({ icon: '—', title: 'No moves yet', sub: 'A transfer is a line here, never a money entry.' })])))));
+  body.append(help('Rules of a transfer', 'It is free and happens in one step: it is either done or nothing changes. An item that is assigned, in use or destroyed cannot be returned, and what was bought or built here has nowhere to go back to. The company never builds planes, missiles, guns or ships.'));
+}
+
+return { transfersTab };
+})();
+
+// ---- src/ui/militaryProduction.js
+__m["src/ui/militaryProduction.js"] = (function () {
+// The Military app's Production page (v0.99.0; mock-up proposal-war-oberpad-company.png page 3): tanks and helicopters only. Lines and why one is blocked, the queue, the parts the queue needs,
+// the crew, and the works' own condition. Every button calls game.war.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
+const { PEOPLE } = __m["src/content/production.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const bar = (f, bad) => h('div', { style: 'height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:4px 0' }, h('div', { style: `height:6px;border-radius:3px;width:${Math.round(Math.max(0, Math.min(1, f)) * 100)}%;background:${bad ? '#e0705a' : '#8fd18f'}` }));
+
+function productionTab(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.production();
+  const SEG = [{ id: 'tank', label: 'Tanks' }, { id: 'helicopter', label: 'Helicopters' }, { id: 'queue', label: 'Queue' }];
+  const tab = SEG.some((x) => x.id === ui.milProd) ? ui.milProd : 'tank';
+  const running = P.lines.filter((l) => l.model).length;
+  body.append(
+    hero({ label: 'Production · tanks and helicopters only', value: `${running} line${running === 1 ? '' : 's'} working`, sub: `${P.technicians} technician${P.technicians === 1 ? '' : 's'} on the books. Planes, missiles, guns and ships are never made here: they come from your other companies.` }),
+    tiles([{ n: String(P.orders.reduce((a, o) => a + o.left, 0)), t: 'units waiting' }, { n: String(P.lines.filter((l) => l.blocked).length), t: 'blocked' }, { n: n(g.war.cash()), t: 'company cash' }]));
+  body.append(segments(SEG, tab, (t) => { ui.milProd = t; open('Military'); }));
+  if (tab === 'queue') { queue(ui, body, go, P, W); return; }
+  const works = tab === 'tank' ? 'tank_factory' : 'helicopter_works';
+  const WK = P.works.find((x) => x.id === works);
+  if (!WK.built) { body.append(list(row({ icon: '🏭', title: `No ${WK.name.toLowerCase()} yet`, sub: 'Build it from the Company page (stage 3: it needs the stage before it).' }))); return; }
+  for (const l of P.lines.filter((x) => x.works === works)) {
+    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
+      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `Line ${l.id} · ${l.blocked && !l.model ? 'blocked' : l.model ? 'working' : 'idle'}`), h('small', {}, l.model ? `${P.models.find((m) => m.id === l.model).name} · ${Math.round(l.progress * 100)}%` : l.blocked || 'Waiting for an order')),
+        h('span', {}, h('button', { class: 'tb-mini', disabled: l.shifts <= 1, onclick: () => go(W.shifts(l.id, l.shifts - 1)) }, '−'), ` Shifts: ${l.shifts} `, h('button', { class: 'tb-mini', disabled: l.shifts >= 3, onclick: () => go(W.shifts(l.id, l.shifts + 1)) }, '+'))),
+      bar(l.progress, Boolean(l.blocked)), l.blocked && l.model ? h('small', { style: 'color:#e0a070' }, l.blocked) : null, h('small', {}, `Crew needed: ${l.crew} technicians`)));
+  }
+  body.append(list(row({ icon: '🛠️', title: `${WK.name} · level ${WK.level}`, sub: `Wear ${WK.wear}% · builds at ${Math.round(WK.eff * 100)}% speed`,
+    action: h('span', {}, WK.upgrade != null ? h('button', { class: 'tb-mini pri', disabled: g.war.cash() < WK.upgrade, onclick: () => go(W.upgrade(works)) }, `Upgrade ${n(WK.upgrade)}`) : null, ' ', WK.wear >= 5 ? h('button', { class: 'tb-mini', disabled: g.war.cash() < WK.maintain, onclick: () => go(W.maintain(works)) }, `Mend ${n(WK.maintain)}`) : null) })));
+  body.append(label('Order'));
+  body.append(list(...P.models.filter((m) => m.works === works).map((m) => row({ icon: works === 'tank_factory' ? '🛡️' : '🚁', title: `${m.name}`, sub: `${m.days} days · ${Object.entries(m.parts).map(([k, q]) => `${q} ${k}`).join(', ')} · fee ${n(m.fee)}`, tag: n(m.price),
+    action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 1)) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.order(m.id, 3)) }, '3')) }))));
+  body.append(help('How a line works', 'A line starts a unit when its parts are in the stores, its fee can be paid and its technicians are free; the fee and the parts are spent then. More shifts finish a unit sooner and need more technicians. A line that cannot start, or cannot house what it made, says why.'));
+}
+
+function queue(ui, body, go, P, W) {
+  body.append(label('Orders'));
+  body.append(list(...(P.orders.length ? P.orders.map((o) => row({ icon: '📋', title: `${o.name} · ${o.done}/${o.qty} done`, sub: `${o.left} not yet started`, action: o.left ? h('button', { class: 'tb-mini', onclick: () => go(W.cancelOrder(o.id)) }, 'Cancel the rest') : null })) : [row({ icon: '—', title: 'No orders', sub: 'Order tanks or helicopters on their pages.' })])));
+  body.append(label('Parts this queue needs'));
+  body.append(list(...(P.needs.length ? P.needs.map((x) => row({ icon: '⚙️', title: x.name, sub: `${x.have} in the stores, ${x.need} needed`, tag: x.have >= x.need ? '✓' : `short ${x.need - x.have}`, tone: x.have >= x.need ? 'good' : 'warn' })) : [row({ icon: '—', title: 'Nothing needed', sub: 'Parts are bought on the Transfers page (Buy from suppliers).' })])));
+  body.append(label('The crew'));
+  const people = W.people();
+  body.append(list(...Object.entries(PEOPLE).map(([role, def]) => row({ icon: role === 'guard' ? '💂' : '🧑‍🏭', title: `${def.name}s · ${people.filter((p) => p.role === role).length}`, sub: `${def.text} ${def.wage} obols a day each.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(role)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !people.some((p) => p.role === role && !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(people.filter((p) => p.role === role && !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let one go')) }))));
+}
+
+return { productionTab };
+})();
+
+// ---- src/ui/militaryContracts.js
+__m["src/ui/militaryContracts.js"] = (function () {
+// The Military app's Contracts page (v0.99.0; mock-up proposal-war-oberpad-command.png page 5): open offers, jobs under way, and the record. A job the firm cannot staff or equip says so.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n, segments } = __m["src/ui/tabletKit.js"];
+const { PEOPLE } = __m["src/content/production.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const RISK = { low: 'low risk', medium: 'medium', high: 'high' };
+
+function contractsTab(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const V = W.contracts();
+  const guards = W.people().filter((p) => p.role === 'guard');
+  const SEG = [{ id: 'open', label: 'Open', badge: V.open.length || 0 }, { id: 'active', label: 'Active' }, { id: 'done', label: 'Done' }];
+  const tab = SEG.some((x) => x.id === ui.milCon) ? ui.milCon : 'open';
+  body.append(
+    hero({ label: 'Security contracts', value: `${V.reputation} reputation`, sub: `${V.wins} won, ${V.losses} lost. A good name brings more offers and bigger jobs; a failure costs money and a client.`, tone: V.reputation < 0 ? 'neg' : '' }),
+    tiles([{ n: String(guards.length), t: 'guards' }, { n: String(guards.filter((p) => !p.post).length), t: 'free' }, { n: String(V.active.length), t: 'under way' }]),
+    list(row({ icon: '💂', title: 'Guards', sub: `${PEOPLE.guard.wage} obols a day each. Each takes a pistol and the job a radio, from your stores.`, action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire('guard')) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !guards.some((p) => !p.post), onclick: () => go(W.dismiss(guards.filter((p) => !p.post).slice(-1)[0]?.id)) }, 'Let one go')) })));
+  body.append(segments(SEG, tab, (t) => { ui.milCon = t; open('Military'); }));
+  if (tab === 'open') {
+    body.append(list(...(V.open.length ? V.open.map((c) => h('div', {},
+      row({ icon: '📑', title: c.title, sub: `${c.days} days · ${c.guards} guards · client: ${c.clientName}. ${c.text} Offer closes day ${c.expires}.`, tag: `${n(c.pay)} · ${RISK[c.risk]}`,
+        action: h('span', {}, h('button', { class: 'tb-mini pri', disabled: c.lacks.length > 0, onclick: () => go(W.accept(c.id)) }, 'Take'), ' ', h('button', { class: 'tb-mini', onclick: () => go(W.decline(c.id)) }, 'No')) }),
+      c.lacks.length ? h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one. Needs ${c.lacks.join(', ')}.`) : null)) : [row({ icon: '—', title: 'No offers just now', sub: 'Clients call now and then. A licensed company with a good name hears more often.' })])));
+  } else if (tab === 'active') {
+    body.append(list(...(V.active.length ? V.active.map((c) => row({ icon: '🛡️', title: c.title, sub: `${c.guards} guards on the post for ${c.daysLeft} more day${c.daysLeft === 1 ? '' : 's'} · ${Math.round(c.chance * 100)}% to end well · client: ${c.clientName}`, tag: n(c.pay) })) : [row({ icon: '—', title: 'Nothing under way', sub: 'Take a job from Open. The pay comes only when it ends well.' })])));
+  } else {
+    body.append(list(...(V.done.length ? V.done.map((c) => row({ icon: c.state === 'done' ? '✅' : c.state === 'failed' ? '❌' : '⌛', title: c.title, sub: c.state === 'done' ? `Done · paid ${n(c.pay)}` : c.state === 'failed' ? `It went wrong · fined ${n(c.fine)}` : c.state === 'declined' ? 'Turned down' : c.why || 'Lapsed', tag: `day ${c.ended}` })) : [row({ icon: '—', title: 'No finished jobs', sub: 'Done, lost and lapsed jobs are kept here.' })])));
+  }
+  const Eg = W.engagements();
+  const eg = tab === 'open' ? Eg.open : tab === 'active' ? Eg.active : Eg.done;
+  if (eg.length) body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'Engagements — fought by a general'), list(...eg.map((x) => row({ icon: '🗺️', title: x.title, sub: tab === 'open' ? `${x.client} · ${x.days} days · needs ${x.needs.troops} soldiers${x.needs.tanks ? `, ${x.needs.tanks} tanks` : ''}` : tab === 'active' ? `${x.order.generalName} · ${x.daysLeft} days to go` : x.result ? `${x.result.outcome.replace('_', ' ')} · ${x.result.objectives} of 3` : x.why || x.state, tag: n(x.pay),
+    action: h('button', { class: 'tb-mini pri', onclick: () => { ui.milEng = x.id; ui.milSub = 'Engagement'; ui.milTab = 'Company'; open('Military'); } }, tab === 'open' ? 'Plan' : 'Report') }))));
+  body.append(fold(ui, 'MilClients', 'Reputation · clients · lost jobs ›', (box) => box.append(list(...(V.clients.length ? V.clients.map((c) => row({ icon: '🏢', title: c.name, sub: `${c.done} done, ${c.failed} lost${c.banned ? ' · will not call for now' : ''}` })) : [row({ icon: '—', title: 'No clients yet', sub: 'Every job you finish or lose is counted here.' })])))));
+  body.append(help('How contracts work', 'Each job asks for guards, a pistol each and a radio, and nothing heavy. The pay arrives only when the job ends well and goes to the company\'s account. If it goes wrong the company owes a fine and the client looks elsewhere for a month. You can run the whole company as a guard firm.'));
+}
+
+return { contractsTab };
+})();
+
+// ---- src/ui/militaryGenerals.js
+__m["src/ui/militaryGenerals.js"] = (function () {
+// The Military app's Generals and engagement screens (v0.100.0 stage 9; mock-up proposal-war-oberpad-command.png panels 4 and 6): hire a general, plan an engagement with real squads, see the
+// estimate (the same function that decides it), delegate, and read the after-action report. Every button calls game.war.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const back = (ui, open, to = null) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = to; open('Military'); } }, to ? '‹ Generals' : '‹ Company'));
+const stars = (v) => '●'.repeat(v) + '○'.repeat(5 - v);
+const pct = (v) => `${Math.round(v * 100)}%`;
+const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
+
+function generalsScreen(ui, body, go, open) {
+  const W = ui.game.war; const G = W.generals(); const E = W.engagements();
+  body.append(back(ui, open),
+    hero({ label: 'Generals', value: `${G.hired.length} of ${G.seats} desks`, sub: 'A general fights an engagement for you with the squads you choose. Each has real strengths; you see an estimate before you commit, and a fee is paid every day they are on the books.' }),
+    tiles([{ n: String(E.open.length), t: 'engagements offered' }, { n: String(E.active.length), t: 'under way' }, { n: String(G.hired.filter((g) => g.status === 'home').length), t: 'generals home' }]));
+  if (E.open.length || E.active.length) body.append(label('Engagements'), list(...E.open.map((x) => row({ icon: '🗺️', title: x.title, sub: `${x.client} · ${x.days} days · needs ${x.needs.troops} soldiers${x.needs.tanks ? `, ${x.needs.tanks} tank${x.needs.tanks > 1 ? 's' : ''}` : ''}${x.needs.helicopters ? `, ${x.needs.helicopters} helicopter${x.needs.helicopters > 1 ? 's' : ''}` : ''}, ${x.needs.medics} medic${x.needs.medics > 1 ? 's' : ''}`, tag: n(x.pay), action: h('button', { class: 'tb-mini pri', onclick: () => { ui.milEng = x.id; ui.milSub = 'Engagement'; open('Military'); } }, 'Plan') })),
+    ...E.active.map((x) => row({ icon: '⚔️', title: x.title, sub: `${x.order.generalName} has it · ${x.daysLeft} days to go`, tag: 'under way' }))));
+  body.append(label('Your generals'), list(...(G.hired.length ? G.hired.map((g) => row({ icon: '🎖️', title: `${g.name} · ${g.fee.toLocaleString('en-US')} a day`, sub: `${g.style} · ${g.wins} won, ${g.losses} lost · ${g.status === 'home' ? 'at the command post' : 'away with a force'}`, action: h('button', { class: 'tb-mini', disabled: g.status !== 'home', onclick: () => go(W.dismissGeneral(g.id)) }, 'Let go') })) : [row({ icon: '—', title: 'No general yet', sub: G.seats ? 'Hire one below.' : 'Build the command post first: it has a desk for a general for every five desks.' })])));
+  body.append(label('Available to hire'), list(...G.pool.map((g) => row({ icon: '🎖️', title: `${g.name} · ${g.fee.toLocaleString('en-US')} a day`, sub: `${g.style}. ${g.text}\nOffence ${stars(g.offence)}  Defence ${stars(g.defence)}  Logistics ${stars(g.logistics)}  Air ${stars(g.air)}  Intel ${stars(g.intel)} · accepts losses ${pct(g.risk)}`, action: h('button', { class: 'tb-mini pri', disabled: G.hired.length >= G.seats, onclick: () => go(W.hireGeneral(g.id)) }, 'Hire') }))));
+  body.append(help('How generals work', 'You choose the squads and the general; the engagement is then closed to being played any other way. The result comes from the forces, the supplies, the ground and the general, with a seeded element of chance that a reload cannot change. The dead, the wounded and the lost vehicles are real and stay lost.'));
+}
+
+function engagementScreen(ui, body, go, open) {
+  const W = ui.game.war; const e = W.engagement(ui.milEng);
+  if (!e) { ui.milSub = 'Generals'; body.append(back(ui, open, null), list(row({ icon: '—', title: 'No such engagement', sub: 'It has gone.' }))); return; }
+  if (e.state !== 'open') { reportScreen(ui, body, go, open, e); return; }
+  const S = W.squads(); const G = W.generals().hired.filter((g) => g.status === 'home');
+  const bn = e.strategic ? W.strategic()?.battalions.find((b) => b.id === e.strategic.bn) : null; // (a battle on the strategic map is fought by the battalion that made contact)
+  const chosen = bn ? [...bn.squads] : (ui.milEngSquads ||= []).filter((id) => S.some((s) => s.id === id && s.status === 'home'));
+  if (!bn) ui.milEngSquads = chosen;
+  const gen = G.some((g) => g.id === ui.milEngGen) ? ui.milEngGen : G[0]?.id || '';
+  const lacks = W.engagementLacks(e.id, chosen);
+  body.append(back(ui, open, 'Generals'),
+    hero({ label: `${e.client} · ${e.terrain} ground`, value: e.title, sub: `${e.text} ${e.days} days. Pays ${n(e.pay)} (a share of it if only some objectives are met). Offer closes day ${e.expires}.` }),
+    tiles([{ n: `${e.needs.troops}`, t: 'soldiers needed' }, { n: `${e.needs.tanks}/${e.needs.helicopters}`, t: 'tanks / helicopters' }, { n: `${e.needs.medics}`, t: 'medics needed' }]),
+    list(row({ icon: '👁️', title: 'What is known of the enemy', sub: `About ${e.enemy.troops} troops${e.enemy.armour ? `, ${e.enemy.armour} armour` : ''}${e.enemy.air ? `, air cover` : ''}. Reports are rough: the estimate below is not a promise.` })));
+  if (bn) body.append(label('Fought by'), list(row({ icon: '🪖', title: bn.name, sub: `${bn.stats.people} soldiers, ${bn.stats.vehicles} vehicles · organisation ${bn.stats.org} · ${bn.squadNames.join(', ')}` })));
+  else body.append(label('Squads to send'), list(...(S.length ? S.map((s) => row({ icon: chosen.includes(s.id) ? '☑️' : '⬜', title: `${s.name} · ${s.size} soldiers`, sub: `${s.leaderName ? `Led by ${s.leaderName}` : 'No leader'}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}${s.status !== 'home' ? ' · away' : ''}`,
+    onclick: s.status === 'home' ? () => { ui.milEngSquads = chosen.includes(s.id) ? chosen.filter((x) => x !== s.id) : [...chosen, s.id]; open('Military'); } : null })) : [row({ icon: '—', title: 'No squads', sub: 'Form squads from People and Squads first. Nothing is spawned for you.' })])));
+  if (!bn && chosen.length > 1) { const held = (ui.milEngReserve || []).filter((x) => chosen.includes(x)); body.append(label('Hold back in reserve (when you lead it yourself)'), list(...chosen.map((sid) => row({ icon: held.includes(sid) ? '☑️' : '⬜', title: S.find((s) => s.id === sid)?.name || sid, sub: held.includes(sid) ? 'Kept off the field until you call it; takes no losses if never called' : 'Goes in with the rest', onclick: () => { ui.milEngReserve = held.includes(sid) ? held.filter((x) => x !== sid) : [...held, sid]; open('Military'); } })))); }
+  body.append(label('General'), list(row({ icon: '🎖️', title: G.length ? 'Assign' : 'No general at home', sub: G.length ? 'Who fights it' : 'Hire one from Generals.', action: G.length ? select(G.map((g) => [g.id, `${g.name}`]), gen, (v) => { ui.milEngGen = v; open('Military'); }) : null })));
+  if (lacks.length) body.append(h('div', { class: 'tb-note', style: 'margin:0 8px 8px' }, `⚠ Your forces do not meet this one: ${lacks.join('; ')}. Nothing is spawned to make up the difference.`));
+  if (chosen.length && gen) {
+    const A = W.assess(e.id, chosen, gen); const es = A.estimate;
+    body.append(label('Assessment (an estimate, not a promise)'), list(
+      row({ icon: '📝', title: es.words, sub: `Odds ${es.ratio.toFixed(2)} to 1 · expected losses: about ${es.deadExpected} killed, ${es.lossPeople - Math.round(es.deadExpected)} wounded, ${es.vehiclesExpected} vehicles` }),
+      row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
+      row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
+  }
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen, (ui.milEngReserve || []).filter((x) => chosen.includes(x))); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, bn ? (e.strategic.defend ? 'Give the ground up' : 'Break off') : 'Turn it down')));
+  body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
+}
+
+function reportScreen(ui, body, go, open, e) {
+  body.append(back(ui, open, 'Generals'));
+  if (e.state === 'tactical') {
+    const bt = ui.game.war.battle(e.id);
+    body.append(hero({ label: e.client, value: e.title, sub: bt?.result ? `The battle is fought and the result filed. Your people are back on day ${e.order.end}.` : `You have taken this one to the field. Your people are back on day ${e.order.end}, whatever the battle's length.` }),
+      h('div', { class: 'tb-btns' }, bt?.result ? null : h('button', { class: 'tb-btn pri', onclick: () => ui.openPanel('battle', { id: e.id }) }, bt?.tick ? 'Resume the battle' : 'Fight the battle')));
+    return;
+  }
+  if (e.state === 'delegated') { body.append(hero({ label: e.client, value: e.title, sub: `${e.order.generalName} is on it: ${Math.max(0, e.order.end - ui.game.clock.day)} days to go.` })); return; }
+  if (!e.result) { body.append(hero({ label: e.client, value: e.title, sub: e.state === 'expired' ? (e.why || 'It lapsed.') : 'Turned down.' })); return; }
+  const R = e.result;
+  body.append(hero({ label: `After action: ${e.place}`, value: R.outcome.replace('_', ' ').replace(/^./, (c) => c.toUpperCase()), tone: R.objectives >= 2 ? 'pos' : R.objectives === 0 ? 'neg' : 'warn', sub: `${R.objectives} of 3 objectives · ${R.paid ? `paid ${n(R.paid)} of ${n(e.pay)}` : `fined ${n(R.fine)}`} · ${R.general}` }),
+    tiles([{ n: String(R.dead.length), t: 'killed' }, { n: String(R.wounded.length), t: 'wounded' }, { n: String(R.lost.length), t: 'vehicles lost' }]),
+    list(...R.lines.map((l) => row({ icon: '📋', title: l }))));
+  body.append(fold(ui, 'MilAar', 'Who fell · who was hurt · what is lost ›', (box) => box.append(list(...R.dead.map((d) => row({ icon: '✝', title: `${d.name} · ${d.role}`, sub: 'killed' })), ...R.wounded.map((d) => row({ icon: '🩹', title: `${d.name} · ${d.role}`, sub: `wounded (${d.wounds})` })), ...R.lost.map((d) => row({ icon: '💥', title: d.name, sub: 'destroyed' })), (R.dead.length + R.wounded.length + R.lost.length) ? null : row({ icon: '—', title: 'No losses', sub: '' })))));
+}
+
+return { generalsScreen, engagementScreen };
+})();
+
+// ---- src/ui/militaryPeople.js
+__m["src/ui/militaryPeople.js"] = (function () {
+// The Military app's People, Squads and Armoury screens (v0.100.0; mock-ups proposal-war-troop-customizer.png and -loadouts-1/2.png): who works for the company, who is in which squad, and what
+// each class carries. Reached from the Company page. Every button calls game.war; nothing here changes a record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, n } = __m["src/ui/tabletKit.js"];
+const { CLASSES, TROOP_CLASSES, ARMOUR, LOOKS, SQUAD } = __m["src/content/troops.js"];
+const { ARMS_TRANSFERABLE } = __m["src/content/procurement.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const back = (ui, open) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = null; open('Military'); } }, '‹ Company'));
+const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));
+
+function peopleScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.people(); const H = W.housing(); const cap = W.capacity();
+  body.append(back(ui, open),
+    hero({ label: 'People', value: `${P.length} on the books`, sub: `${cap.beds} beds · ${P.filter((p) => p.status === 'training').length} of ${cap.training} training places in use. Every person costs a daily wage and needs a bed; a soldier needs a uniform from the stores and days of training.` }),
+    tiles([{ n: String(P.filter((p) => p.status === 'active').length), t: 'working' }, { n: String(P.filter((p) => p.status === 'training').length), t: 'training' }, { n: String(Math.max(0, cap.beds - P.length)), t: 'beds free' }]));
+  body.append(list(...Object.entries(CLASSES).map(([id, K]) => {
+    const mine = P.filter((p) => p.role === id);
+    return row({ icon: K.group === 'troop' ? '🪖' : id === 'guard' ? '💂' : '🧑‍🏭', title: `${K.name} · ${mine.length}`, sub: `${K.text} ${K.wage} a day${K.train ? ` · ${K.train} days of training` : ''}${mine.some((p) => p.status === 'training') ? ` · ${mine.filter((p) => p.status === 'training').length} training` : ''}`,
+      action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.hire(id)) }, 'Hire'), ' ', h('button', { class: 'tb-mini', disabled: !mine.some((p) => !p.post && p.assignedTo == null), onclick: () => go(W.dismiss(mine.filter((p) => !p.post && p.assignedTo == null).slice(-1)[0]?.id)) }, 'Let go')) });
+  })));
+  body.append(fold(ui, 'MilRoll', 'The roll — everyone by name ›', (box) => box.append(list(...(P.length ? P.map((p) => row({ icon: '👤', title: `${p.name} · ${CLASSES[p.role]?.name}`, sub: `${p.status}${p.status === 'training' ? ` until day ${p.trainedDay}` : ''}${p.assignedTo ? ` · squad ${p.assignedTo}` : ''}${p.post ? ` · ${p.post}` : ''} · morale ${p.morale ?? 70}` })) : [row({ icon: '—', title: 'Nobody yet', sub: 'Build the bunkhouse, then hire.' })])))));
+  body.append(help('Training and uniforms', 'A soldier trains for a few days at the range or the training ground (each takes a place while they train) and needs a uniform from the stores; guards and technicians start at once. Wages are paid every day from the company\'s own money.'));
+}
+
+function squadsScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const S = W.squads(); const P = W.people();
+  const free = P.filter((p) => TROOP_CLASSES.includes(p.role) && p.status === 'active' && p.assignedTo == null);
+  const officers = P.filter((p) => CLASSES[p.role]?.leads && p.status === 'active');
+  const vehicles = W.equipment().filter((e) => ['vehicle', 'helicopter'].includes(e.kind) && e.status === 'stored');
+  body.append(back(ui, open),
+    hero({ label: 'Squads', value: `${S.length} squad${S.length === 1 ? '' : 's'}`, sub: `A squad has an officer for a leader, up to ${SQUAD.max} soldiers and the vehicles you give it. Each soldier and vehicle is in one squad or none.` }),
+    tiles([{ n: String(free.length), t: 'soldiers free' }, { n: String(vehicles.length), t: 'vehicles free' }, { n: String(officers.length), t: 'officers' }]),
+    h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(W.squadCreate()) }, 'Form a squad')));
+  for (const s of S) {
+    body.append(h('div', { class: 'tb-card', style: 'padding:10px 12px' },
+      h('div', { class: 'tb-row' }, h('div', { class: 'grow' }, h('b', {}, `${s.name} · ${s.size}`), h('small', {}, `Leader: ${s.leaderName || 'none yet'} · ${s.armed} armed · morale ${s.morale}${s.vehicles.length ? ` · ${s.vehicles.join(', ')}` : ''}`)), h('button', { class: 'tb-mini', onclick: () => go(W.squadDisband(s.id)) }, 'Stand down')),
+      h('small', {}, Object.entries(s.byClass).map(([k, q]) => `${q} ${CLASSES[k].name.toLowerCase()}`).join(', ') || 'No one yet'),
+      h('div', { class: 'tb-btns', style: 'margin-top:6px;flex-wrap:wrap' },
+        free.length ? select([['', 'Add a soldier…'], ...free.map((p) => [p.id, `${p.name} (${CLASSES[p.role].name})`])], '', (v) => v && go(W.squadAssign(s.id, v))) : null,
+        officers.length ? select([['', 'Leader…'], ...officers.map((p) => [p.id, p.name])], s.leader || '', (v) => v && go(W.squadLeader(s.id, v))) : null,
+        vehicles.length ? select([['', 'Give a vehicle…'], ...vehicles.map((x) => [x.id, `${x.name} ${x.id}`])], '', (v) => v && go(W.squadVehicle(s.id, v))) : null),
+      s.members.length ? fold(ui, `MilSq${s.id}`, 'Members ›', (box) => box.append(list(...s.members.map((m) => { const p = P.find((x) => x.id === m); return row({ icon: s.leader === m ? '⭐' : '🪖', title: `${p.name} · ${CLASSES[p.role].name}`, sub: p.weapon ? 'armed' : 'unarmed', action: h('button', { class: 'tb-mini', onclick: () => go(W.squadRemove(m)) }, 'Out') }); })))) : null));
+  }
+}
+
+function armouryScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const P = W.people(); const st = W.stock(); const C = W.company();
+  const stockOf = (item) => Object.entries(st).filter(([k]) => k.endsWith(`:${item}`) || k === item).reduce((a, [, q]) => a + q, 0);
+  body.append(back(ui, open),
+    hero({ label: 'Armoury', value: 'Class, weapons and look', sub: 'A class carries the weapon of its tier, taken from the stores: a weapon in a soldier\'s hands is not in the stores. Tiers 3 to 5 and armour eras 3 and 4 are future research.' }),
+    tiles([{ n: String(stockOf(ARMS_TRANSFERABLE[0]) + 0), t: 'pistols in stores' }, { n: String(st['supply:uniform'] || 0), t: 'uniforms' }, { n: String(st['supply:plate_carrier'] || 0), t: 'plate carriers' }]));
+  body.append(list(...TROOP_CLASSES.concat(['guard']).map((id) => {
+    const K = CLASSES[id]; const mine = P.filter((p) => p.role === id); const tier = C?.tiers?.[id] ?? 1;
+    const armed = mine.filter((p) => p.weapon).length;
+    const tiers = Object.keys(K.tiers).map(Number);
+    return h('div', {}, row({ icon: '🔫', title: `${K.name} · ${armed}/${mine.length} armed`, sub: `${tiers.map((t) => `T${t}: ${g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])} in stores)`).join(' · ')}${K.gadget ? ` · carries ${K.gadget.replace('supply:', '')}` : ''}`,
+      action: h('span', {}, ...tiers.map((t) => h('button', { class: `tb-mini${t === tier ? ' pri' : ''}`, onclick: () => go(W.setTier(id, t)) }, `T${t}`)), ' ', h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.equipClass(id)) }, 'Equip all'), ' ', K.group === 'troop' ? h('button', { class: 'tb-mini', disabled: !mine.length, onclick: () => go(W.armourClass(id, mine.every((p) => p.armour === 2) ? 1 : 2)) }, mine.length && mine.every((p) => p.armour === 2) ? 'Plates off' : 'Plates on') : null) }));
+  })));
+  body.append(fold(ui, 'MilLook', 'Looks — colours for a squad (free, cosmetic) ›', (box) => {
+    const S = W.squads();
+    if (!S.length) { box.append(list(row({ icon: '—', title: 'No squads yet', sub: 'Form a squad first, then give it a look.' }))); return; }
+    const pick = ui.milLookSquad && S.find((s) => s.id === ui.milLookSquad) ? ui.milLookSquad : S[0].id;
+    const s = S.find((x) => x.id === pick);
+    const set = (k) => (v) => go(W.squadLook(pick, { [k]: v }));
+    box.append(list(row({ icon: '🎨', title: 'Squad', sub: 'Choose one', action: select(S.map((x) => [x.id, x.name]), pick, (v) => { ui.milLookSquad = v; open('Military'); }) }),
+      row({ icon: '▪', title: 'Colour', action: select(Object.keys(LOOKS.primary).map((k) => [k, k.replace('_', ' ')]), s.look.primary, set('primary')) }),
+      row({ icon: '▦', title: 'Pattern', action: select(LOOKS.pattern.map((k) => [k, k]), s.look.pattern, set('pattern')) }),
+      row({ icon: '★', title: 'Insignia', action: select(LOOKS.insignia.map((k) => [k, k]), s.look.insignia, set('insignia')) }),
+      row({ icon: '⛑', title: 'Crest', action: select(LOOKS.crest.map((k) => [k, k]), s.look.crest, set('crest')) }),
+      row({ icon: '🎗', title: 'Band', action: select(Object.keys(LOOKS.band).map((k) => [k, k]), s.look.band, set('band')) })));
+  }));
+  body.append(help('What changes a number', 'The tier (weapon) and the armour era are real: they change what the soldier can do and what they cost. Colours, pattern, insignia, crest and band are free and change nothing.'));
+}
+
+const PART = { strength: 'at work (not training or wounded)', morale: 'morale', armed: 'armed', fed: 'fed today', housed: 'with a bed' };
+
+/** The Base screen (v0.100.0 stage 8): what the base has, what it lacks, and what readiness is made of. */
+function baseScreen(ui, body, go, open) {
+  const g = ui.game; const W = g.war; const B = W.baseView(); const H = W.housing();
+  body.append(back(ui, open),
+    hero({ label: 'The base', value: `${B.readiness}% ready`, tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : 'pos', sub: B.short.length ? B.short.join(' · ') : 'Everyone is fed, housed and treated.' }),
+    tiles([{ n: `${B.people}/${B.beds}`, t: 'people / beds' }, { n: `${B.rations}`, t: 'rations left' }, { n: `${B.morale}`, t: 'average morale' }]));
+  body.append(list(...Object.entries(B.factors).map(([k, v]) => row({ icon: '▪', title: PART[k] || k, sub: `${Math.round(v * 100)}%`, tag: `${Math.round(v * 100)}%`, tone: v >= 0.8 ? 'good' : v >= 0.5 ? '' : 'warn' }))));
+  body.append(list(
+    row({ icon: '🍲', title: 'Meals', sub: `${B.meals} hot meals a day from the mess; everyone eats a ration a day from the stores.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(W.buySupply('rations', 50)) }, 'Rations ×50') }),
+    row({ icon: '🏥', title: 'Medical', sub: `${B.treat} treatment places · ${B.wounded} wounded · ${B.medicine} medicine in the stores.`, action: h('button', { class: 'tb-mini', onclick: () => go(W.buySupply('medicine', 10)) }, 'Medicine ×10') }),
+    row({ icon: '🛏️', title: 'Beds', sub: `${B.beds} beds for ${B.people} people.` }),
+    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} of ${H.stores.total} places used.` })));
+  body.append(help('Capacity is real', 'A base that is too small loses morale and readiness: people without a bed or a meal, and wounded beyond the treatment places, drag it down. Nothing here is free: rations and medicine are bought, and wages are paid every day.'));
+}
+
+return { peopleScreen, squadsScreen, armouryScreen, baseScreen };
+})();
+
+// ---- src/ui/militaryTerminal.js
+__m["src/ui/militaryTerminal.js"] = (function () {
+// The company's command terminal (v0.103.2; mock-up proposal-war-terminal-supply.png): the mercenary business is run from the site office at Hollowmoor Lot, not from the tablet. A full-screen
+// terminal in the style of the arms and aerospace terminals: a side bar of pages and the page itself. The pages are the same screens the Military app used to carry (people, squads, armoury, base,
+// generals, contracts, production), now in the terminal, with two new ones: the Overview (the base's buildings) and Supply (standing levels from the Arms works). The tablet keeps the founding steps.
+// Every button calls game.war; nothing here writes a record.
+const { h } = __m["src/ui/panels.js"];
+const { hero, tiles, row, help, fold, note, n } = __m["src/ui/tabletKit.js"];
+const { transfersTab } = __m["src/ui/militaryTransfers.js"];
+const { productionTab } = __m["src/ui/militaryProduction.js"];
+const { contractsTab } = __m["src/ui/militaryContracts.js"];
+const { generalsScreen, engagementScreen } = __m["src/ui/militaryGenerals.js"];
+const { peopleScreen, squadsScreen, armouryScreen, baseScreen } = __m["src/ui/militaryPeople.js"];
+const { LINK } = __m["src/content/procurement.js"];
+
+const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
+const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
+const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
+const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
+const SUBS = ['People', 'Squads', 'Armoury', 'Base', 'Generals'];
+const PAGES = ['Overview', 'People', 'Squads', 'Armoury', 'Supply', 'Base', 'Generals', 'Contracts', 'Production'];
+const PAGE_NAME = { Generals: 'Generals & engagements' };
+
+function militaryTerminalPanel(ui, body) {
+  const g = ui.game; const W = g.war; body.classList.add('milterm');
+  const top = h('div', { class: 'mt-top' }); const side = h('nav', { class: 'mt-nav' }); const main = h('main', { class: 'mt-main' });
+  body.append(top, h('div', { class: 'mt-wrap' }, side, main));
+  let alive = true;
+  const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); render(); };
+  const open = () => render();
+  const pageOf = () => {
+    let p = ui.termPage || 'Overview';
+    if (ui.milSub === 'Engagement') p = 'Engagement';
+    else if (ui.milSub && SUBS.includes(ui.milSub)) p = ui.milSub;
+    else if (SUBS.includes(p) || p === 'Engagement') p = 'Overview'; // a screen's own back button clears milSub
+    if (!PAGES.includes(p) && p !== 'Engagement') p = 'Overview';
+    ui.termPage = p; return p;
+  };
+  const goPage = (id) => { ui.termPage = id; ui.milSub = SUBS.includes(id) ? id : null; ui.milTab = 'Company'; render(); };
+
+  function render() {
+    if (!alive) return;
+    const V = W.companyView();
+    const page = pageOf();
+    top.replaceChildren();
+    if (!V) { top.append(h('div', {}, h('h1', {}, 'COMMAND TERMINAL'), h('small', {}, 'Hollowmoor Lot · site office'))); main.replaceChildren(h('div', { class: 'tb-card', style: 'padding:16px' }, h('b', {}, 'No company is registered.'), h('p', {}, 'Register one in the Military app on your tablet: a name, some money, the Civic Office licence, then this lot.')), closeRow()); side.replaceChildren(); return; }
+    const m = W.state(); const bns = m?.war?.battalions || []; const E = W.engagements();
+    top.append(h('div', {}, h('h1', {}, `${V.name.toUpperCase()} · COMMAND TERMINAL`), h('small', {}, 'Hollowmoor Lot · site office')), h('div', { class: 'sp' }),
+      h('div', {}, h('small', {}, 'COMPANY CASH'), h('b', {}, `${n(V.cash)} obols`)), h('div', {}, h('small', {}, 'BATTALIONS'), h('b', {}, `${bns.length} raised · ${bns.filter((b) => b.status !== 'home').length} away`)),
+      h('div', {}, h('small', {}, 'DAY'), h('b', {}, `${g.clock.day} · ${g.clock.timeString}`)), h('button', { class: 'mt-x', onclick: () => ui.closePanel() }, '✕ Step away'));
+    const sup = W.supplyLink(); const short = sup ? sup.rows.filter((r) => r.want && r.have < r.want).length : 0;
+    const badge = { Overview: '', People: String(W.people().length), Squads: String(W.squads().length), Armoury: '', Supply: short ? `${short} short` : sup?.rows.some((r) => r.want) ? 'filled' : '', Base: '', Generals: E.open.length ? `${E.open.length} open` : '', Contracts: '', Production: '' };
+    const warn = (id) => id === 'Supply' && short;
+    side.replaceChildren(...PAGES.map((id) => h('button', { class: `mt-item${(page === id || (page === 'Engagement' && id === 'Generals')) ? ' on' : ''}`, onclick: () => goPage(id) }, h('span', {}, PAGE_NAME[id] || id), badge[id] ? h('em', { class: warn(id) ? 'w' : '' }, badge[id]) : null)),
+      h('button', { class: 'mt-item', onclick: () => ui.openPanel('strategic') }, h('span', {}, 'Strategic map'), h('em', {}, '›')));
+    const box = h('div', { class: 'mt-page' });
+    const nt = note(ui); if (nt) box.append(nt);
+    if (page === 'Overview') overview(ui, box, go, V);
+    else if (page === 'People') peopleScreen(ui, box, go, open);
+    else if (page === 'Squads') squadsScreen(ui, box, go, open);
+    else if (page === 'Armoury') armouryScreen(ui, box, go, open);
+    else if (page === 'Base') baseScreen(ui, box, go, open);
+    else if (page === 'Generals') generalsScreen(ui, box, go, open);
+    else if (page === 'Engagement') engagementScreen(ui, box, go, open);
+    else if (page === 'Contracts') contractsTab(ui, box, go, open);
+    else if (page === 'Production') productionTab(ui, box, go, open);
+    else if (page === 'Supply') supplyPage(ui, box, go);
+    main.replaceChildren(box);
+  }
+  const closeRow = () => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn', onclick: () => ui.closePanel() }, 'Step away'));
+  render();
+  return { title: '', className: 'milterm-panel', onClose: () => { alive = false; } };
+}
+
+/** The Overview: the company at a glance and the base's buildings, ordered and repaired here. */
+function overview(ui, box, go, V) {
+  const g = ui.game; const W = g.war; const cap = W.capacity(); const prot = W.baseProtected();
+  box.append(
+    hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. ${V.licensed ? 'Licensed' : 'Not licensed yet'} · ${V.lotOwned ? 'Hollowmoor Lot owned' : 'no ground yet'}. Pay money in or take it out in the Military app on your tablet.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
+    tiles([{ n: String(n(cap.beds)), t: 'beds' }, { n: String(n(cap.stores)), t: 'stores' }, { n: prot ? 'safe' : 'at risk', t: 'the base', tone: prot ? '' : 'warn' }]));
+  if (V.lotOwned) {
+    const fac = W.facilities();
+    for (const stage of [1, 2, 3]) {
+      const rows = fac.filter((f) => f.stage === stage); if (!rows.length) continue;
+      box.append(label(STAGES[stage] + (rows[0].open ? '' : ' (opens when the stage before is built)')));
+      box.append(list(...rows.map((f) => row({ icon: f.state === 'built' ? '🏠' : f.state === 'none' ? '📐' : '🚧', title: f.name, sub: f.state === 'none' ? `${f.text || ''} ${n(f.cost)} obols.` : `${STATE[f.state]}${f.daysLeft != null && f.state !== 'built' ? ` · ${f.daysLeft} days to go` : ''}`,
+        tag: f.state === 'built' ? '✓' : f.state === 'none' ? '' : '…', tone: f.state === 'built' ? 'good' : '',
+        action: f.state === 'none' ? h('button', { class: 'tb-mini pri', disabled: !f.canOrder || V.cash < f.cost, onclick: () => go(W.commission(f.id)) }, 'Order')
+          : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
+    }
+  }
+  box.append(list(row({ icon: '🗺️', title: 'Strategic map', sub: 'Raise battalions from your squads, enlist in a theatre, and give them orders on the provinces.', tag: '›', onclick: () => ui.openPanel('strategic') })));
+  box.append(help('How the company is run', 'This terminal is the company\'s office: people, squads, the armoury, supply, generals, contracts and the war map are all run from here. The tablet only founds the company (a name, money, the licence, the lot, the first building) and tells you how things stand. The company is its own thing: its own name and its own money, and it pays only from its own account.'));
+  box.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (b2) => b2.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company works.' })])))));
+}
+
+const STATE_TEXT = { off: ['not kept', ''], full: ['filled', 'good'], inbound: ['on its way', 'good'], shipping: ['ships tomorrow', 'good'], making: ['the works is making it', 'warn'], idle: ['the works is not making it', 'warn'] };
+
+/** Supply: the standing levels, filled free by the Arms works; what the works cannot keep up with is bought from other manufacturers. */
+function supplyPage(ui, box, go) {
+  const g = ui.game; const W = g.war; const S = W.supplyLink(); const V = W.companyView();
+  if (!S) return;
+  box.append(
+    hero({ label: 'Supply from the arms company', value: `${n(S.flow.free)} items free this week`, sub: 'Set what the company should keep in the stores. Your arms works ships what its export cage holds toward each level every morning, at no charge. What the works cannot keep up with, you can buy from other manufacturers.' }),
+    tiles([{ n: n(S.flow.free), t: 'from your works' }, { n: n(S.flow.bought), t: 'bought elsewhere' }, { n: `${n(S.flow.spent)}`, t: 'spent elsewhere' }]));
+  if (!S.works.length) box.append(list(row({ icon: '🏭', title: 'You own no arms works', sub: 'Buy a works at Mill Road Yards (the licence is Lucas Eastrise\'s). Until then the company can only buy from other manufacturers.' })));
+  else box.append(label('Your arms works'), list(...S.works.map((w) => row({ icon: '🏭', title: w.name, sub: w.dedicated ? `Makes for the company: ${w.retooled} of ${w.stations} stations are on what it needs. Idle stations take the company\'s shortfall and go back when the stores are full.` : 'Makes what you set it to. Switch this on and its idle stations make what the company is short of.', tag: w.dedicated ? 'for the company' : '', tone: w.dedicated ? 'good' : '',
+    action: h('button', { class: `tb-mini${w.dedicated ? '' : ' pri'}`, onclick: () => go(W.setSupplyWorks(w.id, !w.dedicated)) }, w.dedicated ? 'Stop' : 'Make for the company') }))));
+  const rows = S.rows.filter((r) => r.want || r.have || r.caged || r.canMake);
+  const input = (r) => { const el = h('input', { type: 'number', min: 0, max: LINK.max, step: 1, value: r.want, style: 'width:70px;padding:5px;border-radius:8px;border:2px solid #3a3794;background:#15133e;color:inherit', onchange: () => go(W.setSupplyLevel(r.item, Number(el.value))) }); return el; };
+  box.append(label('Standing levels'), list(...(rows.length ? rows.map((r) => {
+    const [txt, tone] = STATE_TEXT[r.state];
+    const bits = [`${n(r.have)} in the stores`, r.inbound ? `${n(r.inbound)} on the way` : '', `${n(r.caged)} in the cages`, r.makers ? `${r.makers} station${r.makers === 1 ? '' : 's'} making it${r.staffed < r.makers ? ` (${r.makers - r.staffed} unstaffed)` : ''}` : (r.canMake ? 'no station making it' : 'not yet researched')].filter(Boolean);
+    return row({ icon: '🔫', title: `${r.name} · keep ${n(r.want)}`, sub: `${txt}. ${bits.join(' · ')}.`, tone, tag: r.want ? `${n(r.have)}/${n(r.want)}` : '',
+      action: h('span', {}, input(r), ' ', r.buyQty > 0 ? h('button', { class: `tb-mini${r.state === 'idle' ? ' pri' : ''}`, disabled: V.cash < r.buyCost, title: `${LINK.markup} × the item's value, in ${LINK.days} days`, onclick: () => go(W.buyElsewhere(r.item, r.buyQty)) }, `Buy ${n(r.buyQty)} elsewhere · ${n(r.buyCost)}`) : null) });
+  }) : [row({ icon: '—', title: 'No levels set', sub: 'Type a number against an item to keep that many in the stores. Items appear here once you own a works, or have some in the stores.' })])));
+  if (S.inbound.length) box.append(label('On their way from other manufacturers'), list(...S.inbound.map((b) => row({ icon: '🚚', title: `${n(b.qty)} × ${b.name}`, sub: `Due day ${b.due}.` }))));
+  box.append(help('How the supply link works', `Every morning each works ships what its export cage holds toward each level, at no charge: it is your own company's stock moving, so no sale is made and no money changes hands. Crates are opened for the purpose and the rest of an opened crate stays in the cage. A works marked "makes for the company" retools its idle stations to what the company is short of, finishing the unit in hand first, and goes back to what it was making when the level is met. Items bought from other manufacturers cost ${LINK.markup} times their value, are paid from the company's own account, and arrive in ${LINK.days} days; they can never be sent back. Uniforms, rations, medicine, spares and fuel are not arms: the company still buys those from suppliers (Armoury → supplies).`));
+  box.append(fold(ui, 'MilMoves', 'Aircraft, missiles and one-off moves ›', (b2) => transfersTab(ui, b2, go)));
+  box.append(fold(ui, 'MilLink', 'The link\'s log ›', (b2) => b2.append(list(...(S.log.length ? S.log.map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'Shipments and purchases are written here.' })])))));
+}
+
+return { militaryTerminalPanel };
 })();
 
 // ---- src/ui/logbook.js
@@ -83698,6 +84085,7 @@ const { armsBenchPanel } = __m["src/ui/armsbench.js"];
 const { fleetPanel } = __m["src/ui/fleetCommand.js"];
 const { battlePanel } = __m["src/ui/battle.js"]; // v0.101.0
 const { strategicPanel } = __m["src/ui/strategic.js"]; // v0.103.0
+const { militaryTerminalPanel } = __m["src/ui/militaryTerminal.js"]; // v0.103.2
 const { logbookPanel } = __m["src/ui/logbook.js"];
 const { cashierPanel, casinoTablePanel } = __m["src/ui/casino.js"];
 const { spadeTablePanel } = __m["src/ui/spadeTable.js"];
@@ -83717,6 +84105,7 @@ PANELS.logistics = fleetPanel; // Fleet Command, full screen (v0.25.0)
 PANELS.fleet = fleetPanel;
 PANELS.battle = battlePanel; // v0.101.0: the tactical battle, full screen
 PANELS.strategic = strategicPanel; // v0.103.0: the strategic map, full screen
+PANELS.militaryterminal = militaryTerminalPanel; // v0.103.2: the company's command terminal in the site office
 PANELS.logbook = logbookPanel;
 PANELS.cashier = cashierPanel; // v0.52.0: the Phonograph Grand
 PANELS.casinoTable = casinoTablePanel;

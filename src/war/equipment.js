@@ -64,7 +64,7 @@ export function stockName(game, key) {
   const [kind, a, b] = key.split(':');
   if (kind === 'supply') return SUPPLY_NAME(a);
   const item = game.content?.items?.[b];
-  return `${item?.name || b}${a ? ` (from ${game.arms?.def?.(a)?.name || a})` : ''}`;
+  return `${item?.name || b}${a === 'bought' ? ' (bought elsewhere)' : a ? ` (from ${game.arms?.def?.(a)?.name || a})` : ''}`;
 }
 let SUPPLIES_CACHE = SUPPLIES;
 function SUPPLY_NAME(id) { return SUPPLIES_CACHE?.[id]?.name || id; }

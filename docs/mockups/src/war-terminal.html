@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Mercenary terminal mock-up (v0.103.2)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 1280px; height: 720px; background: #0b0a24; color: #e8eaf6; font: 14px/1.35 system-ui, sans-serif; overflow: hidden; }
+  .top { display: flex; align-items: center; gap: 22px; padding: 10px 16px; background: #0c0a24; border-bottom: 2px solid #2d2a6e; }
+  .top h1 { margin: 0; font-size: 17px; letter-spacing: .06em; color: #ffe27a; }
+  .top small { display: block; font-size: 10px; letter-spacing: .08em; color: #a8a6d8; } .top b { font-size: 18px; color: #ffe27a; }
+  .top .sp { flex: 1; } .top .x { padding: 6px 12px; border: 2px solid #3a3794; border-radius: 8px; background: #1c1a52; }
+  .wrap { display: grid; grid-template-columns: 210px 1fr; height: calc(720px - 58px); }
+  nav { padding: 10px; border-right: 2px solid #2d2a6e; background: #0f0d30; display: grid; gap: 6px; align-content: start; }
+  nav div { padding: 9px 11px; border: 2px solid #2d2a6e; border-radius: 8px; display: flex; justify-content: space-between; }
+  nav div.on { border-color: #ffe066; background: #1c1a52; } nav div em { font-style: normal; color: #8fd9a8; font-size: 12px; } nav div em.w { color: #ffb070; }
+  main { padding: 14px 18px; overflow: hidden; }
+  h2 { margin: 0 0 4px; font-size: 18px; } .lead { color: #a8a6d8; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; } th { text-align: left; font-size: 11px; letter-spacing: .08em; color: #a8a6d8; font-weight: 600; padding: 4px 8px; }
+  td { padding: 8px; border-top: 1px solid #2d2a6e; vertical-align: middle; }
+  .bar { height: 8px; background: #0a0924; border-radius: 4px; overflow: hidden; width: 170px; } .bar i { display: block; height: 100%; background: #4fcf86; } .bar i.s { background: #e0553a; }
+  .btn { display: inline-block; padding: 5px 10px; border-radius: 8px; border: 2px solid #3a3794; background: #1c1a52; font-size: 12px; } .btn.pri { border-color: #ffe066; color: #ffe066; } .btn.dim { opacity: .45; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: #1d4d33; color: #8fd9a8; } .tag.w { background: #5a2a1a; color: #ffb070; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .card { padding: 10px 12px; border: 2px solid #2d2a6e; border-radius: 10px; background: #131238; } .card b { font-size: 20px; color: #ffe27a; display: block; } .card small { color: #a8a6d8; }
+  .note { margin-top: 12px; padding: 9px 12px; border: 2px solid #3a3794; border-radius: 8px; color: #c9c7f0; font-size: 13px; background: #131238; }
+</style>
+<div class="top">
+  <div><h1>HOLLOWMOOR LOT · COMMAND TERMINAL</h1><small>Site office · Redfern Security Ltd</small></div>
+  <div class="sp"></div>
+  <div><small>COMPANY CASH</small><b>412,600 obols</b></div>
+  <div><small>BATTALIONS</small><b>2 raised · 1 deployed</b></div>
+  <div><small>DAY</small><b>41 · 09:20</b></div>
+  <div class="x">✕ Step away</div>
+</div>
+<div class="wrap">
+  <nav>
+    <div>Overview <em>●</em></div>
+    <div>People <em>14</em></div>
+    <div>Squads <em>3</em></div>
+    <div>Armoury <em>stocked</em></div>
+    <div class="on">Supply <em class="w">2 short</em></div>
+    <div>Base <em>built</em></div>
+    <div>Generals &amp; engagements <em class="w">1 open</em></div>
+    <div>Contracts <em>2</em></div>
+    <div>Production <em>2 lines</em></div>
+    <div>Strategic map <em>›</em></div>
+  </nav>
+  <main>
+    <h2>Supply from the arms company</h2>
+    <div class="lead">Set what the company should keep in stores. Your arms works make it for the company at no charge, ahead of its own sales. What the works cannot keep up with, you can buy from other manufacturers.</div>
+    <div class="cards">
+      <div class="card"><small>FROM YOUR ARMS WORKS (this week)</small><b>186 items</b><small>free: no sale, no entry</small></div>
+      <div class="card"><small>BOUGHT ELSEWHERE (this week)</small><b>24,300 obols</b><small>1.4 × value, two days to arrive</small></div>
+      <div class="card"><small>ARMS MANAGER</small><b>On</b><small>puts the works on the company's demand first</small></div>
+    </div>
+    <table>
+      <tr><th>ITEM</th><th>KEEP</th><th>IN STORES</th><th>ARMS WORKS (cage · making)</th><th>STATUS</th><th></th></tr>
+      <tr><td>Assault rifle</td><td>40</td><td>40</td><td>12 · Rifle bay</td><td><span class="tag">filled</span></td><td></td></tr>
+      <tr><td>Light machine gun</td><td>10</td><td>10</td><td>0 · Rifle bay</td><td><span class="tag">filled</span></td><td></td></tr>
+      <tr><td>Artillery shell</td><td>200</td><td><div class="bar"><i style="width:48%"></i></div> 96</td><td>30 · Shell bay (4 / hour)</td><td><span class="tag w">making 104 more · about 26 h</span></td><td><span class="btn">Buy 104 elsewhere · 18,900</span></td></tr>
+      <tr><td>RPG rocket</td><td>30</td><td><div class="bar"><i class="s" style="width:20%"></i></div> 6</td><td>0 · no rocket bay running</td><td><span class="tag w">the works is not making it</span></td><td><span class="btn pri">Buy 24 elsewhere · 5,400</span></td></tr>
+      <tr><td>Guided missile</td><td>4</td><td>4</td><td>2 · Missile bay</td><td><span class="tag">filled</span></td><td></td></tr>
+      <tr><td>Strike drone</td><td>0</td><td>0</td><td>—</td><td><span class="tag">not wanted</span></td><td></td></tr>
+    </table>
+    <div class="note">Every morning the works ships what its export cage holds toward each level. Nothing is paid and no money moves. Items bought elsewhere cost the company's own money, once, and are never sold on. Uniforms, rations, medicine, spares and fuel are not arms: the company still buys those from suppliers (Armoury → Supplies).</div>
+  </main>
+</div>

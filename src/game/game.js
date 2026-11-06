@@ -860,6 +860,7 @@ export class Game {
       case 'stockcheck': return 'Look at the display case';
       case 'dairy': return 'Read the company board';
       case 'aerospace': return { terminal: 'Use the aerospace terminal', board: 'Read the share board', sale: 'Read the sale notice' }[prop.interact.action] || `Examine ${name.toLowerCase()}`;
+      case 'war': return 'Use the command terminal'; // v0.103.2
       case 'farm': return this.farm.label(prop);
       default: return prop.type === 'item' ? 'Pick up' : `Examine ${name.toLowerCase()}`;
     }
@@ -969,6 +970,8 @@ export class Game {
         return this.dairy.interact(prop);
       case 'aerospace':
         return this.aero.interact(prop);
+      case 'war':
+        return { type: 'panel', panel: 'militaryterminal' }; // v0.103.2: the company's command terminal in the site office
       case 'farm':
         return this.farm.interact(prop);
       case 'workstation':

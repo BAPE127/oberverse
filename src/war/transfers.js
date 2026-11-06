@@ -10,9 +10,9 @@ import { ensureMilitary, peekMilitary } from './state.js';
 import { addRecord, addStock, takeStock, stockOf, nextId, roomFor, stockName } from './equipment.js';
 import { ARMS_TRANSFERABLE, TRANSFER_LOG } from '../content/procurement.js';
 import { reserved, heldOf } from './reserve.js';
+import { cageOf, cageCount, cageTake } from './cage.js';
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
-const cageOf = (game, works) => { const def = game.arms?.def?.(works); return def ? game.world.containers[def.outCrate] || null : null; };
 
 function note(game, entry) {
   const m = ensureMilitary(game);
@@ -31,9 +31,8 @@ function aeroStored(game) {
 export function offers(game) {
   const out = { aero: aeroStored(game), arms: [], ships: [] };
   for (const works of game.arms.ownedIds()) {
-    const cage = cageOf(game, works);
     for (const item of ARMS_TRANSFERABLE) {
-      const have = cage?.items?.[item] || 0;
+      const have = cageCount(game, works, item);
       if (have > 0) out.arms.push({ source: 'arms', works, item, name: game.content.items[item]?.name || item, have, from: game.arms.def(works).name });
     }
   }
@@ -64,14 +63,12 @@ export function transfer(game, spec) {
     if (qty < 1) return { ok: false, text: 'Move at least one.' };
     if (!ARMS_TRANSFERABLE.includes(spec.item)) return { ok: false, text: 'The company takes weapons, rounds, missiles and drones from the Arms works, nothing else.' };
     if (!game.arms.ownedIds().includes(spec.works)) return { ok: false, text: 'You do not own that works.' };
-    const cage = cageOf(game, spec.works);
-    const have = cage?.items?.[spec.item] || 0;
+    const have = cageCount(game, spec.works, spec.item);
     if (have < qty) return { ok: false, text: `The export cage holds ${have}.` };
     const why = roomFor(game, 'stock', qty);
     if (why) return { ok: false, text: why };
-    cage.items[spec.item] -= qty;
+    cageTake(game, spec.works, spec.item, qty);
     addStock(game, `arms:${spec.works}:${spec.item}`, qty);
-    game.bus.emit('container:changed', { id: game.arms.def(spec.works).outCrate });
     const name = game.content.items[spec.item]?.name || spec.item;
     note(game, { from: `arms:${spec.works}`, to: 'company', what: spec.item, name, qty, status: 'done' });
     return { ok: true, text: `${qty} × ${name} move from ${game.arms.def(spec.works).name} to the company's stores. Free.` };
@@ -99,6 +96,7 @@ export function giveBack(game, spec) {
   const qty = Math.floor(Number(spec.qty) || 0);
   const m = /^arms:([^:]+):(.+)$/.exec(spec.key || '');
   if (!m) return { ok: false, text: 'Only what came from the Arms works goes back.' };
+  if (m[1] === 'bought') return { ok: false, text: 'What was bought from other manufacturers has nowhere to go back to.' };
   if (qty < 1) return { ok: false, text: 'Move at least one.' };
   if (stockOf(game, spec.key) < qty) return { ok: false, text: `The company holds ${stockOf(game, spec.key)}.` };
   const hold = reserved(C).items[m[2]] || 0; if (hold && heldOf(C, m[2]) - qty < hold) return { ok: false, text: `${hold} of those are set aside for a battle in progress: ${Math.max(0, heldOf(C, m[2]) - hold)} can go back now.` };

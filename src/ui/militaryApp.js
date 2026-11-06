@@ -1,17 +1,12 @@
-// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern): register the company, pay money in, buy the licence and
-// the lot, order the base's buildings, and see what the base can hold. Every button calls game.war; nothing here writes the record.
+// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern). Since v0.103.2 it only FOUNDS the company: register it, pay money in,
+// buy the licence and the lot, order the site office, and see how things stand. The business itself (people, squads, the armoury, supply, generals, contracts, the base's other buildings and the
+// strategic map) is run from the command terminal in the site office at Hollowmoor Lot (src/ui/militaryTerminal.js). Every button calls game.war; nothing here writes the record.
 import { h } from './panels.js';
-import { hero, tiles, row, help, fold, note, n, segments } from './tabletKit.js';
-import { transfersTab } from './militaryTransfers.js';
-import { productionTab } from './militaryProduction.js';
-import { contractsTab } from './militaryContracts.js';
-import { generalsScreen, engagementScreen } from './militaryGenerals.js';
-import { peopleScreen, squadsScreen, armouryScreen, baseScreen } from './militaryPeople.js';
+import { hero, tiles, row, help, fold, note, n } from './tabletKit.js';
 import { LOT } from '../content/facilities.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
-const STAGES = { 1: 'Stage 1 · a security firm', 2: 'Stage 2 · a small army', 3: 'Stage 3 · a military company' };
 
 export function militaryApp(ui, body, open) {
   const g = ui.game;
@@ -21,18 +16,6 @@ export function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
-  const SEG = [{ id: 'Company', label: 'Company' }, { id: 'Transfers', label: 'Transfers' }, { id: 'Production', label: 'Production' }, { id: 'Contracts', label: 'Contracts' }];
-  const tab = SEG.some((x) => x.id === ui.milTab) ? ui.milTab : 'Company';
-  body.append(segments(SEG, tab, (t) => { ui.milTab = t; open('Military'); }));
-  if (tab === 'Transfers') { transfersTab(ui, body, go); return; }
-  if (tab === 'Production') { productionTab(ui, body, go, open); return; }
-  if (tab === 'Contracts') { contractsTab(ui, body, go, open); return; }
-  if (ui.milSub === 'People') { peopleScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Squads') { squadsScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Generals') { generalsScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Engagement') { engagementScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Base') { baseScreen(ui, body, go, open); return; }
-  if (ui.milSub === 'Armoury') { armouryScreen(ui, body, go, open); return; }
   const cap = W.capacity();
   const prot = W.baseProtected();
   body.append(
@@ -61,21 +44,17 @@ export function militaryApp(ui, body, open) {
       action: V.licensed ? null : h('button', { class: 'tb-mini pri', disabled: V.cash < LOT.licence, onclick: () => go(W.buyLicence()) }, 'Buy') }),
     row({ icon: '🗺️', title: LOT.name, sub: V.lotOwned ? 'Fenced, with a gate. Walk there from the Yards\' west road.' : 'Ground for the base, with a fence and a gate. Needs the licence first.', tag: V.lotOwned ? '✓' : `${n(LOT.price)}`, tone: V.lotOwned ? 'good' : 'warn',
       action: V.lotOwned ? null : h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < LOT.price, onclick: () => go(W.buyLot()) }, 'Buy') })));
-  if (V.lotOwned) {
-    const fac = W.facilities();
-    for (const stage of [1, 2, 3]) {
-      const rows = fac.filter((f) => f.stage === stage);
-      if (!rows.length) continue;
-      body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, STAGES[stage] + (rows[0].open ? '' : ' (opens when the stage before is built)')));
-      body.append(list(...rows.map((f) => row({ icon: f.state === 'built' ? '🏠' : f.state === 'none' ? '📐' : '🚧', title: f.name, sub: f.state === 'none' ? `${f.text || ''} ${n(f.cost)} obols.` : `${STATE[f.state]}${f.daysLeft != null && f.state !== 'built' && f.state !== 'ruin' ? ` · ${f.daysLeft} days` : ''}${f.state === 'built' && f.gate === 'damaged' ? ' · damaged' : ''}`,
-        tag: f.state === 'built' ? '✓' : f.state === 'none' ? '' : '…', tone: f.state === 'built' ? 'good' : '',
-        action: f.state === 'none' ? h('button', { class: 'tb-mini pri', disabled: !f.canOrder || V.cash < f.cost, onclick: () => go(W.commission(f.id)) }, 'Order')
-          : f.repair ? h('button', { class: 'tb-mini pri', onclick: () => go(W.repairFacility(f.id)) }, f.state === 'ruin' ? 'Rebuild' : 'Repair') : null }))));
-    }
+  // v0.103.2: the business is run from the command terminal in the site office; the tablet says how things stand and where to go
+  const m = W.state(); const bns = m?.war?.battalions || []; const sup = W.supplyLink(); const short = sup ? sup.rows.filter((r) => r.want && r.have < r.want).length : 0; const E = W.engagements();
+  const office = V.lotOwned ? W.facilities().find((f) => f.id === 'site_office') : null;
+  if (office && office.state !== 'none') {
+    const built = office.state === 'built';
+    body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'How things stand'), list(
+      row({ icon: '🖥️', title: built ? 'Command terminal' : 'The site office is not finished', sub: built ? 'Run the company from the terminal in the site office at Hollowmoor Lot (the Yards\' west road, then the lot\'s gate): people, squads, the armoury, supply, generals, contracts, the other buildings and the war map.' : `${STATE[office.state]}${office.daysLeft != null ? ` · ${office.daysLeft} days to go` : ''}. The terminal is inside it.`, tone: built ? 'good' : '' }),
+      row({ icon: '🪖', title: `${W.people().length} people · ${W.squads().length} squads · ${bns.length} battalions`, sub: `${bns.filter((b) => b.status !== 'home').length} away.` }),
+      row({ icon: '📦', title: short ? `${short} supply level${short === 1 ? '' : 's'} short` : 'Supplies', sub: short ? 'The arms works are behind on some of what the company keeps. See Supply at the terminal.' : 'Nothing short.', tone: short ? 'warn' : '' }),
+      row({ icon: '🗺️', title: E.open.length ? `${E.open.length} engagement${E.open.length === 1 ? '' : 's'} offered` : 'No engagements offered', sub: E.active.length ? `${E.active.length} under way.` : '' })));
   }
-  body.append(list(row({ icon: '🗺️', title: 'Strategic map', sub: 'Raise battalions from your squads, enlist in a theatre, and give them orders on the provinces.', tag: '›', onclick: () => ui.openPanel('strategic') })));
-  const sub = (id, icon, title, text) => row({ icon, title, sub: text, tag: '›', onclick: () => { ui.milSub = id; open('Military'); } });
-  body.append(list(sub('People', '🪖', `People · ${W.people().length}`, 'Hire guards, technicians and soldiers; training and wages.'), sub('Squads', '👥', `Squads · ${W.squads().length}`, 'Leaders, members and the vehicles they take.'), sub('Armoury', '🔫', 'Armoury', 'What each class carries, armour and looks.'), sub('Generals', '🎖️', `Generals · ${W.generals().hired.length}`, 'Hire generals and give them engagements.'), sub('Base', '🏕️', `The base · ${W.baseView().readiness}% ready`, 'Beds, meals, medical, morale and what readiness is made of.')));
   body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
     'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
   body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));
