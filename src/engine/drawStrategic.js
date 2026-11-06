@@ -78,4 +78,10 @@ export function bakeControl(map, controllerOf, side, enemy) {
   }
   g.putImageData(img, 0, 0); return c;
 }
+/** A tint over the ground by a number or a kind per province: `rgbaOf(province)` gives [r, g, b, a] (a 0 to 255) or null for none. Used by the Supply, Weather and Intel modes. */
+export function bakeLayer(map, rgbaOf) {
+  const P = provinces(); const { w: W, h: H, pm } = map; const c = mk(W, H); const g = c.getContext('2d'); const img = g.createImageData(W, H); const d = img.data; const col = P.map((p) => rgbaOf(p));
+  for (let i = 0; i < W * H; i++) { const p = pm[i]; if (p < 0) continue; const k = col[p]; if (!k) continue; const o = i * 4; d[o] = k[0]; d[o + 1] = k[1]; d[o + 2] = k[2]; d[o + 3] = k[3]; }
+  g.putImageData(img, 0, 0); return c;
+}
 export { bakeTheatre };

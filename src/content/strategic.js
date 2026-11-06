@@ -17,7 +17,7 @@ export const MARCH = { foot: 6, perBar: 3, base: 6, detour: 1.25, rail: 1.5 }; /
 export const SEALIFT = { kmPerDay: 700, minDays: 2 };
 export const RETAINER = { perTrooper: 170, perVehicle: { tank: 1400, helicopter: 1800, artillery: 900, antiair: 500, carrier: 400, recon: 250, logistics: 100, medical: 100 }, perVP: 25000, rep: 1 };
 export const BATTALION = { orgMax: 100, moveCost: 2, attackMin: 30, restPerDay: 12, afterBattle: { 3: 12, 2: 22, 1: 40, 0: 65 }, entrenchHours: 12, entrenchMax: 5, expiresDays: 3 };
-export const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3 };
+export const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3, rebuildDays: 10 };
 
 /** A template slot: `line` slots are the battalion's body, `support` and `attach` its companies. Each asks what the chosen squads must hold between them. */
 export const SLOTS = {
@@ -54,3 +54,29 @@ export const WEAKEN = { full: 70, low: 25, restFloor: 0.25, drain: 3, speedFloor
 export const FUEL = { perVehicleDay: 0.3 };
 /** What a report says: its error at each level of intelligence, and how far your battalions see (steps of provinces) without and with a recon company. */
 export const INTEL = { error: { 0: 0.7, 1: 0.35, 2: 0.08 }, reach: { plain: { known: 0, spotted: 1 }, recon: { known: 1, spotted: 2 } } };
+
+// ---- v0.103.1: the nations at war (src/war/strategicAI.js)
+/** How each country fights. `skill` (0.8 to 1.3) multiplies its power in an exchange and sets how well it chooses; `doctrine` is how it chooses: blunt (the nearest ground, whatever the odds), methodical (the best prize it
+ * can beat, never at poor odds), cunning (methodical, and it hunts what is weak: an empty province, a battalion low on supply or organisation). Its means are its income; its temper is `aggression` in src/content/arms.js. */
+export const COUNTRY_AI = {
+  varn: { skill: 0.9, doctrine: 'blunt', text: 'Throws what it has at the nearest ground.' },
+  ostmark: { skill: 1.2, doctrine: 'methodical', text: 'Slow, well drilled, and never attacks at poor odds.' },
+  caldera: { skill: 1.0, doctrine: 'blunt', text: 'Hard-hitting and not subtle.' },
+  sund: { skill: 0.95, doctrine: 'methodical', text: 'Careful with a small army.' },
+  pallas: { skill: 0.85, doctrine: 'blunt', text: 'Reckless, with little behind it.' },
+  teshvar: { skill: 1.15, doctrine: 'cunning', text: 'Rich and patient: it finds the weak spot.' },
+  morrow: { skill: 1.1, doctrine: 'cunning', text: 'Quick to see a gap and to use it.' },
+  lirre: { skill: 1.0, doctrine: 'methodical', text: 'Cautious.' },
+};
+export const COUNTRY_AI_DEFAULT = { skill: 0.9, doctrine: 'blunt', text: 'A small army with plain ideas.' };
+/** The mobile reserve a country can put in the field is its income over `poolPer`; it refills by `regen` of that a week. A level is a kind of counter-attack: a probe (a few men at the weakest point), a counter-attack
+ * (to retake what was lost, after the country's reaction time) and an offensive (a large force, only by an aggressive or an opportunistic country). */
+export const AI = {
+  thinkHours: 12, poolPer: 300, startShare: 0.8, regen: 0.12, maxFormations: 3, speedFoot: 6, speedArmour: 12, odds: { blunt: 0.3, methodical: 1.0, cunning: 0.9 }, abort: 0.6,
+  react: { blunt: 48, methodical: 24, cunning: 12 },
+  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 2, base: 0.1, perAggression: 0.4 },
+  counter: { min: 8, share: 0.5, cooldownDays: 1, expireDays: 8, factor: 1.5 },
+  offensive: { aggression: 0.45, poolShare: 0.5, share: 0.6, max: 70, cooldownDays: 10, chance: 0.35, ratio: 1.4 },
+  idleHours: 24, rebuildDays: 10,
+};
+export const EXCHANGE = { hours: 36, breakAt: 25, rate: 0.018, armour: 5.5, fort: 0.07, entrench: 0.05, luck: 0.2 };

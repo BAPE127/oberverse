@@ -2,12 +2,12 @@
 // order of battle on the left, the selected battalion on the right, a province's facts under the pointer, and the buttons that give orders. It only DRAWS and GIVES ORDERS: every rule is in
 // src/war/strategic.js, reached through game.war. Time moves only on the buttons (the world is stepped with game.skipTime, which runs the same minute and day ticks as sleeping does).
 import { h } from './panels.js';
-import { bakeTheatre, bakeControl, COUNTRY_RGB } from '../engine/drawStrategic.js';
+import { bakeTheatre, bakeControl, bakeLayer, COUNTRY_RGB } from '../engine/drawStrategic.js';
 import { provinces, provinceById, TERRAIN } from '../world/provinces.js';
 import { atlasPlaces } from '../world/atlas.js';
 import { ATLAS } from '../content/atlas.js';
 import { SLOTS, MAX_LINE } from '../content/strategic.js';
-import { TERRAIN_FX } from '../content/strategic.js';
+import { TERRAIN_FX, WEATHER, INTEL } from '../content/strategic.js';
 
 const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [6, '⏩ 6 h/s'], [24, '⏭ 1 d/s']];
 const num = (n) => Number(n).toLocaleString('en-US');
@@ -34,6 +34,8 @@ export function strategicPanel(ui, body) {
     if (!S.map) return;
     const e = v.employer; const key = `${e.side}|${e.enemy}|${v.provinces.map((p) => p.controller === e.side ? 1 : 0).join('')}`;
     if (key !== S.ctlKey) { S.ctlKey = key; const by = new Map(v.provinces.map((p) => [p.id, p.controller])); S.ctl = bakeControl(S.map, (p) => by.get(p.id) ?? p.country, e.side, e.enemy); }
+    const lay = S.layer || 'Terrain'; const lk = lay === 'Supply' || lay === 'Weather' || lay === 'Intel' ? `${lay}|${key}|${Math.floor(v.hour / 6)}|${v.provinces.map((p) => `${p.supply}${p.intel}${p.weather[0]}`).join('')}` : ''; 
+    if (lk !== S.layKey) { S.layKey = lk; const by = new Map(v.provinces.map((p) => [p.id, p])); S.layerCanvas = !lk ? null : bakeLayer(S.map, (p) => { const q = by.get(p.id); if (!q) return [20, 20, 30, 150]; if (lay === 'Supply') { if (q.controller !== e.side) return [60, 60, 70, 150]; const s = q.supply / 100; return [Math.round(230 * (1 - s) + 40 * s), Math.round(60 * (1 - s) + 200 * s), 60, 170]; } if (lay === 'Weather') { const c = WEATHER[q.weather].colour; return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), q.weather === 'clear' ? 40 : 150]; } return q.intel >= 2 ? [0, 0, 0, 0] : q.intel === 1 ? [10, 10, 30, 90] : [5, 5, 15, 190]; }); }
   };
   const fit = () => { const m = S.map; if (!m) return; const z = Math.min(canvas.width / m.w, canvas.height / m.h); S.cam = { z, x: (canvas.width - m.w * z) / 2, y: (canvas.height - m.h * z) / 2 }; };
   const resize = () => { const r = body.getBoundingClientRect(); canvas.width = Math.max(320, Math.round(r.width)); canvas.height = Math.max(240, Math.round(r.height)); if (S.map && !S.fitted) fit(); };
@@ -44,7 +46,7 @@ export function strategicPanel(ui, body) {
   const draw = () => {
     const g2 = canvas.getContext('2d'); g2.fillStyle = '#0b1220'; g2.fillRect(0, 0, canvas.width, canvas.height);
     const m = S.map; if (!m) { g2.fillStyle = '#c8d0e8'; g2.font = '20px system-ui'; g2.textAlign = 'center'; g2.fillText('Enlist in a theatre to see its ground.', canvas.width / 2, canvas.height / 2); return; } const z = S.cam.z; const v = S.view; const e = v.employer;
-    g2.imageSmoothingEnabled = true; g2.drawImage(m.base, S.cam.x, S.cam.y, m.w * z, m.h * z); if (S.ctl) { g2.globalAlpha = (S.layer || 'Terrain') === 'Control' ? 1 : 0.55; g2.drawImage(S.ctl, S.cam.x, S.cam.y, m.w * z, m.h * z); g2.globalAlpha = 1; }
+    g2.imageSmoothingEnabled = true; g2.drawImage(m.base, S.cam.x, S.cam.y, m.w * z, m.h * z); if (S.ctl) { g2.globalAlpha = (S.layer || 'Terrain') === 'Control' ? 1 : S.layerCanvas ? 0.25 : 0.55; g2.drawImage(S.ctl, S.cam.x, S.cam.y, m.w * z, m.h * z); g2.globalAlpha = 1; } if (S.layerCanvas) g2.drawImage(S.layerCanvas, S.cam.x, S.cam.y, m.w * z, m.h * z);
     // rivers, roads and the railways of the theatre
     g2.lineJoin = 'round'; g2.strokeStyle = 'rgba(96,170,230,.8)'; g2.lineWidth = Math.max(1, z * 1.6);
     for (const r of ATLAS.rivers) { const p = r.p; g2.lineWidth = Math.max(1, z * (0.8 + r.w * 0.6)); g2.beginPath(); let on = false; for (let i = 0; i < p.length; i += 2) { const [x, y] = px(p[i], p[i + 1]); if (x < -50 || y < -50 || x > canvas.width + 50 || y > canvas.height + 50) { on = false; continue; } if (!on) { g2.moveTo(x, y); on = true; } else g2.lineTo(x, y); } g2.stroke(); }
@@ -61,6 +63,8 @@ export function strategicPanel(ui, body) {
     // the staging province
     if (e) { const st = provinceById(e.staging); const [x, y] = px(st.lat, st.lon); g2.strokeStyle = '#7dffb0'; g2.setLineDash([4, 3]); g2.lineWidth = 2; g2.beginPath(); g2.arc(x, y, 14, 0, 7); g2.stroke(); g2.setLineDash([]); }
     // battalions: a banner with its name and two bars
+    // formations of the armies: the ally's as they are, the enemy's only where you can see them, as a report
+    for (const f of v.formations || []) { const p = provinceById(f.prov); const [x, y] = px(p.lat, p.lon); const ally = f.side === 'ally'; const col = COUNTRY_RGB(f.country); if (f.to) { const q = provinceById(f.to); const [x2, y2] = px(q.lat, q.lon); g2.strokeStyle = f.attack ? '#ff6a5a' : ally ? '#6ab4ff' : '#ffb06a'; g2.lineWidth = 3; g2.setLineDash([5, 4]); g2.beginPath(); g2.moveTo(x, y); g2.lineTo(x2, y2); g2.stroke(); g2.setLineDash([]); } const w2 = 54; g2.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; g2.strokeStyle = ally ? '#bfe3ff' : '#ff8a7a'; g2.lineWidth = 2; g2.fillRect(x - w2 / 2, y + 6, w2, 18); g2.strokeRect(x - w2 / 2, y + 6, w2, 18); g2.fillStyle = '#10141f'; g2.font = 'bold 11px system-ui'; g2.textAlign = 'center'; g2.fillText(`${ally ? '' : f.known >= 2 ? '' : '~'}${f.troops}${f.armour ? ` +${f.armour}T` : ''}${!ally && f.known < 2 ? '?' : ''}`, x, y + 19); }
     S.banners = [];
     for (const b of v.battalions) {
       if (b.status !== 'theatre') continue; const p = provinceById(b.pos); let [x, y] = px(p.lat, p.lon); if (b.moving) { const q = provinceById(b.moving.to); const [x2, y2] = px(q.lat, q.lon); const f = 1 - Math.min(1, b.moving.left / Math.max(1, b.moving.left + 6)); x += (x2 - x) * f * 0.5; y += (y2 - y) * f * 0.5; g2.strokeStyle = b.moving.attack ? '#ff6a5a' : '#6ab4ff'; g2.lineWidth = 4; g2.setLineDash([]); g2.beginPath(); g2.moveTo(...px(p.lat, p.lon)); g2.lineTo(x2, y2); g2.stroke(); g2.fillStyle = b.moving.attack ? '#ff6a5a' : '#6ab4ff'; g2.beginPath(); g2.arc(x2, y2, 5, 0, 7); g2.fill(); }
@@ -77,13 +81,14 @@ export function strategicPanel(ui, body) {
   const paintTop = () => {
     const v = S.view; const people = (W.company()?.personnel || []).filter((p) => p.status === 'active' && p.assignedTo != null).length; const eq = W.company()?.equipment || [];
     const cell = (k, val, sub) => h('div', { class: 'stc-res' }, h('small', {}, k), h('b', {}, val), sub ? h('em', {}, sub) : null);
-    top.replaceChildren(cell('SOLDIERS IN SQUADS', num(people)), cell('TANKS READY', `${eq.filter((x) => x.type && /anvil|lancer|bulwark|hound|breacher/.test(x.type) && x.status !== 'destroyed' && x.status !== 'deployed').length}`), cell('HELICOPTERS', `${eq.filter((x) => x.kind === 'helicopter' && x.status !== 'destroyed').length}`), cell('COMPANY CASH', `${num(W.cash())}`, v?.employer ? `paid ${num(v.paid)} so far` : ''),
+    top.replaceChildren(cell('SOLDIERS IN SQUADS', num(people)), cell('TANKS READY', `${eq.filter((x) => x.type && /anvil|lancer|bulwark|hound|breacher/.test(x.type) && x.status !== 'destroyed' && x.status !== 'deployed').length}`), cell('HELICOPTERS', `${eq.filter((x) => x.kind === 'helicopter' && x.status !== 'destroyed').length}`), cell('FUEL', `${num(Math.round(Object.entries(W.company()?.stock || {}).filter(([k]) => k === 'supply:fuel').reduce((a, [, q]) => a + q, 0)))}`, 'burnt by vehicles in the theatre'), cell('COMPANY CASH', `${num(W.cash())}`, v?.employer ? `paid ${num(v.paid)} so far` : ''),
       h('div', { class: 'grow' }), h('div', { class: 'stc-clock' }, (S.clockB = h('b', {}, `Day ${g.clock.day} · ${g.clock.timeString}`)), h('span', {}, SPEEDS.map(([s, l]) => h('button', { class: S.speed === s ? 'on' : '', onclick: () => { S.speed = s; paintTop(); } }, l)))), h('button', { onclick: () => ui.closePanel() }, '✕ Leave'));
   };
   const paintLeft = () => {
     const v = S.view; const kids = [h('h3', {}, 'ORDER OF BATTLE'), h('small', {}, v.employer ? `${v.employer.theatreName} · for ${v.employer.sideName}` : 'Not enlisted')];
     for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${provinceById(b.pos).name}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
     if (!v.battalions.length) kids.push(h('p', { class: 'stc-note' }, 'No battalions yet. Raise one from your squads.'));
+    const A = W.armies(); if (A) for (const [k, a] of [['THE ENEMY', A.enemy], ['YOUR EMPLOYER', A.ally]]) kids.push(h('div', { class: 'stc-army' }, h('b', {}, `${k}: ${a.name}`), h('small', {}, `${a.doctrine} · ${a.text}`), h('small', {}, `${a.formations} formation${a.formations === 1 ? '' : 's'} in the field${k === 'THE ENEMY' ? ' (as far as you know)' : ''}`)));
     kids.push(h('div', { class: 'stc-btns' }, h('button', { class: 'pri', onclick: () => openRaise() }, 'Raise a battalion'), h('button', { onclick: () => openDesigner() }, 'Templates'), v.employer ? h('button', { onclick: () => act(W.discharge()) }, 'Leave the service') : h('button', { class: 'pri', onclick: () => openEnlist() }, 'Enlist in a theatre')));
     left.replaceChildren(...kids);
   };
@@ -97,22 +102,24 @@ export function strategicPanel(ui, body) {
     right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${provinceById(b.pos).name}` : ''}`),
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
-      h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('p', { class: 'stc-note' }, 'Supply and fuel arrive with the supply update (v0.103.1).'),
+      h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('div', { class: 'stc-meters' }, ...[['Supply', s.supply, s.supply >= 70 ? '#3ddc84' : s.supply >= 25 ? '#e8b84a' : '#e05a4a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, `${val}%`)))), h('p', { class: 'stc-note' }, `${s.supply < 70 ? 'Short of supply: it recovers slowly and fights with less morale; it is never stopped. ' : ''}${s.fuelShort ? `Short of fuel (${s.fuelShort}%): its vehicles count for less. ` : ''}Weather here: ${WEATHER[(v.provinces.find((q) => q.id === b.pos) || {}).weather || 'clear'].name}.`),
       h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
       b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.openPanel('tablet', { tab: 'Military' }); } }, 'Decide the battle')) : null,
       h('div', { class: 'stc-btns' }, b.status === 'home' ? h('button', { class: 'pri', disabled: !v.employer, title: v.employer ? '' : 'Enlist first', onclick: () => act(W.deploy(b.id)) }, 'Send to the theatre') : null, b.status === 'theatre' ? h('button', { disabled: Boolean(b.engaged || b.moving), onclick: () => act(W.recall(b.id)) }, 'Bring home') : null, b.status === 'home' ? h('button', { onclick: () => act(W.standDown(b.id)) }, 'Stand down') : null)].filter(Boolean));
   };
-  const paintBottom = () => { const v = S.view; bottom.replaceChildren(h('div', { class: 'stc-modes' }, ...['Terrain', 'Control'].map((m) => h('button', { class: (S.layer || 'Terrain') === m ? 'on' : '', onclick: () => { S.layer = m; refresh(); } }, m)), ...['Supply', 'Weather', 'Air', 'Naval', 'Intel', 'Contracts'].map((m) => h('button', { disabled: true, title: 'a later release' }, m))), h('div', { class: 'stc-plans' }, v.log[0] ? `LOG ▸ ${v.log[0].text}` : 'LOG ▸ nothing yet')); };
+  const paintBottom = () => { const v = S.view; bottom.replaceChildren(h('div', { class: 'stc-modes' }, ...['Terrain', 'Control', 'Supply', 'Weather', 'Intel'].map((m) => h('button', { class: (S.layer || 'Terrain') === m ? 'on' : '', onclick: () => { S.layer = m; refresh(); } }, m)), ...['Air', 'Naval', 'Contracts'].map((m) => h('button', { disabled: true, title: 'a later release' }, m))), h('div', { class: 'stc-plans' }, v.log[0] ? `LOG ▸ ${v.log[0].text}` : 'LOG ▸ nothing yet')); };
   /** Repaint a panel only when something it shows has changed (rebuilding them every frame would eat the clicks). */
   const sigs = { top: () => [S.speed, W.cash(), S.view.paid, S.view.employer?.side], left: () => [S.view.battalions.map((b) => [b.id, b.status, b.pos, b.engaged, b.stats.org, b.stats.strength, b.stats.people]), S.sel, S.view.employer?.side], right: () => [S.view.battalions.find((b) => b.id === S.sel)?.id, JSON.stringify(S.view.battalions.find((b) => b.id === S.sel)?.stats), S.view.battalions.find((b) => b.id === S.sel)?.status, S.view.battalions.find((b) => b.id === S.sel)?.pos, S.view.battalions.find((b) => b.id === S.sel)?.engaged, S.view.battalions.find((b) => b.id === S.sel)?.order.type, S.mode, S.view.employer?.side], bottom: () => [S.layer, S.view.log[0]?.text] };
   const paints = { top: paintTop, left: paintLeft, right: paintRight, bottom: paintBottom };
+  /** A battalion newly in contact (yours attacking, or an attack on you) stops the clock: the war does not wait for you to look. */
+  const newContact = () => { const v = W.strategic(); const now = new Set((v?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged)); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
   const refresh = (force = true) => { ensureMap(); if (!S.view) return; S.sig ||= {}; for (const k of Object.keys(paints)) { const sg = JSON.stringify(sigs[k]()); if (force || sg !== S.sig[k]) { S.sig[k] = sg; paints[k](); } } };
 
   // ---- tooltips, picking, orders
   const tipFor = (p) => {
     const v = S.view; const e = v.employer; const c = e ? v.provinces.find((q) => q.id === p.id) : null; const fx = TERRAIN_FX[p.terrain];
     const lines = [`Terrain: ${TERRAIN[p.terrain].name}${p.coast ? ' · coast' : ''} · speed ×${fx.speed} · defence ×${fx.def}`, `Controller: ${ATLAS.countries[c?.controller || p.country]?.name} · Infrastructure ${p.infra} · Fort ${p.fort}`, `Victory points ${p.vp}${p.port ? ' · port' : ''}${p.airfield ? ' · airfield' : ''}${p.rail.length ? ' · railway' : ''}`];
-    if (c && c.controller === e.enemy) lines.push(`Garrison (reported): about ${c.garrison.troops} troops${c.garrison.armour ? `, ${c.garrison.armour} armour` : ''}?`);
+    if (c) { lines.push(`Weather: ${WEATHER[c.weather].name} · march ×${WEATHER[c.weather].speed} · Supply ${c.controller === e.side ? `${c.supply}%` : 'none (not yours)'} · Intelligence: ${['unseen', 'spotted', 'known'][c.intel]}`); if (c.garrisonReport) { const r = c.garrisonReport; lines.push(r.level >= 2 ? `Garrison (reported): about ${r.troops} troops${r.armour ? `, ${r.armour} armour` : ''}.` : r.level === 1 ? `Garrison (spotted): perhaps ${r.troops} troops?` : 'Garrison: unknown: nothing has been seen of it.'); } }
     return [h('b', {}, `${p.name} · ${ATLAS.states.find((x) => x.id === p.state)?.name}`), ...lines.map((t) => h('div', {}, t))];
   };
   const onMove = (e) => {
@@ -163,7 +170,7 @@ export function strategicPanel(ui, body) {
   // ---- the loop
   const frame = (now) => {
     if (S.closed) return; raf = requestAnimationFrame(frame); const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); } W.strategicTick(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
+    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) { S.acc = 0; break; } } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
     if (S.map) draw();
   };
   const onResize = () => resize(); window.addEventListener('resize', onResize); resize();

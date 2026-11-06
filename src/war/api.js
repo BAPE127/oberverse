@@ -18,6 +18,8 @@ import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassT
 import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
 import { view as baseViewOf } from './base.js';
 import { checkMilitary } from './check.js';
+import { profileOf as aiProfileOf } from './strategicAI.js';
+import { hooks as warHooks } from './hooks.js';
 import { view as stView, advance as stAdvance, templates as stTemplates, saveTemplate as stSave, removeTemplate as stRemove, needsOf as stNeeds, providedBy as stProvided, raise as stRaise, disband as stDisband, theatres as stTheatres, enlist as stEnlist, discharge as stDischarge, deploy as stDeploy, recall as stRecall, order as stOrder } from './strategic.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -132,6 +134,9 @@ export class War {
 
   // ---- the strategic war (v0.103.0)
   strategic() { return stView(this.g); }
+  /** The two armies in the theatre: how each fights, its reserve and its formations in the field. */
+  armies() { return warHooks.aiProfile?.(this.g) || null; }
+  profileOf(country) { return aiProfileOf(country); }
   strategicTick() { stAdvance(this.g); }
   templates() { return stTemplates(this.g); }
   saveTemplate(t) { return stSave(this.g, t); }

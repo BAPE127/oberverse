@@ -1298,6 +1298,8 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .stc-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
 .stc-needs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; } .stc-needs > div { padding: 7px 9px; border: 2px solid #2f7a4a; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-needs > div.short { border-color: #e0553a; background: #2a1420; } .stc-needs small { display: block; }
 .stc-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .stc-slot { width: 64px; height: 56px; border: 2px solid #3a3794; border-radius: 8px; display: grid; place-items: center; text-align: center; cursor: pointer; background: #1c1a52; } .stc-slot span { font-size: 20px; } .stc-slot small { font-size: 10px; } .stc-add { font-size: 11px !important; }
+
+.stc-army { margin: 8px 0; padding: 7px 9px; border: 2px solid #2d2a6e; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-army b { color: #ffd966; }
 </style>
 </head>
 <body>
@@ -33488,7 +33490,7 @@ const MARCH = { foot: 6, perBar: 3, base: 6, detour: 1.25, rail: 1.5 }; // km an
 const SEALIFT = { kmPerDay: 700, minDays: 2 };
 const RETAINER = { perTrooper: 170, perVehicle: { tank: 1400, helicopter: 1800, artillery: 900, antiair: 500, carrier: 400, recon: 250, logistics: 100, medical: 100 }, perVP: 25000, rep: 1 };
 const BATTALION = { orgMax: 100, moveCost: 2, attackMin: 30, restPerDay: 12, afterBattle: { 3: 12, 2: 22, 1: 40, 0: 65 }, entrenchHours: 12, entrenchMax: 5, expiresDays: 3 };
-const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3 };
+const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3, rebuildDays: 10 };
 
 /** A template slot: `line` slots are the battalion's body, `support` and `attach` its companies. Each asks what the chosen squads must hold between them. */
 const SLOTS = {
@@ -33526,7 +33528,33 @@ const FUEL = { perVehicleDay: 0.3 };
 /** What a report says: its error at each level of intelligence, and how far your battalions see (steps of provinces) without and with a recon company. */
 const INTEL = { error: { 0: 0.7, 1: 0.35, 2: 0.08 }, reach: { plain: { known: 0, spotted: 1 }, recon: { known: 1, spotted: 2 } } };
 
-return { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, SUPPLY, WEAKEN, FUEL, INTEL };
+// ---- v0.103.1: the nations at war (src/war/strategicAI.js)
+/** How each country fights. `skill` (0.8 to 1.3) multiplies its power in an exchange and sets how well it chooses; `doctrine` is how it chooses: blunt (the nearest ground, whatever the odds), methodical (the best prize it
+ * can beat, never at poor odds), cunning (methodical, and it hunts what is weak: an empty province, a battalion low on supply or organisation). Its means are its income; its temper is `aggression` in src/content/arms.js. */
+const COUNTRY_AI = {
+  varn: { skill: 0.9, doctrine: 'blunt', text: 'Throws what it has at the nearest ground.' },
+  ostmark: { skill: 1.2, doctrine: 'methodical', text: 'Slow, well drilled, and never attacks at poor odds.' },
+  caldera: { skill: 1.0, doctrine: 'blunt', text: 'Hard-hitting and not subtle.' },
+  sund: { skill: 0.95, doctrine: 'methodical', text: 'Careful with a small army.' },
+  pallas: { skill: 0.85, doctrine: 'blunt', text: 'Reckless, with little behind it.' },
+  teshvar: { skill: 1.15, doctrine: 'cunning', text: 'Rich and patient: it finds the weak spot.' },
+  morrow: { skill: 1.1, doctrine: 'cunning', text: 'Quick to see a gap and to use it.' },
+  lirre: { skill: 1.0, doctrine: 'methodical', text: 'Cautious.' },
+};
+const COUNTRY_AI_DEFAULT = { skill: 0.9, doctrine: 'blunt', text: 'A small army with plain ideas.' };
+/** The mobile reserve a country can put in the field is its income over `poolPer`; it refills by `regen` of that a week. A level is a kind of counter-attack: a probe (a few men at the weakest point), a counter-attack
+ * (to retake what was lost, after the country's reaction time) and an offensive (a large force, only by an aggressive or an opportunistic country). */
+const AI = {
+  thinkHours: 12, poolPer: 300, startShare: 0.8, regen: 0.12, maxFormations: 3, speedFoot: 6, speedArmour: 12, odds: { blunt: 0.3, methodical: 1.0, cunning: 0.9 }, abort: 0.6,
+  react: { blunt: 48, methodical: 24, cunning: 12 },
+  probe: { min: 6, max: 14, share: 0.1, cooldownDays: 2, base: 0.1, perAggression: 0.4 },
+  counter: { min: 8, share: 0.5, cooldownDays: 1, expireDays: 8, factor: 1.5 },
+  offensive: { aggression: 0.45, poolShare: 0.5, share: 0.6, max: 70, cooldownDays: 10, chance: 0.35, ratio: 1.4 },
+  idleHours: 24, rebuildDays: 10,
+};
+const EXCHANGE = { hours: 36, breakAt: 25, rate: 0.018, armour: 5.5, fort: 0.07, entrench: 0.05, luck: 0.2 };
+
+return { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, SUPPLY, WEAKEN, FUEL, INTEL, COUNTRY_AI, COUNTRY_AI_DEFAULT, AI, EXCHANGE };
 })();
 
 // ---- src/war/supply.js
@@ -33633,7 +33661,7 @@ const countryName = (id) => ATLAS.countries[id]?.name || id;
 function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
@@ -33642,6 +33670,13 @@ const note = (w, game, text) => { w.log.push({ day: game.clock.day, text }); whi
 
 // ---- the ground: who holds what
 const controllerOf = (game, p) => warOf(game)?.control?.[p.id] ?? p.country;
+/** Ground changes hands: recorded once (only provinces away from their own country are kept), remembered for the counter-attack, and its garrison starts again from nothing. */
+function setControl(game, pid, country) {
+  const w = warOf(game); const p = provinceById(pid); const old = controllerOf(game, p); if (old === country) return;
+  if (country === p.country) delete w.control[pid]; else w.control[pid] = country;
+  w.flipped[pid] = game.clock.day; w.lost.push({ pid, from: old, to: country, day: game.clock.day, hour: nowHour(game) }); while (w.lost.length > 40) w.lost.shift();
+  hooks.controlChanged?.(game, p, old, country);
+}
 // ---- supply, weather, intelligence (src/war/supply.js): recomputed from the ground and the day, never saved
 const ctlOf = (game) => (p) => controllerOf(game, p);
 const weatherNow = (game, p) => weatherOf(p, game.clock.day);
@@ -33661,10 +33696,11 @@ const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.s
 
 /** What a province holds while its own country holds it: from its fort, its victory points, its size and its infrastructure, with a spread by the province's own hash. Taken ground holds nothing. */
 function garrisonOf(game, p) {
-  if (controllerOf(game, p) !== p.country) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a formation stands on it
+  const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
+  if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread));
-  const armour = (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
+  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown));
+  const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
 }
 
@@ -33771,8 +33807,8 @@ function theatres(game) {
 }
 const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
 const inTheatre = (th) => (p) => th.states.includes(p.state);
-function staging(game, th, side) {
-  const here = provinces().filter((p) => inTheatre(th)(p) && controllerOf(game, p) === side && p.country === side);
+function staging(game, th, side, anyOwner = false) {
+  const here = provinces().filter((p) => inTheatre(th)(p) && controllerOf(game, p) === side && (anyOwner || p.country === side));
   here.sort((a, b) => ((b.port ? 2 : 0) + (b.capital ? 2 : 0) + b.infra) - ((a.port ? 2 : 0) + (a.capital ? 2 : 0) + a.infra) || (a.id < b.id ? -1 : 1));
   return here[0] || null;
 }
@@ -33786,7 +33822,7 @@ function enlist(game, { theatre, side }) {
   if (!th.hot) return { ok: false, text: `${th.name}: nobody is fighting there yet.` };
   const st = staging(game, th, side); if (!st) return { ok: false, text: `${countryName(side)} holds no ground in ${th.name} to land you on.` };
   const enemy = th.between.find((c) => c !== side);
-  w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
+  w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; w.ai = null; w.lost = []; w.flipped = {}; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
   return { ok: true, text: `You serve ${countryName(side)} against ${countryName(enemy)} in ${th.name}. Landing at ${st.name}.` };
 }
 function discharge(game) {
@@ -33909,6 +33945,17 @@ function advance(game) {
   w.hour = to;
 }
 
+/** The landing must be on ground the employer still holds; if it falls, the next best ground takes its place; if nothing is left the employer is beaten, the contract ends and what is in the theatre is shipped home. */
+function ensureEmployer(game) {
+  const w = warOf(game); const e = w?.employer; if (!e) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging);
+  if (controllerOf(game, cur) === e.side) return;
+  const next = staging(game, th, e.side, true);
+  if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
+  note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad');
+  for (const bn of w.battalions) if (bn.status === 'theatre' && !bn.engaged) { const days = sealDays(provinceById(bn.pos), provinceById(bn.home)); bn.status = 'returning'; bn.arrive = nowHour(game) + days * 24; bn.target = bn.home; bn.order = { type: 'hold' }; bn.moving = null; }
+  if (!w.battalions.some((b) => b.status === 'theatre')) { w.employer = null; w.ai = null; }
+}
+
 /** Once a day: the employer's retainer for every battalion in the theatre, and rest for those not on the move. */
 function dayTick(game) {
   const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return;
@@ -33926,7 +33973,7 @@ function dayTick(game) {
       if (sup * 100 < WEAKEN.low) bn.org = Math.max(0, bn.org - WEAKEN.drain); if (sup * 100 < WEAKEN.full) bn.org = Math.max(0, bn.org - wx.org);
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
-  if (w.employer) hooks.aiDay?.(game, w);
+  if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
   if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
@@ -33936,10 +33983,10 @@ function resolved(game, C, eng, R) {
   const prov = provinceById(eng.strategic.prov); const obj = R.objectives; bn.engaged = null; bn.order = { type: 'hold' }; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[obj]);
   let line = `${bn.name} at ${prov.name}: `;
   if (eng.strategic.defend) {
-    if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj); }
+    if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj, prov.id); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj, prov.id); }
   } else if (obj >= 2) {
     hooks.attackWon?.(game, prov);
-    w.control[prov.id] = w.employer.side; bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
+    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
     const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
     line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;
@@ -33953,16 +34000,17 @@ function resolved(game, C, eng, R) {
 }
 /** A province is lost with a battalion of yours in it: the enemy takes it and the battalion falls back to the best ground next door (or, cut off, to the landing). */
 function fallBack(game, w, bn, prov, obj) {
-  w.control[prov.id] = w.employer.enemy; const P = provinces(); const th = theatreOf(game, w.employer.theatre);
+  setControl(game, prov.id, w.employer.enemy); const P = provinces(); const th = theatreOf(game, w.employer.theatre);
   const next = prov.neighbours.map((n) => P[n]).filter((q) => inTheatre(th)(q) && controllerOf(game, q) === w.employer.side).sort((a, b) => supplyAt(game, b) - supplyAt(game, a) || (a.id < b.id ? -1 : 1))[0] || provinceById(w.employer.staging);
   bn.pos = next.id; bn.path = []; bn.moving = null; bn.org = Math.max(0, bn.org - 10);
   return `${obj === 1 ? 'the line gives way' : 'overrun'}: ${prov.name} is lost and the battalion falls back to ${next.name}.`;
 }
 function withdrawn(game, C, eng) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
-  if (eng.strategic.defend) { const prov = provinceById(eng.strategic.prov); bn.engaged = null; bn.order = { type: 'hold' }; const line = fallBack(game, w, bn, prov, 0); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, 0); note(w, game, `${bn.name} gives up ${prov.name}: ${line}`); return; }
+  if (eng.strategic.defend) { const prov = provinceById(eng.strategic.prov); bn.engaged = null; bn.order = { type: 'hold' }; const line = fallBack(game, w, bn, prov, 0); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, 0, prov.id); note(w, game, `${bn.name} gives up ${prov.name}: ${line}`); return; }
   bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${provinceById(eng.strategic.prov).name}.`);
 }
+hooks.controlChanged = () => {};
 hooks.strategicResolved = resolved; hooks.strategicWithdrawn = withdrawn;
 hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
@@ -33988,7 +34036,7 @@ function view(game) {
 
 const SOLDIER_RETAINER = (game, bn) => { const P = providedBy(game, bn.squads); return P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); };
 
-return { warOf, controllerOf, ctlOf, weatherNow, supplyAt, intelLevels, intelAt, garrisonOf, DEFAULT_TEMPLATES, templates, saveTemplate, removeTemplate, needsOf, providedBy, raise, disband, statsOf, theatres, enlist, discharge, deploy, recall, marchHours, order, hostileForce, defend, recipeOf, battleTerrain, advance, dayTick, view, SOLDIER_RETAINER };
+return { unit, nowHour, countryName, warOf, nextId, note, controllerOf, setControl, ctlOf, weatherNow, supplyAt, intelLevels, intelAt, garrisonOf, DEFAULT_TEMPLATES, templates, saveTemplate, removeTemplate, needsOf, providedBy, raise, disband, statsOf, theatres, theatreOf, inTheatre, enlist, discharge, deploy, recall, marchHours, order, hostileForce, defend, recipeOf, battleTerrain, advance, ensureEmployer, dayTick, view, SOLDIER_RETAINER };
 })();
 
 // ---- src/war/day.js
@@ -34235,6 +34283,206 @@ function checkMilitary(m) {
 return { checkMilitary };
 })();
 
+// ---- src/war/strategicAI.js
+__m["src/war/strategicAI.js"] = (function () {
+// The nations at war (v0.103.1): the other side's army, and the employer's own. Each country in the theatre has a mobile reserve (from its income) and puts formations in the field at three levels:
+//   1 a probe: a few men at the weakest point, often;
+//   2 a counter-attack: to retake what it lost, after its reaction time;
+//   3 an offensive: a large force, by an aggressive country or one that sees an opportunity.
+// How well it chooses depends on the country (src/content/strategic.js COUNTRY_AI): a blunt one goes for the nearest ground whatever the odds; a methodical one takes the best prize it can beat and never
+// attacks at poor odds; a cunning one does that and hunts what is weak (an empty province, a battalion of yours low on supply or organisation). A formation marches by the hour like a battalion. Where it
+// meets a battalion of yours it opens an engagement with you DEFENDING (play it, give it to a general, or give the ground up); everywhere else the two armies fight it out by the `exchange` below, hour by hour.
+//
+//   exchange(att, def, key)        the hourly fight of two forces (pure, deterministic): who broke, and what is left
+//   profileOf(country)             { skill, doctrine, aggression, pool }
+// Nothing is spawned for free: a formation is paid for out of its country's pool, and what survives goes back to it.
+const { hooks } = __m["src/war/hooks.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
+const { COUNTRIES } = __m["src/content/arms.js"];
+const { AI, EXCHANGE, COUNTRY_AI, COUNTRY_AI_DEFAULT, TERRAIN_FX, WEAKEN } = __m["src/content/strategic.js"];
+const { warOf, controllerOf, setControl, garrisonOf, marchHours, defend, statsOf, supplyAt, theatreOf, inTheatre, countryName, note, unit: hash, nowHour, ensureEmployer } = __m["src/war/strategic.js"];
+const { estimate } = __m["src/war/supply.js"];
+
+function profileOf(country) {
+  const c = COUNTRIES[country]; const a = COUNTRY_AI[country] || COUNTRY_AI_DEFAULT; const income = c?.income ?? 3000;
+  return { country, skill: a.skill, doctrine: a.doctrine, text: a.text, aggression: c?.aggression ?? 0.1, poolMax: Math.max(12, Math.round(income / AI.poolPer)) };
+}
+
+// ---- the hourly exchange
+const power = (f) => (f.troops + f.armour * EXCHANGE.armour) * (f.skill ?? 1) * (0.4 + 0.6 * f.org / 100);
+/**
+ * Two forces fight by the hour until one breaks (its organisation falls to `breakAt`) or `hours` pass. `att` and `def` are { troops, armour, org, skill }; `def` may also carry { fort, entrench, terrain }.
+ * Each hour each side loses a share of what it started with, more the worse its odds, with a little luck from a hash of the key; organisation falls with the losses. The attacker wins if the defender breaks first,
+ * or at the end if it has the defender down to two fifths and is still standing. Returns { won, att, def, hours }.
+ */
+function exchange(att, def, key) {
+  const A = { troops: att.troops, armour: att.armour, org: att.org ?? 100, skill: att.skill ?? 1 }; const D = { troops: def.troops, armour: def.armour, org: def.org ?? 100, skill: def.skill ?? 1 };
+  const a0 = Math.max(1, A.troops); const d0 = Math.max(1, D.troops); const mult = (TERRAIN_FX[def.terrain]?.def ?? 1) * (1 + EXCHANGE.fort * (def.fort || 0) + EXCHANGE.entrench * (def.entrench || 0));
+  let hours = 0; let won = false;
+  for (let h = 1; h <= EXCHANGE.hours; h++) {
+    hours = h; const Pa = Math.max(0.5, power(A)); const Pd = Math.max(0.5, power(D) * mult); const r = Pa / Pd;
+    const la = a0 * EXCHANGE.rate * Math.sqrt(1 / r) * (1 - EXCHANGE.luck + 2 * EXCHANGE.luck * hash(`${key}|a|${h}`)); const ld = d0 * EXCHANGE.rate * Math.sqrt(r) * (1 - EXCHANGE.luck + 2 * EXCHANGE.luck * hash(`${key}|d|${h}`));
+    const fa = Math.min(A.troops, la) / Math.max(1, A.troops); const fd = Math.min(D.troops, ld) / Math.max(1, D.troops);
+    A.troops = Math.max(0, A.troops - la); D.troops = Math.max(0, D.troops - ld); A.armour = Math.max(0, A.armour * (1 - fa * 0.7)); D.armour = Math.max(0, D.armour * (1 - fd * 0.7));
+    A.org = Math.max(0, A.org - (la / a0) * 160); D.org = Math.max(0, D.org - (ld / d0) * 160);
+    if (D.org <= EXCHANGE.breakAt || D.troops < 1) { won = true; break; } if (A.org <= EXCHANGE.breakAt || A.troops < 1) break;
+  }
+  if (!won && hours >= EXCHANGE.hours && A.org > EXCHANGE.breakAt && D.troops < d0 * 0.4) won = true;
+  return { won, att: { troops: Math.round(A.troops), armour: Math.round(A.armour * 10) / 10, org: Math.round(A.org) }, def: { troops: Math.round(D.troops), armour: Math.round(D.armour * 10) / 10, org: Math.round(D.org) }, hours };
+}
+
+// ---- the record
+const state = (game, w) => (w.ai ||= { formations: [], pool: {}, cool: {}, week: 0, next: 0, made: { 1: 0, 2: 0, 3: 0 } });
+const aiState = state;
+const poolOf = (ai, country) => (ai.pool[country] ??= Math.round(profileOf(country).poolMax * AI.startShare));
+const countryOfSide = (w, side) => (side === 'enemy' ? w.employer.enemy : w.employer.side);
+const other = (side) => (side === 'enemy' ? 'ally' : 'enemy');
+const fPower = (f) => power(f);
+const speedOf = (f) => (f.armour >= Math.max(1, f.troops / 4) ? AI.speedArmour : AI.speedFoot);
+const bnPower = (game, bn) => { const s = statsOf(game, bn); return (s.people + s.vehicles * 5.5 * 0.6) * (0.4 + 0.6 * bn.org / 100) * (1 + 0.05 * bn.entrench); };
+
+/** What stands in a province against an attacker from `attSide`: its garrison, formations of the defending side, and (for the enemy attacking) a battalion of yours. */
+function defenders(game, w, to, attSide) {
+  const ai = state(game, w); const defSide = other(attSide); const g = garrisonOf(game, to);
+  const fs = ai.formations.filter((f) => f.side === defSide && f.prov === to.id && !f.moving);
+  const bn = attSide === 'enemy' ? w.battalions.find((b) => b.status === 'theatre' && b.pos === to.id) : null;
+  const troops = g.troops + fs.reduce((a, f) => a + f.troops, 0); const armour = g.armour + fs.reduce((a, f) => a + f.armour, 0);
+  const mult = (TERRAIN_FX[to.terrain]?.def ?? 1) * (1 + EXCHANGE.fort * to.fort + EXCHANGE.entrench * (bn ? bn.entrench : 0));
+  const pw = (troops + armour * EXCHANGE.armour) + (bn ? bnPower(game, bn) : 0);
+  return { garrison: g, formations: fs, bn, troops, armour, power: pw * mult, empty: troops === 0 && !bn, weak: Boolean(bn && (bn.org < 60 || supplyAt(game, to) < 40)) };
+}
+
+function front(game, w, side) { // [from, to] pairs: ground of this side next to ground of the other
+  const e = w.employer; const th = theatreOf(game, e.theatre); const P = provinces(); const mine = countryOfSide(w, side); const out = [];
+  for (const p of P) { if (!inTheatre(th)(p) || controllerOf(game, p) !== mine) continue; for (const n of p.neighbours) { const q = P[n]; if (inTheatre(th)(q) && controllerOf(game, q) === countryOfSide(w, other(side))) out.push([p, q]); } }
+  return out;
+}
+const value = (game, w, to, side) => 1 + to.vp * 3 + (to.capital ? 6 : 0) + (to.port ? 2 : 0) + (side === 'enemy' && to.id === w.employer.staging ? 10 : 0) + (w.lost.some((l) => l.pid === to.id && l.from === countryOfSide(w, side) && game.clock.day - l.day <= 12) ? 5 : 0);
+
+/** Choose the target for a force of `size` (and skill) that could attack from any of `pairs`: [from, to]. Returns { from, to, odds } or null. */
+function choose(game, w, side, prof, size, armour, pairs) {
+  const f = { troops: size, armour, org: 100, skill: prof.skill }; let best = null;
+  for (const [from, to] of pairs) {
+    const d = defenders(game, w, to, side); const odds = fPower(f) / Math.max(1, d.power); const v = value(game, w, to, side);
+    if (odds < AI.odds[prof.doctrine]) continue;
+    let score;
+    if (prof.doctrine === 'blunt') score = 1000 - Math.hypot(from.lat - to.lat, from.lon - to.lon) * 10 + v * 0.01;
+    else if (prof.doctrine === 'methodical') score = v * odds ** 1.5;
+    else score = v * odds ** 1.5 * (1 + (d.weak ? 0.5 : 0) + (d.empty ? 0.8 : 0));
+    if (!best || score > best.score || (score === best.score && to.id < best.to.id)) best = { from, to, odds, score };
+  }
+  return best;
+}
+
+function spawn(game, w, side, prof, level, size, from, to) {
+  const ai = state(game, w); const country = countryOfSide(w, side); ai.pool[country] = poolOf(ai, country) - size;
+  const armour = size >= 24 ? Math.floor(size / 24) : 0; ai.next += 1;
+  const f = { id: `F${ai.next}`, side, country, prov: from.id, troops: size, armour, org: 100, skill: prof.skill, level, born: game.clock.day, order: 'attack', moving: { to: to.id, left: marchHours(game, armour >= Math.max(1, size / 4) ? AI.speedArmour : AI.speedFoot, from, to) , attack: true }, engaged: null, idle: null };
+  ai.formations.push(f); ai.made ||= { 1: 0, 2: 0, 3: 0 }; ai.made[level]++; return f;
+}
+
+function lostFor(game, w, country) { return w.lost.filter((l) => l.from === country && game.clock.day - l.day <= AI.counter.expireDays && controllerOf(game, provinceById(l.pid)) === l.to); }
+
+function think(game, w, side) {
+  const ai = state(game, w); const country = countryOfSide(w, side); const prof = profileOf(country); const day = game.clock.day; const h = nowHour(game);
+  const mine = ai.formations.filter((f) => f.side === side); const cd = (k) => day - (ai.cool[`${country}|${k}`] ?? -99) >= AI[k].cooldownDays;
+  // idle formations: an offensive goes on to the next target; the rest go home after a day and their men return to the pool
+  for (const f of mine) {
+    if (f.engaged || f.moving) continue; f.idle ??= h;
+    if (f.level === 3 && f.troops >= 8 && f.org >= 40) { const pairs = front(game, w, side).filter(([from]) => from.id === f.prov); const c = choose(game, w, side, prof, f.troops, f.armour, pairs); if (c) { f.moving = { to: c.to.id, left: marchHours(game, speedOf(f), c.from, c.to), attack: true }; f.idle = null; continue; } }
+    if (h - f.idle >= AI.idleHours || f.troops < 4) { ai.pool[country] = poolOf(ai, country) + Math.round(f.troops * 0.7); ai.formations = ai.formations.filter((x) => x !== f); }
+  }
+  const active = ai.formations.filter((f) => f.side === side).length; if (active >= AI.maxFormations) return;
+  const pool = poolOf(ai, country); const pairs = front(game, w, side); if (!pairs.length) return;
+  // level 2: retake what was lost, after the country's reaction time
+  const lost = lostFor(game, w, country).filter((l) => nowHour(game) - l.hour >= AI.react[prof.doctrine]);
+  if (lost.length && cd('counter') && pool >= AI.counter.min) {
+    const L = lost[lost.length - 1]; const to = provinceById(L.pid); const from = pairs.filter(([, t]) => t.id === to.id).sort((a, b) => b[0].infra - a[0].infra || (a[0].id < b[0].id ? -1 : 1))[0]?.[0];
+    if (from) {
+      const d = defenders(game, w, to, side); const size = Math.min(Math.round(pool * AI.counter.share), Math.max(AI.counter.min, Math.round((d.troops + d.armour * EXCHANGE.armour) * AI.counter.factor / prof.skill + (prof.doctrine === 'blunt' ? 2 : 6))));
+      const ok = prof.doctrine === 'blunt' || (size * prof.skill) / Math.max(1, d.power) >= AI.odds[prof.doctrine] * 0.9;
+      if (ok && size <= pool) { spawn(game, w, side, prof, 2, size, from, to); ai.cool[`${country}|counter`] = day; note(w, game, `${countryName(country)} counter-attacks at ${to.name}.`); return; }
+    }
+  }
+  // level 3: an offensive, by an aggressive country, or one that sees a chance
+  if (cd('offensive') && pool >= prof.poolMax * AI.offensive.poolShare && pool >= 20) {
+    const local = pairs.reduce((a, [, t]) => a + defenders(game, w, t, side).power, 0) / Math.max(1, new Set(pairs.map(([, t]) => t.id)).size);
+    const chance = prof.aggression >= AI.offensive.aggression ? AI.offensive.chance : 0; const roll = hash(`${game.world.salt || 0}|off|${country}|${h}`);
+    const opportunist = prof.doctrine !== 'blunt' && pool / Math.max(1, local * Math.min(4, new Set(pairs.map(([, t]) => t.id)).size)) >= AI.offensive.ratio && (prof.doctrine === 'cunning' ? pairs.some(([, t]) => { const d = defenders(game, w, t, side); return d.empty || d.weak; }) : prof.aggression >= AI.offensive.aggression * 0.7);
+    if ((roll < chance && prof.doctrine === 'blunt') || (prof.aggression >= AI.offensive.aggression && roll < chance * 1.3) || opportunist) {
+      const size = Math.min(AI.offensive.max, Math.round(pool * AI.offensive.share)); const c = choose(game, w, side, prof, size, size >= 24 ? Math.floor(size / 24) : 0, pairs);
+      if (c) { spawn(game, w, side, prof, 3, size, c.from, c.to); ai.cool[`${country}|offensive`] = day; note(w, game, `${countryName(country)} opens an offensive toward ${c.to.name}.`); if (side === 'enemy') game.notify?.(`${countryName(country)} has opened an offensive toward ${c.to.name}.`, 'warn'); return; }
+    }
+  }
+  // level 1: a probe, now and then, at the weakest point
+  if (cd('probe') && pool >= AI.probe.min && hash(`${game.world.salt || 0}|probe|${country}|${h}`) < AI.probe.base + AI.probe.perAggression * prof.aggression) {
+    const size = Math.max(AI.probe.min, Math.min(AI.probe.max, Math.round(pool * AI.probe.share))); const c = choose(game, w, side, prof, size, 0, pairs);
+    if (c) { spawn(game, w, side, prof, 1, size, c.from, c.to); ai.cool[`${country}|probe`] = day; }
+  }
+}
+
+// ---- arrival: an attack goes in
+function strike(game, w, f) {
+  const ai = state(game, w); const to = provinceById(f.moving.to); const from = provinceById(f.prov); const attSide = f.side; const mine = countryOfSide(w, attSide);
+  const prof = profileOf(f.country); const d = defenders(game, w, to, attSide);
+  if (controllerOf(game, to) === mine) { f.prov = to.id; f.moving = null; return; } // someone else already took it
+  if (d.bn && d.bn.engaged) { f.moving.left = 1; return; } // the battalion is in another fight: it waits an hour
+  if (prof.doctrine !== 'blunt' && fPower(f) / Math.max(1, d.power) < AI.abort) { f.moving = null; f.order = 'hold'; f.idle = nowHour(game); return; } // a careful army turns back from a bad fight
+  f.moving = null;
+  if (d.bn) { const id = defend(game, w, d.bn, to, f); if (id) { f.engaged = id; return; } }
+  const r = exchange({ troops: f.troops, armour: f.armour, org: f.org, skill: f.skill }, { troops: d.troops, armour: d.armour, org: 100, skill: profileOf(controllerOf(game, to)).skill, fort: to.fort, terrain: to.terrain, entrench: 0 }, `${f.id}|${to.id}|${nowHour(game)}`);
+  f.troops = r.att.troops; f.armour = r.att.armour; f.org = Math.max(10, r.att.org);
+  for (const x of d.formations) { x.troops = r.def.troops ? Math.max(0, Math.round(x.troops * r.def.troops / Math.max(1, d.troops))) : 0; x.armour = r.def.troops ? x.armour : 0; }
+  if (r.won) {
+    setControl(game, to.id, mine); f.prov = to.id; ai.formations = ai.formations.filter((x) => !(x.side !== attSide && x.prov === to.id && !x.moving && !x.engaged));
+    const near = w.battalions.some((b) => b.status === 'theatre' && (provinceById(b.pos).neighbours.includes(to.n) || b.pos === to.id)); const text = `${countryName(f.country)} takes ${to.name}${d.garrison.troops || d.formations.length ? ' after a fight' : ' unopposed'}.`;
+    note(w, game, text); if (attSide === 'enemy' && (near || w.lost.some((l) => l.pid === to.id && l.from === w.employer.side && l.to === w.employer.enemy && l.day === game.clock.day))) game.notify?.(text, 'warn');
+    ensureEmployer(game);
+  } else { f.org = Math.min(f.org, 40); }
+  if (f.troops < 4 || (!r.won && f.org <= EXCHANGE.breakAt + 5)) ai.formations = ai.formations.filter((x) => x !== f);
+}
+
+/** A formation that attacked a battalion of yours: the result of the engagement decides what is left of it. */
+hooks.aiDefenceEnd = (game, fid, held, obj, provId) => {
+  const w = warOf(game); const ai = w?.ai; const f = ai?.formations.find((x) => x.id === fid); if (!f) return; f.engaged = null; f.moving = null;
+  if (held) { f.troops = Math.round(f.troops * (obj >= 3 ? 0.2 : 0.5)); f.org = 30; if (f.troops < 4) ai.formations = ai.formations.filter((x) => x !== f); else f.idle = nowHour(game); }
+  else { f.prov = provId; f.troops = Math.round(f.troops * 0.8); f.org = Math.max(30, f.org - 25); f.idle = nowHour(game); ensureEmployer(game); }
+};
+
+hooks.aiHour = (game, w, h) => {
+  if (w.aiOff) return; // (a debug and test switch: the nations stand still)
+  const ai = state(game, w);
+  for (const f of ai.formations.slice()) {
+    if (f.engaged || !f.moving) continue; f.moving.left -= 1; if (f.moving.left > 0) continue;
+    if (f.moving.attack) strike(game, w, f); else { f.prov = f.moving.to; f.moving = null; }
+  }
+  if (h % AI.thinkHours === 0) { think(game, w, 'enemy'); think(game, w, 'ally'); }
+};
+hooks.aiDay = (game, w) => {
+  if (w.aiOff) return;
+  const ai = state(game, w); const day = game.clock.day;
+  if (day - ai.week >= 7) { ai.week = day; for (const side of ['enemy', 'ally']) { const c = countryOfSide(w, side); const p = profileOf(c); ai.pool[c] = Math.min(p.poolMax, poolOf(ai, c) + Math.round(p.poolMax * AI.regen)); } }
+  for (const f of ai.formations) if (!f.moving && !f.engaged) f.org = Math.min(100, f.org + 8);
+};
+hooks.presentForce = (game, prov) => { const ai = warOf(game)?.ai; const fs = (ai?.formations || []).filter((f) => f.side === 'enemy' && f.prov === prov.id && !f.moving); return { troops: fs.reduce((a, f) => a + f.troops, 0), armour: fs.reduce((a, f) => a + f.armour, 0) }; };
+hooks.attackWon = (game, prov) => { const ai = warOf(game)?.ai; if (ai) ai.formations = ai.formations.filter((f) => !(f.side === 'enemy' && f.prov === prov.id && !f.moving && !f.engaged)); };
+hooks.attackFailed = (game, prov, obj) => { const ai = warOf(game)?.ai; for (const f of ai?.formations || []) if (f.side === 'enemy' && f.prov === prov.id && !f.moving) f.troops = Math.max(2, Math.round(f.troops * (obj === 1 ? 0.75 : 0.9))); };
+hooks.allySources = (game) => (warOf(game)?.ai?.formations || []).filter((f) => f.side === 'ally').map((f) => ({ n: provinceById(f.prov).n, known: 0, spotted: 1 }));
+/** What the map may show of the armies: your ally's formations as they are; the enemy's only where you can see, and as a report (a number that is off by what your intelligence there allows). */
+hooks.formationsView = (game, intel) => {
+  const w = warOf(game); const ai = w?.ai; if (!ai) return [];
+  return ai.formations.map((f) => {
+    const p = provinceById(f.prov); const lvl = f.side === 'ally' ? 2 : intel[p.n]; if (f.side === 'enemy' && lvl < 1) return null;
+    const to = f.moving ? provinceById(f.moving.to) : null; const k = `${f.id}|${Math.floor(nowHour(game) / 12)}`;
+    return { id: f.id, side: f.side, country: f.country, name: countryName(f.country), prov: f.prov, to: lvl >= 1 && to ? to.id : null, attack: Boolean(f.moving?.attack), level: lvl >= 2 ? f.level : null, troops: f.side === 'ally' ? f.troops : estimate(f.troops, lvl, `${k}t`), armour: f.side === 'ally' ? f.armour : estimate(f.armour, lvl, `${k}a`), org: lvl >= 2 ? Math.round(f.org) : null, known: lvl };
+  }).filter(Boolean);
+};
+hooks.aiProfile = (game) => { const w = warOf(game); if (!w?.employer) return null; const ai = state(game, w); const mk = (side) => { const c = countryOfSide(w, side); const p = profileOf(c); return { side, country: c, name: countryName(c), skill: p.skill, doctrine: p.doctrine, text: p.text, aggression: p.aggression, pool: poolOf(ai, c), poolMax: p.poolMax, formations: ai.formations.filter((f) => f.side === side).length }; }; return { enemy: mk('enemy'), ally: mk('ally') }; };
+void WEAKEN;
+
+return { profileOf, exchange, aiState, defenders, front, choose, spawn };
+})();
+
 // ---- src/war/api.js
 __m["src/war/api.js"] = (function () {
 // The war update's service (v0.98.0): game.war. A thin facade over the record (src/war/state.js), the protection gate (protection.js), the damage gate (damage.js) and the
@@ -34257,6 +34505,8 @@ const { equip: equipPerson, equipClass: equipTheClass, setTier: setClassTier, se
 const { create: createSquad, assign: assignSquad, unassign: unassignSquad, setLeader: leadSquad, assignVehicle: squadGetsVehicle, disband: disbandSquad, setLook: lookSquad, view: squadsView } = __m["src/war/squads.js"];
 const { view: baseViewOf } = __m["src/war/base.js"];
 const { checkMilitary } = __m["src/war/check.js"];
+const { profileOf: aiProfileOf } = __m["src/war/strategicAI.js"];
+const { hooks: warHooks } = __m["src/war/hooks.js"];
 const { view: stView, advance: stAdvance, templates: stTemplates, saveTemplate: stSave, removeTemplate: stRemove, needsOf: stNeeds, providedBy: stProvided, raise: stRaise, disband: stDisband, theatres: stTheatres, enlist: stEnlist, discharge: stDischarge, deploy: stDeploy, recall: stRecall, order: stOrder } = __m["src/war/strategic.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -34371,6 +34621,9 @@ class War {
 
   // ---- the strategic war (v0.103.0)
   strategic() { return stView(this.g); }
+  /** The two armies in the theatre: how each fights, its reserve and its formations in the field. */
+  armies() { return warHooks.aiProfile?.(this.g) || null; }
+  profileOf(country) { return aiProfileOf(country); }
   strategicTick() { stAdvance(this.g); }
   templates() { return stTemplates(this.g); }
   saveTemplate(t) { return stSave(this.g, t); }
@@ -74931,7 +75184,7 @@ function engagementScreen(ui, body, go, open) {
       row({ icon: '🎯', title: `${pct(es.chance.atLeast[1])} to meet at least one objective`, sub: `${pct(es.chance.atLeast[2])} for two, ${pct(es.chance.atLeast[3])} for all three, ${pct(es.chance.lose)} to fail` }),
       row({ icon: '🔧', title: 'What it is made of', sub: `Your force ${es.parts.ours.toFixed(1)} against ${es.parts.theirs.toFixed(1)} · ground ×${es.parts.terrain.toFixed(2)} · general ×${es.parts.general.toFixed(2)}${es.parts.fuelShort ? ' · short of fuel' : ''}${es.parts.rocketShort ? ' · short of rockets' : ''}` })));
   }
-  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen, (ui.milEngReserve || []).filter((x) => chosen.includes(x))); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, bn ? 'Break off' : 'Turn it down')));
+  body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', disabled: !chosen.length || !gen || lacks.length > 0, onclick: () => go(W.delegate(e.id, { squads: chosen, general: gen })) }, `Give it to ${G.find((g) => g.id === gen)?.name || 'a general'}`), h('button', { class: 'tb-btn', disabled: !chosen.length || lacks.length > 0, onclick: () => { const r = W.playEngagement(e.id, chosen, (ui.milEngReserve || []).filter((x) => chosen.includes(x))); if (r.ok) { ui.openPanel('battle', { id: e.id }); } else go(r); } }, 'Lead it yourself'), h('button', { class: 'tb-btn', onclick: () => { const r = W.declineEngagement(e.id); ui.milSub = 'Generals'; go(r); } }, bn ? (e.strategic.defend ? 'Give the ground up' : 'Break off') : 'Turn it down')));
   body.append(help('One way or the other', 'Once a general has an engagement you cannot lead the same battle yourself, and the other way round. Leading it yourself takes your squads into a battle you command; the result is filed and your people come home on the engagement\'s last day.'));
 }
 
@@ -79263,9 +79516,15 @@ function bakeControl(map, controllerOf, side, enemy) {
   }
   g.putImageData(img, 0, 0); return c;
 }
+/** A tint over the ground by a number or a kind per province: `rgbaOf(province)` gives [r, g, b, a] (a 0 to 255) or null for none. Used by the Supply, Weather and Intel modes. */
+function bakeLayer(map, rgbaOf) {
+  const P = provinces(); const { w: W, h: H, pm } = map; const c = mk(W, H); const g = c.getContext('2d'); const img = g.createImageData(W, H); const d = img.data; const col = P.map((p) => rgbaOf(p));
+  for (let i = 0; i < W * H; i++) { const p = pm[i]; if (p < 0) continue; const k = col[p]; if (!k) continue; const o = i * 4; d[o] = k[0]; d[o + 1] = k[1]; d[o + 2] = k[2]; d[o + 3] = k[3]; }
+  g.putImageData(img, 0, 0); return c;
+}
 
 
-return { TERRAIN_RGB, COUNTRY_RGB, bakeControl, bakeTheatre };
+return { TERRAIN_RGB, COUNTRY_RGB, bakeControl, bakeLayer, bakeTheatre };
 })();
 
 // ---- src/ui/strategic.js
@@ -79274,12 +79533,12 @@ __m["src/ui/strategic.js"] = (function () {
 // order of battle on the left, the selected battalion on the right, a province's facts under the pointer, and the buttons that give orders. It only DRAWS and GIVES ORDERS: every rule is in
 // src/war/strategic.js, reached through game.war. Time moves only on the buttons (the world is stepped with game.skipTime, which runs the same minute and day ticks as sleeping does).
 const { h } = __m["src/ui/panels.js"];
-const { bakeTheatre, bakeControl, COUNTRY_RGB } = __m["src/engine/drawStrategic.js"];
+const { bakeTheatre, bakeControl, bakeLayer, COUNTRY_RGB } = __m["src/engine/drawStrategic.js"];
 const { provinces, provinceById, TERRAIN } = __m["src/world/provinces.js"];
 const { atlasPlaces } = __m["src/world/atlas.js"];
 const { ATLAS } = __m["src/content/atlas.js"];
 const { SLOTS, MAX_LINE } = __m["src/content/strategic.js"];
-const { TERRAIN_FX } = __m["src/content/strategic.js"];
+const { TERRAIN_FX, WEATHER, INTEL } = __m["src/content/strategic.js"];
 
 const SPEEDS = [[0, '⏸'], [1, '▶ 1 h/s'], [6, '⏩ 6 h/s'], [24, '⏭ 1 d/s']];
 const num = (n) => Number(n).toLocaleString('en-US');
@@ -79306,6 +79565,8 @@ function strategicPanel(ui, body) {
     if (!S.map) return;
     const e = v.employer; const key = `${e.side}|${e.enemy}|${v.provinces.map((p) => p.controller === e.side ? 1 : 0).join('')}`;
     if (key !== S.ctlKey) { S.ctlKey = key; const by = new Map(v.provinces.map((p) => [p.id, p.controller])); S.ctl = bakeControl(S.map, (p) => by.get(p.id) ?? p.country, e.side, e.enemy); }
+    const lay = S.layer || 'Terrain'; const lk = lay === 'Supply' || lay === 'Weather' || lay === 'Intel' ? `${lay}|${key}|${Math.floor(v.hour / 6)}|${v.provinces.map((p) => `${p.supply}${p.intel}${p.weather[0]}`).join('')}` : ''; 
+    if (lk !== S.layKey) { S.layKey = lk; const by = new Map(v.provinces.map((p) => [p.id, p])); S.layerCanvas = !lk ? null : bakeLayer(S.map, (p) => { const q = by.get(p.id); if (!q) return [20, 20, 30, 150]; if (lay === 'Supply') { if (q.controller !== e.side) return [60, 60, 70, 150]; const s = q.supply / 100; return [Math.round(230 * (1 - s) + 40 * s), Math.round(60 * (1 - s) + 200 * s), 60, 170]; } if (lay === 'Weather') { const c = WEATHER[q.weather].colour; return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16), q.weather === 'clear' ? 40 : 150]; } return q.intel >= 2 ? [0, 0, 0, 0] : q.intel === 1 ? [10, 10, 30, 90] : [5, 5, 15, 190]; }); }
   };
   const fit = () => { const m = S.map; if (!m) return; const z = Math.min(canvas.width / m.w, canvas.height / m.h); S.cam = { z, x: (canvas.width - m.w * z) / 2, y: (canvas.height - m.h * z) / 2 }; };
   const resize = () => { const r = body.getBoundingClientRect(); canvas.width = Math.max(320, Math.round(r.width)); canvas.height = Math.max(240, Math.round(r.height)); if (S.map && !S.fitted) fit(); };
@@ -79316,7 +79577,7 @@ function strategicPanel(ui, body) {
   const draw = () => {
     const g2 = canvas.getContext('2d'); g2.fillStyle = '#0b1220'; g2.fillRect(0, 0, canvas.width, canvas.height);
     const m = S.map; if (!m) { g2.fillStyle = '#c8d0e8'; g2.font = '20px system-ui'; g2.textAlign = 'center'; g2.fillText('Enlist in a theatre to see its ground.', canvas.width / 2, canvas.height / 2); return; } const z = S.cam.z; const v = S.view; const e = v.employer;
-    g2.imageSmoothingEnabled = true; g2.drawImage(m.base, S.cam.x, S.cam.y, m.w * z, m.h * z); if (S.ctl) { g2.globalAlpha = (S.layer || 'Terrain') === 'Control' ? 1 : 0.55; g2.drawImage(S.ctl, S.cam.x, S.cam.y, m.w * z, m.h * z); g2.globalAlpha = 1; }
+    g2.imageSmoothingEnabled = true; g2.drawImage(m.base, S.cam.x, S.cam.y, m.w * z, m.h * z); if (S.ctl) { g2.globalAlpha = (S.layer || 'Terrain') === 'Control' ? 1 : S.layerCanvas ? 0.25 : 0.55; g2.drawImage(S.ctl, S.cam.x, S.cam.y, m.w * z, m.h * z); g2.globalAlpha = 1; } if (S.layerCanvas) g2.drawImage(S.layerCanvas, S.cam.x, S.cam.y, m.w * z, m.h * z);
     // rivers, roads and the railways of the theatre
     g2.lineJoin = 'round'; g2.strokeStyle = 'rgba(96,170,230,.8)'; g2.lineWidth = Math.max(1, z * 1.6);
     for (const r of ATLAS.rivers) { const p = r.p; g2.lineWidth = Math.max(1, z * (0.8 + r.w * 0.6)); g2.beginPath(); let on = false; for (let i = 0; i < p.length; i += 2) { const [x, y] = px(p[i], p[i + 1]); if (x < -50 || y < -50 || x > canvas.width + 50 || y > canvas.height + 50) { on = false; continue; } if (!on) { g2.moveTo(x, y); on = true; } else g2.lineTo(x, y); } g2.stroke(); }
@@ -79333,6 +79594,8 @@ function strategicPanel(ui, body) {
     // the staging province
     if (e) { const st = provinceById(e.staging); const [x, y] = px(st.lat, st.lon); g2.strokeStyle = '#7dffb0'; g2.setLineDash([4, 3]); g2.lineWidth = 2; g2.beginPath(); g2.arc(x, y, 14, 0, 7); g2.stroke(); g2.setLineDash([]); }
     // battalions: a banner with its name and two bars
+    // formations of the armies: the ally's as they are, the enemy's only where you can see them, as a report
+    for (const f of v.formations || []) { const p = provinceById(f.prov); const [x, y] = px(p.lat, p.lon); const ally = f.side === 'ally'; const col = COUNTRY_RGB(f.country); if (f.to) { const q = provinceById(f.to); const [x2, y2] = px(q.lat, q.lon); g2.strokeStyle = f.attack ? '#ff6a5a' : ally ? '#6ab4ff' : '#ffb06a'; g2.lineWidth = 3; g2.setLineDash([5, 4]); g2.beginPath(); g2.moveTo(x, y); g2.lineTo(x2, y2); g2.stroke(); g2.setLineDash([]); } const w2 = 54; g2.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; g2.strokeStyle = ally ? '#bfe3ff' : '#ff8a7a'; g2.lineWidth = 2; g2.fillRect(x - w2 / 2, y + 6, w2, 18); g2.strokeRect(x - w2 / 2, y + 6, w2, 18); g2.fillStyle = '#10141f'; g2.font = 'bold 11px system-ui'; g2.textAlign = 'center'; g2.fillText(`${ally ? '' : f.known >= 2 ? '' : '~'}${f.troops}${f.armour ? ` +${f.armour}T` : ''}${!ally && f.known < 2 ? '?' : ''}`, x, y + 19); }
     S.banners = [];
     for (const b of v.battalions) {
       if (b.status !== 'theatre') continue; const p = provinceById(b.pos); let [x, y] = px(p.lat, p.lon); if (b.moving) { const q = provinceById(b.moving.to); const [x2, y2] = px(q.lat, q.lon); const f = 1 - Math.min(1, b.moving.left / Math.max(1, b.moving.left + 6)); x += (x2 - x) * f * 0.5; y += (y2 - y) * f * 0.5; g2.strokeStyle = b.moving.attack ? '#ff6a5a' : '#6ab4ff'; g2.lineWidth = 4; g2.setLineDash([]); g2.beginPath(); g2.moveTo(...px(p.lat, p.lon)); g2.lineTo(x2, y2); g2.stroke(); g2.fillStyle = b.moving.attack ? '#ff6a5a' : '#6ab4ff'; g2.beginPath(); g2.arc(x2, y2, 5, 0, 7); g2.fill(); }
@@ -79349,13 +79612,14 @@ function strategicPanel(ui, body) {
   const paintTop = () => {
     const v = S.view; const people = (W.company()?.personnel || []).filter((p) => p.status === 'active' && p.assignedTo != null).length; const eq = W.company()?.equipment || [];
     const cell = (k, val, sub) => h('div', { class: 'stc-res' }, h('small', {}, k), h('b', {}, val), sub ? h('em', {}, sub) : null);
-    top.replaceChildren(cell('SOLDIERS IN SQUADS', num(people)), cell('TANKS READY', `${eq.filter((x) => x.type && /anvil|lancer|bulwark|hound|breacher/.test(x.type) && x.status !== 'destroyed' && x.status !== 'deployed').length}`), cell('HELICOPTERS', `${eq.filter((x) => x.kind === 'helicopter' && x.status !== 'destroyed').length}`), cell('COMPANY CASH', `${num(W.cash())}`, v?.employer ? `paid ${num(v.paid)} so far` : ''),
+    top.replaceChildren(cell('SOLDIERS IN SQUADS', num(people)), cell('TANKS READY', `${eq.filter((x) => x.type && /anvil|lancer|bulwark|hound|breacher/.test(x.type) && x.status !== 'destroyed' && x.status !== 'deployed').length}`), cell('HELICOPTERS', `${eq.filter((x) => x.kind === 'helicopter' && x.status !== 'destroyed').length}`), cell('FUEL', `${num(Math.round(Object.entries(W.company()?.stock || {}).filter(([k]) => k === 'supply:fuel').reduce((a, [, q]) => a + q, 0)))}`, 'burnt by vehicles in the theatre'), cell('COMPANY CASH', `${num(W.cash())}`, v?.employer ? `paid ${num(v.paid)} so far` : ''),
       h('div', { class: 'grow' }), h('div', { class: 'stc-clock' }, (S.clockB = h('b', {}, `Day ${g.clock.day} · ${g.clock.timeString}`)), h('span', {}, SPEEDS.map(([s, l]) => h('button', { class: S.speed === s ? 'on' : '', onclick: () => { S.speed = s; paintTop(); } }, l)))), h('button', { onclick: () => ui.closePanel() }, '✕ Leave'));
   };
   const paintLeft = () => {
     const v = S.view; const kids = [h('h3', {}, 'ORDER OF BATTLE'), h('small', {}, v.employer ? `${v.employer.theatreName} · for ${v.employer.sideName}` : 'Not enlisted')];
     for (const b of v.battalions) kids.push(h('div', { class: `stc-bn${b.id === S.sel ? ' on' : ''}`, onclick: () => { S.sel = b.id; refresh(); } }, h('b', {}, b.name), h('span', {}, `${b.stats.people} soldiers · ${b.stats.vehicles} vehicles`), bar(b.stats.strength, '#3ddc84'), bar(b.stats.org, '#4aa8ff'), h('small', {}, `${STATUS[b.status]}${b.status === 'theatre' ? ` · ${provinceById(b.pos).name}` : ''}${b.engaged ? ' · IN BATTLE' : ''}`)));
     if (!v.battalions.length) kids.push(h('p', { class: 'stc-note' }, 'No battalions yet. Raise one from your squads.'));
+    const A = W.armies(); if (A) for (const [k, a] of [['THE ENEMY', A.enemy], ['YOUR EMPLOYER', A.ally]]) kids.push(h('div', { class: 'stc-army' }, h('b', {}, `${k}: ${a.name}`), h('small', {}, `${a.doctrine} · ${a.text}`), h('small', {}, `${a.formations} formation${a.formations === 1 ? '' : 's'} in the field${k === 'THE ENEMY' ? ' (as far as you know)' : ''}`)));
     kids.push(h('div', { class: 'stc-btns' }, h('button', { class: 'pri', onclick: () => openRaise() }, 'Raise a battalion'), h('button', { onclick: () => openDesigner() }, 'Templates'), v.employer ? h('button', { onclick: () => act(W.discharge()) }, 'Leave the service') : h('button', { class: 'pri', onclick: () => openEnlist() }, 'Enlist in a theatre')));
     left.replaceChildren(...kids);
   };
@@ -79369,22 +79633,24 @@ function strategicPanel(ui, body) {
     right.replaceChildren(...[h('h3', {}, b.name.toUpperCase()), h('small', {}, `${b.commanderName ? `Commander ${b.commanderName}` : 'No commander'} · ${STATUS[b.status]}${b.status === 'theatre' ? ` at ${provinceById(b.pos).name}` : ''}`),
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
-      h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('p', { class: 'stc-note' }, 'Supply and fuel arrive with the supply update (v0.103.1).'),
+      h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('div', { class: 'stc-meters' }, ...[['Supply', s.supply, s.supply >= 70 ? '#3ddc84' : s.supply >= 25 ? '#e8b84a' : '#e05a4a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, `${val}%`)))), h('p', { class: 'stc-note' }, `${s.supply < 70 ? 'Short of supply: it recovers slowly and fights with less morale; it is never stopped. ' : ''}${s.fuelShort ? `Short of fuel (${s.fuelShort}%): its vehicles count for less. ` : ''}Weather here: ${WEATHER[(v.provinces.find((q) => q.id === b.pos) || {}).weather || 'clear'].name}.`),
       h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
       b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.openPanel('tablet', { tab: 'Military' }); } }, 'Decide the battle')) : null,
       h('div', { class: 'stc-btns' }, b.status === 'home' ? h('button', { class: 'pri', disabled: !v.employer, title: v.employer ? '' : 'Enlist first', onclick: () => act(W.deploy(b.id)) }, 'Send to the theatre') : null, b.status === 'theatre' ? h('button', { disabled: Boolean(b.engaged || b.moving), onclick: () => act(W.recall(b.id)) }, 'Bring home') : null, b.status === 'home' ? h('button', { onclick: () => act(W.standDown(b.id)) }, 'Stand down') : null)].filter(Boolean));
   };
-  const paintBottom = () => { const v = S.view; bottom.replaceChildren(h('div', { class: 'stc-modes' }, ...['Terrain', 'Control'].map((m) => h('button', { class: (S.layer || 'Terrain') === m ? 'on' : '', onclick: () => { S.layer = m; refresh(); } }, m)), ...['Supply', 'Weather', 'Air', 'Naval', 'Intel', 'Contracts'].map((m) => h('button', { disabled: true, title: 'a later release' }, m))), h('div', { class: 'stc-plans' }, v.log[0] ? `LOG ▸ ${v.log[0].text}` : 'LOG ▸ nothing yet')); };
+  const paintBottom = () => { const v = S.view; bottom.replaceChildren(h('div', { class: 'stc-modes' }, ...['Terrain', 'Control', 'Supply', 'Weather', 'Intel'].map((m) => h('button', { class: (S.layer || 'Terrain') === m ? 'on' : '', onclick: () => { S.layer = m; refresh(); } }, m)), ...['Air', 'Naval', 'Contracts'].map((m) => h('button', { disabled: true, title: 'a later release' }, m))), h('div', { class: 'stc-plans' }, v.log[0] ? `LOG ▸ ${v.log[0].text}` : 'LOG ▸ nothing yet')); };
   /** Repaint a panel only when something it shows has changed (rebuilding them every frame would eat the clicks). */
   const sigs = { top: () => [S.speed, W.cash(), S.view.paid, S.view.employer?.side], left: () => [S.view.battalions.map((b) => [b.id, b.status, b.pos, b.engaged, b.stats.org, b.stats.strength, b.stats.people]), S.sel, S.view.employer?.side], right: () => [S.view.battalions.find((b) => b.id === S.sel)?.id, JSON.stringify(S.view.battalions.find((b) => b.id === S.sel)?.stats), S.view.battalions.find((b) => b.id === S.sel)?.status, S.view.battalions.find((b) => b.id === S.sel)?.pos, S.view.battalions.find((b) => b.id === S.sel)?.engaged, S.view.battalions.find((b) => b.id === S.sel)?.order.type, S.mode, S.view.employer?.side], bottom: () => [S.layer, S.view.log[0]?.text] };
   const paints = { top: paintTop, left: paintLeft, right: paintRight, bottom: paintBottom };
+  /** A battalion newly in contact (yours attacking, or an attack on you) stops the clock: the war does not wait for you to look. */
+  const newContact = () => { const v = W.strategic(); const now = new Set((v?.battalions || []).filter((b) => b.engaged).map((b) => b.engaged)); let fresh = false; for (const id of now) if (!(S.engSeen ||= new Set()).has(id)) { fresh = true; const eng = W.engagement(id); say(eng?.strategic?.defend ? `ATTACK: ${eng.title}. Time is stopped.` : `Contact: ${eng?.title}. Time is stopped.`); } S.engSeen = now; if (fresh && S.speed > 0) { S.speed = 0; S.sig = null; } return fresh; };
   const refresh = (force = true) => { ensureMap(); if (!S.view) return; S.sig ||= {}; for (const k of Object.keys(paints)) { const sg = JSON.stringify(sigs[k]()); if (force || sg !== S.sig[k]) { S.sig[k] = sg; paints[k](); } } };
 
   // ---- tooltips, picking, orders
   const tipFor = (p) => {
     const v = S.view; const e = v.employer; const c = e ? v.provinces.find((q) => q.id === p.id) : null; const fx = TERRAIN_FX[p.terrain];
     const lines = [`Terrain: ${TERRAIN[p.terrain].name}${p.coast ? ' · coast' : ''} · speed ×${fx.speed} · defence ×${fx.def}`, `Controller: ${ATLAS.countries[c?.controller || p.country]?.name} · Infrastructure ${p.infra} · Fort ${p.fort}`, `Victory points ${p.vp}${p.port ? ' · port' : ''}${p.airfield ? ' · airfield' : ''}${p.rail.length ? ' · railway' : ''}`];
-    if (c && c.controller === e.enemy) lines.push(`Garrison (reported): about ${c.garrison.troops} troops${c.garrison.armour ? `, ${c.garrison.armour} armour` : ''}?`);
+    if (c) { lines.push(`Weather: ${WEATHER[c.weather].name} · march ×${WEATHER[c.weather].speed} · Supply ${c.controller === e.side ? `${c.supply}%` : 'none (not yours)'} · Intelligence: ${['unseen', 'spotted', 'known'][c.intel]}`); if (c.garrisonReport) { const r = c.garrisonReport; lines.push(r.level >= 2 ? `Garrison (reported): about ${r.troops} troops${r.armour ? `, ${r.armour} armour` : ''}.` : r.level === 1 ? `Garrison (spotted): perhaps ${r.troops} troops?` : 'Garrison: unknown: nothing has been seen of it.'); } }
     return [h('b', {}, `${p.name} · ${ATLAS.states.find((x) => x.id === p.state)?.name}`), ...lines.map((t) => h('div', {}, t))];
   };
   const onMove = (e) => {
@@ -79435,7 +79701,7 @@ function strategicPanel(ui, body) {
   // ---- the loop
   const frame = (now) => {
     if (S.closed) return; raf = requestAnimationFrame(frame); const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); } W.strategicTick(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
+    if (S.speed > 0) { S.acc += dt * S.speed; while (S.acc >= 1) { S.acc -= 1; g.skipTime(60); if (newContact()) { S.acc = 0; break; } } W.strategicTick(); newContact(); refresh(false); if (S.clockB) S.clockB.textContent = `Day ${g.clock.day} · ${g.clock.timeString}`; }
     if (S.map) draw();
   };
   const onResize = () => resize(); window.addEventListener('resize', onResize); resize();

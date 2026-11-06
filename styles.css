@@ -1288,3 +1288,5 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 .stc-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
 .stc-needs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; } .stc-needs > div { padding: 7px 9px; border: 2px solid #2f7a4a; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-needs > div.short { border-color: #e0553a; background: #2a1420; } .stc-needs small { display: block; }
 .stc-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .stc-slot { width: 64px; height: 56px; border: 2px solid #3a3794; border-radius: 8px; display: grid; place-items: center; text-align: center; cursor: pointer; background: #1c1a52; } .stc-slot span { font-size: 20px; } .stc-slot small { font-size: 10px; } .stc-add { font-size: 11px !important; }
+
+.stc-army { margin: 8px 0; padding: 7px 9px; border: 2px solid #2d2a6e; border-radius: 8px; display: grid; gap: 2px; font-size: 12px; } .stc-army b { color: #ffd966; }

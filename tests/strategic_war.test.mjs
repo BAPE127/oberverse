@@ -52,7 +52,7 @@ test('enlisting: a licensed company, a theatre where they are fighting, one of t
   const { g, id, bn } = raised(1403); const th = g.war.theatres();
   assert.ok(th.find((t) => t.id === 'th_halden').hot, 'the one big land front is hot'); for (const id of ['th_northern', 'th_rift']) assert.ok(!th.find((t) => t.id === id).hot, `${id} has a landing, not a land front`); assert.ok(!th.some((t) => t.id === 'th_marches'), 'the Free Marches have no two sides to take');
   assert.ok(!g.war.enlist({ theatre: 'th_halden', side: 'sund' }).ok, 'not a country fighting there'); assert.ok(!g.war.enlist({ theatre: 'th_nowhere', side: 'varn' }).ok);
-  assert.ok(!g.war.deploy(id).ok, 'enlist first'); const e = g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); assert.ok(e.ok, e.text);
+  assert.ok(!g.war.deploy(id).ok, 'enlist first'); const e = g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ assert.ok(e.ok, e.text);
   assert.ok(!g.war.enlist({ theatre: 'th_halden', side: 'varn' }).ok, 'one employer at a time'); const w = g.war.state().war; const st = provinceById(w.employer.staging); assert.equal(st.country, 'ostmark');
   const d = g.war.deploy(id); assert.ok(d.ok && d.days >= SEALIFT.minDays, d.text); assert.equal(bn.status, 'deploying'); assert.ok(!g.war.battalionOrder(id, { type: 'hold' }).ok, 'at sea');
   hours(g, d.days * 24 - 2); assert.equal(bn.status, 'deploying'); hours(g, 4); assert.equal(bn.status, 'theatre'); assert.equal(bn.pos, st.id);
@@ -61,7 +61,7 @@ test('enlisting: a licensed company, a theatre where they are fighting, one of t
 });
 
 test('orders: a march takes hours by speed, ground and roads; it needs ground your side holds; a battalion rests back its organisation; digging in builds up', () => {
-  const { g, id, bn } = raised(1404); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(id); hours(g, d.days * 24 + 1); assert.equal(bn.status, 'theatre');
+  const { g, id, bn } = raised(1404); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ const d = g.war.deploy(id); hours(g, d.days * 24 + 1); assert.equal(bn.status, 'theatre');
   const f = frontier(g); assert.ok(f, 'a frontier exists');
   const far = provinces().find((p) => p.state === 'vr_coast' && controllerOf(g, p) === 'varn'); assert.ok(!g.war.battalionOrder(id, { type: 'move', to: far.id }).ok, 'not onto enemy ground');
   const here = bn.pos; const r = g.war.battalionOrder(id, { type: 'move', to: f.from.id });
@@ -72,7 +72,7 @@ test('orders: a march takes hours by speed, ground and roads; it needs ground yo
 });
 
 test('an attack: contact opens an engagement for the battalion alone; fought by a general it is written once, the front moves if it is won, the squads are the battalion\'s again, and nothing but the retainer and the bonus pays', () => {
-  const { g, C, squads, id, bn } = raised(1405); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(id); hours(g, d.days * 24 + 1);
+  const { g, C, squads, id, bn } = raised(1405); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ const d = g.war.deploy(id); hours(g, d.days * 24 + 1);
   const f = frontier(g); if (f.from.id !== bn.pos) { const r = g.war.battalionOrder(id, { type: 'move', to: f.from.id }); assert.ok(r.ok, r.text); until(g, () => bn.pos === f.from.id); } assert.equal(bn.pos, f.from.id);
   const a = g.war.battalionOrder(id, { type: 'attack', to: f.to.id }); assert.ok(a.ok, a.text); until(g, () => bn.engaged); assert.ok(bn.engaged, 'contact'); const eng = C.engagements.find((x) => x.id === bn.engaged);
   assert.equal(eng.strategic.prov, f.to.id); assert.equal(eng.pay, 0); assert.deepEqual(eng.needs, { troops: 0, tanks: 0, helicopters: 0, medics: 0 }); assert.ok(eng.enemy.troops > 0);
@@ -87,7 +87,7 @@ test('an attack: contact opens an engagement for the battalion alone; fought by 
 });
 
 test('the retainer is paid a day at a time to a battalion in the theatre and to nobody at sea or at home; breaking off a battle costs organisation and nothing else', () => {
-  const { g, C, id, bn } = raised(1406); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' });
+  const { g, C, id, bn } = raised(1406); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */
   const paid = () => g.war.state().war.paid || 0;
   hours(g, 24); g.war.dailyTick(); assert.equal(paid(), 0, 'at home nothing is paid'); const d = g.war.deploy(id); g.clock.total += 1440; g.war.dailyTick(); const atSea = paid(); assert.equal(atSea, 0, 'nor at sea');
   hours(g, d.days * 24 + 2); assert.equal(bn.status, 'theatre'); const c2 = paid(); g.clock.total += 1440; g.war.dailyTick(); const gain = paid() - c2;
@@ -97,7 +97,7 @@ test('the retainer is paid a day at a time to a battalion in the theatre and to 
 });
 
 test('the war survives a save: battalions, employer, ground taken and the hour all come back, and a battle in progress is still its engagement', () => {
-  const { g, C, id, bn } = raised(1407); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(id); hours(g, d.days * 24 + 1);
+  const { g, C, id, bn } = raised(1407); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ const d = g.war.deploy(id); hours(g, d.days * 24 + 1);
   const f = frontier(g); if (f.from.id !== bn.pos) { g.war.battalionOrder(id, { type: 'move', to: f.from.id }); until(g, () => bn.pos === f.from.id); } g.war.battalionOrder(id, { type: 'attack', to: f.to.id }); until(g, () => bn.engaged); assert.ok(bn.engaged); void C;
   const g2 = roundtrip(g); const w2 = g2.war.state().war; assert.equal(w2.battalions[0].engaged, bn.engaged); assert.equal(w2.employer.side, 'ostmark'); assert.equal(w2.hour, g.war.state().war.hour); assert.deepEqual(g2.war.check(), []);
   assert.equal(g2.war.strategic().battalions[0].stats.strength, 100); assert.ok(g2.war.strategic().provinces.length > 30);
@@ -116,7 +116,7 @@ test('a battle on the map can be played yourself on every kind of ground: a city
 
 test('soldiers of a battalion that is away are on a post, and at home they are not; names, not codes, are what the map and the log say', () => {
   const { g, C, id, bn } = raised(1415); const people = () => bn.squads.flatMap((sid) => C.squads.find((q) => q.id === sid).members).map((m) => C.personnel.find((p) => p.id === m));
-  assert.ok(people().every((p) => !p.post), 'at home: no post'); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(id);
+  assert.ok(people().every((p) => !p.post), 'at home: no post'); g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ const d = g.war.deploy(id);
   assert.ok(people().every((p) => p.post === `battalion:${id}`), 'at sea: on a post'); hours(g, d.days * 24 + 1); assert.ok(people().every((p) => p.post === `battalion:${id}`));
   assert.ok(!g.war.dismiss?.(people()[0].id)?.ok, 'cannot be dismissed while away'); assert.ok(g.war.state().war.log.some((l) => /lands at /.test(l.text) && !/P\d+_\d+/.test(l.text)), 'the log names the place');
   const r = g.war.recall(id); assert.ok(r.ok); hours(g, r.days * 24 + 1); assert.equal(bn.status, 'home'); assert.ok(people().every((p) => !p.post), 'home again: no post'); assert.deepEqual(g.war.check(), []);

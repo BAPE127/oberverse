@@ -14,7 +14,7 @@ const hours = (g, n) => { g.clock.total += n * 60; g.war.strategicTick(); };
 const until = (g, cond, max = 2400) => { for (let i = 0; i < max && !cond(); i += 6) hours(g, 6); assert.ok(cond(), 'it happened'); };
 function landed(seed) {
   const { g, C, squads } = armedCompany(seed); const t = g.war.saveTemplate({ name: 'Test Bn', line: ['inf', 'inf', 'tank'], support: ['medical'], attach: [] }); const r = g.war.raise({ template: t.id, squads }); assert.ok(r.ok, r.text);
-  g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); const d = g.war.deploy(r.id); hours(g, d.days * 24 + 1); const bn = g.war.state().war.battalions[0]; assert.equal(bn.status, 'theatre'); return { g, C, bn, id: r.id };
+  g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); g.war.state().war.aiOff = true; /* (the nations stand still: these tests are about the battalion) */ const d = g.war.deploy(r.id); hours(g, d.days * 24 + 1); const bn = g.war.state().war.battalions[0]; assert.equal(bn.status, 'theatre'); return { g, C, bn, id: r.id };
 }
 
 test('weather is regional, changes every few days, follows the season and the latitude, and only the five kinds exist', () => {

@@ -27,24 +27,31 @@ import { CLASS_POWER } from './combat.js';
 import { hooks } from './hooks.js';
 import { openStrategic } from './engagements.js';
 
-const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
-const nowHour = (game) => Math.floor(game.clock.total / 60);
+export const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+export const nowHour = (game) => Math.floor(game.clock.total / 60);
 const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
-const countryName = (id) => ATLAS.countries[id]?.name || id;
+export const countryName = (id) => ATLAS.countries[id]?.name || id;
 
 /** The war record, with its defaults (an older save simply gains them). */
 export function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
-const nextId = (w, kind) => { w.next[kind] = (w.next[kind] || 0) + 1; return `${kind}${w.next[kind]}`; };
-const note = (w, game, text) => { w.log.push({ day: game.clock.day, text }); while (w.log.length > 60) w.log.shift(); };
+export const nextId = (w, kind) => { w.next[kind] = (w.next[kind] || 0) + 1; return `${kind}${w.next[kind]}`; };
+export const note = (w, game, text) => { w.log.push({ day: game.clock.day, text }); while (w.log.length > 60) w.log.shift(); };
 
 // ---- the ground: who holds what
 export const controllerOf = (game, p) => warOf(game)?.control?.[p.id] ?? p.country;
+/** Ground changes hands: recorded once (only provinces away from their own country are kept), remembered for the counter-attack, and its garrison starts again from nothing. */
+export function setControl(game, pid, country) {
+  const w = warOf(game); const p = provinceById(pid); const old = controllerOf(game, p); if (old === country) return;
+  if (country === p.country) delete w.control[pid]; else w.control[pid] = country;
+  w.flipped[pid] = game.clock.day; w.lost.push({ pid, from: old, to: country, day: game.clock.day, hour: nowHour(game) }); while (w.lost.length > 40) w.lost.shift();
+  hooks.controlChanged?.(game, p, old, country);
+}
 // ---- supply, weather, intelligence (src/war/supply.js): recomputed from the ground and the day, never saved
 export const ctlOf = (game) => (p) => controllerOf(game, p);
 export const weatherNow = (game, p) => weatherOf(p, game.clock.day);
@@ -64,10 +71,11 @@ const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.s
 
 /** What a province holds while its own country holds it: from its fort, its victory points, its size and its infrastructure, with a spread by the province's own hash. Taken ground holds nothing. */
 export function garrisonOf(game, p) {
-  if (controllerOf(game, p) !== p.country) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a formation stands on it
+  const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
+  if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread));
-  const armour = (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
+  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown));
+  const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
 }
 
@@ -172,10 +180,10 @@ const warBetween = (game, a, b) => (game.corp?.geo?.peek?.()?.events || []).some
 export function theatres(game) {
   return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.split(/\s*\+\s*/).includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
 }
-const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
-const inTheatre = (th) => (p) => th.states.includes(p.state);
-function staging(game, th, side) {
-  const here = provinces().filter((p) => inTheatre(th)(p) && controllerOf(game, p) === side && p.country === side);
+export const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
+export const inTheatre = (th) => (p) => th.states.includes(p.state);
+function staging(game, th, side, anyOwner = false) {
+  const here = provinces().filter((p) => inTheatre(th)(p) && controllerOf(game, p) === side && (anyOwner || p.country === side));
   here.sort((a, b) => ((b.port ? 2 : 0) + (b.capital ? 2 : 0) + b.infra) - ((a.port ? 2 : 0) + (a.capital ? 2 : 0) + a.infra) || (a.id < b.id ? -1 : 1));
   return here[0] || null;
 }
@@ -189,7 +197,7 @@ export function enlist(game, { theatre, side }) {
   if (!th.hot) return { ok: false, text: `${th.name}: nobody is fighting there yet.` };
   const st = staging(game, th, side); if (!st) return { ok: false, text: `${countryName(side)} holds no ground in ${th.name} to land you on.` };
   const enemy = th.between.find((c) => c !== side);
-  w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
+  w.employer = { theatre: th.id, side, enemy, since: game.clock.day, staging: st.id }; w.ai = null; w.lost = []; w.flipped = {}; note(w, game, `You enlist with ${countryName(side)} in ${th.name} (against ${countryName(enemy)}).`);
   return { ok: true, text: `You serve ${countryName(side)} against ${countryName(enemy)} in ${th.name}. Landing at ${st.name}.` };
 }
 export function discharge(game) {
@@ -312,6 +320,17 @@ export function advance(game) {
   w.hour = to;
 }
 
+/** The landing must be on ground the employer still holds; if it falls, the next best ground takes its place; if nothing is left the employer is beaten, the contract ends and what is in the theatre is shipped home. */
+export function ensureEmployer(game) {
+  const w = warOf(game); const e = w?.employer; if (!e) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging);
+  if (controllerOf(game, cur) === e.side) return;
+  const next = staging(game, th, e.side, true);
+  if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
+  note(w, game, `${countryName(e.side)} has lost all its ground in ${th.name}: the contract is over.`); game.notify?.(`${countryName(e.side)} has collapsed in ${th.name}. Your battalions are being brought home.`, 'bad');
+  for (const bn of w.battalions) if (bn.status === 'theatre' && !bn.engaged) { const days = sealDays(provinceById(bn.pos), provinceById(bn.home)); bn.status = 'returning'; bn.arrive = nowHour(game) + days * 24; bn.target = bn.home; bn.order = { type: 'hold' }; bn.moving = null; }
+  if (!w.battalions.some((b) => b.status === 'theatre')) { w.employer = null; w.ai = null; }
+}
+
 /** Once a day: the employer's retainer for every battalion in the theatre, and rest for those not on the move. */
 export function dayTick(game) {
   const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return;
@@ -329,7 +348,7 @@ export function dayTick(game) {
       if (sup * 100 < WEAKEN.low) bn.org = Math.max(0, bn.org - WEAKEN.drain); if (sup * 100 < WEAKEN.full) bn.org = Math.max(0, bn.org - wx.org);
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
-  if (w.employer) hooks.aiDay?.(game, w);
+  if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
   if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
@@ -339,10 +358,10 @@ function resolved(game, C, eng, R) {
   const prov = provinceById(eng.strategic.prov); const obj = R.objectives; bn.engaged = null; bn.order = { type: 'hold' }; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[obj]);
   let line = `${bn.name} at ${prov.name}: `;
   if (eng.strategic.defend) {
-    if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj); }
+    if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj, prov.id); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj, prov.id); }
   } else if (obj >= 2) {
     hooks.attackWon?.(game, prov);
-    w.control[prov.id] = w.employer.side; bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
+    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
     const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
     line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;
@@ -356,16 +375,17 @@ function resolved(game, C, eng, R) {
 }
 /** A province is lost with a battalion of yours in it: the enemy takes it and the battalion falls back to the best ground next door (or, cut off, to the landing). */
 function fallBack(game, w, bn, prov, obj) {
-  w.control[prov.id] = w.employer.enemy; const P = provinces(); const th = theatreOf(game, w.employer.theatre);
+  setControl(game, prov.id, w.employer.enemy); const P = provinces(); const th = theatreOf(game, w.employer.theatre);
   const next = prov.neighbours.map((n) => P[n]).filter((q) => inTheatre(th)(q) && controllerOf(game, q) === w.employer.side).sort((a, b) => supplyAt(game, b) - supplyAt(game, a) || (a.id < b.id ? -1 : 1))[0] || provinceById(w.employer.staging);
   bn.pos = next.id; bn.path = []; bn.moving = null; bn.org = Math.max(0, bn.org - 10);
   return `${obj === 1 ? 'the line gives way' : 'overrun'}: ${prov.name} is lost and the battalion falls back to ${next.name}.`;
 }
 function withdrawn(game, C, eng) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === eng.strategic?.bn); if (!bn) return;
-  if (eng.strategic.defend) { const prov = provinceById(eng.strategic.prov); bn.engaged = null; bn.order = { type: 'hold' }; const line = fallBack(game, w, bn, prov, 0); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, 0); note(w, game, `${bn.name} gives up ${prov.name}: ${line}`); return; }
+  if (eng.strategic.defend) { const prov = provinceById(eng.strategic.prov); bn.engaged = null; bn.order = { type: 'hold' }; const line = fallBack(game, w, bn, prov, 0); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, 0, prov.id); note(w, game, `${bn.name} gives up ${prov.name}: ${line}`); return; }
   bn.engaged = null; bn.org = Math.max(0, bn.org - BATTALION.afterBattle[1] / 2); bn.order = { type: 'hold' }; note(w, game, `${bn.name} breaks off at ${provinceById(eng.strategic.prov).name}.`);
 }
+hooks.controlChanged = () => {};
 hooks.strategicResolved = resolved; hooks.strategicWithdrawn = withdrawn;
 hooks.strategicForceMod = (game, eng, people) => {
   const bn = warOf(game)?.battalions.find((b) => b.id === eng.strategic.bn); if (!bn) return; const sup = supplyAt(game, provinceById(bn.pos)); if (sup >= WEAKEN.full) return;
