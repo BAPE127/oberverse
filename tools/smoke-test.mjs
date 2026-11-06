@@ -452,7 +452,7 @@ try {
     const text = document.querySelector('#modal-body')?.textContent || '';
     out.company = /Smoke Test Company/.test(text);
     out.guide = /Getting started: your first building/.test(text) && /Order the site office/.test(text) && /Hollowmoor Lot/.test(text); // v0.103.1: the first steps are laid out with their buttons
-    out.noPages = !document.querySelector('#modal-body .tb-seg'); // v0.103.2: the tablet only founds the company; the business is run from the command terminal
+    out.noPages = ![...document.querySelectorAll('#modal-body .tb-seg button')].some((b) => /Transfers|Production|Contracts/.test(b.textContent)); // v0.103.2: the tablet only founds the company; the business is run from the command terminal
     // v0.103.2: the command terminal in the site office: its pages (the old Military app pages, the Overview and the new Supply page) all open
     ui.termPage = null; ui.milSub = null; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 250));
     out.terminal = Boolean(document.querySelector('.mt-nav')) && /Smoke Test Company/.test(document.querySelector('.mt-main')?.textContent || '') && /Stage 1/.test(document.querySelector('.mt-main')?.textContent || '') && document.querySelector('#modal-panel')?.classList.contains('milterm-panel');
