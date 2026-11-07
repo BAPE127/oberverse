@@ -137,9 +137,12 @@ export function renderSquadBoard(cx, box) {
   box.append(h('div', { style: 'height:8px' }), h('div', { class: 'osx-ctl', style: 'margin-bottom:8px' },
     btn(auto ? '✓ Automatic squads: on' : 'Automatic squads: off', () => cx.go(W.setAutoSquads(!auto)), { kind: auto ? 'pri sm' : 'sm', title: 'Trained soldiers join a squad and are armed each morning' }), btn('Place everyone now', () => cx.go(W.organise()), { kind: 'sm' }),
     btn('+ Form a squad', () => { const r = W.squadCreate(); if (r.ok) B.sel = r.id; cx.go(r); }, { kind: 'sm', disabled: squads.length >= SQUAD.names.length })));
+  // hire into the squad you chose, or the one you have open: unless it is away or full, when the recruit is simply placed automatically
+  const want = B.hireTo === 'auto' ? null : squads.find((q) => q.id === (B.hireTo || B.sel));
+  const hireTarget = want && want.status === 'home' && want.size + (want.incoming || []).length < SQUAD.max ? want.id : null;
   const left = h('div', { class: 'osx-side', style: 'overflow:visible' },
     panel('Squad board', squads.length ? [h('div', { class: 'osx-sqgrid' }, ...squads.map((q) => squadCard(cx, q, P, E, q.id === B.sel)))] : [empty('No squads yet. Form one, or hire a soldier and turn on automatic squads.')], { sub: 'Click a squad to open it. Dashed places are recruits in training who will join on the day it ends.' }),
-    hirePanel(cx, P, B.hireTo === 'auto' ? null : (B.hireTo || B.sel)),
+    hirePanel(cx, P, hireTarget),
     loadouts(cx, P));
   const cur = squads.find((q) => q.id === B.sel);
   box.append(h('div', { class: 'osx-grid osx-gs', style: 'grid-template-columns:minmax(0,1fr) 392px' }, left, cur ? detail(cx, cur, P, E) : h('div', { class: 'osx-side' }, panel('Squad', [empty('Open a squad to see who is in it, give it a look, and assign vehicles.')]))));

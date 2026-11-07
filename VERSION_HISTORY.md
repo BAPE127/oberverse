@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.103.6 | 2026-11-07 | development | 1 | War, the base as a base: every troop class hireable and hired into squads while training; the squad board; factory floors; vehicles and aircraft parked in the base; Hollowmoor Lot redrawn as a military base with an airfield and runway. Saves gain an optional `joins` on a person (older saves load unchanged). |
 | 0.103.5 | 2026-11-07 | development | 1 | War, troops and battalions in the terminal, and the income rules: hire, squads, battalions, designer and enlisting from Base Operations; a soldier in the field earns one figure (33,500 a day), so the bare minimum earns at least 2,000,000 in 5 days and a full base about 20,000,000. No save change. |
 | 0.103.4 | 2026-11-07 | development | 1 | War, the command terminal rebuilt: one terminal with seven sections in an intelligence-terminal look, opened from a minimal OberPad app; real procurement orders with delivery days; every theater inspectable; and the save quota and delete fix. Saves may gain `company.orders` and `company.orderTokens`. |
 | 0.103.3 | 2026-11-07 | development | 1 | War, the streamlined terminal: five pages (Home, Troops, Stores, Missions, Map) on the command terminal and on the OberPad, squads that fill themselves, one stepper per item in Stores, and stores that hold any amount. Saves may gain `company.autoSquads`. |

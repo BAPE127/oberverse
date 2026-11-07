@@ -3,7 +3,8 @@
 import { drawSoldier } from '../../engine/drawSoldiers.js';
 import { shade } from '../../engine/drawFleet.js';
 import { LOOKS, DEFAULT_LOOK } from '../../content/troops.js';
-export { specId, isHeli, paintMachine } from '../../engine/drawParked.js';
+import { specId, isHeli, paintMachine } from '../../engine/drawParked.js';
+export { specId, isHeli, paintMachine };
 
 /** The class glyph for a slot of a squad board (one letter each, so twelve fit a card). */
 export const GLYPH = { rifleman: 'R', machine_gunner: 'MG', anti_tank: 'AT', marksman: 'M', medic: '+', engineer: 'E', signaller: 'S', officer: '★', recon: 'RC', uav: 'U' };

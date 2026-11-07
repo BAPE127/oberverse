@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.6',
+    date: '2026-11-07',
+    channel: 'development',
+    title: 'War: The Base as a Base',
+    notes: [
+      'Every troop class can be hired: marksmen, combat engineers, signallers, recon, UAV operators and machine gunners as well as riflemen, medics, officers and anti-tank. A recruit can be hired straight into a squad: it holds a place while it trains and joins the morning training ends.',
+      'The squad screen is a board of cards like the aerospace hangar bays: each squad shows its patch, its soldiers painted in its colours, its twelve places and its vehicles; open one to change its look and see the result at once.',
+      'The tank factory and helicopter works are floors: a bay for each line with the machine on it, parts lamps, shifts and crew. Finished vehicles and aircraft are shown in the terminal and parked in the base.',
+      'Hollowmoor Lot is now a military base: a fenced compound with guard towers, a vehicle yard, a parade ground, a fuel dump, buildings that look like what they are, and an airfield with hangars, an apron, helipads and a runway. The base map in the terminal matches it.',
+    ],
+  },
+  {
     version: '0.103.5',
     date: '2026-11-07',
     channel: 'development',
