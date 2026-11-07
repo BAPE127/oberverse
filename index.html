@@ -80822,17 +80822,19 @@ function status(cx, f) {
 const COLOUR = { ok: ['#27402a', '#7fae5e'], full: ['#4a3d16', '#d4a23c'], damaged: ['#4a3d16', '#d4a23c'], ruin: ['#4a2420', '#c8523f'], build: ['#1c3340', '#5f93a8'], site: ['#101714', '#34443b'] };
 
 function mapFor(cx) {
-  const { S } = cx; const B = state(S);
-  if (S.maps.base) return S.maps.base;
-  const mv = new MapView({
-    min: 3, max: 60,
-    draw: (ctx, V) => drawBase(ctx, V, cx), click: (wx, wy) => { const f = at(wx, wy); const bs = state(cx.S); bs.sel = f ? f.id : null; cx.refresh(); },
-    hover: (wx, wy) => { const f = at(wx, wy); return f ? `${f.name} · ${status(cx, f).label}` : null; },
-  });
-  mv.fit(0, 0, HM_W, HM_H);
-  const at = (wx, wy) => { const fac = cx.W.facilities(); for (const f of fac) { const [x, y, w, hh] = SLOTS[f.slot]; if (wx >= x && wx < x + w && wy >= y && wy < y + hh) return f; } return null; };
-  mv.tools.append(btn('+', () => mv.zoomBy(1.3), { kind: 'sm' }), btn('−', () => mv.zoomBy(1 / 1.3), { kind: 'sm' }), btn('Fit', () => { mv.applyFit(); }, { kind: 'sm' }));
-  S.maps.base = mv; void B; return mv;
+  const { S } = cx;
+  const mv = S.maps.base || new MapView({ min: 3, max: 60, draw: () => {} });
+  const at = (wx, wy) => { for (const f of cx.W.facilities()) { const [x, y, w, hh] = SLOTS[f.slot]; if (wx >= x && wx < x + w && wy >= y && wy < y + hh) return f; } return null; };
+  // handlers are set on every render so they always belong to the terminal that is open now
+  mv.o.draw = (ctx, V) => drawBase(ctx, V, cx);
+  mv.o.click = (wx, wy) => { const f = at(wx, wy); state(cx.S).sel = f ? f.id : null; cx.refresh(); };
+  mv.o.hover = (wx, wy) => { const f = at(wx, wy); return f ? `${f.name} · ${status(cx, f).label}` : null; };
+  if (!S.maps.base) {
+    mv.fit(0, 0, HM_W, HM_H);
+    mv.tools.append(btn('+', () => mv.zoomBy(1.3), { kind: 'sm' }), btn('−', () => mv.zoomBy(1 / 1.3), { kind: 'sm' }), btn('Fit', () => { mv.applyFit(); }, { kind: 'sm' }));
+    S.maps.base = mv;
+  }
+  return mv;
 }
 
 function drawBase(ctx, V, cx) {
@@ -81555,7 +81557,9 @@ const MIN = { h1: 60, h6: 360 };
 
 function osintTerminalPanel(ui, body, opts = {}) {
   const g = ui.game; const W = g.war;
-  const S = (ui.osx ||= { section: 'overview', maps: {}, msg: null });
+  // a different game (a save was loaded) starts the terminal afresh: nothing of the old one may be reused
+  if (ui.osx && ui.osx.game !== g) { for (const m of Object.values(ui.osx.maps || {})) m.unmount?.(); ui.osx = null; }
+  const S = (ui.osx ||= { section: 'overview', maps: {}, msg: null, game: g });
   if (opts.section && SECTIONS.some((x) => x.id === opts.section)) S.section = opts.section;
   // an engagement opened from the strategic map ("Decide the battle") lands on Mission Control
   if (ui.milSub === 'Engagement' && ui.milEng) { S.section = 'missions'; S.mission = { kind: 'engagement', id: ui.milEng }; ui.milSub = null; }
@@ -81588,7 +81592,8 @@ function osintTerminalPanel(ui, body, opts = {}) {
     };
     topBar(); step();
   }
-  const toMorning = () => { const m = g.clock.minuteOfDay; return m < 360 ? 360 - m : 1440 - m + 360; };
+  // (the company's day runs at 06:11: orders arrive, wages are paid, construction advances; so the morning ends at 06:15)
+  const toMorning = () => { const m = g.clock.minuteOfDay; return m < 375 ? 375 - m : 1440 - m + 375; };
 
   function topBar() {
     const B = W.briefing(); top.replaceChildren();
@@ -81601,7 +81606,7 @@ function osintTerminalPanel(ui, body, opts = {}) {
       f('Date / time', `Day ${g.clock.day} · ${g.clock.timeString}`), f('Operations', String(B.missions.active), B.missions.active ? 'ok' : ''), f('Readiness', `${B.readiness}%`, rtone),
       f('Base', !B.base.online ? 'not built' : !B.base.protectedBase ? 'AT RISK' : B.base.damaged ? `${B.base.damaged} damaged` : `${B.base.built}/${B.base.total} built`, baseTone),
       h('div', { class: 'osx-sp' }),
-      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : '⏭ Next morning', () => pass(toMorning()), { kind: 'pri sm', disabled: Boolean(ff), title: 'Let time pass until 06:00, when orders arrive and the day\'s business is done' })),
+      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : '⏭ Next morning', () => pass(toMorning()), { kind: 'pri sm', disabled: Boolean(ff), title: 'Let time pass until 06:15, after the company\'s day: orders arrive, wages are paid, construction moves on' })),
       btn('✕ Close', () => ui.closePanel()));
   }
 

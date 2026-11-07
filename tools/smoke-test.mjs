@@ -451,25 +451,53 @@ try {
     while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 300));
     const text = document.querySelector('#modal-body')?.textContent || '';
     out.company = /Smoke Test Company/.test(text);
-    out.guide = /Getting started/.test(text) && /Site office/.test(text) && /Hollowmoor Lot/.test(text); // v0.103.1: the first steps are laid out with their buttons
-    // v0.103.3: the Military app on the OberPad shows the same five pages as the command terminal
-    const tabs = [...document.querySelectorAll('#modal-body .tb-seg button')].map((b) => b.textContent.replace(/\d+$/, '').trim());
-    out.fivePages = ['Home', 'Troops', 'Stores', 'Missions', 'Map'].every((t) => tabs.includes(t));
-    for (const [page, re] of [['Troops', /soldiers in/], ['Stores', /What the company keeps/], ['Missions', /Security contracts/]]) {
-      ui.milPage = page; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
-      out[`tablet_${page}`] = re.test(document.querySelector('#modal-body')?.textContent || '');
+    // v0.103.4: the OberPad's Military app is minimal and opens the command terminal
+    out.tabletMinimal = !document.querySelector('#modal-body .tb-seg') || ![...document.querySelectorAll('#modal-body .tb-seg button')].some((b) => /Troops|Stores|Missions/.test(b.textContent));
+    const openBtn = [...document.querySelectorAll('#modal-body button')].find((b) => /Open the command terminal/.test(b.textContent));
+    out.tabletButton = Boolean(openBtn); openBtn?.click(); await new Promise((r) => setTimeout(r, 400));
+    out.terminalOpens = Boolean(document.querySelector('.osx-nav')) && document.querySelector('#modal-panel')?.classList.contains('osx-panel');
+    // the seven sections, each one drawn with its own content and no error
+    const SEC = [['Command Overview', /Operational summary/], ['Base Operations', /Base map/], ['Procurement', /Supplier marketplace/], ['Internal Logistics', /Your businesses|Transfer from my businesses/], ['Mission Control', /Mission/], ['Global Intelligence', /World map/], ['Theater Operations', /Theaters/]];
+    out.sevenInRail = [...document.querySelectorAll('.osx-nav button')].length === 7;
+    for (const [name, re] of SEC) {
+      [...document.querySelectorAll('.osx-nav button')].find((b) => b.textContent.includes(name))?.click(); await new Promise((r) => setTimeout(r, 450));
+      out[`osx_${name}`] = re.test(document.querySelector('.osx-main')?.textContent || '') && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');
     }
-    // v0.103.2: the command terminal in the site office: five pages, the same ones
-    ui.milPage = null; ui.milSub = null; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 250));
-    out.terminal = document.querySelectorAll('.mt-nav .mt-item').length === 5 && /Smoke Test Company/.test(document.querySelector('.mt-main')?.textContent || '') && /Buildings/.test(document.querySelector('.mt-main')?.textContent || '') && document.querySelector('#modal-panel')?.classList.contains('milterm-panel');
-    for (const [page, re] of [['Troops', /soldiers in/], ['Stores', /What the company keeps/], ['Missions', /Security contracts/]]) {
-      [...document.querySelectorAll('.mt-nav .mt-item')].find((b) => b.textContent.startsWith(page))?.click(); await new Promise((r) => setTimeout(r, 200));
-      out[`terminal_${page}`] = re.test(document.querySelector('.mt-main')?.textContent || '');
-    }
+    out.topBar = /Funds/.test(document.querySelector('.osx-top')?.textContent || '') && /Readiness/.test(document.querySelector('.osx-top')?.textContent || '') && /Operations/.test(document.querySelector('.osx-top')?.textContent || '');
+    // Base Operations: the map is a canvas and a facility can be selected (by the same state a click sets) and expanded
+    ui.osx.section = 'base'; ui.osx.base = { tab: 'map', sel: 'site_office' }; ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 500));
+    out.baseMap = Boolean(document.querySelector('.osx-mapbox canvas')) && /Site office/.test(document.querySelector('.osx-main')?.textContent || '') && /Facility type/.test(document.querySelector('.osx-main')?.textContent || '');
+    // Procurement: a cart, a review and a confirmed order that takes the money once; the goods arrive on their day when time is passed with the terminal's own control
+    const cash0 = g.war.cash(); const sup = g.war.suppliers().find((x) => x.id === 'caldera_field_supply'); const un = sup.items.find((i) => i.item === 'uniform');
+    ui.osx.section = 'procurement'; ui.osx.proc = { supplier: 'all', cat: 'all', q: '', sel: null, qty: {}, cart: [{ supplier: sup.id, id: un.id, qty: 12 }], review: true, token: 'smoke-1', tab: 'market' };
+    ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 450));
+    out.cartShown = /Order summary/.test(document.querySelector('.osx-main')?.textContent || '');
+    const conf = [...document.querySelectorAll('.osx-side button')].find((b) => /Confirm purchase/.test(b.textContent)); conf?.click(); await new Promise((r) => setTimeout(r, 300));
+    out.orderPaid = g.war.cash() === cash0 - 12 * un.price && g.war.orders().transit.length === 1;
+    const u0 = g.war.stock()['supply:uniform'] || 0;
+    const nm = [...document.querySelectorAll('.osx-top button')].find((b) => /Next morning/.test(b.textContent)); nm?.click(); for (let i = 0; i < 80; i++) { await new Promise((r) => setTimeout(r, 250)); if (!/Time passing/.test(document.querySelector('.osx-top')?.textContent || '')) break; } await new Promise((r) => setTimeout(r, 300));
+    out.timePassed = (g.war.stock()['supply:uniform'] || 0) === u0 + 12 && g.war.orders().delivered.length === 1;
+    // Internal Logistics: a free transfer from the Arms works moves goods and no money
+    g.setFlag('owns_aw1', true); const cage = g.world.containers.ct_aw1_cage; cage.items.item_pistol = 10;
+    const w0 = g.war.cash(); const p0 = player0(g);
+    function player0(gg) { return gg.player.money; }
+    ui.osx.section = 'logistics'; ui.osx.log = { tab: 'transfer', source: 'arms:aw1', sel: 'arms:aw1:item_pistol', qty: 4, review: true, busy: false }; ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 450));
+    [...document.querySelectorAll('.osx-side button')].find((b) => /Confirm free transfer/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 300));
+    out.transferFree = g.war.cash() === w0 && g.player.money === p0 && cage.items.item_pistol === 6 && (g.war.stock()['arms:aw1:item_pistol'] || 0) === 4;
+    // Global Intelligence with a war on the record: the overlays draw
+    g.world.market.wars = [{ a: 'ostmark', b: 'varn', since: g.clock.day }]; g.corp.geo.ensure().lastDay = 0; g.corp.geo.dailyTick(); // (what the debug command `war ostmark varn` does, then the geopolitical record's own morning tick)
+    ui.osx.section = 'intel'; ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 700));
+    out.worldMap = Boolean(document.querySelector('.osx-mapbox canvas')) && /Ostmark Union and Varnistan/.test(document.querySelector('.osx-main')?.textContent || '');
+    // Theater Operations: a theater the company is NOT in loads, and a front can be selected
+    ui.osx.section = 'theaters'; ui.osx.theatre = 'th_halden'; ui.osx.thp = { tab: 'fronts', front: null, prov: null }; ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 6500));
+    out.theatreObserved = /You are observing/.test(document.querySelector('.osx-main')?.textContent || '') && Boolean(document.querySelector('.osx-mapbox canvas'));
+    [...document.querySelectorAll('.osx-main .osx-row.tap')].find((x) => /front/i.test(x.textContent))?.click(); await new Promise((r) => setTimeout(r, 400));
+    out.frontSelected = /Provinces on the line/.test(document.querySelector('.osx-main')?.textContent || '');
+    ui.osx = null; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('tablet', { tab: 'Military' }); await new Promise((r) => setTimeout(r, 250));
     // v0.100.0: an engagement is planned from a screen that says what is missing (nothing is spawned)
     const Cmp = g.war.state().company; (Cmp.engagements ||= []).push({ id: 'Nsmoke', kind: 'hold', title: 'Hold Smoke Crossing', text: 'x', client: 'The Ostmark Union', place: 'Smoke Crossing', terrain: 'rural', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 12, armour: 1, air: 0, skill: 1 }, pay: 90000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
-    ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; ui.milPage = 'Missions'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 250));
-    out.Engagement = /One way or the other/.test(document.querySelector('.mt-main')?.textContent || '');
+    ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 450));
+    out.Engagement = /One way or the other/.test(document.querySelector('.osx-main')?.textContent || '');
     // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors
     for (const recipe of ['city', 'fields']) {
       const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
@@ -489,11 +517,11 @@ try {
     [...document.querySelectorAll('.stc-modal button')].find((b) => /Close/.test(b.textContent))?.click(); [...document.querySelectorAll('.stc-left button')].find((b) => /Raise a battalion/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 150));
     out.strategic_raise = /RAISE A BATTALION/.test(document.querySelector('.stc-modal')?.textContent || '') && /WHAT THIS NEEDS/.test(document.querySelector('.stc-modal')?.textContent || '');
     ui.closePanel();
-    ui.milSub = null; ui.milPage = null;
+    ui.milSub = null; ui.osx = null;
     ui.milTab = 'Company';
     return out;
   });
-  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the Military app registers a company, shows the first steps and the five pages, and the command terminal opens the same pages', Object.values(war).every(Boolean), JSON.stringify(war));
+  record('Fort Gullcrest and Hollowmoor Lot load and draw, and the minimal OberPad app opens the command terminal, whose seven sections, base map, procurement order, free transfer, time controls, world map and an uninvolved theater all work', Object.values(war).every(Boolean), JSON.stringify(war));
   // v0.93.1: the Crown Gate, the Crown Quarter and Halver House's lobby draw without errors
   const crown = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game;

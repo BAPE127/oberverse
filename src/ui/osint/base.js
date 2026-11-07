@@ -44,17 +44,19 @@ function status(cx, f) {
 const COLOUR = { ok: ['#27402a', '#7fae5e'], full: ['#4a3d16', '#d4a23c'], damaged: ['#4a3d16', '#d4a23c'], ruin: ['#4a2420', '#c8523f'], build: ['#1c3340', '#5f93a8'], site: ['#101714', '#34443b'] };
 
 function mapFor(cx) {
-  const { S } = cx; const B = state(S);
-  if (S.maps.base) return S.maps.base;
-  const mv = new MapView({
-    min: 3, max: 60,
-    draw: (ctx, V) => drawBase(ctx, V, cx), click: (wx, wy) => { const f = at(wx, wy); const bs = state(cx.S); bs.sel = f ? f.id : null; cx.refresh(); },
-    hover: (wx, wy) => { const f = at(wx, wy); return f ? `${f.name} · ${status(cx, f).label}` : null; },
-  });
-  mv.fit(0, 0, HM_W, HM_H);
-  const at = (wx, wy) => { const fac = cx.W.facilities(); for (const f of fac) { const [x, y, w, hh] = SLOTS[f.slot]; if (wx >= x && wx < x + w && wy >= y && wy < y + hh) return f; } return null; };
-  mv.tools.append(btn('+', () => mv.zoomBy(1.3), { kind: 'sm' }), btn('−', () => mv.zoomBy(1 / 1.3), { kind: 'sm' }), btn('Fit', () => { mv.applyFit(); }, { kind: 'sm' }));
-  S.maps.base = mv; void B; return mv;
+  const { S } = cx;
+  const mv = S.maps.base || new MapView({ min: 3, max: 60, draw: () => {} });
+  const at = (wx, wy) => { for (const f of cx.W.facilities()) { const [x, y, w, hh] = SLOTS[f.slot]; if (wx >= x && wx < x + w && wy >= y && wy < y + hh) return f; } return null; };
+  // handlers are set on every render so they always belong to the terminal that is open now
+  mv.o.draw = (ctx, V) => drawBase(ctx, V, cx);
+  mv.o.click = (wx, wy) => { const f = at(wx, wy); state(cx.S).sel = f ? f.id : null; cx.refresh(); };
+  mv.o.hover = (wx, wy) => { const f = at(wx, wy); return f ? `${f.name} · ${status(cx, f).label}` : null; };
+  if (!S.maps.base) {
+    mv.fit(0, 0, HM_W, HM_H);
+    mv.tools.append(btn('+', () => mv.zoomBy(1.3), { kind: 'sm' }), btn('−', () => mv.zoomBy(1 / 1.3), { kind: 'sm' }), btn('Fit', () => { mv.applyFit(); }, { kind: 'sm' }));
+    S.maps.base = mv;
+  }
+  return mv;
 }
 
 function drawBase(ctx, V, cx) {

@@ -24,7 +24,9 @@ const MIN = { h1: 60, h6: 360 };
 
 export function osintTerminalPanel(ui, body, opts = {}) {
   const g = ui.game; const W = g.war;
-  const S = (ui.osx ||= { section: 'overview', maps: {}, msg: null });
+  // a different game (a save was loaded) starts the terminal afresh: nothing of the old one may be reused
+  if (ui.osx && ui.osx.game !== g) { for (const m of Object.values(ui.osx.maps || {})) m.unmount?.(); ui.osx = null; }
+  const S = (ui.osx ||= { section: 'overview', maps: {}, msg: null, game: g });
   if (opts.section && SECTIONS.some((x) => x.id === opts.section)) S.section = opts.section;
   // an engagement opened from the strategic map ("Decide the battle") lands on Mission Control
   if (ui.milSub === 'Engagement' && ui.milEng) { S.section = 'missions'; S.mission = { kind: 'engagement', id: ui.milEng }; ui.milSub = null; }
@@ -57,7 +59,8 @@ export function osintTerminalPanel(ui, body, opts = {}) {
     };
     topBar(); step();
   }
-  const toMorning = () => { const m = g.clock.minuteOfDay; return m < 360 ? 360 - m : 1440 - m + 360; };
+  // (the company's day runs at 06:11: orders arrive, wages are paid, construction advances; so the morning ends at 06:15)
+  const toMorning = () => { const m = g.clock.minuteOfDay; return m < 375 ? 375 - m : 1440 - m + 375; };
 
   function topBar() {
     const B = W.briefing(); top.replaceChildren();
@@ -70,7 +73,7 @@ export function osintTerminalPanel(ui, body, opts = {}) {
       f('Date / time', `Day ${g.clock.day} · ${g.clock.timeString}`), f('Operations', String(B.missions.active), B.missions.active ? 'ok' : ''), f('Readiness', `${B.readiness}%`, rtone),
       f('Base', !B.base.online ? 'not built' : !B.base.protectedBase ? 'AT RISK' : B.base.damaged ? `${B.base.damaged} damaged` : `${B.base.built}/${B.base.total} built`, baseTone),
       h('div', { class: 'osx-sp' }),
-      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : '⏭ Next morning', () => pass(toMorning()), { kind: 'pri sm', disabled: Boolean(ff), title: 'Let time pass until 06:00, when orders arrive and the day\'s business is done' })),
+      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : '⏭ Next morning', () => pass(toMorning()), { kind: 'pri sm', disabled: Boolean(ff), title: 'Let time pass until 06:15, after the company\'s day: orders arrive, wages are paid, construction moves on' })),
       btn('✕ Close', () => ui.closePanel()));
   }
 
