@@ -1,0 +1,71 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Streamlined command terminal mock-up (v0.103.3)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 1500px; height: 760px; background: #05051a; color: #e8eaf6; font: 14px/1.4 system-ui, sans-serif; display: flex; gap: 24px; padding: 20px; }
+  .term { width: 1000px; height: 720px; border: 2px solid #2d2a6e; border-radius: 12px; background: #0b0a24; overflow: hidden; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; gap: 22px; padding: 10px 16px; background: #0c0a24; border-bottom: 2px solid #2d2a6e; }
+  .top h1 { margin: 0; font-size: 16px; letter-spacing: .06em; color: #ffe27a; } .top small { display: block; font-size: 10px; letter-spacing: .08em; color: #a8a6d8; } .top b { font-size: 17px; color: #ffe27a; } .sp { flex: 1; }
+  .x { padding: 5px 11px; border: 2px solid #3a3794; border-radius: 8px; background: #1c1a52; }
+  .wrap { display: grid; grid-template-columns: 150px 1fr; flex: 1; min-height: 0; }
+  nav { padding: 10px; border-right: 2px solid #2d2a6e; background: #0f0d30; display: grid; gap: 8px; align-content: start; }
+  nav div { padding: 12px; border: 2px solid #2d2a6e; border-radius: 10px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+  nav div.on { border-color: #ffe066; background: #1c1a52; } nav em { font-style: normal; font-size: 11px; background: #5a2a1a; color: #ffb070; border-radius: 9px; padding: 1px 7px; }
+  main { padding: 14px 18px; overflow: hidden; }
+  h2 { margin: 0 0 8px; font-size: 18px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .btn { padding: 7px 12px; border-radius: 9px; border: 2px solid #3a3794; background: #1c1a52; font-size: 13px; } .btn.pri { border-color: #ffe066; color: #ffe066; } .btn small { color: #a8a6d8; }
+  .sq { border: 2px solid #2d2a6e; border-radius: 12px; padding: 10px 12px; margin-bottom: 9px; background: #131238; }
+  .sq .h { display: flex; justify-content: space-between; align-items: baseline; } .sq b { font-size: 15px; } .sq .mut { color: #a8a6d8; font-size: 12px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; } .chip { padding: 2px 9px; border-radius: 12px; background: #1c1a52; font-size: 12px; } .chip.bad { background: #5a2a1a; color: #ffb070; } .chip.ok { background: #1d4d33; color: #8fd9a8; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-top: 1px solid #2d2a6e; } .row .n { flex: 1; font-size: 15px; } .row .st { width: 170px; font-size: 13px; } .ok { color: #8fd9a8; } .warn { color: #ffb070; }
+  .step { display: inline-flex; align-items: center; border: 2px solid #3a3794; border-radius: 9px; overflow: hidden; } .step i { font-style: normal; padding: 5px 11px; background: #1c1a52; } .step b { padding: 5px 12px; min-width: 52px; text-align: center; }
+  .bar { height: 7px; width: 120px; background: #0a0924; border-radius: 4px; overflow: hidden; } .bar i { display: block; height: 100%; background: #4fcf86; } .bar i.s { background: #e0553a; }
+  .sw { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 2px solid #2d2a6e; border-radius: 10px; margin-bottom: 10px; background: #131238; }
+  .tog { width: 44px; height: 24px; border-radius: 12px; background: #1d4d33; position: relative; } .tog:after { content: ''; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 9px; background: #8fd9a8; }
+  .note { margin-top: 10px; color: #a8a6d8; font-size: 12px; }
+  .phone { width: 360px; height: 720px; border: 6px solid #1c1a52; border-radius: 28px; background: #0e0c2c; overflow: hidden; display: flex; flex-direction: column; }
+  .phone .bar2 { padding: 8px 14px; font-size: 11px; color: #a8a6d8; display: flex; justify-content: space-between; } .phone .nav2 { padding: 4px 14px 8px; font-size: 16px; font-weight: 600; }
+  .seg { display: flex; gap: 4px; padding: 0 10px 8px; } .seg div { flex: 1; text-align: center; padding: 7px 0; border-radius: 9px; background: #1c1a52; font-size: 12px; } .seg div.on { background: #ffe066; color: #1a1840; font-weight: 700; }
+  .pc { padding: 4px 12px; overflow: hidden; }
+  .row.p { flex-wrap: wrap; } .row.p .st { width: auto; }
+</style>
+<div class="term">
+  <div class="top"><div><h1>REDFERN SECURITY · COMMAND TERMINAL</h1><small>Hollowmoor Lot · site office</small></div><div class="sp"></div><div><small>CASH</small><b>412,600</b></div><div><small>DAY</small><b>41 · 09:20</b></div><div class="x">✕ Step away</div></div>
+  <div class="wrap">
+    <nav><div>Home</div><div class="on">Troops</div><div>Stores <em>2 short</em></div><div>Missions <em>1</em></div><div>Map</div></nav>
+    <main>
+      <h2>Troops · 14 people in 3 squads</h2>
+      <div class="btns"><span class="btn pri">+ Rifleman <small>170/day</small></span><span class="btn">+ Medic <small>190</small></span><span class="btn">+ Officer <small>320</small></span><span class="btn">+ Anti-tank <small>210</small></span><span class="btn">+ Guard <small>120</small></span><span class="btn">+ Technician <small>150</small></span></div>
+      <div class="sw"><div class="tog"></div><div><b>New soldiers join a squad and are armed automatically</b><div class="mut" style="color:#a8a6d8;font-size:12px">When training ends. Turn off to place people by hand.</div></div></div>
+      <div class="sq"><div class="h"><b>Alpha squad · 8</b><span class="mut">Leader: Capt. Voss · morale 74</span></div><div class="chips"><span class="chip">6 riflemen</span><span class="chip">1 medic</span><span class="chip">1 anti-tank</span><span class="chip">Anvil Mk1 tank</span><span class="chip ok">all armed</span></div></div>
+      <div class="sq"><div class="h"><b>Bravo squad · 5</b><span class="mut">Leader: Lt. Okafor · morale 70</span></div><div class="chips"><span class="chip">4 riflemen</span><span class="chip">1 medic</span><span class="chip bad">2 need a weapon</span></div></div>
+      <div class="sq"><div class="h"><b>Charlie squad · 1</b><span class="mut">no leader yet</span></div><div class="chips"><span class="chip">1 rifleman</span><span class="chip">training until day 43</span></div></div>
+      <div class="note">Tap a squad to change its leader, move people, give a vehicle or change its look. Everyone else (guards, technicians) is listed under "Staff".</div>
+    </main>
+  </div>
+</div>
+<div class="term" style="width:440px">
+  <div class="top"><div><h1>STORES</h1></div><div class="sp"></div><div class="x">✕</div></div>
+  <div class="wrap" style="grid-template-columns:1fr"><main>
+    <h2>What the company keeps</h2>
+    <div class="sw"><div class="tog"></div><div><b>Arms company supplies it, free</b><div style="color:#a8a6d8;font-size:12px">Your arms works ship what they make to meet these levels.</div></div></div>
+    <div class="row"><div class="n">Assault rifle</div><span class="step"><i>−</i><b>40</b><i>+</i></span><div class="st ok">✓ 40 in stock</div></div>
+    <div class="row"><div class="n">Artillery shell</div><span class="step"><i>−</i><b>200</b><i>+</i></span><div class="st warn">96 · 104 short</div></div>
+    <div class="row"><div class="n">RPG rocket</div><span class="step"><i>−</i><b>30</b><i>+</i></span><div class="st warn">6 · 24 short</div></div>
+    <div class="row"><div class="n"></div><span class="btn pri">Buy the 24 short elsewhere · 5,400</span></div>
+    <div class="row"><div class="n">Guided missile</div><span class="step"><i>−</i><b>4</b><i>+</i></span><div class="st ok">✓ 4 in stock</div></div>
+    <div class="note">Uniforms, rations, medicine, spares and fuel: Buy supplies ›. There is no limit to what the stores can hold.</div>
+  </main></div>
+</div>
+<div class="phone">
+  <div class="bar2"><span>09:20 · Day 41</span><span>412,600 ◎</span></div><div class="nav2">‹ 🪖 Military</div>
+  <div class="seg"><div>Home</div><div class="on">Troops</div><div>Stores</div><div>Missions</div><div>Map</div></div>
+  <div class="pc">
+    <div class="btns"><span class="btn pri">+ Rifleman</span><span class="btn">+ Medic</span><span class="btn">+ Officer</span></div>
+    <div class="sq"><div class="h"><b>Alpha squad · 8</b></div><div class="mut">Capt. Voss · morale 74</div><div class="chips"><span class="chip">6 riflemen</span><span class="chip">1 medic</span><span class="chip ok">armed</span></div></div>
+    <div class="sq"><div class="h"><b>Bravo squad · 5</b></div><div class="mut">Lt. Okafor · morale 70</div><div class="chips"><span class="chip">4 riflemen</span><span class="chip bad">2 need a weapon</span></div></div>
+    <div class="note">The same five pages as the terminal at Hollowmoor, on the OberPad.</div>
+  </div>
+</div>

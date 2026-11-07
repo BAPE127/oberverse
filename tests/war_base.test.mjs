@@ -31,7 +31,7 @@ test('a mess hall gives a hot meal to as many as it seats, which lifts their mor
   assert.ok(avg(b) > avg(a) + 4, `hot meals lift it: ${avg(b).toFixed(1)} against ${avg(a).toFixed(1)}`);
   assert.equal(b.war.baseView().meals, 90);
   // beds: the bunkhouse has twelve
-  const c = warGame(804, { cash: 5_000_000 }); build(c, STAGE1); hireN(c, 'guard', 12); c.war.buySupply('rations', 600);
+  const c = warGame(804, { cash: 5_000_000 }); build(c, STAGE1); hireN(c, 'guard', 12); // (no rations: with the stage 1 stores' old 60-place limit the 600 asked for here were refused, so this base was never fed; v0.103.3's unlimited stores would feed it, so the test says what it always did)
   assert.ok(!c.war.hire('guard').ok && /Every bed is taken/.test(c.war.hire('guard').text), 'the bed limit stops a hire');
   const x = c.war.state().company; x.facilities.find((f) => f.id === 'bunkhouse').state = 'ruin'; // a ruin holds nobody
   days(c, 30); const v = c.war.baseView();

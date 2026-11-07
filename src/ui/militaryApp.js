@@ -1,12 +1,9 @@
-// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1: the company at a glance, in the OberPad pattern). Since v0.103.2 it only FOUNDS the company: register it, pay money in,
-// buy the licence and the lot, order the site office, and see how things stand. The business itself (people, squads, the armoury, supply, generals, contracts, the base's other buildings and the
-// strategic map) is run from the command terminal in the site office at Hollowmoor Lot (src/ui/militaryTerminal.js). Every button calls game.war; nothing here writes the record.
+// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1). Since v0.103.3 it shows the same five pages as the command terminal in the site office
+// (src/ui/militaryPages.js): Home (with the first steps), Troops, Stores, Missions and Map. Every button calls game.war; nothing here writes the record.
 import { h } from './panels.js';
-import { hero, tiles, row, help, fold, note, n } from './tabletKit.js';
+import { hero, note, segments, help } from './tabletKit.js';
+import { PAGES, badges, renderPage } from './militaryPages.js';
 import { LOT } from '../content/facilities.js';
-
-const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
-const STATE = { none: 'not ordered', permit: 'waiting on the permit (the Civic Office stamps it next morning)', foundation: 'foundations', frame: 'frame', fitted: 'fitting out', built: 'built', ruin: 'a ruin' };
 
 export function militaryApp(ui, body, open) {
   const g = ui.game;
@@ -16,48 +13,13 @@ export function militaryApp(ui, body, open) {
   if (nt) body.append(nt);
   const V = W.companyView();
   if (!V) { register(ui, body, go); return; }
-  const cap = W.capacity();
-  const prot = W.baseProtected();
-  body.append(
-    hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. ${V.licensed ? 'Licensed' : 'Not licensed yet'} · ${V.lotOwned ? 'Hollowmoor Lot owned' : 'no ground yet'}.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
-    tiles([{ n: String(n(cap.beds)), t: 'beds' }, { n: String(n(cap.stores)), t: 'stores' }, { n: prot ? 'safe' : 'at risk', t: 'the base', tone: prot ? '' : 'warn' }]));
-  // v0.103.1: getting started: the four steps to a first building, each with its button and the plain reason it cannot be pressed yet
-  const siteOffice = V.lotOwned ? W.facilities().find((f) => f.id === 'site_office') : null;
-  if (!siteOffice || siteOffice.state === 'none') {
-    const costs = { licence: LOT.licence, lot: LOT.price, office: W.quote('site_office')?.cost ?? 20000 }; const need = (V.licensed ? 0 : costs.licence) + (V.lotOwned ? 0 : costs.lot) + costs.office;
-    const step = (done, title, sub, action) => row({ icon: done ? '✅' : '➤', title, sub, tone: done ? 'good' : '', action: done ? null : action });
-    body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'Getting started: your first building'), list(
-      step(V.cash >= need, `Put ${n(need)} obols into the company`, `The company pays for everything itself, from its own account (it holds ${n(V.cash)}). You hold ${n(g.player.money)}.`, h('button', { class: 'tb-mini pri', disabled: g.player.money < need - V.cash, onclick: () => go(W.fund(need - V.cash)) }, `Pay in ${n(Math.max(0, need - V.cash))}`)),
-      step(V.licensed, `Buy the Civic Office licence · ${n(costs.licence)}`, 'The Civic Office\'s paperwork for a private security company. Mason\'s Os cannot get a building permit without it.', h('button', { class: 'tb-mini pri', disabled: V.cash < costs.licence, onclick: () => go(W.buyLicence()) }, 'Buy the licence')),
-      step(V.lotOwned, `Buy Hollowmoor Lot · ${n(costs.lot)}`, V.licensed ? 'Fenced ground with a gate, from the Land Registry: where the base is built.' : 'Needs the licence first: the Land Registry sells only to licensed companies.', h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < costs.lot, onclick: () => go(W.buyLot()) }, 'Buy the lot')),
-      step(false, `Order the site office · ${n(costs.office)}`, V.lotOwned ? 'Mason\'s Os builds it in a few days; the rest of the base opens stage by stage after it.' : 'Needs the lot first.', h('button', { class: 'tb-mini pri', disabled: !V.lotOwned || V.cash < costs.office, onclick: () => go(W.commission('site_office')) }, 'Order it'))));
-  }
-  // money in and out: the only two acts that cross between you and the company
-  const amount = h('input', { type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px;padding:8px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px' });
-  const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
-  body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, h('div', { class: 'tb-btns', style: 'align-items:center' }, amount,
-    h('button', { class: 'tb-btn pri', onclick: () => go(W.fund(amt())) }, 'Pay in'),
-    h('button', { class: 'tb-btn', disabled: V.cash <= 0 || V.arrears > 0, onclick: () => go(W.take(amt())) }, 'Take out'))),
-  h('div', { class: 'tb-sub', style: 'padding:0 6px 6px' }, `You hold ${n(g.player.money)} obols. The company pays only from its own money, never from yours.`));
-  body.append(list(
-    row({ icon: '📜', title: 'Civic Office licence', sub: V.licensed ? 'A private security company, in good standing.' : 'Without it, Mason\'s Os cannot get a building permit.', tag: V.licensed ? '✓' : `${n(LOT.licence)}`, tone: V.licensed ? 'good' : 'warn',
-      action: V.licensed ? null : h('button', { class: 'tb-mini pri', disabled: V.cash < LOT.licence, onclick: () => go(W.buyLicence()) }, 'Buy') }),
-    row({ icon: '🗺️', title: LOT.name, sub: V.lotOwned ? 'Fenced, with a gate. Walk there from the Yards\' west road.' : 'Ground for the base, with a fence and a gate. Needs the licence first.', tag: V.lotOwned ? '✓' : `${n(LOT.price)}`, tone: V.lotOwned ? 'good' : 'warn',
-      action: V.lotOwned ? null : h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < LOT.price, onclick: () => go(W.buyLot()) }, 'Buy') })));
-  // v0.103.2: the business is run from the command terminal in the site office; the tablet says how things stand and where to go
-  const m = W.state(); const bns = m?.war?.battalions || []; const sup = W.supplyLink(); const short = sup ? sup.rows.filter((r) => r.want && r.have < r.want).length : 0; const E = W.engagements();
-  const office = V.lotOwned ? W.facilities().find((f) => f.id === 'site_office') : null;
-  if (office && office.state !== 'none') {
-    const built = office.state === 'built';
-    body.append(h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, 'How things stand'), list(
-      row({ icon: '🖥️', title: built ? 'Command terminal' : 'The site office is not finished', sub: built ? 'Run the company from the terminal in the site office at Hollowmoor Lot (the Yards\' west road, then the lot\'s gate): people, squads, the armoury, supply, generals, contracts, the other buildings and the war map.' : `${STATE[office.state]}${office.daysLeft != null ? ` · ${office.daysLeft} days to go` : ''}. The terminal is inside it.`, tone: built ? 'good' : '' }),
-      row({ icon: '🪖', title: `${W.people().length} people · ${W.squads().length} squads · ${bns.length} battalions`, sub: `${bns.filter((b) => b.status !== 'home').length} away.` }),
-      row({ icon: '📦', title: short ? `${short} supply level${short === 1 ? '' : 's'} short` : 'Supplies', sub: short ? 'The arms works are behind on some of what the company keeps. See Supply at the terminal.' : 'Nothing short.', tone: short ? 'warn' : '' }),
-      row({ icon: '🗺️', title: E.open.length ? `${E.open.length} engagement${E.open.length === 1 ? '' : 's'} offered` : 'No engagements offered', sub: E.active.length ? `${E.active.length} under way.` : '' })));
-  }
-  body.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The government\'s fort at Gullcrest is a separate matter and never touches it.',
-    'Before any coup your base cannot be damaged: that is the one rule everything else is built on.'));
-  body.append(fold(ui, 'MilitaryLog', 'The company\'s log ›', (box) => box.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company buys and builds.' })])))));
+  // v0.103.3: the same five pages as the command terminal in the site office
+  const page = PAGES.includes(ui.milPage) ? ui.milPage : 'Home';
+  const bd = badges(ui);
+  const seg = segments(PAGES.map((id) => ({ id, label: id, badge: bd[id] ? 1 : 0 })), page, (t) => { ui.milPage = t; ui.milSub = null; open('Military'); });
+  seg.classList.add('five');
+  body.append(seg);
+  renderPage(ui, body, go, () => open('Military'), page);
 }
 
 function register(ui, body, go) {

@@ -83,7 +83,7 @@ test('conservation: whatever leaves a source is exactly what arrives, and the to
   assert.equal(c2.items.item_assault_rifle + (g2.war.stock()['arms:aw1:item_assault_rifle'] || 0), 40);
 });
 
-test('housing is real: a vehicle needs a free bay, an aircraft a hangar bay, goods a place in the stores; a refusal changes nothing in any system', () => {
+test('housing is real for vehicles and aircraft (a free bay, a hangar bay) and the stores hold any amount (v0.103.3); a refusal changes nothing in any system', () => {
   const g = warGame(305); build(g, STAGE1);
   g.aero.buyFirm(); const jet = storeJet(g);
   const snap = () => JSON.stringify([g.world.military, g.aero.state.storage, g.world.containers.ct_aw1_cage]);
@@ -91,10 +91,10 @@ test('housing is real: a vehicle needs a free bay, an aircraft a hangar bay, goo
   let s = snap();
   assert.ok(!g.war.transfer({ source: 'aero', ref: jet.id }).ok && /hangars/.test(g.war.transfer({ source: 'aero', ref: jet.id }).text), 'no hangars yet'); assert.equal(snap(), s);
   assert.ok(!g.war.buyVehicle('marten').ok, 'no motor pool yet'); assert.equal(snap(), s);
-  assert.ok(!g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 61 }).ok, 'the cage holds 60'); assert.equal(snap(), s);
+  assert.ok(!g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 101 }).ok, 'the cage holds 100'); assert.equal(snap(), s);
   assert.ok(g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 60 }).ok);
-  assert.equal(g.war.housing().stores.free, 0);
-  assert.ok(!g.war.buySupply('uniform', 1).ok, 'the stores are full');
+  assert.ok(g.war.housing().stores.unlimited, 'the stores have no limit (v0.103.3)');
+  assert.ok(g.war.buySupply('uniform', 1).ok, 'so nothing is refused for lack of room');
   assert.ok(!g.war.buyVehicle('wren').ok, 'a helicopter is built, not bought'); assert.ok(!g.war.buyVehicle('anvil').ok);
   // stage 2 gives six bays
   build(g, ['command', 'barracks_a', 'barracks_b', 'mess', 'medical', 'motor_pool', 'armoury', 'depot']);
@@ -126,7 +126,7 @@ test('the trail is capped, and a company\'s income can never fall into your wall
   assert.equal(g.player.money, w, 'a payment to the company is not a payment to you'); assert.equal(g.war.cash(), c + 1234);
 });
 
-test('a stored strategic missile product moves to the secure stores (twenty places each), free, and back to Aerospace as the same record; it is never in a bay, and the stores must have the room', () => {
+test('a stored strategic missile product moves to the secure stores (twenty places each), free, and back to Aerospace as the same record; it is never in a bay, and the stores never run out of room (v0.103.3)', () => {
   const g = warGame(309); build(g, STAGE1); g.aero.buyFirm();
   const m1 = storeMissile(g); const copy = JSON.stringify(m1);
   assert.deepEqual(g.war.offers().aero.map((o) => [o.ref, o.line]), [[m1.id, 'missile']]);
@@ -136,13 +136,11 @@ test('a stored strategic missile product moves to the secure stores (twenty plac
   const x = g.war.equipment()[0];
   assert.deepEqual([x.kind, x.location, x.status], ['missile', 'facility:cage', 'stored']);
   assert.equal(g.war.housing().stores.used, 20); assert.equal(g.war.housing().air.used, 0, 'not in a hangar bay');
-  // the cage (60 places) holds three, not four
-  for (let i = 0; i < 2; i++) assert.ok(g.war.transfer({ source: 'aero', ref: storeMissile(g).id }).ok);
-  const fourth = storeMissile(g); const snap = JSON.stringify(g.aero.state.storage);
-  assert.ok(!g.war.transfer({ source: 'aero', ref: fourth.id }).ok); assert.equal(JSON.stringify(g.aero.state.storage), snap, 'a refusal changes nothing');
-  assert.ok(!g.war.buySupply('uniform', 1).ok, 'the stores are full of missiles');
+  // the stores hold a fourth as well: they have no limit
+  for (let i = 0; i < 3; i++) assert.ok(g.war.transfer({ source: 'aero', ref: storeMissile(g).id }).ok);
+  assert.ok(g.war.buySupply('uniform', 1).ok, 'and goods still fit beside the missiles');
   assert.deepEqual(g.war.check(), []);
   assert.ok(g.war.giveBack({ id: x.id }).ok); assert.equal(JSON.stringify(g.aero.state.storage.find((r) => r.id === m1.id)), copy);
-  assert.equal(g.war.housing().stores.used, 40);
-  const g2 = roundtrip(g); assert.equal(g2.war.housing().stores.used, 40);
+  assert.equal(g.war.housing().stores.used, 61);
+  const g2 = roundtrip(g); assert.equal(g2.war.housing().stores.used, 61);
 });

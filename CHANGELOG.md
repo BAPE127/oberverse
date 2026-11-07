@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.3] — 2026-11-07 — War: The Streamlined Terminal (development build)
+
+The owner found the command terminal too complicated and not easy to read: too many menus, a People tab that was not right, a confusing Supply page. Asked for it to be streamlined, for stores to be unlimited, and for the terminal to be reachable through the OberPad like the other companies. Mock-up: `docs/mockups/proposal-war-terminal-v2.png`. The owner chose five pages, one Troops page, and unlimited stores only.
+
+**Five pages, in two places.** Home, Troops, Stores, Missions and Map (`src/ui/militaryPages.js`), drawn by the command terminal in the site office and by the Military app on the OberPad, so the business is run the same way from either. Home has what needs attention and the buildings; Troops has hire buttons with the wage and squads as cards; Stores has one stepper per item; Missions has contracts, engagements and generals.
+
+**Troops fill themselves.** New soldiers join a squad and are armed when their training ends (`src/war/organise.js`, `company.autoSquads`, a switch on the Troops page, plus "Do it now"). It moves no one already placed.
+
+**Stores are unlimited.** Stock and strategic missiles are never refused for lack of room. Vehicle bays and hangar bays still limit.
+
+**Edited existing tests (3).** `tests/war_transfers.test.mjs`: "housing is real…" (the cage now holds 100 so the over-ask is 101; the "stores are full" assertions now say the stores are unlimited) and "a stored strategic missile product…" (a fourth missile and goods beside them now fit; the stores count after the return is 61). `tests/war_base.test.mjs`: "a mess hall gives a hot meal…" (it bought 600 rations that the old 60-place stores refused, so that base was never fed; the purchase is dropped so the test does what it always did). Tools: `tools/smoke-test.mjs` (the five pages on the OberPad and on the terminal).
+
+New tests: `war_organise` (3). `war_supply_link` and `war_terminal` are unchanged. See `docs/WAR.md`, "The terminal, streamlined".
+
 ## [0.103.2] — 2026-11-06 — War: The Command Terminal (development build)
 
 The owner asked for the mercenary business to be run from a terminal in the world, like the arms and aerospace terminals, not from an app, and for the Arms company to supply it free, with the option to buy from other manufacturers when the works fall behind. (The air, sea, landing and international-contract work planned for 103.2 moves to 103.3.)

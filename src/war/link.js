@@ -5,7 +5,7 @@
 //   elsewhere   what the works cannot keep up with can be bought from other manufacturers at LINK.markup times the item's value, paid by the company from its own account, arriving in LINK.days days
 // Reads and writes `company.link`, the company's stock (through equipment.js), the cages (through cage.js), and the Arms works' station settings (through game.arms.setRecipe).
 import { peekMilitary } from './state.js';
-import { addStock, roomFor, nextId } from './equipment.js';
+import { addStock, nextId } from './equipment.js';
 import { pay } from './company.js';
 import { cageCount, cageTake } from './cage.js';
 import { heldOf } from './reserve.js';
@@ -97,8 +97,6 @@ export function buyElsewhere(game, item, qty) {
   const L = linkOf(C); const S = shortOf(game, C, L, item);
   if (!S.want) return { ok: false, text: `Set a level for ${nameOf(game, item)} first.` };
   if (S.have + S.inbound + qty > S.want) return { ok: false, text: `That is more than the level of ${S.want}: ${Math.max(0, S.want - S.have - S.inbound)} would fill it.` };
-  const why = roomFor(game, 'stock', S.have + S.inbound + qty); // the stores must be able to hold what is already there and what is coming
-  if (why && roomFor(game, 'stock', qty)) return { ok: false, text: why };
   const cost = unitPrice(game, item) * qty;
   const r = pay(game, cost, `Other manufacturers: ${qty} × ${nameOf(game, item)}`);
   if (!r.ok) return r;
@@ -118,10 +116,9 @@ export function dayTick(game) {
   const L = linkOf(C); const day = game.clock.day;
   if (L.day >= day) return; L.day = day;
   refreshFlow(game, L);
-  // purchases arriving (they wait if the stores are full)
+  // purchases arriving 
   for (const b of L.inbound.slice()) {
     if (b.due > day) continue;
-    if (roomFor(game, 'stock', b.qty)) continue;
     addStock(game, `arms:bought:${b.item}`, b.qty); L.flow.bought += b.qty;
     L.inbound = L.inbound.filter((x) => x !== b);
     say(L, game, `${b.qty} × ${nameOf(game, b.item)} arrived from other manufacturers.`);
@@ -133,7 +130,7 @@ export function dayTick(game) {
     let moved = 0;
     for (const wh of worksIds(game)) {
       if (need < 1) break;
-      const take = Math.min(need, cageCount(game, wh, item), Math.max(0, freeRoom(game)));
+      const take = Math.min(need, cageCount(game, wh, item));
       if (take < 1) continue;
       const got = cageTake(game, wh, item, take);
       addStock(game, `arms:${wh}:${item}`, got); need -= got; moved += got;
@@ -145,7 +142,6 @@ export function dayTick(game) {
   const m = peekMilitary(game); while (m.transfers.length > 80) m.transfers.shift();
   retool(game, C, L);
 }
-function freeRoom(game) { return game.war.housing().stores.free; }
 
 /** Dedicated works: idle stations make what the company is short of; when it is not, they go back. */
 function retool(game, C, L) {

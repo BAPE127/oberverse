@@ -6,6 +6,7 @@ import { register as registerStructure, apply as applyDamage, repair as repairSt
 import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
 import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
+import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
 import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
 import { housing as housingOf } from './equipment.js';
 import { runDay } from './day.js';
@@ -78,6 +79,10 @@ export class War {
   buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
   housing() { return housingOf(this.g); }
   equipment() { return this.peek()?.company?.equipment || []; }
+  // ---- v0.103.3: one tap to put every free soldier in a squad and arm them; optionally every morning
+  organise() { return troopsOrganise(this.g); }
+  setAutoSquads(on) { return troopsAuto(this.g, on); }
+  autoSquads() { return this.peek()?.company?.autoSquads; }
   // ---- v0.103.2: the supply link with the Arms company (free standing levels; the shortfall bought from other manufacturers)
   supplyLink() { return linkView(this.g); }
   setSupplyLevel(item, qty) { return linkWant(this.g, item, qty); }

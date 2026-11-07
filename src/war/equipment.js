@@ -17,7 +17,7 @@ export const MISSILE_STORES = 20;
 const AIR = new Set(['helicopter', 'aircraft']);
 export const isAir = (kind) => AIR.has(kind);
 const storeFacility = (C) => (['armoury', 'depot', 'cage'].map((id) => C.facilities.find((f) => f.id === id && f.state === 'built')).find(Boolean) || {}).id;
-const where = (kind, C) => (kind === 'missile' ? `facility:${storeFacility(C)}` : isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
+const where = (kind, C) => (kind === 'missile' ? (storeFacility(C) ? `facility:${storeFacility(C)}` : 'stores') : isAir(kind) ? 'facility:hangars' : 'facility:motor_pool');
 
 export function housing(game) {
   const C = peekMilitary(game)?.company;
@@ -25,15 +25,14 @@ export function housing(game) {
   let missiles = 0;
   for (const x of C?.equipment || []) if (x.status !== 'destroyed') { if (x.kind === 'missile') missiles++; else used[isAir(x.kind) ? 'air' : 'ground']++; }
   const stock = Object.values(C?.stock || {}).reduce((a, b) => a + b, 0) + missiles * MISSILE_STORES;
-  const cap = { ground: capacity(game, 'motor_pool').bays, air: capacity(game, 'hangar').bays, stores: capacity(game).stores };
-  return { ground: { total: cap.ground, used: used.ground, free: Math.max(0, cap.ground - used.ground) }, air: { total: cap.air, used: used.air, free: Math.max(0, cap.air - used.air) }, stores: { total: cap.stores, used: stock, free: Math.max(0, cap.stores - stock) } };
+  const cap = { ground: capacity(game, 'motor_pool').bays, air: capacity(game, 'hangar').bays };
+  return { ground: { total: cap.ground, used: used.ground, free: Math.max(0, cap.ground - used.ground) }, air: { total: cap.air, used: used.air, free: Math.max(0, cap.air - used.air) }, stores: { total: null, used: stock, free: Infinity, unlimited: true } }; // v0.103.3: the stores hold any amount (vehicle bays and hangar bays are still real)
 }
 
 /** Whether there is room for one more of this kind of thing (`null` = yes, otherwise the reason). */
 export function roomFor(game, kind, qty = 1) {
   const h = housing(game);
-  if (kind === 'missile') return h.stores.free >= MISSILE_STORES * qty ? null : `A strategic missile product takes ${MISSILE_STORES} places in the stores; ${h.stores.free} are free.`;
-  if (kind === 'stock') return h.stores.free >= qty ? null : `The stores have room for ${h.stores.free} more${h.stores.total ? '' : ' (build the armoury cage)'}.`;
+  if (kind === 'missile' || kind === 'stock') return null; // v0.103.3: stock and strategic missiles are never refused for lack of room
   const side = isAir(kind) ? h.air : h.ground;
   if (side.free >= qty) return null;
   return isAir(kind) ? `No free bay in the hangars (${side.used} of ${side.total}).` : `No free bay in the motor pool (${side.used} of ${side.total}).`;

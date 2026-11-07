@@ -5,7 +5,7 @@ import { hero, tiles, row, help, fold, n } from './tabletKit.js';
 
 const list = (...kids) => h('div', { class: 'tb-card list' }, ...kids.flat().filter(Boolean));
 const label = (t) => h('div', { class: 'tb-label', style: 'padding:8px 6px 2px' }, t);
-const back = (ui, open, to = null) => h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = to; open('Military'); } }, to ? '‹ Generals' : '‹ Company'));
+const back = (ui, open, to = null) => (ui.milPaged && !to ? null : h('div', { class: 'tb-btns' }, h('button', { class: 'tb-mini', onclick: () => { ui.milSub = ui.milPaged ? null : to; open('Military'); } }, ui.milPaged ? '‹ Missions' : to ? '‹ Generals' : '‹ Company')));
 const stars = (v) => '●'.repeat(v) + '○'.repeat(5 - v);
 const pct = (v) => `${Math.round(v * 100)}%`;
 const select = (opts, value, onchange) => h('select', { style: 'padding:6px;border-radius:8px;background:#15133e;color:inherit;border:2px solid #3a3794', onchange: (e) => onchange(e.target.value) }, ...opts.map(([v, t]) => h('option', { value: v, selected: v === value }, t)));

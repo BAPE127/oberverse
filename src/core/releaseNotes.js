@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.3',
+    date: '2026-11-07',
+    channel: 'development',
+    title: 'War: The Streamlined Terminal',
+    notes: [
+      'The command terminal is simpler: five pages (Home, Troops, Stores, Missions, Map) instead of nine, and the same five pages are in the Military app on your OberPad.',
+      'Troops is one page: hire with one tap, squads are cards, and new soldiers join a squad and are armed on their own when training ends (you can turn that off).',
+      'Stores is one line per item with a plus and a minus for how many to keep, and a plain note of what is short and what to buy elsewhere. Stores now hold any amount.',
+    ],
+  },
+  {
     version: '0.103.2',
     date: '2026-11-06',
     channel: 'development',
