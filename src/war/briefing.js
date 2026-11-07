@@ -14,17 +14,17 @@ const RISK = (p) => (p == null ? null : p >= 0.7 ? 'low' : p >= 0.45 ? 'medium' 
 
 /** The company's missions in one list: security contracts, engagements, and battalions standing in a theatre. */
 export function missions(g) {
-  const C = company(g); if (!C?.identity) return { open: [], active: [], done: [], failed: [] };
+  const C = company(g); if (!C?.identity) return { open: [], active: [], done: [], failed: [], archived: [] };
   const ct = contractsView(g); const eg = engagementsView(g); const w = peekMilitary(g)?.war;
-  const open = []; const active = []; const done = []; const failed = [];
+  const open = []; const active = []; const done = []; const failed = []; const archived = [];
   for (const c of ct.open) open.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, priority: c.risk, text: c.text, pay: c.pay, days: c.days, expires: c.expires, needs: `${c.guards} guards`, lacks: c.lacks, raw: c });
   for (const c of ct.active) active.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, status: 'In progress', forces: `${c.guards} guards`, daysLeft: c.daysLeft, risk: RISK(c.chance), chance: c.chance, pay: c.pay, text: c.text, raw: c });
-  for (const c of ct.done) (c.state === 'done' ? done : failed).push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, day: c.ended ?? c.end, pay: c.pay, state: c.state, text: c.text, raw: c });
+  for (const c of ct.done) (c.state === 'done' ? done : c.state === 'failed' ? failed : archived).push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, day: c.ended ?? c.end, pay: c.pay, state: c.state, text: c.text, raw: c });
   for (const e of eg.open) open.push({ kind: 'engagement', id: e.id, title: e.title, place: e.place, type: `Engagement · ${e.kind}`, client: e.client, priority: e.days <= 3 ? 'urgent' : 'routine', text: e.text, pay: e.pay, days: e.days, expires: e.expires, needs: `${e.needs.troops} soldiers${e.needs.tanks ? `, ${e.needs.tanks} tanks` : ''}`, raw: e });
   for (const e of eg.active) active.push({ kind: 'engagement', id: e.id, title: e.title, place: e.place, type: `Engagement · ${e.kind}`, client: e.client, status: e.state === 'tactical' ? 'Engaged (played)' : 'In progress', forces: `${e.order?.squads?.length || 0} squads${e.order?.generalName ? ` · ${e.order.generalName}` : ''}`, daysLeft: e.daysLeft, pay: e.pay, text: e.text, raw: e });
-  for (const e of eg.done) (e.result?.objectives >= 1 || e.strategic ? done : failed).push({ kind: 'engagement', id: e.id, title: e.title, place: e.place, type: `Engagement · ${e.kind}`, client: e.client, day: e.ended, pay: e.result?.paid ?? 0, state: e.result?.outcome, text: e.text, raw: e });
+  for (const e of eg.done) (!e.result ? archived : e.result.objectives >= 1 || e.strategic ? done : failed).push({ kind: 'engagement', id: e.id, title: e.title, place: e.place, type: `Engagement · ${e.kind}`, client: e.client, day: e.ended, pay: e.result?.paid ?? 0, state: e.result?.outcome, text: e.text, raw: e });
   for (const b of w?.battalions || []) if (b.status !== 'home') active.push({ kind: 'battalion', id: b.id, title: b.name, place: b.pos, type: 'Battalion in a theatre', status: { deploying: 'Awaiting deployment', theatre: b.engaged ? 'Engaged' : 'In the theatre', returning: 'Awaiting extraction' }[b.status] || b.status, forces: `${b.squads.length} squads`, raw: b });
-  return { open, active, done, failed };
+  return { open, active, done, failed, archived };
 }
 
 const FAC_OK = (f) => f.state === 'built';

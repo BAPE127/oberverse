@@ -594,12 +594,12 @@ body.pixel-ui #modal-panel.monitor, body.pixel-ui #modal-panel.fleetcmd, body.pi
   --ink: #2d2433; --ink-soft: #5b4f63; --paper: #fbf4e6; --paper-2: #f2e6cf; --line: #d9c7a5;
   --accent: #c0614a; --accent-2: #4f8a8b; --gold: #e8b64c; --good: #4f8a4a; --warn: #c0614a;
 }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):hover:not(:disabled) { background: #34347e; transform: none; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).primary:hover:not(:disabled) { background: #d8505a; }
-body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *).ghost { background: transparent; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *) { border-radius: 2px; border: 3px solid #4a4aa8; background: #262660; color: #eef0fa; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *):hover:not(:disabled) { background: #34347e; transform: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *):active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *).primary { background: #c0414a; border-color: #ff8a7a; color: #fff; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *).primary:hover:not(:disabled) { background: #d8505a; }
+body.pixel-ui button:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *).ghost { background: transparent; }
 body.pixel-ui .panel { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
 body.pixel-ui .panel-head { border-bottom: 3px solid #3a3a7a; }
 body.pixel-ui .panel h2, body.pixel-ui #dlg-name { font-family: var(--font); font-weight: 900; letter-spacing: .5px; color: #f2c14e; text-shadow: 2px 2px 0 #0e0e26; }
@@ -609,7 +609,7 @@ body.pixel-ui #modal { background: rgba(8, 8, 24, .55); }
 body.pixel-ui .dlg-box { border: 4px solid #4a4aa8; border-radius: 3px; box-shadow: 0 0 0 3px #14143a, var(--shadow); }
 body.pixel-ui #dlg-portrait { border-radius: 2px; border: 3px solid #4a4aa8; image-rendering: pixelated; background: #14143a; }
 body.pixel-ui #dlg-options button.quest { background: #3a3220; border-color: #f2c14e; }
-body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *):not(.aerocmd *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *):not(.aerocmd *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *):not(.aerocmd *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
+body.pixel-ui #dlg-ask input, body.pixel-ui input:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *), body.pixel-ui select:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *), body.pixel-ui textarea:not(.monitor *):not(.fleetcmd *):not(.aerocmd *):not(.osx *) { background: #14143a; color: #eef0fa; border: 3px solid #4a4aa8; border-radius: 2px; }
 body.pixel-ui .title-card .logo { font-family: var(--font); font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 4px 4px 0 #14143a, -2px -2px 0 #14143a, 2px -2px 0 #14143a, -2px 2px 0 #14143a; }
 body.pixel-ui .title-card .logo span { color: #f2c14e; font-style: normal; }
 body.pixel-ui .title-card .tagline { text-shadow: 2px 2px 0 #14143a; }
@@ -1308,3 +1308,73 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 
 /* v0.103.3: the Military app's five pages fit a phone width */
 .tb-seg.five { gap: 2px; } .tb-seg.five button { padding: 8px 4px; font-size: 13px; flex: 1 1 0; min-width: 0; }
+
+/* ======================================================================== v0.103.4: the command terminal, an intelligence-terminal look (src/ui/osint) */
+#modal-panel.osx-panel { position: fixed; inset: 0; width: 100vw; max-height: none; height: 100vh; border: none; border-radius: 0; background: #080b0a; box-shadow: none; }
+#modal-panel.osx-panel .panel-head, #modal-panel.osx-panel #modal-tabs { display: none; }
+#modal-panel.osx-panel #modal-body { padding: 0; overflow: hidden; position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.osx { --bg: #0a0d0c; --pan: #101513; --pan2: #141b18; --line: #25312b; --line2: #34443b; --tx: #cdd6d0; --mut: #7a8a81; --gr: #7fae5e; --am: #d4a23c; --rd: #c8523f; --bl: #5f93a8;
+  display: flex; flex-direction: column; height: 100%; background: var(--bg); color: var(--tx); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.osx * { box-sizing: border-box; }
+.osx-mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; letter-spacing: .02em; }
+.osx-top { display: flex; align-items: center; gap: 18px; padding: 7px 14px; background: #0c110f; border-bottom: 1px solid var(--line2); flex-wrap: wrap; min-height: 46px; }
+.osx-brand { display: flex; flex-direction: column; } .osx-brand b { font-size: 13px; letter-spacing: .14em; color: var(--gr); text-transform: uppercase; } .osx-brand small { color: var(--mut); font-size: 11px; }
+.osx-tf { display: flex; flex-direction: column; min-width: 70px; } .osx-tf small { font-size: 9.5px; letter-spacing: .12em; color: var(--mut); text-transform: uppercase; } .osx-tf b { font: 600 13px ui-monospace, Menlo, Consolas, monospace; }
+.osx-tf.ok b { color: var(--gr); } .osx-tf.warn b { color: var(--am); } .osx-tf.bad b { color: var(--rd); }
+.osx-sp { flex: 1; } .osx-time { display: flex; gap: 4px; align-items: center; }
+.osx-btn { background: #151d19; color: var(--tx); border: 1px solid var(--line2); padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; border-radius: 2px; }
+.osx-btn:hover:not(:disabled) { border-color: var(--gr); } .osx-btn:disabled { opacity: .4; cursor: default; } .osx-btn.pri { background: #1f3322; border-color: var(--gr); color: #c9e6b4; } .osx-btn.warn { border-color: var(--am); color: var(--am); } .osx-btn.bad { border-color: var(--rd); color: #e8a095; } .osx-btn.sm { padding: 2px 8px; font-size: 11px; }
+.osx-wrap { display: grid; grid-template-columns: 196px 1fr; flex: 1; min-height: 0; }
+.osx-nav { background: #0b100e; border-right: 1px solid var(--line2); padding: 8px 0; overflow-y: auto; }
+.osx-nav button { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; color: var(--mut); border: 0; border-left: 3px solid transparent; padding: 10px 14px; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.osx-nav button:hover { color: var(--tx); background: #101713; } .osx-nav button.on { color: #dbe9d0; border-left-color: var(--gr); background: #131c17; }
+.osx-nav .ic { width: 18px; text-align: center; opacity: .9; } .osx-nav .nb { margin-left: auto; background: var(--am); color: #1a1405; border-radius: 8px; font-size: 10px; padding: 0 6px; font-weight: 700; }
+.osx-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.osx-head { padding: 10px 16px 8px; border-bottom: 1px solid var(--line); } .osx-head h1 { margin: 0; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: #dbe5dc; font-weight: 600; } .osx-head p { margin: 2px 0 0; color: var(--mut); font-size: 12px; }
+.osx-scroll { flex: 1; overflow-y: auto; padding: 12px 16px 16px; min-height: 0; }
+.osx-note { margin: 0 16px; padding: 5px 10px; border: 1px solid var(--line2); border-top: 0; background: #0f1613; color: #bcd0b0; font-size: 12px; } .osx-note.bad { color: #e8a095; border-color: var(--rd); }
+.osx-grid { display: grid; gap: 10px; } .osx-g2 { grid-template-columns: 1fr 1fr; } .osx-g3 { grid-template-columns: repeat(3, 1fr); } .osx-gs { grid-template-columns: minmax(0, 1fr) 340px; }
+.osx-pan { background: var(--pan); border: 1px solid var(--line); border-radius: 2px; min-width: 0; display: flex; flex-direction: column; }
+.osx-ph { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--mut); background: #0e1411; }
+.osx-ph-r { display: flex; gap: 6px; align-items: center; letter-spacing: 0; text-transform: none; } .osx-pb { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; } .osx-sub { padding: 6px 10px 0; color: var(--mut); font-size: 12px; }
+.osx-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.osx-stat { background: var(--pan2); border: 1px solid var(--line); padding: 7px 10px; } .osx-stat.tap { cursor: pointer; } .osx-stat.tap:hover { border-color: var(--gr); }
+.osx-sl { font-size: 9.5px; letter-spacing: .12em; color: var(--mut); text-transform: uppercase; } .osx-sv { font: 600 18px ui-monospace, Menlo, Consolas, monospace; margin-top: 1px; } .osx-ss { font-size: 11px; color: var(--mut); }
+.osx-stat.ok .osx-sv { color: var(--gr); } .osx-stat.warn .osx-sv { color: var(--am); } .osx-stat.bad .osx-sv { color: var(--rd); }
+.osx-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line2); margin: 0 0 8px; flex-wrap: wrap; } .osx-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--mut); padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; letter-spacing: .04em; }
+.osx-tabs button.on { color: #dbe9d0; border-bottom-color: var(--gr); } .osx-tabs i { font-style: normal; background: #26372b; color: #b9d6a6; font-size: 10px; padding: 0 5px; border-radius: 8px; margin-left: 6px; }
+.osx-kv { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 1px dotted #1b2620; font-size: 12px; } .osx-kv span { color: var(--mut); } .osx-kv b { font-weight: 500; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; text-align: right; }
+.osx-kv.ok b { color: var(--gr); } .osx-kv.warn b { color: var(--am); } .osx-kv.bad b { color: var(--rd); }
+.osx-chip { display: inline-block; padding: 1px 7px; border: 1px solid var(--line2); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--mut); border-radius: 2px; } .osx-chip.ok { color: var(--gr); border-color: #3b5a2f; } .osx-chip.warn { color: var(--am); border-color: #6a5320; } .osx-chip.bad { color: var(--rd); border-color: #6b2a22; } .osx-chip.bl { color: var(--bl); border-color: #2d4d5a; }
+.osx-empty { color: var(--mut); padding: 14px 4px; font-style: italic; font-size: 12px; }
+.osx-bar { height: 5px; background: #0b100e; border: 1px solid var(--line); } .osx-bar i { display: block; height: 100%; background: var(--gr); } .osx-bar.warn i { background: var(--am); } .osx-bar.bad i { background: var(--rd); }
+.osx-table { width: 100%; border-collapse: collapse; font-size: 12px; } .osx-table th { text-align: left; font-weight: 500; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--mut); padding: 4px 8px; border-bottom: 1px solid var(--line2); }
+.osx-table td { padding: 5px 8px; border-bottom: 1px solid #18221d; vertical-align: middle; } .osx-table tr.tap { cursor: pointer; } .osx-table tr.tap:hover td { background: #121a16; } .osx-table tr.on td { background: #16231a; }
+.osx-feed { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px dotted #1b2620; font-size: 12px; } .osx-fd { font: 11px ui-monospace, Menlo, Consolas, monospace; color: var(--mut); min-width: 52px; }
+.osx-ft { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; padding: 0 5px; border: 1px solid var(--line2); color: var(--mut); } .osx-ft.supply, .osx-ft.logistics { color: var(--gr); } .osx-ft.theatre, .osx-ft.war { color: var(--rd); } .osx-ft.procurement, .osx-ft.embargo { color: var(--am); } .osx-ft.company { color: var(--bl); }
+.osx-mapbox { position: relative; background: #070a09; border: 1px solid var(--line); min-height: 360px; flex: 1; overflow: hidden; } .osx-mapbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.osx-maptools { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; flex-wrap: wrap; z-index: 2; } .osx-maptools .osx-btn { background: rgba(12,17,15,.88); } .osx-maptools .osx-btn.on { border-color: var(--gr); color: #cfe8bb; }
+.osx-maplabel { position: absolute; left: 8px; bottom: 8px; font: 11px ui-monospace, Menlo, Consolas, monospace; color: var(--mut); background: rgba(8,11,10,.8); padding: 2px 6px; z-index: 2; pointer-events: none; }
+.osx-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.osx-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 8px; border: 1px solid var(--line); background: var(--pan2); margin-bottom: 4px; } .osx-row.tap { cursor: pointer; } .osx-row.tap:hover, .osx-row.on { border-color: var(--gr); } .osx-row small { display: block; color: var(--mut); font-size: 11px; }
+.osx-input { background: #0b100e; border: 1px solid var(--line2); color: var(--tx); padding: 4px 8px; font: inherit; font-size: 12px; border-radius: 2px; } .osx-qty { display: inline-flex; align-items: center; } .osx-qty button { background: #151d19; border: 1px solid var(--line2); color: var(--tx); width: 24px; height: 24px; cursor: pointer; } .osx-qty b { min-width: 44px; text-align: center; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.osx select { background: #0b100e; color: var(--tx); border: 1px solid var(--line2); padding: 3px 6px; font: inherit; font-size: 12px; }
+/* the old tablet-kit screens (people, squads, generals, contracts, production) keep working inside the terminal, in its colours */
+.osx .tb-card { background: var(--pan2); border: 1px solid var(--line); border-radius: 2px; padding: 8px 10px; margin-bottom: 8px; gap: 4px; color: var(--tx); } .osx .tb-card.list { padding: 2px 8px; }
+.osx .tb-hero { background: var(--pan2); border: 1px solid var(--line); border-radius: 2px; padding: 8px 10px; margin-bottom: 8px; } .osx .tb-big { font: 600 20px ui-monospace, Menlo, Consolas, monospace; color: var(--tx); } .osx .tb-label { color: var(--mut); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; } .osx .tb-sub, .osx .tb-row small { color: var(--mut); }
+.osx .tb-tiles { gap: 6px; } .osx .tb-tile { background: var(--pan2); border: 1px solid var(--line); border-radius: 2px; } .osx .tb-n { font-family: ui-monospace, Menlo, Consolas, monospace; } .osx .tb-t { color: var(--mut); }
+.osx .tb-row { border-bottom: 1px solid #18221d; padding: 6px 2px; } .osx .tb-ico { background: transparent; } .osx .tb-pill { background: #1a251f; color: var(--mut); border-radius: 2px; } .osx .tb-pill.good { color: var(--gr); } .osx .tb-pill.warn { color: var(--am); }
+.osx .tb-btn, .osx .tb-mini { background: #151d19; color: var(--tx); border: 1px solid var(--line2); border-radius: 2px; box-shadow: none; } .osx .tb-btn.pri, .osx .tb-mini.pri { background: #1f3322; border-color: var(--gr); color: #c9e6b4; } .osx .tb-btn:disabled, .osx .tb-mini:disabled { opacity: .4; }
+.osx .tb-seg { background: transparent; border: 0; border-bottom: 1px solid var(--line2); border-radius: 0; padding: 0; } .osx .tb-seg button { background: transparent; color: var(--mut); border-radius: 0; border-bottom: 2px solid transparent; } .osx .tb-seg button.on { color: #dbe9d0; border-bottom-color: var(--gr); background: transparent; }
+.osx .tb-fold, .osx .tb-help { background: var(--pan2); border: 1px solid var(--line); border-radius: 2px; } .osx .tb-fold summary, .osx .tb-help summary { color: var(--mut); } .osx .tb-note { background: #0f1613; border: 1px solid var(--line2); border-radius: 2px; color: #bcd0b0; }
+@media (max-width: 900px) { .osx-wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .osx-nav { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line2); padding: 0; } .osx-nav button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; } .osx-nav button.on { border-bottom-color: var(--gr); } .osx-g2, .osx-g3, .osx-gs { grid-template-columns: 1fr; } }
+/* the terminal resets the game's chunky button look (specific enough to beat `button:hover`, `button.primary`) */
+.osx button { border-radius: 2px; transform: none !important; transition: border-color .12s; box-shadow: none; text-shadow: none; }
+.osx button.osx-btn, .osx .osx-btn { background: #151d19; color: var(--tx); border: 1px solid var(--line2); padding: 5px 11px; }
+.osx button.osx-btn:hover:not(:disabled) { background: #1a2420; border-color: var(--gr); }
+.osx button.osx-btn.pri { background: #1f3322; border-color: var(--gr); color: #c9e6b4; } .osx button.osx-btn.warn { border-color: var(--am); color: var(--am); } .osx button.osx-btn.bad { border-color: var(--rd); color: #e8a095; } .osx button.osx-btn.sm { padding: 2px 8px; font-size: 11px; }
+.osx .osx-nav button { background: transparent; border: 0; border-left: 3px solid transparent; padding: 10px 14px; border-radius: 0; color: var(--mut); } .osx .osx-nav button:hover:not(:disabled) { background: #101713; color: var(--tx); } .osx .osx-nav button.on { background: #131c17; color: #dbe9d0; border-left-color: var(--gr); }
+.osx .osx-tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 6px 12px; color: var(--mut); } .osx .osx-tabs button.on { color: #dbe9d0; border-bottom-color: var(--gr); } .osx .osx-tabs button:hover:not(:disabled) { background: transparent; color: var(--tx); }
+.osx .osx-qty button { background: #151d19; border: 1px solid var(--line2); color: var(--tx); width: 24px; height: 24px; padding: 0; }
+.osx .osx-maptools button.osx-btn { background: rgba(12,17,15,.88); } .osx .osx-maptools button.osx-btn.on { border-color: var(--gr); color: #cfe8bb; }
+.osx .tb-btn, .osx .tb-mini { transform: none; padding: 4px 10px; font-size: 12px; } .osx .tb-seg button { border: 0; padding: 6px 12px; }

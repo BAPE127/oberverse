@@ -1,25 +1,26 @@
-// The Military app (v0.98.0, mock-up proposal-war-oberpad-company.png page 1). Since v0.103.3 it shows the same five pages as the command terminal in the site office
-// (src/ui/militaryPages.js): Home (with the first steps), Troops, Stores, Missions and Map. Every button calls game.war; nothing here writes the record.
+// The Military app (v0.98.0). Since v0.103.4 it is minimal, like the aerospace app: register the company here, then a few real status lines and one button that opens the command terminal
+// (src/ui/osint/terminal.js), where the company is run. The terminal opens from here anywhere, and from the site office at Hollowmoor Lot.
 import { h } from './panels.js';
-import { hero, note, segments, help } from './tabletKit.js';
-import { PAGES, badges, renderPage } from './militaryPages.js';
+import { hero, note, row, help } from './tabletKit.js';
 import { LOT } from '../content/facilities.js';
 
+const n = (x) => Math.round(Number(x) || 0).toLocaleString('en-US');
+
 export function militaryApp(ui, body, open) {
-  const g = ui.game;
-  const W = g.war;
+  const g = ui.game; const W = g.war;
   const go = (r) => { if (r?.text) ui.corpNote = r.text; ui.audio.sfx(r?.ok === false ? 'sfx_fail' : 'sfx_coin'); open('Military'); };
   const nt = note(ui);
   if (nt) body.append(nt);
-  const V = W.companyView();
-  if (!V) { register(ui, body, go); return; }
-  // v0.103.3: the same five pages as the command terminal in the site office
-  const page = PAGES.includes(ui.milPage) ? ui.milPage : 'Home';
-  const bd = badges(ui);
-  const seg = segments(PAGES.map((id) => ({ id, label: id, badge: bd[id]?.count || 0 })), page, (t) => { ui.milPage = t; ui.milSub = null; open('Military'); });
-  seg.classList.add('five');
-  body.append(seg);
-  renderPage(ui, body, go, () => open('Military'), page);
+  const B = W.briefing();
+  if (!B) { register(ui, body, go); return; }
+  body.append(
+    hero({ label: B.name, value: B.status, sub: `${n(B.funds)} obols in the company account.`, tone: B.funds > 0 ? 'pos' : 'warn' }),
+    h('div', { class: 'tb-card list' },
+      row({ icon: '🪖', title: `${n(B.personnel.total)} people · ${B.personnel.squads} squads`, sub: `${n(B.personnel.available)} available, ${B.personnel.training} training.` }),
+      row({ icon: '🎯', title: `${B.missions.active} operation${B.missions.active === 1 ? '' : 's'} under way`, sub: `${B.missions.open} offered · ${B.missions.done} completed · readiness ${B.readiness}%.` }),
+      row({ icon: '📦', title: B.supply.short ? `${B.supply.short} supply level${B.supply.short === 1 ? '' : 's'} short` : 'Supplies', sub: `${B.orders.transit + B.orders.pending} order${B.orders.transit + B.orders.pending === 1 ? '' : 's'} on their way.`, tone: B.supply.short ? 'warn' : '' })),
+    h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => ui.openPanel('militaryterminal') }, 'Open the command terminal')),
+    help('About the terminal', 'The command terminal is where the company is run: the base, procurement, internal logistics, missions, the world and its theaters. It opens from here anywhere, and from the terminal in the site office at Hollowmoor Lot.'));
 }
 
 function register(ui, body, go) {
