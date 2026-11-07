@@ -98,7 +98,7 @@ function homePage(ui, box, go, open) {
 
 // ---------------------------------------------------------------- Troops
 const HIRE = ['rifleman', 'medic', 'officer', 'anti_tank'].concat(['guard', 'technician']);
-function troopsPage(ui, box, go, open) {
+export function troopsPage(ui, box, go, open) {
   const g = ui.game; const W = g.war; const P = W.people(); const S = W.squads(); const st = W.stock();
   if (W.autoSquads() === undefined) W.setAutoSquads(true, false); // (the first time the page is opened the setting is turned on, and nobody is moved until the next morning or "Do it now")
   const auto = W.autoSquads() !== false;
