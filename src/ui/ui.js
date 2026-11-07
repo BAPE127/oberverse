@@ -238,7 +238,8 @@ export class UI {
     if (this.state !== 'playing' || !this.game?.player || this.demo) return;
     const r = this.saves.save('auto', this.game);
     this.lastAutosave = this.time;
-    if (!r.ok) this.toast(`Autosave failed: ${r.error}`, 'warn');
+    if (!r.ok) { if (!this.autosaveFailed) this.toast(`Autosave failed: ${r.error}`, 'warn', 12); this.autosaveFailed = true; } // (once: a full storage would otherwise repeat this every minute)
+    else this.autosaveFailed = false;
   }
 
   loadFrom(slot) {

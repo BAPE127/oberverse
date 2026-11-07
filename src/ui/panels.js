@@ -544,20 +544,32 @@ export function settingsPanel(ui, body) {
 export function savesPanel(ui, body, opts) {
   const mode = opts.mode || 'load';
   const inGame = Boolean(ui.game?.player) && ui.state === 'playing';
+  const mb = (n) => `${(n / 1e6).toFixed(2)} M`;
+  let confirm = null; // the slot whose Delete is waiting for a second tap
   const render = (msg) => {
     body.innerHTML = '';
     if (msg) body.append(h('p', {}, h('b', {}, msg)));
     const list = ui.saves.list();
+    const U = ui.saves.usage();
+    // how full the browser's storage is: a full storage is why a save can fail, and deleting a save is what frees it
+    const pct = Math.min(100, Math.round((U.used / U.limit) * 100));
+    body.append(h('div', { class: 'save-meter' }, h('div', { class: 'desc' }, `Storage: ${mb(U.used)} of about ${mb(U.limit)} characters used (${pct}%). Saves are kept in your browser; deleting one frees its space.`), h('div', { class: `bar${pct > 85 ? ' hot' : ''}`, style: 'height:8px;border-radius:4px;background:#222;overflow:hidden;margin:4px 0' }, h('div', { style: `height:100%;width:${pct}%;background:${pct > 85 ? '#d9534f' : '#5cb85c'}` }))));
     const wrap = h('div', { class: 'list' });
     for (const s of list) {
       const label = s.slot === 'auto' ? 'Autosave' : `Slot ${s.slot.slice(4)}`;
+      const u = U.slots.find((x) => x.slot === s.slot);
       const info = s.empty ? 'Empty' : s.corrupt ? 'Unreadable (a backup may load)' : `${s.meta.playerName} · Day ${s.meta.day} ${s.meta.time} · ${s.meta.location} · v${s.gameVersion}`;
+      const size = u && (u.bytes || u.backup) ? `${s.empty ? '' : `${mb(u.bytes)} `}${u.backup ? `${s.empty ? '' : '+ '}${mb(u.backup)} backup` : ''}` : '';
       const btns = [];
       if (mode === 'save' && s.slot !== 'auto' && inGame) btns.push(h('button', { class: 'small primary', onclick: () => { const r = ui.saveTo(s.slot); render(r.ok ? `Saved to ${label}.` : r.error); } }, 'Save here'));
       if (!s.empty) btns.push(h('button', { class: 'small', onclick: () => ui.loadFrom(s.slot) }, 'Load'));
       if (!s.empty) btns.push(h('button', { class: 'small ghost', onclick: () => ui.exportSlot(s.slot) }, 'Export'));
-      if (!s.empty && s.slot !== 'auto') btns.push(h('button', { class: 'small ghost', onclick: () => { ui.saves.delete(s.slot); render(`${label} deleted (a backup copy was kept).`); } }, 'Delete'));
-      wrap.append(h('div', { class: 'item-row slot' }, h('div', { class: 'icon' }, s.slot === 'auto' ? '⟳' : '💾'), h('div', { class: 'grow' }, h('div', { class: 'name' }, label), h('div', { class: 'desc' }, info)), ...btns));
+      if (!s.empty || (u && u.backup)) {
+        if (confirm === s.slot) {
+          btns.push(h('button', { class: 'small danger', onclick: () => { const n = ui.saves.delete(s.slot); confirm = null; render(`${label} deleted for good: ${mb(n)} characters freed.`); } }, 'Yes, delete it'), h('button', { class: 'small ghost', onclick: () => { confirm = null; render(); } }, 'Keep'));
+        } else btns.push(h('button', { class: 'small ghost', onclick: () => { confirm = s.slot; render(); } }, 'Delete'));
+      }
+      wrap.append(h('div', { class: 'item-row slot' }, h('div', { class: 'icon' }, s.slot === 'auto' ? '⟳' : '💾'), h('div', { class: 'grow' }, h('div', { class: 'name' }, label), h('div', { class: 'desc' }, info), size ? h('div', { class: 'desc' }, size) : null), ...btns));
     }
     body.append(wrap);
     const file = h('input', { type: 'file', accept: '.json,application/json', style: 'display:none', onchange: async (e) => {
@@ -568,7 +580,8 @@ export function savesPanel(ui, body, opts) {
       const r = ui.saves.importToSlot(target, text);
       render(r.ok ? `Imported into ${target}.${r.warnings.length ? ' Repairs: ' + r.warnings.join(' ') : ''}` : `Import failed: ${r.errors.join(' ')}`);
     } });
-    body.append(h('div', { class: 'row' }, file, h('button', { class: 'small', onclick: () => file.click() }, 'Import save file…')));
+    body.append(h('div', { class: 'row' }, file, h('button', { class: 'small', onclick: () => file.click() }, 'Import save file…'),
+      U.backups ? h('button', { class: 'small ghost', title: 'Backups are copies of older saves; the saves themselves are kept', onclick: () => { const n = ui.saves.dropBackups(); render(`Backups deleted: ${mb(n)} characters freed.`); } }, `Delete all backups (${mb(U.backups)})`) : null));
   };
   render();
   return { title: mode === 'save' ? 'Save game' : 'Load game' };
