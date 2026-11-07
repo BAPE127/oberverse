@@ -16,7 +16,7 @@ export function militaryApp(ui, body, open) {
   // v0.103.3: the same five pages as the command terminal in the site office
   const page = PAGES.includes(ui.milPage) ? ui.milPage : 'Home';
   const bd = badges(ui);
-  const seg = segments(PAGES.map((id) => ({ id, label: id, badge: bd[id] ? 1 : 0 })), page, (t) => { ui.milPage = t; ui.milSub = null; open('Military'); });
+  const seg = segments(PAGES.map((id) => ({ id, label: id, badge: bd[id]?.count || 0 })), page, (t) => { ui.milPage = t; ui.milSub = null; open('Military'); });
   seg.classList.add('five');
   body.append(seg);
   renderPage(ui, body, go, () => open('Military'), page);

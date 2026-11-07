@@ -81,7 +81,7 @@ export class War {
   equipment() { return this.peek()?.company?.equipment || []; }
   // ---- v0.103.3: one tap to put every free soldier in a squad and arm them; optionally every morning
   organise() { return troopsOrganise(this.g); }
-  setAutoSquads(on) { return troopsAuto(this.g, on); }
+  setAutoSquads(on, now = true) { return troopsAuto(this.g, on, now); }
   autoSquads() { return this.peek()?.company?.autoSquads; }
   // ---- v0.103.2: the supply link with the Arms company (free standing levels; the shortfall bought from other manufacturers)
   supplyLink() { return linkView(this.g); }

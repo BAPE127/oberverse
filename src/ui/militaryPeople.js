@@ -87,6 +87,6 @@ export function baseScreen(ui, body, go, open) {
     row({ icon: '🍲', title: 'Meals', sub: `${B.meals} hot meals a day from the mess; everyone eats a ration a day from the stores.`, action: h('button', { class: 'tb-mini pri', onclick: () => go(W.buySupply('rations', 50)) }, 'Rations ×50') }),
     row({ icon: '🏥', title: 'Medical', sub: `${B.treat} treatment places · ${B.wounded} wounded · ${B.medicine} medicine in the stores.`, action: h('button', { class: 'tb-mini', onclick: () => go(W.buySupply('medicine', 10)) }, 'Medicine ×10') }),
     row({ icon: '🛏️', title: 'Beds', sub: `${B.beds} beds for ${B.people} people.` }),
-    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} of ${H.stores.total} places used.` })));
+    row({ icon: '📦', title: 'Stores', sub: `${H.stores.used} items held. The stores have no limit.` })));
   body.append(help('Capacity is real', 'A base that is too small loses morale and readiness: people without a bed or a meal, and wounded beyond the treatment places, drag it down. Nothing here is free: rations and medicine are bought, and wages are paid every day.'));
 }

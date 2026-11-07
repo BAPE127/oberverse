@@ -28,8 +28,8 @@ const STAGES = { 1: 'A security firm', 2: 'A small army', 3: 'A military company
 export function badges(ui) {
   const W = ui.game.war; const out = {};
   const sup = W.supplyLink(); const short = sup ? sup.rows.filter((r) => r.want && r.have < r.want).length : 0;
-  if (short) out.Stores = `${short} short`;
-  const E = W.engagements(); if (E.open.length) out.Missions = String(E.open.length);
+  if (short) out.Stores = { count: short, text: `${short} short` };
+  const E = W.engagements(); if (E.open.length) out.Missions = { count: E.open.length, text: String(E.open.length) };
   return out;
 }
 
@@ -50,7 +50,7 @@ function homePage(ui, box, go, open) {
   const office = fac.find((f) => f.id === 'site_office');
   box.append(
     hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. You hold ${n(g.player.money)}. It pays only from its own account, never from yours.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
-    tiles([{ n: `${B.readiness}%`, t: 'ready', tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : '' }, { n: String(W.people().length), t: 'people' }, { n: V.lotOwned && office?.state === 'built' ? 'safe' : '—', t: 'the base' }]));
+    tiles([{ n: `${B.readiness}%`, t: 'ready', tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : '' }, { n: String(W.people().length), t: 'people' }, { n: W.baseProtected() ? 'safe' : 'at risk', t: 'the base', tone: W.baseProtected() ? '' : 'warn' }]));
   // money in and out: the only two acts that cross between you and the company
   const amount = h('input', { type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px;padding:8px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px' });
   const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
@@ -100,7 +100,7 @@ function homePage(ui, box, go, open) {
 const HIRE = ['rifleman', 'medic', 'officer', 'anti_tank'].concat(['guard', 'technician']);
 function troopsPage(ui, box, go, open) {
   const g = ui.game; const W = g.war; const P = W.people(); const S = W.squads(); const st = W.stock();
-  if (W.autoSquads() === undefined) W.setAutoSquads(true); // (the first time the page is opened: new soldiers join a squad and are armed when their training ends)
+  if (W.autoSquads() === undefined) W.setAutoSquads(true, false); // (the first time the page is opened the setting is turned on, and nobody is moved until the next morning or "Do it now")
   const auto = W.autoSquads() !== false;
   const after = (r) => { if (r?.ok && auto) W.organise(); go(r); };
   const troops = P.filter((p) => CLASSES[p.role]?.group === 'troop'); const staff = P.filter((p) => CLASSES[p.role]?.group !== 'troop');
@@ -162,10 +162,10 @@ function storesPage(ui, box, go, open) {
   if (buys.length) {
     const total = buys.reduce((a, r) => a + r.buyCost, 0);
     box.append(label(`Short · buy from other manufacturers (${LINK.markup} × value, ${LINK.days} days)`), list(...buys.map((r) => row({ icon: '🛒', title: `${r.name} · ${n(r.buyQty)}`, sub: `${n(r.unit)} each`, action: h('button', { class: 'tb-mini pri', disabled: V.cash < r.buyCost, onclick: () => go(W.buyElsewhere(r.item, r.buyQty)) }, `Buy · ${n(r.buyCost)}`) })),
-      buys.length > 1 ? row({ icon: '🛒', title: 'All of them', sub: `${n(total)} obols`, action: h('button', { class: 'tb-mini pri', disabled: V.cash < total, onclick: () => { let t = 0; let r; for (const x of buys) { r = W.buyElsewhere(x.item, x.buyQty); if (r.ok) t += x.buyCost; } go(r?.ok ? { ok: true, text: `Ordered ${buys.length} items for ${n(t)} obols.` } : r); } }, 'Buy all') }) : null));
+      buys.length > 1 ? row({ icon: '🛒', title: 'All of them', sub: `${n(total)} obols`, action: h('button', { class: 'tb-mini pri', disabled: V.cash < total, onclick: () => { let t = 0; let bought = 0; let why = ''; for (const x of buys) { const r = W.buyElsewhere(x.item, x.buyQty); if (r.ok) { t += x.buyCost; bought++; } else why = r.text; } go(bought ? { ok: bought === buys.length, text: `Ordered ${bought} of ${buys.length} items for ${n(t)} obols.${why ? ` The rest was refused: ${why}` : ''}` } : { ok: false, text: why }); } }, 'Buy all') }) : null));
   }
   if (S.inbound.length) box.append(label('On their way'), list(...S.inbound.map((b) => row({ icon: '🚚', title: `${n(b.qty)} × ${b.name}`, sub: `Due day ${b.due}.` }))));
-  box.append(list(row({ icon: '👕', title: 'Uniforms, rations, medicine, fuel, spares', sub: `${n(st['supply:uniform'] || 0)} uniforms · ${n(st['supply:rations'] || 0)} rations · ${n(st['supply:medicine'] || 0)} medicine · ${n(st['supply:fuel'] || 0)} fuel`, tag: '›', onclick: () => { ui.tabFold ||= {}; ui.tabFold.MilBuy = true; open(); } })));
+  box.append(list(row({ icon: '👕', title: 'Uniforms, rations, medicine, fuel, spares', sub: `${n(st['supply:uniform'] || 0)} uniforms · ${n(st['supply:rations'] || 0)} rations · ${n(st['supply:medicine'] || 0)} medicine · ${n(st['supply:fuel'] || 0)} fuel`, tag: '›', onclick: () => { ui.tabFold ||= {}; ui.tabFold.MilMoves = true; ui.tabFold.MilBuy = true; open(); } })));
   box.append(fold(ui, 'MilMoves', 'Buy supplies and vehicles, move aircraft and missiles, see everything held ›', (b) => transfersTab(ui, b, go)));
   box.append(help('How the supply link works', `Every morning your arms works ship what their export cages hold toward each level, at no charge: it is your own company's stock moving, so no sale is made. Crates are opened for the purpose. Turn on "Arms works make what the company needs" and their idle stations make what is short, then go back to what they were making. Items bought from other manufacturers cost ${LINK.markup} times their value, are paid from the company's own account, arrive in ${LINK.days} days and cannot be sent back.`));
 }

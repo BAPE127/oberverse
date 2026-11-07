@@ -27,7 +27,7 @@ export function militaryTerminalPanel(ui, body) {
     top.append(h('div', {}, h('h1', {}, `${V.name.toUpperCase()} · COMMAND TERMINAL`), h('small', {}, 'Hollowmoor Lot · site office')), h('div', { class: 'sp' }),
       h('div', {}, h('small', {}, 'CASH'), h('b', {}, n(V.cash))), h('div', {}, h('small', {}, 'DAY'), h('b', {}, `${g.clock.day} · ${g.clock.timeString}`)), h('button', { class: 'mt-x', onclick: () => ui.closePanel() }, '✕ Step away'));
     const bd = badges(ui);
-    side.replaceChildren(...PAGES.map((id) => h('button', { class: `mt-item${page === id ? ' on' : ''}`, onclick: () => (id === 'Map' ? ui.openPanel('strategic') : pick(id)) }, h('span', {}, id), bd[id] ? h('em', { class: 'w' }, bd[id]) : null)));
+    side.replaceChildren(...PAGES.map((id) => h('button', { class: `mt-item${page === id ? ' on' : ''}`, onclick: () => (id === 'Map' ? ui.openPanel('strategic') : pick(id)) }, h('span', {}, id), bd[id] ? h('em', { class: 'w' }, bd[id].text) : null)));
     const box = h('div', { class: 'mt-page' });
     const nt = note(ui); if (nt) box.append(nt);
     renderPage(ui, box, go, open, page);

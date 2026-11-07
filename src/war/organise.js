@@ -28,10 +28,10 @@ export function organise(game) {
   return { ok: true, text: placed || formed ? `${placed} placed in squads${formed ? `, ${formed} new squad${formed === 1 ? '' : 's'} formed` : ''}.` : 'Everyone is already in a squad.', placed, formed, armed };
 }
 
-export function setAuto(game, on) {
+export function setAuto(game, on, now = true) {
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return { ok: false, text: 'You have no company.' };
   C.autoSquads = Boolean(on);
-  if (on) organise(game);
+  if (on && now) organise(game);
   return { ok: true, text: on ? 'New soldiers will join a squad and be armed when their training ends.' : 'You place new soldiers in squads yourself.' };
 }

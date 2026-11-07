@@ -36,3 +36,9 @@ test('the stores hold any amount: a thousand of something is not refused, with o
   const g = warGame(964); assert.ok(g.war.buySupply('uniform', 1000).ok); assert.equal(g.war.stock()['supply:uniform'], 1000);
   assert.deepEqual(g.war.check(), []);
 });
+
+test('turning the setting on without "now" moves no one until the morning (what opening the Troops page does for the first time)', () => {
+  const g = troops(965, false); days(g, 12);
+  assert.ok(g.war.setAutoSquads(true, false).ok); assert.equal(g.war.squads().length, 0, 'nobody placed yet');
+  days(g, 1); assert.ok(g.war.squads().length >= 1, 'the morning places them');
+});

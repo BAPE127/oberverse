@@ -14,7 +14,7 @@ export function transfersTab(ui, body, go) {
   const free = O.aero.length + O.arms.reduce((a, x) => a + x.have, 0);
   body.append(
     hero({ label: 'Free between your companies', value: `${n(free)} to move`, sub: 'Moving an item is not a sale: no money, no fee, no entry. What moves is gone from where it was.' }),
-    tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: `${n(H.stores.used)}/${n(H.stores.total)}`, t: 'stores' }]));
+    tiles([{ n: `${H.ground.used}/${H.ground.total}`, t: 'vehicle bays' }, { n: `${H.air.used}/${H.air.total}`, t: 'hangar bays' }, { n: n(H.stores.used), t: 'held in stores (no limit)' }]));
   if (O.aero.length) body.append(label('From Aerospace · stored military aircraft and strategic products'), list(...O.aero.map((a) => row({ icon: a.line === 'missile' ? '🚀' : '✈️', title: a.name, sub: a.line === 'missile' ? `Strategic product, in the secure store · takes 20 places in the stores` : `Finished, in storage · quality ${a.quality}`, tag: 'free', tone: 'good', action: h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'aero', ref: a.ref })) }, 'Move') }))));
   if (O.arms.length) body.append(label('From the Arms works · export cages'), list(...O.arms.map((a) => row({ icon: '🔫', title: `${a.name} · ${a.have}`, sub: a.from, tag: 'free', tone: 'good',
     action: h('span', {}, h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: 1 })) }, '1'), ' ', h('button', { class: 'tb-mini pri', onclick: () => go(W.transfer({ source: 'arms', works: a.works, item: a.item, qty: a.have })) }, 'All')) }))));
