@@ -32302,7 +32302,7 @@ __m["src/war/organise.js"] = (function () {
 // training ends. It only uses the same rules as doing it by hand (squads.js, loadout.js): it forms no squad beyond the names the company has, takes no one out of a squad, and arms only from stock.
 const { peekMilitary } = __m["src/war/state.js"];
 const { CLASSES, SQUAD, TROOP_CLASSES } = __m["src/content/troops.js"];
-const { create, assign, setLeader } = __m["src/war/squads.js"];
+const { create, assign, setLeader, reservedFor } = __m["src/war/squads.js"];
 const { equipClass } = __m["src/war/loadout.js"];
 
 function organise(game) {
@@ -32312,12 +32312,12 @@ function organise(game) {
   const home = () => C.squads.filter((s) => s.status === 'home');
   let placed = 0; let formed = 0; const before = C.squads.length;
   for (const p of free().filter((x) => CLASSES[x.role].leads)) {
-    let s = home().find((q) => !q.leader && q.members.length < SQUAD.max);
+    let s = home().find((q) => !q.leader && q.members.length + reservedFor(C, q.id) < SQUAD.max);
     if (!s) { const r = create(game); if (!r.ok) continue; s = C.squads.find((q) => q.id === r.id); }
     if (setLeader(game, s.id, p.id).ok) placed++;
   }
   for (const p of free()) {
-    let s = home().find((q) => q.members.length < SQUAD.max);
+    let s = home().find((q) => q.members.length + reservedFor(C, q.id) < SQUAD.max);
     if (!s) { const r = create(game); if (!r.ok) break; s = C.squads.find((q) => q.id === r.id); }
     if (assign(game, s.id, p.id).ok) placed++;
   }
@@ -32352,7 +32352,7 @@ const { peekMilitary } = __m["src/war/state.js"];
 const { capacity } = __m["src/war/facilities.js"];
 const { nextId, takeStock, stockOf } = __m["src/war/equipment.js"];
 const { release } = __m["src/war/loadout.js"];
-const { assign, reservedFor } = __m["src/war/squads.js"];
+const { assign, setLeader, reservedFor } = __m["src/war/squads.js"];
 const { CLASSES, SQUAD } = __m["src/content/troops.js"];
 
 const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
@@ -32401,7 +32401,7 @@ function hire(game, role, squadId = null) {
   const name = `${N.first[Math.floor(unit(`${key}|f`) * N.first.length)]} ${N.last[Math.floor(unit(`${key}|l`) * N.last.length)]}`;
   C.personnel.push({ id, name, role, wage: K.wage, status: K.train ? 'training' : 'active', trainedDay: game.clock.day + K.train, hired: game.clock.day, joins: into ? into.id : null, location: `facility:${barracks(game)}`, assignedTo: null, post: null, exp: 0, morale: 70, fatigue: 0, wounds: 0, armour: 1, weapon: null, gadget: null });
   const person = C.personnel[C.personnel.length - 1];
-  if (into && !K.train) { person.joins = null; assign(game, into.id, person.id); }
+  if (into && !K.train) { person.joins = null; assign(game, into.id, person.id); } // (every troop class trains, so this holds only if one is ever added with no training)
   return { ok: true, text: `${name} joins as ${/^[aeiou]/i.test(K.name) ? 'an' : 'a'} ${K.name.toLowerCase()} (${K.wage} obols a day${K.train ? `, ${K.train} days of training` : ''})${into ? `. A place is held in ${into.name}${K.train ? ' until training ends' : ''}.` : '.'}`, id };
 }
 
@@ -32424,7 +32424,10 @@ function trainTick(game) {
     if (p.status === 'training' && (p.trainedDay ?? 0) <= day) {
       p.status = 'active'; p.exp = Math.max(p.exp, 1);
       const to = p.joins; p.joins = null; // the held place is used (or, if the squad is gone, away or full, the auto-squads take them as for anyone)
-      if (to != null) assign(game, to, p.id);
+      if (to != null) { // an officer joins as the squad's leader when it has none (the squad he was hired to lead)
+        const sq = C.squads.find((q) => q.id === to);
+        if (CLASSES[p.role]?.leads && sq && !sq.leader) setLeader(game, to, p.id); else assign(game, to, p.id);
+      }
     }
   }
 }
@@ -56960,6 +56963,23 @@ class Game {
   }
 
   /** Load a validated, migrated state object (see src/save/). */
+  /**
+   * v0.103.6: if the player stands on a tile that is now solid (a map was redrawn since the save), move them to the nearest free tile on the same map. Never touches someone riding or driving,
+   * and does nothing for a position that is fine.
+   */
+  unstickPlayer() {
+    const p = this.player; const m = this.maps.get(p.map);
+    if (!m?.blockedTile || (p.riding !== null && p.riding !== undefined) || p.driving) return false;
+    const tx = Math.floor(p.x / TILE); const ty = Math.floor(p.y / TILE);
+    if (!m.blockedTile(tx, ty)) return false;
+    for (let r = 1; r <= 30; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || m.blockedTile(tx + dx, ty + dy)) continue;
+      p.x = (tx + dx) * TILE + TILE / 2; p.y = (ty + dy) * TILE + TILE / 2;
+      return true;
+    }
+    return false;
+  }
+
   loadState(state) {
     this.clock = WorldClock.from(state.clock);
     this.rng = Rng.from(state.rng);
@@ -57015,6 +57035,7 @@ class Game {
       const s = this.maps.get(this.content.startingMap).spotPx(this.content.startingSpot);
       Object.assign(this.player, { map: this.content.startingMap, x: s.x, y: s.y });
     }
+    this.unstickPlayer(); // v0.103.6: a map's layout may have changed since the save was made (Hollowmoor Lot was redrawn)
     for (const npc of this.npcs.values()) {
       if (npc.intent?.source === 'errand' && this.clock.total < npc.intent.until) {
         this.npcSystem.plan(npc);

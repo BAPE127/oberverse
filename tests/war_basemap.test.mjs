@@ -2,7 +2,8 @@
 // its room is made from it, and the company's parked machines stand at stands that exist, one each, in the same place every time.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CONTENT, newGame } from './helpers.mjs';
+import { CONTENT, newGame, Game } from './helpers.mjs';
+import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { warGame, buildAll, days } from './war_helpers.mjs';
 import { SLOTS, FENCE, AIRFIELD, PARK, INNER, HM_W, HM_H } from '../src/content/maps/hollowmoor.js';
 import { FACILITIES } from '../src/content/facilities.js';
@@ -61,4 +62,14 @@ test('parked machines: each owned vehicle, helicopter and aircraft stands at a s
   assert.equal(list.length, g.war.equipment().length, 'every machine at the base is drawn'); assert.equal(new Set(list.map((m) => `${m.x},${m.y}`)).size, list.length, 'no two on one stand');
   assert.equal(key(), a, 'drawing twice moves nothing'); assert.ok(list.every((m) => typeof m.draw === 'function'));
   const e = g.war.equipment()[0]; e.status = 'deployed'; assert.equal(parkedMachines(g).length, list.length - 1, 'a deployed machine is not parked');
+});
+
+test('a save made standing where the lot was open before the redraw (inside a building, the water tower or the new fence) loads on the nearest free tile, never stuck, and a good position is left alone', () => {
+  const g = newGame(1303); g.changeMap('hollowmoor_lot', 'gate_inside');
+  const at = (tx, ty) => { g.player.map = 'hollowmoor_lot'; g.player.x = tx * 32 + 16; g.player.y = ty * 32 + 16; const sm = new SaveManager(new MemoryStorage()); assert.ok(sm.save('slot1', g).ok); const g2 = new Game(CONTENT, { seed: 5 }); assert.ok(sm.load('slot1', g2).ok); return g2; };
+  for (const [tx, ty] of [[22, 66], [81, 66], [20, 74]]) {
+    const g2 = at(tx, ty); const m = g2.maps.get(g2.player.map); const nx = Math.floor(g2.player.x / 32); const ny = Math.floor(g2.player.y / 32);
+    assert.equal(g2.player.map, 'hollowmoor_lot'); assert.ok(!m.blockedTile(nx, ny), `${tx},${ty}: moved to a free tile`); assert.ok(Math.hypot(nx - tx, ny - ty) <= 8, `${tx},${ty}: a short way`);
+  }
+  const ok = at(10, 20); assert.equal(Math.floor(ok.player.x / 32), 10); assert.equal(Math.floor(ok.player.y / 32), 20);
 });

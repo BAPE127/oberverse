@@ -42,3 +42,24 @@ test('a recruit whose squad was stood down while they trained is still a soldier
   g.war.squadDisband(q.id); days(g, 8);
   const p = g.war.people().find((x) => x.id === r.id); assert.equal(p.status, 'active'); assert.ok(p.assignedTo != null, 'the morning placed them');
 });
+
+test('an officer hired into an empty squad leads it when training ends', () => {
+  const g = base(1105); const q = g.war.squadCreate('Delta'); const r = g.war.hire('officer', q.id); assert.ok(r.ok, r.text);
+  days(g, CLASSES.officer.train + 1);
+  const S = g.war.squads()[0]; assert.equal(S.leader, r.id, 'the officer is the leader'); assert.equal(S.size, 1);
+  const r2 = g.war.hire('officer', q.id); days(g, CLASSES.officer.train + 1); assert.equal(g.war.squads()[0].leader, r.id, 'a second officer joins without taking the lead');
+  assert.ok(g.war.squads()[0].members.includes(r2.id)); assert.deepEqual(g.war.check(), []);
+});
+
+test('automatic placement counts held places: a squad of eleven with a recruit in training is full, so a trained free soldier goes to a new squad', () => {
+  const g = base(1106); g.war.setAutoSquads(false);
+  const lone = g.war.hire('rifleman'); assert.ok(lone.ok); // trained and in no squad by the time the others are
+  const q = g.war.squadCreate('Echo').id;
+  for (let i = 0; i < 11; i++) { let r = g.war.hire('rifleman', q); for (let k = 0; !r.ok && k < 20; k++) { days(g, 1); r = g.war.hire('rifleman', q); } assert.ok(r.ok, r.text); }
+  days(g, 6); assert.equal(g.war.squads()[0].size, 11); assert.equal(g.war.people().find((p) => p.id === lone.id).assignedTo, null, 'the lone soldier is trained and unplaced');
+  const held = g.war.hire('rifleman', q); assert.ok(held.ok, held.text); assert.equal(g.war.squads()[0].incoming.length, 1);
+  const r = g.war.organise(); assert.ok(r.ok); assert.ok(r.placed >= 1 && r.formed === 1, `a new squad was formed for the free soldier (${r.text})`);
+  const S = g.war.squads(); assert.equal(S.length, 2); assert.ok(S.every((s) => s.size + s.incoming.length <= 12));
+  assert.notEqual(g.war.people().find((p) => p.id === lone.id).assignedTo, q, 'not in the squad whose last place is held');
+  assert.deepEqual(g.war.check(), []);
+});

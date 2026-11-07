@@ -3,7 +3,7 @@
 // training ends. It only uses the same rules as doing it by hand (squads.js, loadout.js): it forms no squad beyond the names the company has, takes no one out of a squad, and arms only from stock.
 import { peekMilitary } from './state.js';
 import { CLASSES, SQUAD, TROOP_CLASSES } from '../content/troops.js';
-import { create, assign, setLeader } from './squads.js';
+import { create, assign, setLeader, reservedFor } from './squads.js';
 import { equipClass } from './loadout.js';
 
 export function organise(game) {
@@ -13,12 +13,12 @@ export function organise(game) {
   const home = () => C.squads.filter((s) => s.status === 'home');
   let placed = 0; let formed = 0; const before = C.squads.length;
   for (const p of free().filter((x) => CLASSES[x.role].leads)) {
-    let s = home().find((q) => !q.leader && q.members.length < SQUAD.max);
+    let s = home().find((q) => !q.leader && q.members.length + reservedFor(C, q.id) < SQUAD.max);
     if (!s) { const r = create(game); if (!r.ok) continue; s = C.squads.find((q) => q.id === r.id); }
     if (setLeader(game, s.id, p.id).ok) placed++;
   }
   for (const p of free()) {
-    let s = home().find((q) => q.members.length < SQUAD.max);
+    let s = home().find((q) => q.members.length + reservedFor(C, q.id) < SQUAD.max);
     if (!s) { const r = create(game); if (!r.ok) break; s = C.squads.find((q) => q.id === r.id); }
     if (assign(game, s.id, p.id).ok) placed++;
   }

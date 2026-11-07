@@ -10,7 +10,7 @@ import { peekMilitary } from './state.js';
 import { capacity } from './facilities.js';
 import { nextId, takeStock, stockOf } from './equipment.js';
 import { release } from './loadout.js';
-import { assign, reservedFor } from './squads.js';
+import { assign, setLeader, reservedFor } from './squads.js';
 import { CLASSES, SQUAD } from '../content/troops.js';
 
 const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
@@ -59,7 +59,7 @@ export function hire(game, role, squadId = null) {
   const name = `${N.first[Math.floor(unit(`${key}|f`) * N.first.length)]} ${N.last[Math.floor(unit(`${key}|l`) * N.last.length)]}`;
   C.personnel.push({ id, name, role, wage: K.wage, status: K.train ? 'training' : 'active', trainedDay: game.clock.day + K.train, hired: game.clock.day, joins: into ? into.id : null, location: `facility:${barracks(game)}`, assignedTo: null, post: null, exp: 0, morale: 70, fatigue: 0, wounds: 0, armour: 1, weapon: null, gadget: null });
   const person = C.personnel[C.personnel.length - 1];
-  if (into && !K.train) { person.joins = null; assign(game, into.id, person.id); }
+  if (into && !K.train) { person.joins = null; assign(game, into.id, person.id); } // (every troop class trains, so this holds only if one is ever added with no training)
   return { ok: true, text: `${name} joins as ${/^[aeiou]/i.test(K.name) ? 'an' : 'a'} ${K.name.toLowerCase()} (${K.wage} obols a day${K.train ? `, ${K.train} days of training` : ''})${into ? `. A place is held in ${into.name}${K.train ? ' until training ends' : ''}.` : '.'}`, id };
 }
 
@@ -82,7 +82,10 @@ export function trainTick(game) {
     if (p.status === 'training' && (p.trainedDay ?? 0) <= day) {
       p.status = 'active'; p.exp = Math.max(p.exp, 1);
       const to = p.joins; p.joins = null; // the held place is used (or, if the squad is gone, away or full, the auto-squads take them as for anyone)
-      if (to != null) assign(game, to, p.id);
+      if (to != null) { // an officer joins as the squad's leader when it has none (the squad he was hired to lead)
+        const sq = C.squads.find((q) => q.id === to);
+        if (CLASSES[p.role]?.leads && sq && !sq.leader) setLeader(game, to, p.id); else assign(game, to, p.id);
+      }
     }
   }
 }

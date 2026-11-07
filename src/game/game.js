@@ -1299,6 +1299,23 @@ export class Game {
   }
 
   /** Load a validated, migrated state object (see src/save/). */
+  /**
+   * v0.103.6: if the player stands on a tile that is now solid (a map was redrawn since the save), move them to the nearest free tile on the same map. Never touches someone riding or driving,
+   * and does nothing for a position that is fine.
+   */
+  unstickPlayer() {
+    const p = this.player; const m = this.maps.get(p.map);
+    if (!m?.blockedTile || (p.riding !== null && p.riding !== undefined) || p.driving) return false;
+    const tx = Math.floor(p.x / TILE); const ty = Math.floor(p.y / TILE);
+    if (!m.blockedTile(tx, ty)) return false;
+    for (let r = 1; r <= 30; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || m.blockedTile(tx + dx, ty + dy)) continue;
+      p.x = (tx + dx) * TILE + TILE / 2; p.y = (ty + dy) * TILE + TILE / 2;
+      return true;
+    }
+    return false;
+  }
+
   loadState(state) {
     this.clock = WorldClock.from(state.clock);
     this.rng = Rng.from(state.rng);
@@ -1354,6 +1371,7 @@ export class Game {
       const s = this.maps.get(this.content.startingMap).spotPx(this.content.startingSpot);
       Object.assign(this.player, { map: this.content.startingMap, x: s.x, y: s.y });
     }
+    this.unstickPlayer(); // v0.103.6: a map's layout may have changed since the save was made (Hollowmoor Lot was redrawn)
     for (const npc of this.npcs.values()) {
       if (npc.intent?.source === 'errand' && this.clock.total < npc.intent.until) {
         this.npcSystem.plan(npc);
