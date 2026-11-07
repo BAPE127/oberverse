@@ -12,7 +12,6 @@ import { SOLDIER_RETAINER } from '../src/war/strategic.js';
 import { FACILITIES } from '../src/content/facilities.js';
 
 const T = INCOME.war.target;
-const MINI = { name: 'Everyone', line: ['inf'], support: [], attach: [] };
 
 /** Hire `n` soldiers (one officer to each twelve), let them train, put them in squads of twelve (the squads' leaders are the officers) and raise one battalion from all of them. */
 function battalionOf(g, n) {
@@ -21,9 +20,8 @@ function battalionOf(g, n) {
   // (the range trains six at a time: hire in batches and let each finish)
   for (let i = 0; i < n; i++) { let r = g.war.hire(i < officers ? 'officer' : 'rifleman'); for (let k = 0; !r.ok && k < 12; k++) { days(g, 3); r = g.war.hire(i < officers ? 'officer' : 'rifleman'); } assert.ok(r.ok, `hire ${i}: ${r.text}`); }
   days(g, 10); assert.ok(g.war.organise().ok !== false);
-  const t = g.war.saveTemplate(MINI); assert.ok(t.ok, t.text);
   const sq = g.war.squads().filter((s) => s.status === 'home').map((s) => s.id);
-  const r = g.war.raise({ template: t.id, squads: sq }); assert.ok(r.ok, r.text);
+  const r = g.war.raise({ template: 'tpl_company', squads: sq }); assert.ok(r.ok, r.text);
   return g.war.state().war.battalions.find((b) => b.id === r.id);
 }
 

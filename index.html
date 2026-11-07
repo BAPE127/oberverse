@@ -34305,6 +34305,8 @@ const DEFAULT_TEMPLATES = [
   { id: 'tpl_rifle', name: 'Rifle Bn', line: ['inf', 'inf', 'inf', 'inf', 'at'], support: ['medical', 'signals'], attach: [], builtin: true },
   { id: 'tpl_armour', name: 'Armoured Bn', line: ['tank', 'tank', 'tank', 'tank', 'apc', 'apc', 'inf', 'inf'], support: ['recon', 'engineers', 'medical', 'logistics'], attach: ['spg'], builtin: true },
   { id: 'tpl_combined', name: 'Combined Arms Bn', line: ['tank', 'tank', 'apc', 'inf', 'inf', 'inf', 'at'], support: ['recon', 'antiair', 'engineers', 'medical', 'signals', 'logistics'], attach: ['spg', 'heli'], builtin: true },
+  // v0.103.5: one squad is enough: the smallest force a company can send (twelve beds make one), so the income floor does not wait on the designer
+  { id: 'tpl_company', name: 'Rifle Company', line: ['inf'], support: [], attach: [], builtin: true },
 ];
 const templates = (game) => [...DEFAULT_TEMPLATES, ...(warOf(game)?.templates || [])];
 const slotOk = (t) => Array.isArray(t.line) && t.line.length >= 1 && t.line.length <= MAX_LINE && t.line.every((s) => SLOTS.line[s]) && (t.support || []).every((s) => SLOTS.support[s]) && (t.attach || []).every((s) => SLOTS.attach[s]);
