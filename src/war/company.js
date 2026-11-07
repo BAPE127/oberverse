@@ -3,7 +3,7 @@
 //   found(game, rawName)      register the company (a name through the same rules as every company's: validateName); costs nothing but starts the record
 //   fund(game, amount)        the owner pays money in: out of the wallet, into the company's own account (game.corp 'security') — the one way money crosses
 //   take(game, amount)        the owner takes money out (never while it owes)
-//   pay(game, amount, note)   what the company buys, paid from its OWN account only (never the wallet); refused when it cannot cover it
+//   pay(game, amount, note, cat)   what the company buys, paid from its OWN account only (never the wallet); refused when it cannot cover it
 //   buyLicence / buyLot       the Civic Office's licence and Hollowmoor Lot: paid by the company, the lot only once licensed; the fence and gate join the damage gate
 //   view(game)                what the Military app shows
 // The company is not one of the player's four businesses (COMPANY_IDS): it has an account in the corporate ledger (ACCOUNT_IDS) so its cash reconciles like theirs, and the
@@ -57,13 +57,13 @@ export function take(game, amount) {
 }
 
 /** The company pays from its own account alone: never the wallet. Returns { ok, text }. */
-export function pay(game, amount, note = 'Purchase') {
+export function pay(game, amount, note = 'Purchase', cat = 'facility') {
   if (!founded(game)) return { ok: false, text: 'You have no company.' };
   amount = Math.round(amount);
   if (!(amount >= 0)) return { ok: false, text: 'That is not an amount.' };
   const a = game.corp.account(ACCOUNT);
   if (!a.funded || a.cash < amount) return { ok: false, text: `${peekMilitary(game).company.identity.name} holds ${fmt(a.funded ? a.cash : 0)} obols; this needs ${fmt(amount)}. Pay money in from the Military app.` };
-  game.corp.pay(ACCOUNT, amount, { cat: 'facility' });
+  game.corp.pay(ACCOUNT, amount, { cat });
   return { ok: true, note };
 }
 

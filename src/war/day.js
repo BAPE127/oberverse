@@ -10,6 +10,7 @@ import { dayTick as battles } from './engagements.js';
 import { dayTick as strategic } from './strategic.js';
 import { dayTick as supplyLink } from './link.js';
 import { organise } from './organise.js';
+import { dayTick as procurement } from './procurement.js';
 
 export function runDay(game) {
   construction(game);
@@ -22,6 +23,7 @@ export function runDay(game) {
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   if (C.autoSquads) organise(game); // v0.103.3: soldiers whose training has ended join a squad and are armed
   works(game);
+  procurement(game); // v0.103.4: orders from outside suppliers arrive on their day
   supplyLink(game); // v0.103.2: the Arms works ship toward the company's standing levels, free
   jobs(game);
   battles(game);

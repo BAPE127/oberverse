@@ -6,6 +6,7 @@ import { register as registerStructure, apply as applyDamage, repair as repairSt
 import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
 import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
+import { market as procMarket, quote as procQuote, place as procPlace, ordersView as procOrders, CATEGORIES as PROC_CATEGORIES } from './procurement.js';
 import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
 import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
 import { housing as housingOf } from './equipment.js';
@@ -20,6 +21,7 @@ import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassT
 import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
 import { view as baseViewOf } from './base.js';
 import { checkMilitary } from './check.js';
+import { briefing as briefingOf, missions as missionsOf, activity as activityOf, worldFeed as worldFeedOf } from './briefing.js';
 import { profileOf as aiProfileOf } from './strategicAI.js';
 import { hooks as warHooks } from './hooks.js';
 import { view as stView, advance as stAdvance, templates as stTemplates, saveTemplate as stSave, removeTemplate as stRemove, needsOf as stNeeds, providedBy as stProvided, raise as stRaise, disband as stDisband, theatres as stTheatres, enlist as stEnlist, discharge as stDischarge, deploy as stDeploy, recall as stRecall, order as stOrder } from './strategic.js';
@@ -79,6 +81,17 @@ export class War {
   buySupply(id, qty) { return supplyBuy(this.g, id, qty); }
   housing() { return housingOf(this.g); }
   equipment() { return this.peek()?.company?.equipment || []; }
+  // ---- v0.103.4: what the command terminal reads (read-only; none of it advances the war)
+  briefing() { return briefingOf(this.g); }
+  missions() { return missionsOf(this.g); }
+  activity(limit) { return activityOf(this.g, limit); }
+  worldFeed(limit) { return worldFeedOf(this.g, limit); }
+  // ---- v0.103.4: procurement from outside suppliers (cart -> order -> delivery), separate from the free internal transfers
+  suppliers() { return procMarket(this.g); }
+  procurementCategories() { return PROC_CATEGORIES; }
+  quoteCart(lines) { return procQuote(this.g, lines); }
+  placeOrder(lines, token) { return procPlace(this.g, lines, token); }
+  orders() { return procOrders(this.g); }
   // ---- v0.103.3: one tap to put every free soldier in a squad and arm them; optionally every morning
   organise() { return troopsOrganise(this.g); }
   setAutoSquads(on, now = true) { return troopsAuto(this.g, on, now); }
