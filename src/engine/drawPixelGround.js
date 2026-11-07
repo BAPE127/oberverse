@@ -16,6 +16,7 @@
 //     brick (or plank, or plaster) face, windows and pillars; buildings' shadows on the street.
 import { TILE_TYPES } from '../world/tiles.js';
 import { hash2 } from '../core/rng.js';
+import { KIT } from '../content/baseKit.js';
 
 export const CHUNK = 8; // tiles to a chunk side (small: one is built in a few milliseconds)
 const T = 32; // world pixels to a tile
@@ -193,6 +194,11 @@ const WALLS = {
   // v0.52.0: the Phonograph Grand (black lacquer, gold, burgundy damask) and Morganius's rooms (midnight and silver)
   grand: { cap: '#241e28', capLight: '#c9a24a', capDark: '#120e16', face: '#1e1a24', faceLight: '#2e2834', mortar: '#0e0c12', paint: '#4a1a28', inside: 'damask', pillar: '#c9a24a' },
   arcane: { cap: '#2a1e3a', capLight: '#7a5aa8', capDark: '#160e22', face: '#2e2242', faceLight: '#3e2e56', mortar: '#1a1228', paint: '#2a1e44', inside: 'stars', pillar: '#a8a0c0' },
+  // v0.103.6: the base's walls (src/content/baseKit.js): painted olive concrete, grey formwork, corrugated steel, khaki render
+  olive: { cap: '#3e4a2e', capLight: '#7a8c58', capDark: '#252e1a', face: '#68785a', faceLight: '#7a8a68', mortar: '#4a5a3c', paint: '#aab894', inside: 'plain', pillar: '#56664a' },
+  concrete: { cap: '#55585a', capLight: '#9a9ea0', capDark: '#383a3c', face: '#8c8f8e', faceLight: '#a0a3a2', mortar: '#6e7170', paint: '#d4d6d2', inside: 'plain', pillar: '#7a7d7c' },
+  steel: { cap: '#4a505c', capLight: '#a4aab6', capDark: '#2e323c', face: '#868c98', faceLight: '#9aa0ac', mortar: '#6a707c', paint: '#c4c8d0', inside: 'plain', pillar: '#5e6470' },
+  khaki: { cap: '#6e6246', capLight: '#b4a47a', capDark: '#463e2a', face: '#aa9c78', faceLight: '#bcae8a', mortar: '#847858', paint: '#d8cca8', inside: 'plain', pillar: '#8e8260' },
   navy: { cap: '#323c56', capLight: '#5a6c94', capDark: '#1e2438', face: '#4a5672', faceLight: '#5e6a88', mortar: '#2e3850', paint: '#c8d0dc', inside: 'plain', pillar: '#8a96b0' },
 };
 const FLOORS = {
@@ -837,8 +843,11 @@ function wallTile(R, map, x, y, at, st) {
 
 /** The front of a building as the street sees it: brick (or planks, or render), a window every third tile. */
 function facade(R, px, fy, fh, s, x, map) {
+  const K = map.def?.look ? KIT[map.def.look] : null; // v0.103.6: a military building's marks
+  const W0 = map.width; const doorAt = (xx) => map.tileAt(xx, map.height - 1) === 'D';
   if (s === WALLS.wood) { R(px, fy, T, fh, s.face); for (let k = 0; k < fh; k += 4) R(px, fy + k, T, 1, s.mortar); }
-  else if (s === WALLS.teal || s === WALLS.navy) { R(px, fy, T, fh, s.face); R(px, fy, T, 2, s.capLight); R(px, fy + fh - 3, T, 3, s.mortar); }
+  else if (s === WALLS.steel) { R(px, fy, T, fh, s.face); for (let k = 0; k < T; k += 4) { R(px + k, fy, 1, fh, s.mortar); R(px + k + 1, fy, 1, fh, s.faceLight); } R(px, fy, T, 2, s.capLight); }
+  else if (s === WALLS.teal || s === WALLS.navy || s === WALLS.olive || s === WALLS.concrete || s === WALLS.khaki) { R(px, fy, T, fh, s.face); R(px, fy, T, 2, s.capLight); R(px, fy + fh - 3, T, 3, s.mortar); if (s !== WALLS.teal && s !== WALLS.navy) { R(px + T - 1, fy + 2, 1, fh - 5, s.mortar); R(px, fy + Math.floor(fh / 2), T, 1, s.mortar); } }
   else if (s === WALLS.grand || s === WALLS.arcane) {
     // v0.52.0: smoked glass between gold mullions
     R(px, fy, T, fh, '#141820'); R(px, fy, T, 2, s.capLight);
@@ -848,14 +857,32 @@ function facade(R, px, fy, fh, s, x, map) {
     return;
   }
   else bricks(R, px, fy, fh, s, x, 0);
-  const W = map.width;
-  if (x > 0 && x < W - 1 && x % 3 === 1 && map.tileAt(x - 1, map.height - 1) !== 'D' && map.tileAt(x + 1, map.height - 1) !== 'D') {
+  if (K?.hazard) for (let k = 0; k < T; k += 8) { R(px + k, fy + fh - 3, 4, 3, '#e8c040'); R(px + k + 4, fy + fh - 3, 4, 3, '#1b1a24'); }
+  if (K?.big && x > 0 && x < W0 - 1 && !doorAt(x) && !doorAt(x - 1) && !doorAt(x + 1)) {
+    // a hangar's door leaves: dark opening, two panels and a seam every tile, a track along the top
+    R(px, fy + 2, T, fh - 6, INK); R(px + 1, fy + 3, T - 2, fh - 8, s.capDark); R(px + T / 2, fy + 3, 1, fh - 8, INK); R(px, fy + 2, T, 1, s.capLight);
+    return;
+  }
+  if (K?.emblem && W0 >= 6 && x === Math.floor(W0 / 2) + 2 && !doorAt(x)) emblem(R, K.emblem, px + 12, fy + 5, s.capLight, s.capDark);
+  if (x > 0 && x < W0 - 1 && x % 3 === 1 && !doorAt(x - 1) && !doorAt(x + 1)) {
+    if (K?.slits) { R(px + 6, fy + 5, 20, 5, INK); R(px + 7, fy + 6, 18, 3, '#2a3c44'); R(px + 8, fy + 6, 5, 1, '#6a8a98'); return; }
     R(px + 8, fy + 3, 16, fh - 6, INK);
     R(px + 9, fy + 4, 14, fh - 8, '#9fd4ea');
     for (let k = 0; k < 6; k++) R(px + 10 + k, fy + fh - 6 - k, 1, 1, '#e8f8ff');
     R(px + 9, fy + 4, 14, 1, '#d8f0fa');
     R(px + 8, fy + fh - 3, 16, 2, s.capLight); // the sill
   }
+}
+
+/** v0.103.6: a 7×7 insignia on a wall: the mark that says what a military building is for. */
+function emblem(R, kind, x, y, c, bg) {
+  R(x - 1, y - 1, 9, 9, bg);
+  if (kind === 'cross') { R(x + 2, y, 3, 7, c); R(x, y + 2, 7, 3, c); }
+  else if (kind === 'star') { R(x + 3, y, 1, 7, c); R(x, y + 3, 7, 1, c); R(x + 1, y + 1, 5, 5, c); R(x + 2, y + 2, 3, 3, bg); R(x + 3, y + 3, 1, 1, c); }
+  else if (kind === 'gear') { R(x + 1, y + 1, 5, 5, c); R(x + 3, y, 1, 7, c); R(x, y + 3, 7, 1, c); R(x + 2, y + 2, 3, 3, bg); R(x + 3, y + 3, 1, 1, c); }
+  else if (kind === 'wing') { R(x + 3, y + 1, 1, 6, c); R(x, y + 3, 7, 1, c); R(x + 1, y + 2, 5, 1, c); R(x + 2, y + 5, 3, 1, c); }
+  else if (kind === 'target') { R(x, y, 7, 7, c); R(x + 1, y + 1, 5, 5, bg); R(x + 2, y + 2, 3, 3, c); R(x + 3, y + 3, 1, 1, bg); }
+  else if (kind === 'diamond') { R(x + 3, y, 1, 1, c); R(x + 2, y + 1, 3, 1, c); R(x + 1, y + 2, 5, 1, c); R(x, y + 3, 7, 1, c); R(x + 1, y + 4, 5, 1, c); R(x + 2, y + 5, 3, 1, c); R(x + 3, y + 6, 1, 1, c); }
 }
 
 function bricks(R, px, fy, fh, s, x, y) {

@@ -7,6 +7,7 @@ import { drawShopFront } from './drawPixelBuildings.js';
 import { drawFields } from './drawFarm.js';
 import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
+import { parkedMachines } from './drawParked.js';
 import { drawAircraft } from './drawAero.js';
 import { drawCrawler, drawBoard, drawPadFx, drawSky, launchLight } from './drawLaunch.js';
 import { shakeAt } from '../aero/launch.js';
@@ -438,6 +439,9 @@ export class Renderer {
         const tallY = p.sortRow !== undefined ? p.sortRow * TILE : p.type === 'tree' || p.type === 'pine' || p.type === 'streetlamp' ? (p.y + 1) * TILE - 2 : (p.y + p.h) * TILE - 1;
         const active = p.animateWhen ? check(p.animateWhen, g) : true;
         items.push({ y: tallY + L.y, draw: at(() => drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], active, jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, containerItems: (id) => g.world.containers[id]?.items })) });
+      }
+      if (lm.id === 'hollowmoor_lot') { // v0.103.6: the company's own vehicles and aircraft, parked where the base keeps them
+        for (const pm of parkedMachines(g)) { if (!inView(pm.x * TILE - 96, pm.y * TILE - 96, 192, 192)) continue; items.push({ y: pm.y * TILE + 28 + L.y, draw: at(() => pm.draw(ctx)) }); }
       }
       for (const npc of g.npcs.values()) {
         if (npc.map !== lm.id || npc.riding != null) continue; // passengers are inside the bus

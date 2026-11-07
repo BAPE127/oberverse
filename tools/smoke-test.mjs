@@ -515,7 +515,7 @@ try {
       out.planDelegated = g.war.missions().active.some((m) => m.id === 'Nplan');
       // v0.103.5: hiring troops and battalions are in the terminal (Base Operations): hire, raise (a mini template from the squad), designer save, enlist list
       ui.milSub = null; ui.milEng = null; ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'people', sel: null } }; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 500));
-      const n0 = g.war.people().length; [...document.querySelectorAll('.osx-main button')].find((b) => /\+ Rifleman/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 300));
+      const n0 = g.war.people().length; [...document.querySelectorAll('.osx-main .osx-hire')].find((c) => /Rifleman/.test(c.textContent))?.querySelector('button')?.click(); await new Promise((r) => setTimeout(r, 300)); // (v0.103.6: a card per class on the squad board)
       out.hireInTerminal = g.war.people().length === n0 + 1;
       g.war.hire('officer'); g.war.hire('rifleman'); days(8); g.war.organise(); // (the first squad is away on the engagement: a second one is formed for the battalion)
       [...document.querySelectorAll('.osx-tabs button')].find((b) => /Battalions/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 400));
@@ -571,6 +571,56 @@ try {
   await closeAll();
   s = await state();
   record('no game warnings', s.warnings.length === 0, s.warnings.join('; '));
+
+  // v0.103.6: the squad board, the factory floors, the base map and the walkable lot as a military base. The company builds everything first (stage by stage, through the real construction rules).
+  await closeAll();
+  const rig = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    const days = (n) => { for (let i = 0; i < n; i++) { g.clock.total += 1440; g.war.dailyTick(); } };
+    for (const stage of [1, 2, 3]) { for (const f of g.war.facilities().filter((x) => x.stage === stage && x.state === 'none')) { g.player.money += f.cost + 1000; g.war.fund(f.cost + 1000); g.war.commission(f.id); } days(60); }
+    out.allBuilt = g.war.facilities().every((f) => f.state === 'built');
+    g.player.money += 6_000_000; g.war.fund(6_000_000); g.war.buySupply('uniform', 60); g.war.buySupply('rations', 400);
+    const q = g.war.squadCreate(); const hr = g.war.hire('marksman', q.id); g.war.hire('uav', q.id); g.war.hire('signaller'); g.war.hire('engineer');
+    out.hiredIntoSquad = hr.ok && (g.war.squads().find((s) => s.id === q.id)?.incoming || []).length >= 1;
+    ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'people', sel: q.id } }; ui.openPanel('militaryterminal'); await T(600);
+    const main = () => document.querySelector('.osx-main')?.textContent || '';
+    out.squadBoard = /Squad board/.test(main()) && document.querySelectorAll('.osx-hire').length >= 12 && /Marksman/.test(main()) && /UAV operator/.test(main()) && document.querySelectorAll('.osx-sq').length >= 1 && document.querySelectorAll('.osx-slot.train').length >= 1 && document.querySelectorAll('.osx-sqart').length >= 2 && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');
+    return out;
+  });
+  record('the squad board offers every class, hires into a squad and shows the training place', Object.values(rig).every(Boolean), JSON.stringify(rig));
+  await shot('war-squad-board');
+  const fl = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    g.war.hire('technician'); for (let i = 0; i < 12; i++) g.war.hire('technician');
+    for (const k of ['plate', 'engine', 'optics', 'rotor', 'avionics']) g.war.buySupply(k, 30);
+    g.war.order('anvil', 1); g.war.order('wren', 1); for (let i = 0; i < 6; i++) { g.clock.total += 1440; g.war.dailyTick(); }
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'works', works: 'tank_factory', sel: null } }; ui.openPanel('militaryterminal'); await T(600);
+    out.factoryFloor = /floor/i.test(document.querySelector('.osx-main')?.textContent || '') && document.querySelectorAll('.osx-fbay').length >= 2 && document.querySelectorAll('.osx-model').length >= 4;
+    return out;
+  });
+  record('the tank factory floor shows its lines and the models with pictures', Object.values(fl).every(Boolean), JSON.stringify(fl));
+  await shot('war-factory-floor');
+  const bm = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'works', works: 'motor_pool', sel: null } }; ui.openPanel('militaryterminal'); await T(500);
+    out.parkedStrip = document.querySelectorAll('.osx-mach').length >= 1;
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'map', sel: 'hangars' } }; ui.openPanel('militaryterminal'); await T(700);
+    out.baseMapDrawn = Boolean(document.querySelector('.osx-mapbox canvas')) && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');
+    return out;
+  });
+  record('the redrawn base map draws and the parked machines are listed', Object.values(bm).every(Boolean), JSON.stringify(bm));
+  await shot('war-base-map');
+  const lot = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    while (ui.panelStack.length) ui.closePanel(); ui.osx = null;
+    g.clock.total = (g.clock.day - 1) * 1440 + 11 * 60;
+    g.changeMap('hollowmoor_lot', 'runway'); await T(500); out.runway = g.player.map === 'hollowmoor_lot' && Boolean(g.maps.get('hollowmoor_lot').def.airfield?.runways?.length);
+    g.changeMap('hollowmoor_lot', 'yard'); await T(400); out.yard = g.player.map === 'hollowmoor_lot' && g.war.equipment().length >= 1;
+    return out;
+  });
+  record('Hollowmoor Lot loads as a military base: the runway, and the vehicle yard with the company\'s machines', Object.values(lot).every(Boolean), JSON.stringify(lot));
+  await shot('war-base-yard');
+  await closeAll();
 
   // Saves survive closing and reopening the page
   await closeAll();

@@ -8,6 +8,9 @@ const personOf = (C, id) => C.personnel.find((p) => p.id === id);
 const squadOf = (C, id) => C.squads.find((s) => s.id === id);
 const eligible = (p) => CLASSES[p.role]?.group === 'troop' && p.status === 'active';
 
+/** Places in a squad held for recruits still in training (v0.103.6: hired straight into the squad). */
+export const reservedFor = (C, squadId) => C.personnel.filter((p) => p.joins === squadId && p.status === 'training').length;
+
 export function leave(C, p) {
   const s = p.assignedTo != null ? squadOf(C, p.assignedTo) : null;
   if (s) { s.members = s.members.filter((m) => m !== p.id); if (s.leader === p.id) s.leader = null; }
@@ -36,7 +39,7 @@ export function assign(game, squadId, pid) {
   if (s.status !== 'home') return { ok: false, text: `${s.name} is away: it cannot take anyone new now.` };
   if (p.assignedTo === s.id) return { ok: false, text: `${p.name} is already in ${s.name}.` };
   const from = C.squads.find((q) => q.id === p.assignedTo); if (from && from.status !== 'home') return { ok: false, text: `${p.name} is with ${from.name}, which is away.` };
-  if (s.members.length >= SQUAD.max) return { ok: false, text: `${s.name} is full (${SQUAD.max}).` };
+  if (s.members.length + reservedFor(C, s.id) >= SQUAD.max) return { ok: false, text: `${s.name} is full (${SQUAD.max}${reservedFor(C, s.id) ? `, counting ${reservedFor(C, s.id)} place${reservedFor(C, s.id) === 1 ? '' : 's'} held for recruits in training` : ''}).` };
   leave(C, p);
   s.members.push(p.id); p.assignedTo = s.id;
   return { ok: true, text: `${p.name} joins ${s.name}.` };
@@ -91,6 +94,7 @@ export function disband(game, squadId) {
   if (!s) return { ok: false, text: 'No such squad.' };
   if (s.status !== 'home') return { ok: false, text: `${s.name} is away: it cannot be stood down.` };
   for (const m of [...s.members]) { const p = personOf(C, m); if (p) p.assignedTo = null; }
+  for (const p of C.personnel) if (p.joins === s.id) p.joins = null;
   for (const e of [...s.equipment]) { const x = C.equipment.find((q) => q.id === e); if (x) { x.assignedTo = null; if (x.status === 'assigned') x.status = 'stored'; } }
   C.squads = C.squads.filter((q) => q !== s);
   return { ok: true, text: `${s.name} is stood down.` };
@@ -114,7 +118,8 @@ export function view(game) {
     const people = s.members.map((m) => personOf(C, m)).filter(Boolean);
     const by = {};
     for (const p of people) by[p.role] = (by[p.role] || 0) + 1;
-    return { ...s, size: people.length, byClass: by, armed: people.filter((p) => p.weapon).length, leaderName: personOf(C, s.leader)?.name || null, vehicles: s.equipment.map((e) => C.equipment.find((x) => x.id === e)).filter(Boolean).map((x) => x.name),
+    const incoming = C.personnel.filter((p) => p.joins === s.id && p.status === 'training').map((p) => ({ id: p.id, name: p.name, role: p.role, ready: p.trainedDay }));
+    return { ...s, incoming, size: people.length, byClass: by, armed: people.filter((p) => p.weapon).length, leaderName: personOf(C, s.leader)?.name || null, vehicles: s.equipment.map((e) => C.equipment.find((x) => x.id === e)).filter(Boolean).map((x) => x.name),
       morale: people.length ? Math.round(people.reduce((a, p) => a + (p.morale ?? 70), 0) / people.length) : 0 };
   });
 }

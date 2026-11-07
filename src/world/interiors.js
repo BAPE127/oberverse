@@ -40,7 +40,10 @@ function trade(b) {
   return 'shop';
 }
 
-const FLOOR = { shack: 'f', house: 'f', barn: 'g', diner: 't', church: 'f', school: 'f', hotel: 'c', office: 'c', storage: 'g', cinema: 'c', shop: 't' };
+import { KIT } from '../content/baseKit.js';
+const FLOOR = { shack: 'f', house: 'f', barn: 'g', diner: 't', church: 'f', school: 'f', hotel: 'c', office: 'c', storage: 'g', cinema: 'c', shop: 't',
+  // v0.103.6: the base's own rooms (a building says `look`: what it is, so its room has the right furniture; its `trade` still says who lives or works there)
+  barracks: 'g', medical: 't', armoury: 'g', command: 'g', hangar: 'g', motor: 'g', factory: 'g', depot: 'g', range: 'g', training: 'g', mess: 't', admin: 'c' };
 
 /** Furniture for a room W×H (walls included) with its door at column dx, by trade. */
 function furnish(kind, W, H, dx, idp, seed) {
@@ -101,6 +104,59 @@ function furnish(kind, W, H, dx, idp, seed) {
       rows((y) => { for (let x = 2; x < W - 2; x += 3) if (hash(x * 3, y + seed) > 0.25) put(hash(x, y) > 0.6 ? 'barrel' : 'crate', x, y); }, 2, 2);
       put('workbench', W - 4, H - 3, 2, 1);
       break;
+    // ---- v0.103.6: the base's rooms
+    case 'barracks': // two ranks of cots with a locker at the foot of each, a table at the end
+      for (let x = 1; x + 1 < W - 1; x += 2) { put('cot', x, 1, 1, 2); put('wardrobe', x, 3); }
+      for (let x = 1; x + 1 < W - 1; x += 2) { put('cot', x, Math.max(5, H - 5), 1, 2); }
+      put('table', W - 3, Math.floor(H / 2), 2, 1); put('chair', W - 4, Math.floor(H / 2));
+      break;
+    case 'medical': // treatment rooms: examination tables in rows with a chair each (no beds: nobody lives at work), cabinets, a desk by the door
+      for (let x = 1; x + 2 <= W - 1; x += 3) { put('table', x, 1, 2, 1); put('chair', x, 2); }
+      for (let x = 1; x + 2 <= W - 1; x += 3) if (H > 8) { put('table', x, 5, 2, 1); put('chair', x, 6); }
+      put('cabinet', W - 2, Math.min(H - 3, 4)); put('desk', 2, H - 3); put('plant', W - 2, H - 2);
+      break;
+    case 'armoury': // racks and crates behind a counter
+      put('counter', 2, H - 3, Math.max(2, Math.min(iw - 3, 5)), 1);
+      for (let x = 1; x + 2 <= W - 1; x += 3) { put('shelf', x, 1, 2, 1); put('shelf', x, 3, 2, 1); }
+      put('crate', 1, Math.max(2, H - 4)); put('barrel', W - 2, Math.max(2, H - 4));
+      rows((y) => { for (let x = 2; x < W - 2; x += 3) if (hash(x * 5, y + seed) > 0.45) put('crate', x, y); }, 5, 2);
+      break;
+    case 'command': // a planning table, screens on the back wall, desks
+      put('monitor_wall', Math.max(1, Math.floor(W / 2) - 2), 1, Math.min(4, iw), 1);
+      put('table', Math.max(2, Math.floor(W / 2) - 2), Math.max(3, Math.floor(H / 2) - 1), 4, 1);
+      rows((y) => { for (let x = 2; x < W - 2; x += 4) { put('desk', x, y); put('chair', x + 1, y); } }, Math.max(3, H - 4), 3);
+      put('cabinet', 1, 1); put('cabinet', W - 2, 1); put('plant', 1, H - 2);
+      break;
+    case 'hangar': // a wide floor with tooling along the sides: the bays are outside on the apron
+      put('engine_stand', 2, 1); put('engine_stand', W - 3, 1); put('tug', 4, 2, 2, 1); put('workbench', W - 6, 1, 3, 1);
+      for (let x = 2; x < W - 2; x += 5) put('crate', x, H - 3);
+      put('barrel', 1, H - 2); put('barrel', W - 2, H - 2);
+      break;
+    case 'motor': // pits and benches, tyres and drums
+      put('workbench', 2, 1, 3, 1); put('workbench', W - 5, 1, 3, 1); put('engine_stand', 7, 1); put('engine_stand', 9, 1);
+      for (let x = 2; x < W - 2; x += 3) { put('barrel', x, H - 3); put('crate', x + 1, H - 3); }
+      put('generator', W - 3, Math.max(3, Math.floor(H / 2)), 2, 2);
+      break;
+    case 'factory': // the line: machines and benches in rows, a loading bay at one end
+      for (let x = 2; x + 2 <= W - 2; x += 4) { put('machine', x, 2, 2, 2); put('machine', x, 5, 2, 2); }
+      put('loadingbay', 1, Math.max(3, H - 4), 2, 2); put('workbench', W - 5, H - 3, 3, 1); put('generator', W - 3, 1, 2, 2);
+      break;
+    case 'depot': // aisles of shelving, pallets, drums
+      for (let x = 2; x + 2 <= W - 1; x += 4) { put('shelf', x, 1, 2, 1); put('shelf', x, 3, 2, 1); put('shelf', x, 5, 2, 1); }
+      rows((y) => { for (let x = 1; x < W - 1; x += 4) put(hash(x, y + seed) > 0.5 ? 'barrel' : 'crate', x, y); }, Math.max(3, H - 4), 2);
+      break;
+    case 'range': // a firing-line bench, a ledger counter and the rack
+      put('counter', 2, H - 3, 3, 1); put('cabinet', W - 2, 1); put('cabinet', 1, 1);
+      for (let x = 2; x + 2 <= W - 2; x += 3) { put('bench', x, 3, 2, 1); put('bench', x, 5, 2, 1); }
+      break;
+    case 'training': // mats, benches, a cage of kit
+      for (let x = 2; x + 2 <= W - 2; x += 4) put('rug', x, 2, 3, 3, { color: '#4a5a3a' });
+      put('bench', 2, H - 3, 3, 1); put('bench', W - 5, H - 3, 3, 1); put('crate', W - 2, 1); put('barrel', 1, 1);
+      break;
+    case 'mess': // long tables and benches, the hatch and the stove
+      put('counter', 2, 1, Math.max(2, Math.min(iw - 3, 7)), 1); put('stove', W - 2, 1);
+      rows((y) => { put('table', 2, y, Math.max(2, iw - 3), 1); put('bench', 2, y + 1, Math.max(2, iw - 3), 1); }, 3, 3);
+      break;
     case 'cinema':
       rows((y) => { for (let x = 2; x < W - 2; x++) put('chair', x, y); }, 3, 2);
       put('counter', 1, H - 3, 2, 1);
@@ -120,14 +176,15 @@ function generatedInterior(S, b) {
   const dx = b.door ? b.door.x - b.x : -1;
   const id = `${S.id}__${b.id}`;
   const kind = trade(b);
-  const tiles = roomTiles(W, H, FLOOR[kind], dx >= 0 ? dx : 0);
+  const furn = b.look && FLOOR[b.look] ? b.look : kind; // v0.103.6: a building's `look` (barracks, hangar…) chooses its furniture and floor; its `trade` still says what the room is for
+  const tiles = roomTiles(W, H, FLOOR[furn], dx >= 0 ? dx : 0);
   if (dx < 0) tiles[H - 1] = 'W'.repeat(W);
   const def = {
-    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, ...(b.facility ? { facility: b.facility } : {}), trade: kind, dwelling: kind === 'house' || kind === 'shack',
+    id, name: b.name || b.mapLabel || 'A building', kind: 'interior', ambience: 'amb_indoor', generated: true, shell: b.id, ...(b.facility ? { facility: b.facility } : {}), trade: kind, ...(b.look && KIT[b.look] ? { look: b.look, wallStyle: KIT[b.look].style } : {}), dwelling: kind === 'house' || kind === 'shack',
     tiles,
     doors: dx >= 0 ? [{ id: `door_${id}_exit`, x: dx, y: H - 1, to: { map: S.id, spot: `${b.id}_out` } }] : [],
     spots: {},
-    props: furnish(kind, W, H, dx, id, hash(b.x, b.y)),
+    props: furnish(furn, W, H, dx, id, hash(b.x, b.y)),
   };
   // v0.103.2: a building may carry a terminal (the company's command terminal in its site office): it stands in the top row, in place of whatever the room's furniture put there
   if (b.terminal && dx >= 0) {

@@ -18,7 +18,7 @@ import { hire as hireIn, dismiss as dismissOut } from './people.js';
 import { order as orderUnit, cancel as cancelOrder, setShifts as setLineShifts, upgrade as upgradeWorks, maintain as maintainWorks, view as productionView } from './production.js';
 import { accept as acceptJob, decline as declineJob, view as contractsView, missing as jobMissing } from './contracts.js';
 import { equip as equipPerson, equipClass as equipTheClass, setTier as setClassTier, setArmour as setPersonArmour } from './loadout.js';
-import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
+import { create as createSquad, assign as assignSquad, unassign as unassignSquad, setLeader as leadSquad, assignVehicle as squadGetsVehicle, unassignVehicle as squadLosesVehicle, disband as disbandSquad, setLook as lookSquad, view as squadsView } from './squads.js';
 import { view as baseViewOf } from './base.js';
 import { checkMilitary } from './check.js';
 import { briefing as briefingOf, missions as missionsOf, activity as activityOf, worldFeed as worldFeedOf } from './briefing.js';
@@ -105,7 +105,7 @@ export class War {
   transfers() { return this.peek()?.transfers || []; }
 
   // ---- people and the works (v0.99.0 stages 5 and 6)
-  hire(role) { return hireIn(this.g, role); }
+  hire(role, squadId = null) { return hireIn(this.g, role, squadId); }
   dismiss(id) { return dismissOut(this.g, id); }
   people() { return this.peek()?.company?.personnel || []; }
   order(model, qty) { return orderUnit(this.g, model, qty); }
@@ -137,6 +137,7 @@ export class War {
   squadRemove(pid) { return unassignSquad(this.g, pid); }
   squadLeader(squadId, pid) { return leadSquad(this.g, squadId, pid); }
   squadVehicle(squadId, eid) { return squadGetsVehicle(this.g, squadId, eid); }
+  squadVehicleOut(eid) { return squadLosesVehicle(this.g, eid); }
   squadDisband(squadId) { return disbandSquad(this.g, squadId); }
   squadLook(squadId, look) { return lookSquad(this.g, squadId, look); }
 
