@@ -68,6 +68,13 @@ test('a theatre the company serves in lists its own battalions and is marked inv
   const r = g.war.enlist({ theatre: 'th_halden', side: 'ostmark' }); assert.ok(r.ok, r.text);
   const T = theatreList(g); assert.equal(T.find((t) => t.id === 'th_halden').involved, true); assert.equal(T.filter((t) => t.involved).length, 1);
   const d = theatreDetail(g, 'th_halden'); assert.ok(Array.isArray(d.mine)); assert.ok(Array.isArray(d.log));
+  // a battalion deployed to the theater is listed at a real province, with its number for the map
+  const t = g.war.saveTemplate({ name: 'Test Bn', line: ['inf', 'inf', 'tank'], support: ['medical'], attach: [] }); assert.ok(t.ok, t.text);
+  const squads = g.war.squads().map((q) => q.id); const rz = g.war.raise({ template: t.id, squads }); assert.ok(rz.ok, rz.text);
+  const dep = g.war.deploy(rz.id); assert.ok(dep.ok, dep.text);
+  const m = theatreDetail(g, 'th_halden').mine; assert.equal(m.length, 1); assert.equal(m[0].name, g.war.state().war.battalions[0].name);
+  const { provinceById } = await import('../src/world/provinces.js'); const home = provinceById(g.war.state().war.battalions[0].pos);
+  assert.equal(m[0].at, home.name, 'the position is a province name, not a raw id'); assert.equal(m[0].n, home.n);
   const other = theatreDetail(g, 'th_kestrel'); assert.equal(other.mine.length, 0); assert.equal(other.involved, false);
 });
 
@@ -79,4 +86,11 @@ test('world conflicts, countries and search come from the atlas and the geopolit
   const v = countryView(g, 'varn'); assert.equal(v.name, 'Varnistan'); assert.ok(v.wars.length >= 1); assert.ok(v.sites.length >= 0); assert.ok(v.profile.doctrine);
   assert.ok(search(g, 'varn').some((r) => r.type === 'country' && r.id === 'varn')); assert.deepEqual(search(g, 'a'), [], 'a one-letter search shows nothing');
   assert.equal(countryView(g, 'nowhere'), null);
+});
+
+test('looking at the supply link never creates its record or rolls its weekly figures over', () => {
+  const g = warGame(987); const C = g.war.state().company; assert.equal(C.link, undefined);
+  const before = snap(g); const v = g.war.supplyLink(); assert.ok(v && v.rows.length > 0); g.war.briefing();
+  assert.equal(C.link, undefined, 'no record was made'); assert.equal(snap(g), before);
+  g.war.setSupplyLevel('item_pistol', 3); days(g, 9); const flow0 = JSON.stringify(C.link.flow); g.war.supplyLink(); assert.equal(JSON.stringify(C.link.flow), flow0, 'viewing does not reset the week');
 });

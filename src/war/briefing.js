@@ -15,7 +15,8 @@ const RISK = (p) => (p == null ? null : p >= 0.7 ? 'low' : p >= 0.45 ? 'medium' 
 /** The company's missions in one list: security contracts, engagements, and battalions standing in a theatre. */
 export function missions(g) {
   const C = company(g); if (!C?.identity) return { open: [], active: [], done: [], failed: [], archived: [] };
-  const ct = contractsView(g); const eg = engagementsView(g); const w = peekMilitary(g)?.war;
+  // (the views create their empty records on first use: until a contract or engagement has ever been offered there is nothing to read, and looking must not write)
+  const ct = C.rep ? contractsView(g) : { open: [], active: [], done: [] }; const eg = C.engagements ? engagementsView(g) : { open: [], active: [], done: [] }; const w = peekMilitary(g)?.war;
   const open = []; const active = []; const done = []; const failed = []; const archived = [];
   for (const c of ct.open) open.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, priority: c.risk, text: c.text, pay: c.pay, days: c.days, expires: c.expires, needs: `${c.guards} guards`, lacks: c.lacks, raw: c });
   for (const c of ct.active) active.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, status: 'In progress', forces: `${c.guards} guards`, daysLeft: c.daysLeft, risk: RISK(c.chance), chance: c.chance, pay: c.pay, text: c.text, raw: c });

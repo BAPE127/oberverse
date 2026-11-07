@@ -498,6 +498,23 @@ try {
     const Cmp = g.war.state().company; (Cmp.engagements ||= []).push({ id: 'Nsmoke', kind: 'hold', title: 'Hold Smoke Crossing', text: 'x', client: 'The Ostmark Union', place: 'Smoke Crossing', terrain: 'rural', goal: 'defence', days: 6, needs: { troops: 12, tanks: 1, helicopters: 0, medics: 2 }, enemy: { troops: 12, armour: 1, air: 0, skill: 1 }, pay: 90000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
     ui.milEng = 'Nsmoke'; ui.milSub = 'Engagement'; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 450));
     out.Engagement = /One way or the other/.test(document.querySelector('.osx-main')?.textContent || '');
+    // v0.103.4: planning an engagement in Mission Control keeps the panel open, shows an assessment, and delegates (needs a built base, a squad and a general)
+    {
+      g.war.fund(8_000_000); const days = (n) => { for (let i = 0; i < n; i++) { g.clock.total += 1440; g.war.dailyTick(); } };
+      for (const id of ['site_office', 'bunkhouse', 'range', 'cage']) g.war.commission(id); days(60);
+      for (const id of ['command', 'barracks_a', 'barracks_b', 'mess', 'medical', 'motor_pool', 'armoury', 'depot']) g.war.commission(id); days(60);
+      g.war.buySupply('uniform', 40); g.war.buySupply('rations', 500);
+      for (const r of ['officer', ...Array(6).fill('rifleman'), 'medic']) g.war.hire(r); days(8); g.war.organise(); g.war.hireGeneral('odalys');
+      (Cmp.engagements ||= []).push({ id: 'Nplan', kind: 'hold', title: 'Hold Plan Crossing', text: 'x', client: 'The Ostmark Union', place: 'Plan Crossing', terrain: 'rural', goal: 'defence', days: 4, needs: { troops: 4, tanks: 0, helicopters: 0, medics: 0 }, enemy: { troops: 4, armour: 0, air: 0, skill: 1 }, pay: 50000, state: 'open', offered: g.clock.day, expires: g.clock.day + 20, order: null, result: null });
+      ui.osx = { section: 'missions', maps: {}, msg: null, game: g, tab: 'open' }; ui.milSub = null; ui.milEng = null; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 500));
+      const mt = () => document.querySelector('.osx-main')?.textContent || '';
+      [...document.querySelectorAll('.osx-main .osx-row')].find((x) => /Hold Plan Crossing/.test(x.textContent))?.click(); await new Promise((r) => setTimeout(r, 400));
+      document.querySelector('.osx-main .tb-row.tap')?.click(); await new Promise((r) => setTimeout(r, 400));
+      out.planStaysOpen = /Hold Plan Crossing/.test(mt()) && /Assessment/.test(mt());
+      [...document.querySelectorAll('.osx-main button')].find((b) => /Give it to/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 500));
+      out.planDelegated = g.war.missions().active.some((m) => m.id === 'Nplan');
+      ui.milSub = null; ui.milEng = null; ui.osx = null; while (ui.panelStack.length) ui.closePanel();
+    }
     // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors
     for (const recipe of ['city', 'fields']) {
       const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));

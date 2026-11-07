@@ -31637,7 +31637,9 @@ function retool(game, C, L) {
 /** Everything the Supply page shows. */
 function view(game) {
   const C = company(game); if (!C?.identity) return null;
-  const L = linkOf(C); refreshFlow(game, L);
+  // read-only (v0.103.4): looking never creates the record or rolls the weekly figures over
+  const L0 = C.link || { want: {}, works: {}, inbound: [], flow: { since: 0, free: 0, bought: 0, spent: 0 }, log: [], day: 0 };
+  const L = game.clock.day - L0.flow.since >= LINK.flowDays ? { ...L0, flow: { since: game.clock.day, free: 0, bought: 0, spent: 0 } } : L0;
   const rows = ARMS_TRANSFERABLE.filter((item) => game.content.items[item]).map((item) => {
     const S = shortOf(game, C, L, item); const mk = makers(game, item);
     const recs = recipesFor(game, item); const can = recs.some((q) => game.arms.recipeUnlocked(q.rid));
@@ -34883,7 +34885,8 @@ const RISK = (p) => (p == null ? null : p >= 0.7 ? 'low' : p >= 0.45 ? 'medium' 
 /** The company's missions in one list: security contracts, engagements, and battalions standing in a theatre. */
 function missions(g) {
   const C = company(g); if (!C?.identity) return { open: [], active: [], done: [], failed: [], archived: [] };
-  const ct = contractsView(g); const eg = engagementsView(g); const w = peekMilitary(g)?.war;
+  // (the views create their empty records on first use: until a contract or engagement has ever been offered there is nothing to read, and looking must not write)
+  const ct = C.rep ? contractsView(g) : { open: [], active: [], done: [] }; const eg = C.engagements ? engagementsView(g) : { open: [], active: [], done: [] }; const w = peekMilitary(g)?.war;
   const open = []; const active = []; const done = []; const failed = []; const archived = [];
   for (const c of ct.open) open.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, priority: c.risk, text: c.text, pay: c.pay, days: c.days, expires: c.expires, needs: `${c.guards} guards`, lacks: c.lacks, raw: c });
   for (const c of ct.active) active.push({ kind: 'contract', id: c.id, title: c.title, place: c.place || c.clientName, type: 'Security contract', client: c.clientName, status: 'In progress', forces: `${c.guards} guards`, daysLeft: c.daysLeft, risk: RISK(c.chance), chance: c.chance, pay: c.pay, text: c.text, raw: c });
@@ -81130,9 +81133,12 @@ const prio = { low: 'ok', medium: 'warn', high: 'bad', urgent: 'bad', routine: '
 
 function renderMissions(cx, box) {
   const { W, S, ui } = cx; const M = W.missions(); const st = state(S);
+  // the engagement screen's own Back button clears ui.milSub: that is how it tells us to leave the mission (every other redraw keeps the panel open)
+  if (st.eng && ui.milSub !== 'Engagement') { S.mission = null; st.eng = null; }
+  if (S.mission && S.mission.kind !== 'engagement') { ui.milSub = null; st.eng = null; }
   const tab = S.tab && (TABS.some(([id]) => id === S.tab) || S.tab === 'generals') ? S.tab : 'open';
   const sel = S.mission ? (M.open.concat(M.active, M.done, M.failed, M.archived)).find((m) => m.kind === S.mission.kind && m.id === S.mission.id) : null;
-  box.append(tabs([...TABS.map(([id, label]) => ({ id, label, badge: M[id].length || null })), { id: 'generals', label: 'Generals' }], tab, (t) => { S.tab = t; S.mission = null; cx.refresh(); }));
+  box.append(tabs([...TABS.map(([id, label]) => ({ id, label, badge: M[id].length || null })), { id: 'generals', label: 'Generals' }], tab, (t) => { S.tab = t; S.mission = null; st.eng = null; ui.milSub = null; cx.refresh(); }));
   if (tab === 'generals') { ui.milPaged = true; ui.milSub = null; const wrap = h('div', {}); generalsScreen(ui, wrap, (r) => cx.go(r), () => cx.refresh()); box.append(panel('Generals', wrap, { sub: 'A general fights an engagement for you with the squads you choose.' })); return; }
   const list = M[tab];
   box.append(stats(stat('Available', String(M.open.length), { tone: M.open.length ? 'ok' : '' }), stat('Active', String(M.active.length), { tone: M.active.length ? 'ok' : '' }), stat('Completed', String(M.done.length)), stat('Failed', String(M.failed.length), { tone: M.failed.length ? 'warn' : '' })));
@@ -81150,9 +81156,8 @@ function detail(cx, m) {
   if (m.kind === 'battalion') return panel(m.title, [kv('Type', m.type), kv('Status', m.status), kv('Location', String(m.place)), kv('Forces', m.forces), h('div', { class: 'osx-sub', style: 'padding:0' }, 'Battalions are commanded on the operational map: orders, supply and the front.'), btn('Open the operational map', () => ui.openPanel('strategic'), { kind: 'pri' })]);
   if (m.kind === 'engagement') {
     const wrap = h('div', {});
-    ui.milPaged = true; ui.milEng = m.id; ui.milSub = 'Engagement';
-    engagementScreen(ui, wrap, (r) => { ui.milSub = null; cx.go(r); }, () => { ui.milSub = null; cx.S.mission = null; cx.refresh(); });
-    ui.milSub = null;
+    ui.milPaged = true; ui.milEng = m.id; ui.milSub = 'Engagement'; state(cx.S).eng = m.id;
+    engagementScreen(ui, wrap, (r) => cx.go(r), () => cx.refresh());
     return panel(`${m.title}`, wrap, { right: chip(m.type), sub: `${m.client || ''} · ${m.place || ''}` });
   }
   // a security contract
@@ -81226,7 +81231,7 @@ __m["src/war/theatreView.js"] = (function () {
 // battalions are listed and the operational map (with its fog of war) is one tap away.
 const { peekMilitary } = __m["src/war/state.js"];
 const { atlasTheatres, atlasStates } = __m["src/world/atlas.js"];
-const { provinces } = __m["src/world/provinces.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
 const { profileOf } = __m["src/war/strategicAI.js"];
 
 const countryName = (g, c) => g.content.arms.countries[c]?.name || c;
@@ -81277,7 +81282,7 @@ function theatreDetail(g, id) {
   });
   const cities = inT.filter((p) => p.capital || p.port || p.vp >= 2).map((p) => ({ n: p.n, name: p.name, lat: p.lat, lon: p.lon, capital: p.capital, port: p.port, vp: p.vp, holder: C(p), own: p.country })).sort((x, y) => (y.capital - x.capital) || y.vp - x.vp).slice(0, 14);
   const ev = warBetween(g, a, b);
-  const mine = t.id === w?.employer?.theatre ? (w.battalions || []).filter((x) => x.status !== 'home').map((x) => ({ id: x.id, name: x.name, status: x.status, at: P[Number(x.pos)]?.name || x.pos })) : [];
+  const mine = t.id === w?.employer?.theatre ? (w.battalions || []).filter((x) => x.status !== 'home').map((x) => { const pr = provinceById(x.pos); return { id: x.id, name: x.name, status: x.status, at: pr?.name || String(x.pos), n: pr?.n ?? null }; }) : [];
   return { ...sum, th: { id: t.id, name: t.name, states: t.states, between: t.between }, provincesList: inT, fronts: fr, cities, mine, war: ev, timeline: (ev?.timeline || []).slice().reverse(), log: t.id === w?.employer?.theatre ? (w.log || []).slice().reverse() : [],
     profiles: t.between.map((c) => ({ id: c, name: countryName(g, c), ...profileOf(c), income: g.content.arms.countries[c]?.income ?? null })),
     avgInfra: inT.length ? Math.round((inT.reduce((s, p) => s + p.infra, 0) / inT.length) * 10) / 10 : 0, ports: inT.filter((p) => p.port).length, airfields: inT.filter((p) => p.airfield).length };
@@ -81494,7 +81499,7 @@ function setupMap(cx, mv, d, b) {
     ctx.strokeStyle = 'rgba(212,162,60,.55)'; ctx.lineWidth = Math.max(0.8, z * 0.7); for (const rd of atlasRoads()) { if (!rd.main && z < 1.4) continue; const [ax, ay] = at(rd.a.lat, rd.a.lon); const [bx, by] = at(rd.b.lat, rd.b.lon); if (Math.max(ax, bx) < 0 || Math.min(ax, bx) > V.size.w || Math.max(ay, by) < 0 || Math.min(ay, by) > V.size.h) continue; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
     ctx.textBaseline = 'middle';
     for (const ct of d.cities) { const [x, y] = at(ct.lat, ct.lon); const col = COUNTRY_RGB(ct.holder); ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; ctx.strokeStyle = '#05080a'; ctx.lineWidth = 2; ctx.beginPath(); if (ct.capital) { ctx.rect(x - 4, y - 4, 8, 8); } else ctx.arc(x, y, ct.port ? 4 : 3, 0, 7); ctx.stroke(); ctx.fill(); if (ct.holder !== ct.own) { ctx.strokeStyle = '#e0604a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.stroke(); } if (z > 0.6 || ct.capital) { ctx.fillStyle = '#e6eee6'; ctx.font = `${ct.capital ? 12 : 11}px system-ui, sans-serif`; ctx.fillText(`${ct.port ? '⚓ ' : ''}${ct.name}`, x + 8, y); } }
-    for (const bn of d.mine) { const p = Pv.find((q) => q.name === bn.at || String(q.n) === String(bn.at)); if (!p) continue; const [x, y] = at(p.lat, p.lon); ctx.fillStyle = '#5f93a8'; ctx.strokeStyle = '#05080a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(x - 7, y - 5, 14, 10); ctx.stroke(); ctx.fill(); ctx.fillStyle = '#e6eee6'; ctx.font = '11px system-ui, sans-serif'; ctx.fillText(bn.name, x + 10, y); }
+    for (const bn of d.mine) { const p = bn.n != null ? Pv[bn.n] : null; if (!p) continue; const [x, y] = at(p.lat, p.lon); ctx.fillStyle = '#5f93a8'; ctx.strokeStyle = '#05080a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(x - 7, y - 5, 14, 10); ctx.stroke(); ctx.fill(); ctx.fillStyle = '#e6eee6'; ctx.font = '11px system-ui, sans-serif'; ctx.fillText(bn.name, x + 10, y); }
     for (const f of d.fronts) if (P.front === f.id) { const ps = f.provinces.map((n) => Pv[n]); const lat = ps.reduce((s, q) => s + q.lat, 0) / ps.length; const lon = ps.reduce((s, q) => s + q.lon, 0) / ps.length; const [x, y] = at(lat, lon); ctx.fillStyle = '#f1f5e8'; ctx.font = '600 12px system-ui, sans-serif'; ctx.fillText(f.name.toUpperCase(), x + 10, y - 16); }
     ctx.fillStyle = '#9fb0a5'; ctx.font = '11px ui-monospace, monospace'; ctx.textBaseline = 'alphabetic'; ctx.fillText(`${d.name.toUpperCase()} · ×${z.toFixed(2)}`, 10, V.size.h - 22);
   };

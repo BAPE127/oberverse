@@ -10,9 +10,12 @@ const prio = { low: 'ok', medium: 'warn', high: 'bad', urgent: 'bad', routine: '
 
 export function renderMissions(cx, box) {
   const { W, S, ui } = cx; const M = W.missions(); const st = state(S);
+  // the engagement screen's own Back button clears ui.milSub: that is how it tells us to leave the mission (every other redraw keeps the panel open)
+  if (st.eng && ui.milSub !== 'Engagement') { S.mission = null; st.eng = null; }
+  if (S.mission && S.mission.kind !== 'engagement') { ui.milSub = null; st.eng = null; }
   const tab = S.tab && (TABS.some(([id]) => id === S.tab) || S.tab === 'generals') ? S.tab : 'open';
   const sel = S.mission ? (M.open.concat(M.active, M.done, M.failed, M.archived)).find((m) => m.kind === S.mission.kind && m.id === S.mission.id) : null;
-  box.append(tabs([...TABS.map(([id, label]) => ({ id, label, badge: M[id].length || null })), { id: 'generals', label: 'Generals' }], tab, (t) => { S.tab = t; S.mission = null; cx.refresh(); }));
+  box.append(tabs([...TABS.map(([id, label]) => ({ id, label, badge: M[id].length || null })), { id: 'generals', label: 'Generals' }], tab, (t) => { S.tab = t; S.mission = null; st.eng = null; ui.milSub = null; cx.refresh(); }));
   if (tab === 'generals') { ui.milPaged = true; ui.milSub = null; const wrap = h('div', {}); generalsScreen(ui, wrap, (r) => cx.go(r), () => cx.refresh()); box.append(panel('Generals', wrap, { sub: 'A general fights an engagement for you with the squads you choose.' })); return; }
   const list = M[tab];
   box.append(stats(stat('Available', String(M.open.length), { tone: M.open.length ? 'ok' : '' }), stat('Active', String(M.active.length), { tone: M.active.length ? 'ok' : '' }), stat('Completed', String(M.done.length)), stat('Failed', String(M.failed.length), { tone: M.failed.length ? 'warn' : '' })));
@@ -30,9 +33,8 @@ function detail(cx, m) {
   if (m.kind === 'battalion') return panel(m.title, [kv('Type', m.type), kv('Status', m.status), kv('Location', String(m.place)), kv('Forces', m.forces), h('div', { class: 'osx-sub', style: 'padding:0' }, 'Battalions are commanded on the operational map: orders, supply and the front.'), btn('Open the operational map', () => ui.openPanel('strategic'), { kind: 'pri' })]);
   if (m.kind === 'engagement') {
     const wrap = h('div', {});
-    ui.milPaged = true; ui.milEng = m.id; ui.milSub = 'Engagement';
-    engagementScreen(ui, wrap, (r) => { ui.milSub = null; cx.go(r); }, () => { ui.milSub = null; cx.S.mission = null; cx.refresh(); });
-    ui.milSub = null;
+    ui.milPaged = true; ui.milEng = m.id; ui.milSub = 'Engagement'; state(cx.S).eng = m.id;
+    engagementScreen(ui, wrap, (r) => cx.go(r), () => cx.refresh());
     return panel(`${m.title}`, wrap, { right: chip(m.type), sub: `${m.client || ''} · ${m.place || ''}` });
   }
   // a security contract

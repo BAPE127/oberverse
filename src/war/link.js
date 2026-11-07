@@ -178,7 +178,9 @@ function retool(game, C, L) {
 /** Everything the Supply page shows. */
 export function view(game) {
   const C = company(game); if (!C?.identity) return null;
-  const L = linkOf(C); refreshFlow(game, L);
+  // read-only (v0.103.4): looking never creates the record or rolls the weekly figures over
+  const L0 = C.link || { want: {}, works: {}, inbound: [], flow: { since: 0, free: 0, bought: 0, spent: 0 }, log: [], day: 0 };
+  const L = game.clock.day - L0.flow.since >= LINK.flowDays ? { ...L0, flow: { since: game.clock.day, free: 0, bought: 0, spent: 0 } } : L0;
   const rows = ARMS_TRANSFERABLE.filter((item) => game.content.items[item]).map((item) => {
     const S = shortOf(game, C, L, item); const mk = makers(game, item);
     const recs = recipesFor(game, item); const can = recs.some((q) => game.arms.recipeUnlocked(q.rid));

@@ -4,7 +4,7 @@
 // battalions are listed and the operational map (with its fog of war) is one tap away.
 import { peekMilitary } from './state.js';
 import { atlasTheatres, atlasStates } from '../world/atlas.js';
-import { provinces } from '../world/provinces.js';
+import { provinces, provinceById } from '../world/provinces.js';
 import { profileOf } from './strategicAI.js';
 
 const countryName = (g, c) => g.content.arms.countries[c]?.name || c;
@@ -55,7 +55,7 @@ export function theatreDetail(g, id) {
   });
   const cities = inT.filter((p) => p.capital || p.port || p.vp >= 2).map((p) => ({ n: p.n, name: p.name, lat: p.lat, lon: p.lon, capital: p.capital, port: p.port, vp: p.vp, holder: C(p), own: p.country })).sort((x, y) => (y.capital - x.capital) || y.vp - x.vp).slice(0, 14);
   const ev = warBetween(g, a, b);
-  const mine = t.id === w?.employer?.theatre ? (w.battalions || []).filter((x) => x.status !== 'home').map((x) => ({ id: x.id, name: x.name, status: x.status, at: P[Number(x.pos)]?.name || x.pos })) : [];
+  const mine = t.id === w?.employer?.theatre ? (w.battalions || []).filter((x) => x.status !== 'home').map((x) => { const pr = provinceById(x.pos); return { id: x.id, name: x.name, status: x.status, at: pr?.name || String(x.pos), n: pr?.n ?? null }; }) : [];
   return { ...sum, th: { id: t.id, name: t.name, states: t.states, between: t.between }, provincesList: inT, fronts: fr, cities, mine, war: ev, timeline: (ev?.timeline || []).slice().reverse(), log: t.id === w?.employer?.theatre ? (w.log || []).slice().reverse() : [],
     profiles: t.between.map((c) => ({ id: c, name: countryName(g, c), ...profileOf(c), income: g.content.arms.countries[c]?.income ?? null })),
     avgInfra: inT.length ? Math.round((inT.reduce((s, p) => s + p.infra, 0) / inT.length) * 10) / 10 : 0, ports: inT.filter((p) => p.port).length, airfields: inT.filter((p) => p.airfield).length };
