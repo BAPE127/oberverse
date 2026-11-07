@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.4] — 2026-11-07 — War: The Command Terminal, rebuilt (development build)
+
+The owner asked for a heavy re-evaluation of how the mercenary company works: mimic the aerospace company (a terminal reached by a button on a minimal OberPad app, with the aerospace terminal's time controls), a tactical OSINT look, the world map and theaters, and a procurement page that is not a maze of menus. And, separately, a fix for the save-game quota and for deleting saves.
+
+**One terminal, seven sections** (`src/ui/osint/`): Command Overview, Base Operations, Procurement, Internal Logistics, Mission Control, Global Intelligence, Theater Operations, with a persistent rail and a top bar of real figures and the aerospace terminal's time controls (+1 h, +6 h, Next morning to 06:15). The OberPad's Military app is minimal and opens it. See `docs/WAR.md`, "The command terminal, rebuilt", for each section and for where every older function now lives.
+
+**New systems behind it.** Procurement from outside suppliers (`src/war/procurement.js`, `src/content/suppliers.js`): a cart becomes paid orders with delivery days (one payment, no duplicate clicks, vehicles wait for a bay). A read-only briefing (`src/war/briefing.js`), theatre view (`src/war/theatreView.js`: every theater, involved or not; fronts from the ground; no garrisons) and world view (`src/war/worldView.js`). Stores unlimited, squads that fill themselves and the supply link (0.103.2 and 0.103.3) carry on inside it.
+
+**Save quota and delete.** A save in a long game is about 700,000 characters, and the browser allows about five million for everything, while each slot also kept a full backup, so a few saves could fill it; and deleting a slot kept it as a backup, so it freed nothing. Now a backup is best-effort and never stops a save, a full storage frees backups before it refuses (and says plainly what to delete), deleting really deletes (autosave too, with a confirm step), and Load game shows the storage meter and each slot's size, with "Delete all backups".
+
+**Edited existing files.** Tests: none changed. Tools: `tools/smoke-test.mjs` (the Military app checks now drive the new terminal) and `tools/validate-content.mjs` (earlier). The old `src/ui/militaryTerminal.js` was removed; `militaryPages.js` keeps `troopsPage` (used by Base Operations).
+
+New tests: `save_quota` (6), `war_procurement` (6), `war_terminal_views` (6). Smoke: 58/58 with the seven sections, a facility selected, an order placed and delivered through the time controls, a free transfer, a war on the map and an uninvolved theater.
+
 ## [0.103.3] — 2026-11-07 — War: The Streamlined Terminal (development build)
 
 The owner found the command terminal too complicated and not easy to read: too many menus, a People tab that was not right, a confusing Supply page. Asked for it to be streamlined, for stores to be unlimited, and for the terminal to be reachable through the OberPad like the other companies. Mock-up: `docs/mockups/proposal-war-terminal-v2.png`. The owner chose five pages, one Troops page, and unlimited stores only.

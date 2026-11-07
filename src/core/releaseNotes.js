@@ -2,6 +2,18 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.4',
+    date: '2026-11-07',
+    channel: 'development',
+    title: 'War: The Command Terminal, rebuilt',
+    notes: [
+      'The mercenary command terminal is rebuilt as one system with seven sections: Command Overview, Base Operations, Procurement, Internal Logistics, Mission Control, Global Intelligence and Theater Operations, in a dark intelligence-terminal look. The OberPad app is now minimal and opens it; it has the same time controls as the aerospace terminal.',
+      'Procurement is a real store: pick a supplier, fill a cart, confirm once, and the order arrives on its delivery day. Moving goods from your own businesses is a separate page and is always free.',
+      'See the whole world and every theater of war on a map, whether or not the company is in the fight; you see the ground and the record, never the other side\'s garrisons.',
+      'Fixed: saves could fill the browser\'s storage and deleting a save freed nothing. Backups are now kept only when there is room, a full storage frees them first, and deleting a save really deletes it. Load game shows how full the storage is.',
+    ],
+  },
+  {
     version: '0.103.3',
     date: '2026-11-07',
     channel: 'development',
