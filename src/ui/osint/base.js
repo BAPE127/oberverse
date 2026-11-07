@@ -7,6 +7,7 @@ import { SLOTS, HM_W, HM_H } from '../../content/maps/hollowmoor.js';
 import { FACILITIES, LOT } from '../../content/facilities.js';
 import { CLASSES } from '../../content/troops.js';
 import { troopsPage } from '../militaryPages.js';
+import { renderForces } from './forces.js';
 import { productionTab } from '../militaryProduction.js';
 
 const CAP_TEXT = { beds: (v) => `${v} beds`, meals: (v) => `${v} hot meals a day`, treat: (v) => `${v} treatment places`, stores: () => 'storage (the stores have no limit)', desks: (v) => `${v} desks`, lines: (v) => `${v} production lines`, bays: (v) => `${v} bays`, training: (v) => `${v} training places`, repair: (v) => `${v} repair places`, racks: (v) => `${v} weapon racks`, surgery: (v) => `${v} surgery theatres`, briefing: (v) => `a briefing room for ${v}` };
@@ -89,7 +90,8 @@ function drawBase(ctx, V, cx) {
 
 export function renderBase(cx, box) {
   const { W, S } = cx; const B = state(S); const V = W.companyView();
-  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Personnel and squads' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Hire and squads' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  if (B.tab === 'forces') { renderForces(cx, box); return; }
   if (B.tab === 'people') { cx.ui.milPaged = true; const wrap = h('div', { class: 'osx-people' }); troopsPage(cx.ui, wrap, (r) => cx.go(r), () => cx.refresh()); box.append(wrap); return; }
   if (!V.lotOwned) { box.append(empty('The company owns no ground yet. Buy the Civic Office licence and Hollowmoor Lot from Command Overview.')); return; }
   const fac = W.facilities(); const sel = fac.find((f) => f.id === B.sel) || null;

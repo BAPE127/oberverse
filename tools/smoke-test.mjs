@@ -513,6 +513,20 @@ try {
       out.planStaysOpen = /Hold Plan Crossing/.test(mt()) && /Assessment/.test(mt());
       [...document.querySelectorAll('.osx-main button')].find((b) => /Give it to/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 500));
       out.planDelegated = g.war.missions().active.some((m) => m.id === 'Nplan');
+      // v0.103.5: hiring troops and battalions are in the terminal (Base Operations): hire, raise (a mini template from the squad), designer save, enlist list
+      ui.milSub = null; ui.milEng = null; ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'people', sel: null } }; while (ui.panelStack.length) ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 500));
+      const n0 = g.war.people().length; [...document.querySelectorAll('.osx-main button')].find((b) => /\+ Rifleman/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 300));
+      out.hireInTerminal = g.war.people().length === n0 + 1;
+      g.war.hire('officer'); g.war.hire('rifleman'); days(8); g.war.organise(); // (the first squad is away on the engagement: a second one is formed for the battalion)
+      [...document.querySelectorAll('.osx-tabs button')].find((b) => /Battalions/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 400));
+      out.forcesPanels = /Raise a battalion/.test(mt()) && /Battalion designer/.test(mt()) && /Enlist in a theater/.test(mt());
+      g.war.saveTemplate({ name: 'Smoke Mini', line: ['inf'], support: [], attach: [] }); ui.closePanel(); ui.openPanel('militaryterminal'); await new Promise((r) => setTimeout(r, 400));
+      [...document.querySelectorAll('.osx-main button')].find((b) => b.textContent === 'Smoke Mini')?.click(); await new Promise((r) => setTimeout(r, 300));
+      [...document.querySelectorAll('.osx-main input[type=checkbox]')].pop()?.click(); await new Promise((r) => setTimeout(r, 300)); // (the last squad is the one with an officer)
+      [...document.querySelectorAll('.osx-main button')].find((b) => /Raise battalion/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 500));
+      out.battalionRaised = (g.war.peek().war.battalions || []).length === 1 && /Battalions/.test(mt());
+      [...document.querySelectorAll('.osx-main button')].find((b) => /Stand down/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 300));
+      out.battalionStoodDown = (g.war.peek().war.battalions || []).length === 0;
       ui.milSub = null; ui.milEng = null; ui.osx = null; while (ui.panelStack.length) ui.closePanel();
     }
     // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors

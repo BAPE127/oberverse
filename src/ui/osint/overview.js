@@ -52,7 +52,7 @@ export function renderOverview(cx, box) {
       ].filter(Boolean), { right: btn('Global map ›', () => cx.open('intel'), { kind: 'sm' }) }))));
   box.append(panel('Quick actions', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
     btn('Order supplies', () => cx.open('procurement'), { kind: 'pri' }), btn('Transfer internal supplies', () => cx.open('logistics')), btn('Review missions', () => cx.open('missions')),
-    btn('Open base map', () => cx.open('base', { tab: 'map' })), btn('View global conflicts', () => cx.open('intel')), btn('Open theater map', () => cx.open('theaters')))));
+    btn('Hire troops', () => cx.open('base', { base: { tab: 'people', sel: null } })), btn('Battalions', () => cx.open('base', { base: { tab: 'forces', sel: null } })), btn('Open base map', () => cx.open('base', { base: { tab: 'map', sel: null } })), btn('View global conflicts', () => cx.open('intel')), btn('Open theater map', () => cx.open('theaters')))));
   // money in and out: the only two acts that cross between you and the company
   const amount = h('input', { class: 'osx-input', type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px' }); const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
   box.append(panel('Company account', h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, amount, btn('Pay in', () => cx.go(W.fund(amt())), { kind: 'pri' }), btn('Take out', () => cx.go(W.take(amt())), { disabled: V.cash <= 0 || V.arrears > 0 }),
