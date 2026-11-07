@@ -8,6 +8,7 @@
 //   BATTALION      organisation (cohesion): what it costs to move and attack, what a day's rest gives back, what a battle takes
 //   GARRISON       the force an enemy-held province holds, from what is in it
 //   SLOTS          what each slot of a battalion template asks the chosen squads to bring
+import { INCOME } from './income.js';
 export const TERRAIN_FX = {
   plains: { speed: 1, def: 1 }, farmland: { speed: 1, def: 1 }, forest: { speed: 0.7, def: 1.12 }, hills: { speed: 0.7, def: 1.1 }, mountains: { speed: 0.4, def: 1.25 },
   marsh: { speed: 0.5, def: 1 }, urban: { speed: 0.8, def: 1.15 }, desert: { speed: 0.8, def: 0.95 }, jungle: { speed: 0.5, def: 1.12 },
@@ -15,7 +16,9 @@ export const TERRAIN_FX = {
 export const INFRA_SPEED = [0, 0.6, 0.75, 0.9, 1.05, 1.2];
 export const MARCH = { foot: 6, perBar: 3, base: 6, detour: 1.25, rail: 1.5 }; // km an hour: a vehicle with speed bar b does base + perBar * b
 export const SEALIFT = { kmPerDay: 700, minDays: 2 };
-export const RETAINER = { perTrooper: 170, perVehicle: { tank: 1400, helicopter: 1800, artillery: 900, antiair: 500, carrier: 400, recon: 250, logistics: 100, medical: 100 }, perVP: 25000, rep: 1 };
+// v0.103.5: the figures are the owner's income rules (src/content/income.js `war`): a soldier in a theatre earns `soldierDay`, vehicles `vehicleScale` times their old value, a victory point `vpBonus`
+const VS = INCOME.war.vehicleScale;
+export const RETAINER = { perTrooper: INCOME.war.soldierDay, perVehicle: { tank: 1400 * VS, helicopter: 1800 * VS, artillery: 900 * VS, antiair: 500 * VS, carrier: 400 * VS, recon: 250 * VS, logistics: 100 * VS, medical: 100 * VS }, perVP: INCOME.war.vpBonus, rep: 1 };
 export const BATTALION = { orgMax: 100, moveCost: 2, attackMin: 30, restPerDay: 12, afterBattle: { 3: 12, 2: 22, 1: 40, 0: 65 }, entrenchHours: 12, entrenchMax: 5, expiresDays: 3 };
 export const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3, rebuildDays: 10 };
 

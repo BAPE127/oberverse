@@ -3,6 +3,7 @@
 // screen and the result come from the same function, src/war/combat.js).
 //
 // Traits are 1 to 5 (3 is average). `risk` (0 to 1) is how readily they accept losses for a win; `aversion` is the reverse and shrinks casualties at the cost of results.
+import { INCOME } from './income.js';
 const G = (id, name, fee, style, t, risk, terrain, text) => ({ id, name, fee, style, offence: t[0], defence: t[1], logistics: t[2], air: t[3], intel: t[4], risk, terrain, text });
 export const GENERALS = Object.fromEntries([
   G('odalys', 'Gen. Mira Odalys', 1900, 'Defence · careful · air coordination', [2, 5, 3, 5, 3], 0.2, { urban: 1, forest: 0, rural: 0, desert: -1, industrial: 1 }, 'Never gives up a position she can hold, and calls the aircraft in before the shells land.'),
@@ -43,8 +44,8 @@ export const ENGAGE = {
   chance: 0.22,         // the chance each day that a new offer turns up while there is room (a command post must stand)
   lasts: [6, 12],       // days an offer stays open
   repScale: 0.012,      // how much bigger a job's needs get for each point of reputation (0.012 × 50 = +60%)
-  payPerTroopDay: 340,  // obols a troop-equivalent a day, on top of vehicles (see tank/helicopter below); set against a wage of about 150 and the losses
-  payTank: 2800, payHelicopter: 3600,
+  payPerTroopDay: INCOME.war.engageTroopDay,  // obols a troop-equivalent a day, on top of vehicles (see tank/helicopter below); v0.103.5: the owner's income rule, one figure for a soldier in the field (was 340)
+  payTank: 2800 * INCOME.war.vehicleScale, payHelicopter: 3600 * INCOME.war.vehicleScale,
   penalty: 0.35,
   repWin: 6, repHold: 2, repLose: -10,
   ban: 40,

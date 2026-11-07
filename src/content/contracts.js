@@ -1,6 +1,7 @@
 // Early contracts (v0.99.0 stage 6): the ordinary work of a security firm. Pure data. A contract asks for guards (and nothing heavy: never a tank, a helicopter or a loadout), a pistol each
 // and a radio, for a few days; it pays only when it ends well, and a failure costs money (owed, never taken from you) and a client. Figures are starting figures to calibrate against
 // the wages (120 obols a day for a guard) and what a guard shift earns.
+import { INCOME } from './income.js';
 export const CLIENTS = {
   fish_coop: { name: 'Lanternside Fish Co-op', place: 'the cold store on the quay' },
   oil: { name: 'Ober\'s Oil', place: 'the refinery gate' },
@@ -21,9 +22,9 @@ export const KINDS = {
 
 /** Obols per guard per day by risk, the chance of success before extra hands and reputation, and what a failure costs (a share of the pay). */
 export const RISK = {
-  low: { rate: 400, success: 0.9 },
-  medium: { rate: 550, success: 0.78 },
-  high: { rate: 800, success: 0.62 },
+  low: { rate: INCOME.war.guardDay.low, success: 0.9 },
+  medium: { rate: INCOME.war.guardDay.medium, success: 0.78 },
+  high: { rate: INCOME.war.guardDay.high, success: 0.62 },
 };
 
 export const CONTRACTS = {

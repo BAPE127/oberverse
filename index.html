@@ -6175,6 +6175,20 @@ const INCOME = {
   /** v0.91.4: freight rates fall as you flood the lanes: a contract pays 1 ÷ (1 + n ÷ this) of its price, n = contracts you sent a ship on in the last 10 days. 0 switches it off. */
   freightSaturation: 4,
   ownShippingFree: true,
+  /**
+   * v0.103.5: what the mercenary company earns. The owner's rule: with the bare minimum built (site office, bunkhouse, range, cage: twelve beds, so twelve soldiers) the company earns at least
+   * 2,000,000 obols in 5 days while those soldiers serve; with every facility built (112 beds, a full motor pool, four tanks, two helicopters, two guns, two carriers) about 20,000,000 in 5 days.
+   * So a soldier in the field is worth one figure whichever way they are sent: the employer's retainer in a theatre, or an engagement's pay per troop-day. Vehicles are worth `vehicleScale` times
+   * what they were. Soldiers who stay at the base earn nothing. Costs (wages, supplies, fuel, upkeep) are unchanged. tests/war_income.test.mjs holds the rule; tools/econ-audit-war.mjs prints it.
+   */
+  war: {
+    soldierDay: 33_500,      // the retainer for each soldier in a theatre, a day (was 170)
+    engageTroopDay: 34_000,  // an engagement pays this for each troop it asks for, each day (was 340)
+    vehicleScale: 21,        // vehicles in the retainer and in engagement pay are worth this many times what they were
+    vpBonus: 500_000,        // the employer's bonus for each victory point of ground taken (was 25,000)
+    guardDay: { low: 30_000, medium: 38_000, high: 55_000 }, // a security contract pays this for each guard, each day (was 400, 550, 800)
+    target: { days: 5, bare: 2_000_000, full: 20_000_000 },
+  },
 };
 
 return { INCOME };
@@ -18246,7 +18260,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.103.4';
+const GAME_VERSION = '0.103.5';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -32434,6 +32448,7 @@ __m["src/content/contracts.js"] = (function () {
 // Early contracts (v0.99.0 stage 6): the ordinary work of a security firm. Pure data. A contract asks for guards (and nothing heavy: never a tank, a helicopter or a loadout), a pistol each
 // and a radio, for a few days; it pays only when it ends well, and a failure costs money (owed, never taken from you) and a client. Figures are starting figures to calibrate against
 // the wages (120 obols a day for a guard) and what a guard shift earns.
+const { INCOME } = __m["src/content/income.js"];
 const CLIENTS = {
   fish_coop: { name: 'Lanternside Fish Co-op', place: 'the cold store on the quay' },
   oil: { name: 'Ober\'s Oil', place: 'the refinery gate' },
@@ -32454,9 +32469,9 @@ const KINDS = {
 
 /** Obols per guard per day by risk, the chance of success before extra hands and reputation, and what a failure costs (a share of the pay). */
 const RISK = {
-  low: { rate: 400, success: 0.9 },
-  medium: { rate: 550, success: 0.78 },
-  high: { rate: 800, success: 0.62 },
+  low: { rate: INCOME.war.guardDay.low, success: 0.9 },
+  medium: { rate: INCOME.war.guardDay.medium, success: 0.78 },
+  high: { rate: INCOME.war.guardDay.high, success: 0.62 },
 };
 
 const CONTRACTS = {
@@ -32788,6 +32803,7 @@ __m["src/content/generals.js"] = (function () {
 // screen and the result come from the same function, src/war/combat.js).
 //
 // Traits are 1 to 5 (3 is average). `risk` (0 to 1) is how readily they accept losses for a win; `aversion` is the reverse and shrinks casualties at the cost of results.
+const { INCOME } = __m["src/content/income.js"];
 const G = (id, name, fee, style, t, risk, terrain, text) => ({ id, name, fee, style, offence: t[0], defence: t[1], logistics: t[2], air: t[3], intel: t[4], risk, terrain, text });
 const GENERALS = Object.fromEntries([
   G('odalys', 'Gen. Mira Odalys', 1900, 'Defence · careful · air coordination', [2, 5, 3, 5, 3], 0.2, { urban: 1, forest: 0, rural: 0, desert: -1, industrial: 1 }, 'Never gives up a position she can hold, and calls the aircraft in before the shells land.'),
@@ -32828,8 +32844,8 @@ const ENGAGE = {
   chance: 0.22,         // the chance each day that a new offer turns up while there is room (a command post must stand)
   lasts: [6, 12],       // days an offer stays open
   repScale: 0.012,      // how much bigger a job's needs get for each point of reputation (0.012 × 50 = +60%)
-  payPerTroopDay: 340,  // obols a troop-equivalent a day, on top of vehicles (see tank/helicopter below); set against a wage of about 150 and the losses
-  payTank: 2800, payHelicopter: 3600,
+  payPerTroopDay: INCOME.war.engageTroopDay,  // obols a troop-equivalent a day, on top of vehicles (see tank/helicopter below); v0.103.5: the owner's income rule, one figure for a soldier in the field (was 340)
+  payTank: 2800 * INCOME.war.vehicleScale, payHelicopter: 3600 * INCOME.war.vehicleScale,
   penalty: 0.35,
   repWin: 6, repHold: 2, repLose: -10,
   ban: 40,
@@ -34058,6 +34074,7 @@ __m["src/content/strategic.js"] = (function () {
 //   BATTALION      organisation (cohesion): what it costs to move and attack, what a day's rest gives back, what a battle takes
 //   GARRISON       the force an enemy-held province holds, from what is in it
 //   SLOTS          what each slot of a battalion template asks the chosen squads to bring
+const { INCOME } = __m["src/content/income.js"];
 const TERRAIN_FX = {
   plains: { speed: 1, def: 1 }, farmland: { speed: 1, def: 1 }, forest: { speed: 0.7, def: 1.12 }, hills: { speed: 0.7, def: 1.1 }, mountains: { speed: 0.4, def: 1.25 },
   marsh: { speed: 0.5, def: 1 }, urban: { speed: 0.8, def: 1.15 }, desert: { speed: 0.8, def: 0.95 }, jungle: { speed: 0.5, def: 1.12 },
@@ -34065,7 +34082,9 @@ const TERRAIN_FX = {
 const INFRA_SPEED = [0, 0.6, 0.75, 0.9, 1.05, 1.2];
 const MARCH = { foot: 6, perBar: 3, base: 6, detour: 1.25, rail: 1.5 }; // km an hour: a vehicle with speed bar b does base + perBar * b
 const SEALIFT = { kmPerDay: 700, minDays: 2 };
-const RETAINER = { perTrooper: 170, perVehicle: { tank: 1400, helicopter: 1800, artillery: 900, antiair: 500, carrier: 400, recon: 250, logistics: 100, medical: 100 }, perVP: 25000, rep: 1 };
+// v0.103.5: the figures are the owner's income rules (src/content/income.js `war`): a soldier in a theatre earns `soldierDay`, vehicles `vehicleScale` times their old value, a victory point `vpBonus`
+const VS = INCOME.war.vehicleScale;
+const RETAINER = { perTrooper: INCOME.war.soldierDay, perVehicle: { tank: 1400 * VS, helicopter: 1800 * VS, artillery: 900 * VS, antiair: 500 * VS, carrier: 400 * VS, recon: 250 * VS, logistics: 100 * VS, medical: 100 * VS }, perVP: INCOME.war.vpBonus, rep: 1 };
 const BATTALION = { orgMax: 100, moveCost: 2, attackMin: 30, restPerDay: 12, afterBattle: { 3: 12, 2: 22, 1: 40, 0: 65 }, entrenchHours: 12, entrenchMax: 5, expiresDays: 3 };
 const GARRISON = { base: 5, perFort: 3, perVP: 2, urban: 4, perInfra: 2, max: 60, spread: 0.3, rebuildDays: 10 };
 
@@ -34880,6 +34899,8 @@ const { view: facilityView, capacity } = __m["src/war/facilities.js"];
 const { view: baseView } = __m["src/war/base.js"];
 const { view: linkView } = __m["src/war/link.js"];
 const { ordersView } = __m["src/war/procurement.js"];
+const { SOLDIER_RETAINER, providedBy } = __m["src/war/strategic.js"];
+const { INCOME } = __m["src/content/income.js"];
 
 const company = (g) => peekMilitary(g)?.company || null;
 const RISK = (p) => (p == null ? null : p >= 0.7 ? 'low' : p >= 0.45 ? 'medium' : 'high');
@@ -34924,6 +34945,7 @@ function briefing(g) {
     supply: { short: short.length, shortRows: short.map((r) => r.name), levels: L ? L.rows.filter((r) => r.want).length : 0, held: Object.values(C.stock).reduce((a, b) => a + b, 0) },
     orders: { pending: orders.pending.length, transit: orders.transit.length },
     production: (C.lines || []).filter((l) => l.unit).length, productionQueue: (C.production || []).length,
+    earning: earning(g, C, w, alive),
     battalions: (w?.battalions || []).length, employer: w?.employer ? { side: w.employer.side, enemy: w.employer.enemy, theatre: w.employer.theatre } : null,
   };
 }
@@ -34948,6 +34970,15 @@ function worldFeed(g, limit = 30) {
   for (const l of geo.log || []) out.push({ day: l.day, text: l.text, kind: 'log' });
   const seen = new Set();
   return out.sort((a, b) => b.day - a.day).filter((x) => { const k = `${x.day}|${x.text}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, limit);
+}
+
+/** What the soldiers are worth (the owner's income rules, src/content/income.js `war`): the retainer coming in each day from battalions in a theatre, and what every trained soldier would earn if all of them served. Read-only. */
+function earning(g, C, w, alive) {
+  const troops = alive.filter((p) => CLASSES[p.role]?.group === 'troop' && p.status === 'active').length;
+  const serving = (w?.battalions || []).filter((b) => b.status === 'theatre' && w.employer);
+  const perDay = serving.reduce((a, b) => a + SOLDIER_RETAINER(g, b), 0);
+  const inField = serving.reduce((a, b) => a + providedBy(g, b.squads).people, 0);
+  return { rate: INCOME.war.soldierDay, troops, inField, perDay, potentialDay: troops * INCOME.war.soldierDay, days: INCOME.war.target.days };
 }
 
 return { missions, briefing, activity, worldFeed };
@@ -56909,6 +56940,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.103.5',
+    date: '2026-11-07',
+    channel: 'development',
+    title: 'War: Troops, Battalions and the Income Rules',
+    notes: [
+      'You can hire troops, form squads, raise battalions, design battalion templates and enlist in a theater from inside the command terminal (Base Operations: Hire and squads, Battalions).',
+      'The mercenary company now pays what the owner set: at least 2,000,000 obols in 5 days with the bare minimum built and soldiers serving, and about 20,000,000 in 5 days with every facility built. A soldier in the field earns 33,500 a day on the retainer and 34,000 a day on an engagement; vehicles and victory points pay far more than before.',
+      'Command Overview shows what your soldiers are earning and what all of them would earn if they served.',
+    ],
+  },
   {
     version: '0.103.4',
     date: '2026-11-07',
@@ -80213,6 +80255,11 @@ function renderOverview(cx, box) {
         ...(feed.length ? feed.map((f) => feedLine(`day ${f.day}`, f.kind, f.text)) : [empty('No conflicts or embargoes are recorded yet. The record starts when the arms market opens.')]),
         B.employer ? kv('Employer', `${g.content.arms.countries[B.employer.side]?.name || B.employer.side} against ${g.content.arms.countries[B.employer.enemy]?.name || B.employer.enemy}`) : null,
       ].filter(Boolean), { right: btn('Global map ›', () => cx.open('intel'), { kind: 'sm' }) }))));
+  const E = B.earning;
+  box.append(panel('Earnings', [
+    kv('A soldier in the field earns', `${fmt(E.rate)} ◎ a day`), kv('Serving in a theater now', E.inField ? `${fmt(E.inField)} soldiers · ${fmt(E.perDay)} ◎ a day` : 'none', E.inField ? 'ok' : 'warn'),
+    kv(`If all ${fmt(E.troops)} trained soldiers served`, `${fmt(E.potentialDay * E.days)} ◎ in ${E.days} days`),
+    h('div', { class: 'osx-sub' }, 'The retainer is paid for soldiers and vehicles in a theater, engagements pay by the troop-day, and security contracts by the guard-day. Soldiers who stay at the base earn nothing, and wages, supplies and fuel are paid as before.')]));
   box.append(panel('Quick actions', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
     btn('Order supplies', () => cx.open('procurement'), { kind: 'pri' }), btn('Transfer internal supplies', () => cx.open('logistics')), btn('Review missions', () => cx.open('missions')),
     btn('Hire troops', () => cx.open('base', { base: { tab: 'people', sel: null } })), btn('Battalions', () => cx.open('base', { base: { tab: 'forces', sel: null } })), btn('Open base map', () => cx.open('base', { base: { tab: 'map', sel: null } })), btn('View global conflicts', () => cx.open('intel')), btn('Open theater map', () => cx.open('theaters')))));

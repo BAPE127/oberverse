@@ -8,6 +8,8 @@ import { view as facilityView, capacity } from './facilities.js';
 import { view as baseView } from './base.js';
 import { view as linkView } from './link.js';
 import { ordersView } from './procurement.js';
+import { SOLDIER_RETAINER, providedBy } from './strategic.js';
+import { INCOME } from '../content/income.js';
 
 const company = (g) => peekMilitary(g)?.company || null;
 const RISK = (p) => (p == null ? null : p >= 0.7 ? 'low' : p >= 0.45 ? 'medium' : 'high');
@@ -52,6 +54,7 @@ export function briefing(g) {
     supply: { short: short.length, shortRows: short.map((r) => r.name), levels: L ? L.rows.filter((r) => r.want).length : 0, held: Object.values(C.stock).reduce((a, b) => a + b, 0) },
     orders: { pending: orders.pending.length, transit: orders.transit.length },
     production: (C.lines || []).filter((l) => l.unit).length, productionQueue: (C.production || []).length,
+    earning: earning(g, C, w, alive),
     battalions: (w?.battalions || []).length, employer: w?.employer ? { side: w.employer.side, enemy: w.employer.enemy, theatre: w.employer.theatre } : null,
   };
 }
@@ -76,4 +79,13 @@ export function worldFeed(g, limit = 30) {
   for (const l of geo.log || []) out.push({ day: l.day, text: l.text, kind: 'log' });
   const seen = new Set();
   return out.sort((a, b) => b.day - a.day).filter((x) => { const k = `${x.day}|${x.text}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, limit);
+}
+
+/** What the soldiers are worth (the owner's income rules, src/content/income.js `war`): the retainer coming in each day from battalions in a theatre, and what every trained soldier would earn if all of them served. Read-only. */
+function earning(g, C, w, alive) {
+  const troops = alive.filter((p) => CLASSES[p.role]?.group === 'troop' && p.status === 'active').length;
+  const serving = (w?.battalions || []).filter((b) => b.status === 'theatre' && w.employer);
+  const perDay = serving.reduce((a, b) => a + SOLDIER_RETAINER(g, b), 0);
+  const inField = serving.reduce((a, b) => a + providedBy(g, b.squads).people, 0);
+  return { rate: INCOME.war.soldierDay, troops, inField, perDay, potentialDay: troops * INCOME.war.soldierDay, days: INCOME.war.target.days };
 }

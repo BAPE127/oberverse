@@ -30,4 +30,18 @@ export const INCOME = {
   /** v0.91.4: freight rates fall as you flood the lanes: a contract pays 1 ÷ (1 + n ÷ this) of its price, n = contracts you sent a ship on in the last 10 days. 0 switches it off. */
   freightSaturation: 4,
   ownShippingFree: true,
+  /**
+   * v0.103.5: what the mercenary company earns. The owner's rule: with the bare minimum built (site office, bunkhouse, range, cage: twelve beds, so twelve soldiers) the company earns at least
+   * 2,000,000 obols in 5 days while those soldiers serve; with every facility built (112 beds, a full motor pool, four tanks, two helicopters, two guns, two carriers) about 20,000,000 in 5 days.
+   * So a soldier in the field is worth one figure whichever way they are sent: the employer's retainer in a theatre, or an engagement's pay per troop-day. Vehicles are worth `vehicleScale` times
+   * what they were. Soldiers who stay at the base earn nothing. Costs (wages, supplies, fuel, upkeep) are unchanged. tests/war_income.test.mjs holds the rule; tools/econ-audit-war.mjs prints it.
+   */
+  war: {
+    soldierDay: 33_500,      // the retainer for each soldier in a theatre, a day (was 170)
+    engageTroopDay: 34_000,  // an engagement pays this for each troop it asks for, each day (was 340)
+    vehicleScale: 21,        // vehicles in the retainer and in engagement pay are worth this many times what they were
+    vpBonus: 500_000,        // the employer's bonus for each victory point of ground taken (was 25,000)
+    guardDay: { low: 30_000, medium: 38_000, high: 55_000 }, // a security contract pays this for each guard, each day (was 400, 550, 800)
+    target: { days: 5, bare: 2_000_000, full: 20_000_000 },
+  },
 };

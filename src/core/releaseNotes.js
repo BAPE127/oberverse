@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.5',
+    date: '2026-11-07',
+    channel: 'development',
+    title: 'War: Troops, Battalions and the Income Rules',
+    notes: [
+      'You can hire troops, form squads, raise battalions, design battalion templates and enlist in a theater from inside the command terminal (Base Operations: Hire and squads, Battalions).',
+      'The mercenary company now pays what the owner set: at least 2,000,000 obols in 5 days with the bare minimum built and soldiers serving, and about 20,000,000 in 5 days with every facility built. A soldier in the field earns 33,500 a day on the retainer and 34,000 a day on an engagement; vehicles and victory points pay far more than before.',
+      'Command Overview shows what your soldiers are earning and what all of them would earn if they served.',
+    ],
+  },
+  {
     version: '0.103.4',
     date: '2026-11-07',
     channel: 'development',

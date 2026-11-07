@@ -50,6 +50,11 @@ export function renderOverview(cx, box) {
         ...(feed.length ? feed.map((f) => feedLine(`day ${f.day}`, f.kind, f.text)) : [empty('No conflicts or embargoes are recorded yet. The record starts when the arms market opens.')]),
         B.employer ? kv('Employer', `${g.content.arms.countries[B.employer.side]?.name || B.employer.side} against ${g.content.arms.countries[B.employer.enemy]?.name || B.employer.enemy}`) : null,
       ].filter(Boolean), { right: btn('Global map ›', () => cx.open('intel'), { kind: 'sm' }) }))));
+  const E = B.earning;
+  box.append(panel('Earnings', [
+    kv('A soldier in the field earns', `${fmt(E.rate)} ◎ a day`), kv('Serving in a theater now', E.inField ? `${fmt(E.inField)} soldiers · ${fmt(E.perDay)} ◎ a day` : 'none', E.inField ? 'ok' : 'warn'),
+    kv(`If all ${fmt(E.troops)} trained soldiers served`, `${fmt(E.potentialDay * E.days)} ◎ in ${E.days} days`),
+    h('div', { class: 'osx-sub' }, 'The retainer is paid for soldiers and vehicles in a theater, engagements pay by the troop-day, and security contracts by the guard-day. Soldiers who stay at the base earn nothing, and wages, supplies and fuel are paid as before.')]));
   box.append(panel('Quick actions', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
     btn('Order supplies', () => cx.open('procurement'), { kind: 'pri' }), btn('Transfer internal supplies', () => cx.open('logistics')), btn('Review missions', () => cx.open('missions')),
     btn('Hire troops', () => cx.open('base', { base: { tab: 'people', sel: null } })), btn('Battalions', () => cx.open('base', { base: { tab: 'forces', sel: null } })), btn('Open base map', () => cx.open('base', { base: { tab: 'map', sel: null } })), btn('View global conflicts', () => cx.open('intel')), btn('Open theater map', () => cx.open('theaters')))));

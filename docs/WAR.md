@@ -151,6 +151,18 @@ The owner asked for a heavy re-evaluation: mimic how the aerospace company works
 
 **Where everything that used to be in the Military app now lives:** hiring, squads, weapons, looks, base: Base Operations (Personnel); buildings, repair: Base Operations (map); factories and their lines: Base Operations (tank factory, helicopter works); supply levels and the works that make for the company: Internal Logistics; aircraft and missile transfers and returns: Internal Logistics; buying vehicles and supplies: Procurement; contracts, engagements, generals: Mission Control; battalions, enlisting, orders: the operational map (Theater Operations, in the theater you are in); money in and out and the first steps: Command Overview.
 
+## Troops, battalions and the income rules (v0.103.5)
+
+**In the terminal.** Base Operations: *Facilities* (the base map), *Hire and squads* (the Troops page: hire, auto-squads, leaders, vehicles, gear and looks) and *Battalions* (`src/ui/osint/forces.js`): raise, roster, stand down, designer and enlist. It calls the same functions as the strategic map's dialogs (`raise`, `disband`, `saveTemplate`, `enlist`); nothing there advances the war.
+
+**What a soldier earns.** The owner's rule: the bare minimum (site office, bunkhouse, range, cage: twelve soldiers) earns at least 2,000,000 obols in 5 days while serving; everything built (112 beds, four tanks, two helicopters, two guns, two carriers) about 20,000,000. One figure per soldier-day, `INCOME.war` in `src/content/income.js`: the retainer 33,500, an engagement 34,000 per troop-day, security contracts 30,000 to 55,000 per guard-day, vehicles at 21 times their old value, 500,000 per victory point. Soldiers at the base earn nothing; wages, supplies, fuel and upkeep are unchanged, so net income is nearly the whole figure. `tools/econ-audit-war.mjs` prints it and `tests/war_income.test.mjs` holds it.
+
+## Honest limits (v0.103.5)
+
+- The floor holds while the soldiers serve: enlisted and carried over to a theater (a few days of sealift), or out on a job. Jobs come when they come: offers are random, and a company that never takes one or never enlists earns nothing from its soldiers.
+- Costs were not scaled with the pay, so a base is now very cheap to run next to what it earns. If that is too easy, scale wages and supplies in a later release.
+- Engagement and contract pay per day are deliberately close to the retainer, so there is no reason to prefer one by pay alone; the choice is risk against reliability.
+
 ## Honest limits (v0.103.4)
 
 - A theater the company is not in is not simulated: its front is where the two belligerents' ground touches, and the ground only changes in the theater the company serves in (that is where the war is ticked). The record (wars, embargoes) is real; the fronts of other theaters are static.

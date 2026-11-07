@@ -2,6 +2,12 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.5] — 2026-11-07 — War: Troops and Battalions in the Terminal, and the Income Rules (development build)
+
+**Hiring and customising are in the terminal.** Base Operations now has three tabs: *Facilities*, *Hire and squads* (hire every troop class, auto-squads, squad leaders, vehicles, weapons, armour and looks) and *Battalions* (`src/ui/osint/forces.js`): raise a battalion from free squads with a template and a name (it shows exactly what is short), the battalions you have with their strength and a Stand down button, the battalion designer (copy a template, change its line, support companies and attachments, save it under your name), and enlisting in a theater. Command Overview has *Hire troops* and *Battalions* shortcuts. These use the same rules as the strategic map's dialogs; deploying and giving orders stays on the strategic map, one button away.
+
+**Income rules (the owner's numbers).** With the bare minimum built (site office, bunkhouse, range, cage: twelve beds, twelve soldiers) the company earns at least **2,000,000 obols in 5 days** while those soldiers serve; with every facility built (112 beds, four tanks, two helicopters, two guns, two carriers) about **20,000,000 in 5 days**. A soldier in the field is worth one figure whichever way they are sent: the employer's retainer is **33,500** a day (was 170), an engagement pays **34,000** per troop-day (was 340), a guard on a security contract **30,000 / 38,000 / 55,000** a day by risk (was 400 / 550 / 800), vehicles are worth **21 times** what they were, and a victory point's bonus is **500,000** (was 25,000). The figures live in `src/content/income.js` (`war`). Soldiers who stay at the base earn nothing, and costs (wages, supplies, fuel, upkeep) are unchanged. Command Overview has an *Earnings* panel. `tools/econ-audit-war.mjs` prints the rule; `tests/war_income.test.mjs` holds it (including an end-to-end run of the bare company collecting the retainer in a theater).
+
 ## [0.103.4] — 2026-11-07 — War: The Command Terminal, rebuilt (development build)
 
 The owner asked for a heavy re-evaluation of how the mercenary company works: mimic the aerospace company (a terminal reached by a button on a minimal OberPad app, with the aerospace terminal's time controls), a tactical OSINT look, the world map and theaters, and a procurement page that is not a maze of menus. And, separately, a fix for the save-game quota and for deleting saves.
