@@ -25,15 +25,15 @@ function squadArt(s, P, E, w, hh, { big = false } = {}) {
   return canvas(w, hh, (g) => {
     g.fillStyle = '#0d1411'; g.fillRect(0, 0, w, hh);
     g.fillStyle = 'rgba(120,160,110,.05)'; for (let x = 0; x < w; x += 12) g.fillRect(x, 0, 1, hh); for (let y = 0; y < hh; y += 12) g.fillRect(0, y, w, 1);
-    const roster = rosterOf(s, P).filter((p) => p.status === 'active'); const roles = roster.map((p) => p.role);
+    const roster = rosterOf(s, P).filter((p) => p.status === 'active'); const roles = roster.map((p) => p.role); const eras = roster.map((p) => p.armour || 1);
     if (big) {
       paintPatch(g, s.look, 10, 10, 56);
-      paintSquad(g, roles.slice(0, 6), s.look, 86, 98, { scale: 1.7, gap: 17 }); paintSquad(g, roles.slice(6, 12), s.look, 86, 164, { scale: 1.7, gap: 17 });
+      paintSquad(g, roles.slice(0, 6), s.look, 86, 98, { scale: 1.7, gap: 17, eras: eras.slice(0, 6) }); paintSquad(g, roles.slice(6, 12), s.look, 86, 164, { scale: 1.7, gap: 17, eras: eras.slice(6, 12) });
       if (!roles.length) { g.fillStyle = '#6a7a71'; g.font = '12px ui-monospace, monospace'; g.fillText('No one in this squad yet', 84, 100); }
       E.slice(0, 2).forEach((e, i) => paintMachine(g, e.type, w - 70, 56 + i * 80, { heading: Math.PI / 2, scale: 0.85 }));
     } else {
       paintPatch(g, s.look, 8, 12, 40);
-      paintSquad(g, roles.slice(0, 6), s.look, 66, hh - 8, { scale: 1.15, gap: 17 });
+      paintSquad(g, roles.slice(0, 6), s.look, 66, hh - 8, { scale: 1.15, gap: 17, eras: eras.slice(0, 6) });
       if (!roles.length) { g.fillStyle = '#5c6b63'; g.font = '11px ui-monospace, monospace'; g.fillText('empty', 64, hh - 22); }
       if (E[0]) paintMachine(g, E[0].type, w - 34, hh / 2 + 2, { heading: Math.PI / 2, scale: 0.5 });
     }
@@ -81,15 +81,15 @@ function hirePanel(cx, P, target) {
 }
 
 function loadouts(cx, P) {
-  const { W } = cx; const st = W.stock(); const C = W.company();
+  const { W } = cx; const st = W.stock(); const C = W.company(); const reach = W.techReach();
   const stockOf = (item) => Object.entries(st).filter(([k]) => k.endsWith(`:${item}`) || k === item).reduce((a, [, q]) => a + q, 0);
+  const ERAS = [[1, 'Uniform'], [2, 'Plate'], [3, 'Hardsuit'], [4, 'Power']];
   const rows = TROOP_CLASSES.map((id) => { const K = CLASSES[id]; const mine = P.filter((p) => p.role === id); const tier = C?.tiers?.[id] ?? 1; const tiers = Object.keys(K.tiers).map(Number);
-    const era = mine.length && mine.every((p) => p.armour === 2) ? 1 : 2;
     return h('div', { class: 'osx-loadrow' }, h('span', { class: 'g', style: `--c:${GLYPH_COLOUR[id]}` }, GLYPH[id]),
-      h('div', { class: 'n' }, h('b', {}, `${K.name} · ${mine.filter((p) => p.weapon).length}/${mine.length} armed`), h('small', {}, `${tiers.map((t) => `T${t}: ${cx.g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])})`).join(' · ')}${K.gadget ? ` · carries ${String(K.gadget).replace('supply:', '')}` : ''}`)),
-      h('span', { class: 'ctl' }, ...tiers.map((t) => btn(`T${t}`, () => cx.go(W.setTier(id, t)), { kind: `sm${t === tier ? ' pri' : ''}` })), btn('Equip all', () => cx.go(W.equipClass(id)), { kind: 'sm', disabled: !mine.length }),
-        btn(era === 2 ? `${ARMOUR[2].name}` : `Field uniform`, () => cx.go(W.armourClass(id, era)), { kind: 'sm', disabled: !mine.length, title: era === 2 ? 'Issue plate carriers (bought, one each)' : 'Back to the field uniform' }))); });
-  return panel('Weapons and armour by class', rows, { sub: 'A class carries the weapon of its tier, taken from the stores. The tier and the armour era are real; colours are free.' });
+      h('div', { class: 'n' }, h('b', {}, `${K.name} · ${mine.filter((p) => p.weapon).length}/${mine.length} armed`), h('small', {}, `${tiers.filter((t) => t <= reach.weapon).map((t) => `T${t}: ${cx.g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])})`).join(' · ')}${tiers.some((t) => t > reach.weapon) ? ' · more tiers need research' : ''}${K.gadget ? ` · carries ${String(K.gadget).replace('supply:', '')}` : ''}`)),
+      h('span', { class: 'ctl' }, ...tiers.map((t) => btn(`T${t}`, () => cx.go(W.setTier(id, t)), { kind: `sm${t === tier ? ' pri' : ''}`, disabled: t > reach.weapon, title: t > reach.weapon ? 'Needs research: see Base Operations, Research' : `${cx.g.content.items[K.tiers[t]]?.name || ''}` })), btn('Equip all', () => cx.go(W.equipClass(id)), { kind: 'sm', disabled: !mine.length }),
+        ...ERAS.map(([e, label]) => btn(label, () => cx.go(W.armourClass(id, e)), { kind: `sm${mine.length && mine.every((p) => (p.armour || 1) === e) ? ' pri' : ''}`, disabled: !mine.length || e > reach.armour, title: e > reach.armour ? 'Needs research: see Base Operations, Research' : ARMOUR[e].text })))); });
+  return panel('Weapons and armour by class', rows, { sub: 'A class carries the weapon of its tier, taken from the stores. Tiers 3 and 4 and armour eras 3 and 4 are researched (Base Operations, Research) and bought from the suppliers. The tier and the armour era are real; colours are free.' });
 }
 
 const swatch = (colour, on, onclick, title) => h('button', { class: `osx-sw${on ? ' on' : ''}`, style: `background:${colour}`, title, onclick });

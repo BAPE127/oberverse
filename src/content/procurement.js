@@ -26,6 +26,11 @@ export const VEHICLES = Object.fromEntries([
   V('viper', 'Viper attack helicopter', 'helicopter', 'works', 2, 980000, [2, 5, 4, 1], 'Rockets and a chin gun.'),
   V('ox', 'Ox heavy-lift helicopter', 'helicopter', 'works', 2, 1100000, [3, 1, 3, 5], 'Lifts a vehicle or a hundred crates.'),
   V('talon', 'Talon gunship', 'helicopter', 'works', 2, 1350000, [3, 5, 4, 3], 'An attack helicopter with armour and a cabin of riflemen.'),
+  // ---- v0.103.8: the future vehicles, open only through the company's research (era 3: hover drives; era 4: heavy hover platforms)
+  V('aegis', 'Aegis hover tank', 'tank', 'works', 3, 2000000, [3, 4, 4, 3], 'Hovers: crosses water, rubble and mud at full speed. An energy shield absorbs the next seconds of fire.'),
+  V('shade', 'Shade stealth recon helicopter', 'helicopter', 'works', 3, 1500000, [1, 2, 5, 1], 'Almost silent; hard to see or lock on to. Invisible while it hovers.'),
+  V('citadel', 'Citadel heavy hover tank', 'tank', 'works', 4, 2600000, [5, 5, 3, 3], 'A fusion-powered hover tank with twin energy guns and a heavy shield.'),
+  V('tempest', 'Tempest energy gunship', 'helicopter', 'works', 4, 2500000, [3, 5, 5, 2], 'A stealthed gunship with energy cannon and plasma pods; carries two.'),
   // ---- bought from suppliers
   V('marten', 'Marten light carrier', 'carrier', 'bought', 1, 140000, [2, 1, 4, 3], 'Carries four, protects them from rifles.'),
   V('wolf', 'Wolf APC', 'carrier', 'bought', 1, 220000, [3, 1, 3, 4], 'A squad and a machine gun.'),
@@ -52,6 +57,13 @@ export const VEHICLES = Object.fromEntries([
   V('bridgelayer', 'Bridgelayer', 'medical', 'bought', 2, 220000, [2, 0, 2, 2], 'Spans a ditch in a minute.'),
   V('mine_sweeper', 'Mine sweeper', 'medical', 'bought', 2, 190000, [3, 0, 2, 2], 'A flail and a brave crew.'),
   V('repair_crane', 'Repair crane', 'medical', 'bought', 2, 150000, [2, 0, 2, 2], 'Lifts engines out of vehicles.'),
+  // v0.103.8: bought once researched
+  V('ghost', 'Ghost stealth carrier', 'carrier', 'bought', 3, 950000, [2, 0, 5, 3], 'Hard to detect; hovers over water. Cloak: invisible until it fires or stops.'),
+  V('dronecar', 'Drone carrier', 'recon', 'bought', 3, 480000, [1, 1, 3, 2], 'Launches three scout drones that mark everything in an area.'),
+  V('skimmer', 'Skimmer scout', 'recon', 'bought', 3, 260000, [0, 1, 5, 1], 'Skims over anything; seen only up close.'),
+  V('longshot', 'Longshot SAM', 'antiair', 'bought', 3, 900000, [1, 5, 2, 1], 'Reaches strategic bombers; two missiles per target.'),
+  V('lance', 'Lance laser anti-air', 'antiair', 'bought', 3, 1200000, [2, 4, 4, 1], 'Never runs out of ammunition; heats up. Overcharge doubles its damage for a few seconds.'),
+  V('warden', 'Warden shield carrier', 'carrier', 'bought', 4, 1600000, [4, 2, 3, 5], 'A heavy hover carrier under an energy shield: the safest way to bring a squad to a fight.'),
 ].map((v) => [v.id, v]));
 
 /** The classes the company never builds and never buys here: they come from your other companies or not at all. */
@@ -66,6 +78,8 @@ export const SUPPLIES = {
   radio: { name: 'Field radio', price: 260, group: 'issue', text: 'Two kilometres on a good day.' },
   medicine: { name: 'Medical supplies', price: 140, group: 'issue', text: 'Bandages, morphine and a lot of tape.' },
   plate_carrier: { name: 'Plate carrier', price: 1800, group: 'issue', text: 'Plates, night-vision helmet and knee pads: armour era 2.' },
+  hardsuit: { name: 'Phalanx hardsuit', price: 14000, group: 'issue', tech: { armourEra: 3 }, text: 'A sealed shell with a sensor visor: armour era 3. Researched.' },
+  power_armour: { name: 'Bastion power armour', price: 60000, group: 'issue', tech: { armourEra: 4 }, text: 'Powered plate and a reactor pack: armour era 4. Researched; very costly.' },
   rations: { name: 'Rations (a day for one)', price: 6, group: 'issue', text: 'Food that keeps.' },
   spares: { name: 'Vehicle spares', price: 450, group: 'issue', text: 'Filters, belts and track links.' },
   fuel: { name: 'Fuel (a drum)', price: 180, group: 'issue', text: 'Diesel by the drum.' },
@@ -74,6 +88,7 @@ export const SUPPLIES = {
   optics: { name: 'Optics and sights', price: 22000, group: 'part', text: 'Gun sights, periscopes and a camera.' },
   rotor: { name: 'Rotor set', price: 48000, group: 'part', text: 'Blades, hub and gearbox.' },
   avionics: { name: 'Avionics', price: 36000, group: 'part', text: 'Radios, instruments and a flight computer.' },
+  core: { name: 'Power core', price: 120000, group: 'part', tech: { vehicleEra: 3 }, text: 'A compact reactor for a hover drive: sold to the works by Teshvar once the company has researched hover drives.' },
   hardpoint: { name: 'Weapon mounts', price: 14000, group: 'part', text: 'Pylons, rails and a ring for a gun.' },
 };
 

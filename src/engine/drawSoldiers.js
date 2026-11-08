@@ -3,7 +3,8 @@
 // (docs/mockups/src/war/soldiers.js). Browser only; paint, never state.
 import { drawPerson } from './drawPeople.js';
 import { drawWeaponSprite } from './drawPixelWeapons.js';
-import { shade, INK } from './drawFleet.js';
+import { shade, INK, mixc } from './drawFleet.js';
+import { drawArmoured, drawGunSpec, ARMOUR_COLOURS } from './drawFuture.js';
 
 /** The pieces a role adds: a pack, a build, and what is worn. The weapon comes from the soldier's real loadout, not from here. */
 export const ROLE_LOOK = {
@@ -17,6 +18,12 @@ export const ENEMY = { cloth: '#9a8456', legs: '#6e5e38', helm: '#7a6a42', accen
 /** x, y = feet. facing: left | right | up | down. o: { cloth, helm, legs, accent, gun, t, moving, scale, skin }. */
 export function drawSoldier(ctx, role, x, y, facing = 'right', o = {}) {
   const key = ROLE_OF[role] || role; const R = ROLE_LOOK[key] || ROLE_LOOK.rifleman; const cloth = o.cloth || '#516b3e';
+  // v0.103.8: the hardsuit (era 3) and the power armour (era 4) are painted soldiers of their own, in the squad's colour; a gun that is not a future weapon is drawn as a plain rifle
+  if (o.era >= 3) {
+    const C = ARMOUR_COLOURS[o.era]; const spec = typeof o.gun === 'object' ? o.gun : o.gun ? { kind: 'ballistic', len: 18, body: '#4a4a52' } : null;
+    drawArmoured(ctx, { era: o.era, role: key, facing, colors: { ...C, primary: o.era === 3 ? mixc(cloth, '#ffffff', 0.62) : mixc(cloth, '#2a3350', 0.6), glow: C.glow }, band: o.accent, weapon: spec }, x, y, o.scale || 1);
+    return;
+  }
   const a = { skin: o.skin || '#e0b088', hair: '#3a2a1a', hairStyle: R.cap ? 'cap' : 'helmet', hatColor: R.cap ? shade(cloth, -10) : (o.helm || shade(cloth, -18)), hatBand: o.accent, outfit: cloth, sleeves: shade(cloth, -6), legs: o.legs || shade(cloth, -30), shoes: '#2a2418', build: R.build || 'average', accessories: ['vest'], vestColor: shade(cloth, -26) };
   const s = { x, y, facing, animTime: o.t ?? 0, moving: Boolean(o.moving), scale: o.scale || 1 };
   ctx.save(); ctx.imageSmoothingEnabled = false;
@@ -31,7 +38,7 @@ export function drawSoldier(ctx, role, x, y, facing = 'right', o = {}) {
     ctx.restore();
   }
   const gun = o.gun;
-  drawPerson(ctx, a, s, gun ? (c) => { c.save(); c.translate(facing === 'left' ? -3 : 3, -8); if (facing === 'left') c.scale(-1, 1); if (facing === 'up') c.translate(0, -2); drawWeaponSprite(c, gun, 1, { hand: a.skin }); c.restore(); } : null);
+  drawPerson(ctx, a, s, gun ? (c) => { c.save(); c.translate(facing === 'left' ? -3 : 3, -8); if (facing === 'left') c.scale(-1, 1); if (facing === 'up') c.translate(0, -2); (typeof gun === 'object' ? drawGunSpec(c, gun, 0, 0, 0, 1) : drawWeaponSprite(c, gun, 1, { hand: a.skin })); c.restore(); } : null);
   ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(s.scale, s.scale);
   if (R.cross && facing !== 'up') { ctx.fillStyle = '#f0eee4'; ctx.fillRect(-6, -17, 4, 5); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-5, -16, 2, 3); ctx.fillRect(-6, -15, 4, 1); ctx.fillStyle = '#f0eee4'; ctx.fillRect(-4, -26, 8, 3); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-1, -26, 2, 3); }
   if (R.band && o.accent) { ctx.fillStyle = o.accent; ctx.fillRect(-5, -14, 4, 2); ctx.fillRect(-5, -12, 2, 1); }

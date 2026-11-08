@@ -8,6 +8,7 @@ import { offers as transferOffers, transfer as transferIn, giveBack as transferB
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { market as procMarket, quote as procQuote, place as procPlace, ordersView as procOrders, CATEGORIES as PROC_CATEGORIES } from './procurement.js';
 import { nextEvent as warNextEvent } from './nextEvent.js';
+import { view as researchView, start as researchStart, reach as researchReach } from './research.js';
 import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
 import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
 import { housing as housingOf } from './equipment.js';
@@ -58,6 +59,10 @@ export class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
+  research() { return researchView(this.g); }
+  startResearch(id) { return researchStart(this.g, id); }
+  techReach() { return researchReach(this.g); }
   /** v0.103.7: when the next thing happens ({ at (a game minute), why, others }) or null: what the terminal's Next event button runs time up to. */
   nextEvent() { return warNextEvent(this.g); }
   /** Every game minute: the soldiers drawn on Hollowmoor Lot follow the books (src/war/bodies.js). */

@@ -602,6 +602,21 @@ try {
   });
   record('the tank factory floor shows its lines and the models with pictures', Object.values(fl).every(Boolean), JSON.stringify(fl));
   await shot('war-factory-floor');
+  // v0.103.8: the research tab (the tree to tier 4), starting a project, and the locked tiers on the squad board
+  const rsr = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'research', sel: null } }; ui.openPanel('militaryterminal'); await T(600);
+    const main = () => document.querySelector('.osx-main')?.textContent || '';
+    out.researchTab = /TIER 3/.test(main()) && /TIER 4/.test(main()) && document.querySelectorAll('.osx-fbay').length >= 8 && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');
+    const r = g.war.startResearch('energy_cells'); out.researchStarted = r.ok && g.war.research().active?.id === 'energy_cells';
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'research', sel: null } }; ui.openPanel('militaryterminal'); await T(500);
+    out.researchActive = /Under way/.test(main()) && /Energy cells/.test(main());
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'people', sel: null } }; ui.openPanel('militaryterminal'); await T(500);
+    out.lockedTiers = [...document.querySelectorAll('.osx-loadrow button')].filter((b) => /^T[34]$/.test(b.textContent)).every((b) => b.disabled) && [...document.querySelectorAll('.osx-loadrow button')].some((b) => /Hardsuit/.test(b.textContent) && b.disabled);
+    return out;
+  });
+  record('the Research tab shows the tree, a project starts and shows under way, and tiers 3 and 4 are locked on the squad board until researched', Object.values(rsr).every(Boolean), JSON.stringify(rsr));
+  await shot('war-research');
   const bm = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
     ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'works', works: 'motor_pool', sel: null } }; ui.openPanel('militaryterminal'); await T(500);

@@ -14,7 +14,7 @@ export function buildSetup({ key, eng, people, vehicles, support = null, ai = {}
   for (const p of people) {
     const tiers = CLASSES[p.role]?.tiers || {};
     const weapon = p.armed ? (tiers[p.tier] || tiers[1] || 'item_pistol') : 'none';
-    units.push({ id: p.id, side: 'p', kind: 'inf', role: p.role, name: p.name, rec: { t: 'person', id: p.id }, weapon, hp: UNITS.infantry.hp, accMult: 1 + 0.02 * Math.min(10, p.exp || 0), prot: ARMOUR[p.armour || 1]?.protection || 1, morale: p.morale ?? 70, fatigue: p.fatigue || 0, sight: UNITS.infantry.sight, speed: SPEED.infantry });
+    units.push({ id: p.id, side: 'p', kind: 'inf', role: p.role, name: p.name, rec: { t: 'person', id: p.id }, weapon, hp: UNITS.infantry.hp, accMult: 1 + 0.02 * Math.min(10, p.exp || 0), prot: ARMOUR[p.armour || 1]?.protection || 1, era: p.armour || 1, morale: p.morale ?? 70, fatigue: p.fatigue || 0, sight: UNITS.infantry.sight, speed: SPEED.infantry * (ARMOUR[p.armour || 1]?.speed ?? 1) });
   }
   for (const v of vehicles) {
     const kind = KIND[v.cls] || 'other'; const T = UNITS[kind === 'helicopter' ? 'helicopter' : kind] || UNITS.other;

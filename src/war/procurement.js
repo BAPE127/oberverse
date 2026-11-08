@@ -12,13 +12,15 @@ import { pay } from './company.js';
 import { unitPrice } from './link.js';
 import { VEHICLES, SUPPLIES, ARMS_TRANSFERABLE } from '../content/procurement.js';
 import { SUPPLIERS } from '../content/suppliers.js';
+import { FUTURE_WEAPONS } from '../content/futureArms.js';
+import { weaponTierOpen, armourEraOpen, vehicleEraOpen } from './research.js';
 
 export const CATEGORIES = {
-  smallarms: 'Small arms', ammo: 'Ammunition', heavy: 'Heavy weapons', missiles: 'Missiles', drones: 'Drones', carriers: 'Armoured carriers', recon: 'Recon vehicles', artillery: 'Artillery', antiair: 'Anti-air',
+  smallarms: 'Small arms', ammo: 'Ammunition', heavy: 'Heavy weapons', missiles: 'Missiles', drones: 'Drones', energy: 'Energy weapons (researched)', carriers: 'Armoured carriers', recon: 'Recon vehicles', artillery: 'Artillery', antiair: 'Anti-air',
   logistics: 'Logistics vehicles', medicalveh: 'Medical and engineer vehicles', fuel: 'Fuel', uniforms: 'Uniforms and armour', medical: 'Medical supplies', comms: 'Communications', general: 'General supplies', parts: 'Construction and engineering parts',
 };
 const ARMS_CAT = { item_pistol: 'smallarms', item_smg: 'smallarms', item_shotgun: 'smallarms', item_assault_rifle: 'smallarms', item_sniper_rifle: 'smallarms', item_lmg: 'smallarms', item_rpg: 'heavy', item_rpg_rocket: 'ammo', item_artillery_shell: 'ammo', item_breach_charge: 'heavy', item_missile_guided: 'missiles', item_missile_cruise: 'missiles', item_drone_attack: 'drones', item_drone_strike: 'drones' };
-const SUPPLY_CAT = { uniform: 'uniforms', plate_carrier: 'uniforms', radio: 'comms', medicine: 'medical', rations: 'general', spares: 'general', fuel: 'fuel', plate: 'parts', engine: 'parts', optics: 'parts', rotor: 'parts', avionics: 'parts', hardpoint: 'parts' };
+const SUPPLY_CAT = { uniform: 'uniforms', plate_carrier: 'uniforms', hardsuit: 'uniforms', power_armour: 'uniforms', radio: 'comms', medicine: 'medical', rations: 'general', spares: 'general', fuel: 'fuel', plate: 'parts', engine: 'parts', optics: 'parts', rotor: 'parts', avionics: 'parts', hardpoint: 'parts', core: 'parts' };
 const VEH_CAT = { carrier: 'carriers', recon: 'recon', artillery: 'artillery', antiair: 'antiair', logistics: 'logistics', medical: 'medicalveh' };
 const LOG_KEEP = 60;
 const company = (g) => peekMilitary(g)?.company || null;
@@ -27,8 +29,10 @@ const company = (g) => peekMilitary(g)?.company || null;
 export function catalogue(game) {
   const out = [];
   for (const id of ARMS_TRANSFERABLE) { const it = game.content.items[id]; if (it) out.push({ id: `arms:${id}`, item: id, name: it.name, cat: ARMS_CAT[id] || 'heavy', kind: 'stock', key: `arms:bought:${id}`, base: unitPrice(game, id), text: it.description || it.desc || 'Bought from a manufacturer: it goes into the stores.' }); }
-  for (const [id, S] of Object.entries(SUPPLIES)) out.push({ id: `supply:${id}`, item: id, name: S.name, cat: SUPPLY_CAT[id] || 'general', kind: 'stock', key: `supply:${id}`, base: S.price, text: S.text });
-  for (const V of Object.values(VEHICLES)) if (V.source === 'bought') out.push({ id: `vehicle:${V.id}`, item: V.id, name: V.name, cat: VEH_CAT[V.class] || 'carriers', kind: 'vehicle', base: V.price, text: V.text, bars: { armour: V.armour, firepower: V.firepower, speed: V.speed, capacity: V.capacity } });
+  // v0.103.8: the future weapons are for sale only once the company has researched their tier
+  for (const w of Object.values(FUTURE_WEAPONS)) if (weaponTierOpen(game, w.tier)) out.push({ id: `arms:${w.id}`, item: w.id, name: w.name, cat: 'energy', kind: 'stock', key: `arms:bought:${w.id}`, base: unitPrice(game, w.id), text: `Tier ${w.tier}. ${w.text}` });
+  for (const [id, S] of Object.entries(SUPPLIES)) if (!S.tech || (S.tech.armourEra ? armourEraOpen(game, S.tech.armourEra) : true) && (S.tech.vehicleEra ? vehicleEraOpen(game, S.tech.vehicleEra) : true)) out.push({ id: `supply:${id}`, item: id, name: S.name, cat: SUPPLY_CAT[id] || 'general', kind: 'stock', key: `supply:${id}`, base: S.price, text: S.text });
+  for (const V of Object.values(VEHICLES)) if (V.source === 'bought' && (V.era <= 2 || vehicleEraOpen(game, V.era))) out.push({ id: `vehicle:${V.id}`, item: V.id, name: V.name, cat: VEH_CAT[V.class] || 'carriers', kind: 'vehicle', base: V.price, text: V.text, bars: { armour: V.armour, firepower: V.firepower, speed: V.speed, capacity: V.capacity } });
   return out;
 }
 

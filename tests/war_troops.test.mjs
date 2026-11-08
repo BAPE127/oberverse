@@ -1,4 +1,5 @@
 // People (v0.100.0 stage 7): troop classes with training, squads of one assignment each, loadouts taken from real stock (one item, one pair of hands), armour eras 1 and 2, looks as free data.
+import { FUTURE_WEAPONS } from '../src/content/futureArms.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { warGame, build, buildAll, STAGE1, cageGoods, days, topUp } from './war_helpers.mjs';
@@ -21,14 +22,14 @@ function base(seed, { uniforms = 40, items = {} } = {}) {
 const total = (g, key) => (g.war.stock()[key] || 0) + g.war.people().filter((p) => p.weapon === key || p.gadget === key).length;
 const trained = (g, n = 6) => days(g, n);
 
-test('the classes: ten troop classes and the two working roles; every weapon is an item the Arms works makes, tiers stop at 2, nothing needs a look or era beyond 2', () => {
+test('the classes: ten troop classes and the two working roles; tiers 1 and 2 are items the Arms works makes, tiers 3 and 4 the researched future weapons (v0.103.8), and the armour eras are 1 to 4', () => {
   assert.equal(TROOP_CLASSES.length, 10); assert.ok(CLASSES.guard && CLASSES.technician);
   const made = new Set(Object.values(ARMS_RECIPES).flatMap((r) => [r.out, r.single].filter(Boolean)));
   for (const [id, K] of Object.entries(CLASSES)) {
-    for (const [t, item] of Object.entries(K.tiers)) { assert.ok(Number(t) <= 2, `${id}: tier ${t}`); assert.ok(made.has(item) && ARMS_TRANSFERABLE.includes(item), `${id}: ${item} is an Arms works item the company can take`); }
+    for (const [t, item] of Object.entries(K.tiers)) { assert.ok(Number(t) <= 4, `${id}: tier ${t}`); if (Number(t) <= 2) assert.ok(made.has(item) && ARMS_TRANSFERABLE.includes(item), `${id}: ${item} is an Arms works item the company can take`); else assert.ok(FUTURE_WEAPONS[item], `${id}: ${item} is a researched future weapon`); }
     if (K.gadget && !K.gadget.startsWith('supply:')) assert.ok(made.has(K.gadget) && ARMS_TRANSFERABLE.includes(K.gadget));
   }
-  assert.deepEqual(Object.keys(ARMOUR).map(Number), [1, 2]);
+  assert.deepEqual(Object.keys(ARMOUR).map(Number), [1, 2, 3, 4]);
   assert.ok(CLASSES.officer.leads && !CLASSES.rifleman.leads);
   assert.ok(LOOKS.pattern.length >= 5 && Object.keys(LOOKS.primary).length >= 5);
 });
@@ -81,7 +82,7 @@ test('weapons come from the stores and are in one pair of hands: equipping takes
   const r = g.war.equipClass('rifleman'); assert.ok(r.ok); assert.equal(r.equipped, 4);
   assert.ok(g.war.people().filter((p) => p.role === 'rifleman').every((p) => p.weapon === smg), 'tier 1: the submachine gun');
   assert.equal(g.war.stock()[smg], 26); assert.equal(total(g, smg) + total(g, ar), t0, 'nothing appeared or went');
-  assert.ok(!g.war.setTier('rifleman', 3).ok && /future research/.test(g.war.setTier('rifleman', 3).text));
+  assert.ok(!g.war.setTier('rifleman', 3).ok && /need research/.test(g.war.setTier('rifleman', 3).text));
   assert.ok(g.war.setTier('rifleman', 2).ok);
   assert.ok(g.war.people().filter((p) => p.role === 'rifleman').every((p) => p.weapon === ar), 'tier 2: the assault rifle');
   assert.equal(g.war.stock()[smg], 30, 'the old ones went back'); assert.equal(g.war.stock()[ar], 16); assert.equal(total(g, smg) + total(g, ar), t0);

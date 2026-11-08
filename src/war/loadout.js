@@ -10,6 +10,8 @@
 import { peekMilitary } from './state.js';
 import { addStock, takeStock } from './equipment.js';
 import { CLASSES, ARMOUR } from '../content/troops.js';
+import { weaponTierOpen, armourEraOpen } from './research.js';
+import { WAR_RESEARCH, GATE } from '../content/warResearch.js';
 
 export const tierOf = (C, p) => p.tier ?? C.tiers?.[p.role] ?? 1;
 /** The best item a class has at or below a tier. */
@@ -37,7 +39,7 @@ function give(game, p) {
 }
 export function release(game, p) {
   give(game, p);
-  if (p.armour === 2) { addStock(game, ARMOUR[2].supply, 1); p.armour = 1; }
+  if ((p.armour || 1) >= 2) { addStock(game, ARMOUR[p.armour].supply, 1); p.armour = 1; }
 }
 
 /** What this person is missing for their class and tier: the items, in order. */
@@ -88,7 +90,8 @@ export function setTier(game, role, tier) {
   const K = CLASSES[role];
   if (!C || !K) return { ok: false, text: 'No such class.' };
   tier = Math.floor(Number(tier) || 0);
-  if (!K.tiers[tier]) return { ok: false, text: `${K.name} has no tier ${tier} yet: tiers 3 to 5 are future research.` };
+  if (!K.tiers[tier]) return { ok: false, text: `${K.name} has no tier ${tier}.` };
+  if (!weaponTierOpen(game, tier)) return { ok: false, text: `Tier ${tier} weapons need research: ${WAR_RESEARCH[GATE.weaponTier[tier]].name} (Base Operations, Research).` };
   C.tiers ||= {};
   C.tiers[role] = tier;
   const r = equipClass(game, role);
@@ -100,10 +103,11 @@ export function setArmour(game, pid, era) {
   const p = C?.personnel.find((x) => x.id === pid);
   if (!p) return { ok: false, text: 'No such person.' };
   if (CLASSES[p.role]?.group !== 'troop') return { ok: false, text: `${p.name} wears no armour.` };
-  if (!ARMOUR[era]) return { ok: false, text: 'Armour eras 3 and 4 are future research.' };
+  if (!ARMOUR[era]) return { ok: false, text: 'No such armour.' };
+  if (!armourEraOpen(game, era)) return { ok: false, text: `${ARMOUR[era].name} needs research: ${WAR_RESEARCH[GATE.armourEra[era]].name} (Base Operations, Research).` };
   if ((p.armour || 1) === era) return { ok: false, text: `${p.name} already wears that.` };
-  if (era === 2) { if (!takeStock(game, ARMOUR[2].supply, 1)) return { ok: false, text: 'There is no plate carrier in the stores: buy one from the suppliers.' }; }
-  else addStock(game, ARMOUR[2].supply, 1);
+  if (era >= 2 && !takeStock(game, ARMOUR[era].supply, 1)) return { ok: false, text: `There is no ${ARMOUR[era].name.toLowerCase()} in the stores: buy one from the suppliers.` };
+  if ((p.armour || 1) >= 2) addStock(game, ARMOUR[p.armour].supply, 1); // (what they wore comes back to the stores)
   p.armour = era;
   return { ok: true, text: `${p.name} wears the ${ARMOUR[era].name.toLowerCase()}.` };
 }

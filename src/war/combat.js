@@ -24,7 +24,7 @@ export const THRESHOLDS = [0.55, 0.15, -0.2]; // the score for 3, 2 and 1 object
 export const OUTCOMES = ['lost', 'partial', 'held', 'held_well'];
 
 const personPower = (p, sup) => {
-  const tier = p.armed ? (p.tier === 2 ? 1.25 : 1) : 0.25;
+  const tier = p.armed ? ({ 2: 1.25, 3: 1.8, 4: 2.5 }[p.tier] || 1) : 0.25; // (v0.103.8: the pulse and plasma tiers)
   const ammo = p.role === 'anti_tank' ? 1 - 0.5 * sup.rocketShort : 1;
   return (CLASS_POWER[p.role] ?? 0.8) * tier * ammo * (0.6 + 0.4 * (p.morale ?? 70) / 100) * (1 - (p.fatigue ?? 0) / 250) * (1 + 0.04 * Math.min(10, p.exp ?? 0));
 };

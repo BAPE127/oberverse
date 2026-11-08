@@ -1519,6 +1519,57 @@ body.pixel-ui .cage .ledger th, body.pixel-ui .cage .ledger td { border-bottom-c
 (function () {
 'use strict';
 const __m = Object.create(null);
+// ---- src/content/futureArms.js
+__m["src/content/futureArms.js"] = (function () {
+// The future weapons (v0.103.8): tier 3 (pulse and the first energy tools) and tier 4 (plasma, rail, ion), one pair for every troop class, from the approved weapon-loadout mock-up
+// (docs/mockups/proposal-war-troop-loadouts-1.png, -2.png: its tiers 4 and 5, which are the company's tiers 3 and 4: the conventional tier 3 of the picture is not built). Pure data.
+// The company buys them from Kingsfjord Ordnance once the research is done (src/war/procurement.js `catalogue`); the Arms works do not make them (see docs/WAR.md, limits).
+//
+//   tier     3 | 4          cls   the classes whose tier it is     price  obols at the Arms market's value (suppliers add their markup)
+//   stats    what the battle reads (range, damage, interval, accuracy, suppression, pierce)           spec   the sprite painter's spec (src/engine/drawFuture.js `gunCanvas`)
+const W = (id, name, tier, cls, price, stats, spec, text) => ({ id, name, tier, cls, price, stats, spec, text });
+const FUTURE_WEAPONS = Object.fromEntries([
+  W('item_pulse_rifle', 'Pulse rifle', 3, ['rifleman'], 4500, { range: 16, damage: 34, interval: 0.8, acc: 0.7, suppress: 1.0, pierce: 0.2 }, { kind: 'energy', len: 18, body: '#8e96a6', glow: '#4ad8e8' }, 'No ammunition; heat limits long bursts.'),
+  W('item_plasma_rifle', 'Plasma rifle', 4, ['rifleman'], 24000, { range: 17, damage: 52, interval: 0.9, acc: 0.7, suppress: 1.4, pierce: 0.45 }, { kind: 'heavy', len: 20, body: '#6a7284', glow: '#ff8a3a' }, 'Burns cover; each shot hits everything in a line.'),
+  W('item_pulse_repeater', 'Pulse repeater', 3, ['machine_gunner'], 7000, { range: 15, damage: 28, interval: 0.35, acc: 0.5, suppress: 2.0, pierce: 0.15 }, { kind: 'energy', len: 22, body: '#8e96a6', glow: '#4ad8e8' }, 'Cools between bursts; never reloads.'),
+  W('item_plasma_repeater', 'Heavy plasma repeater', 4, ['machine_gunner'], 36000, { range: 16, damage: 40, interval: 0.3, acc: 0.5, suppress: 3.0, pierce: 0.35 }, { kind: 'heavy', len: 24, body: '#5a6274', glow: '#ff8a3a' }, 'Shreds infantry; best in a power-armour frame.'),
+  W('item_plasma_launcher', 'Plasma launcher', 3, ['anti_tank'], 9000, { range: 17, damage: 190, interval: 5.0, acc: 0.7, suppress: 9, pierce: 1, rocket: true }, { kind: 'launcher', len: 22, glow: '#ff8a3a' }, 'Melts armour; no back-blast.'),
+  W('item_lance_cannon', 'Lance cannon', 4, ['anti_tank'], 45000, { range: 22, damage: 280, interval: 4.5, acc: 0.8, suppress: 10, pierce: 1, rocket: true }, { kind: 'launcher', len: 26, tubes: 2, glow: '#ff5a3a', guided: true }, 'Kills a tank in two hits at long range.'),
+  W('item_rail_marksman', 'Rail marksman', 3, ['marksman'], 12000, { range: 28, damage: 120, interval: 2.4, acc: 0.9, suppress: 1.5, pierce: 0.5 }, { kind: 'energy', len: 24, body: '#8e96a6', glow: '#7fe8ff', scope: true }, 'Hits through light cover.'),
+  W('item_ion_lance', 'Ion lance', 4, ['marksman'], 60000, { range: 32, damage: 170, interval: 2.6, acc: 0.92, suppress: 2, pierce: 0.8 }, { kind: 'heavy', len: 26, body: '#5a6274', glow: '#c58aff' }, 'Disables a vehicle with one shot.'),
+  W('item_med_beam', 'Med-beam', 3, ['medic'], 6000, { range: 10, damage: 18, interval: 0.7, acc: 0.6, suppress: 0.4, pierce: 0 }, { kind: 'energy', len: 12, body: '#e8e6dc', glow: '#5fe08a' }, 'Heals a squad over time at range.'),
+  W('item_regen_unit', 'Field regeneration unit', 4, ['medic'], 30000, { range: 11, damage: 22, interval: 0.7, acc: 0.6, suppress: 0.4, pierce: 0 }, { kind: 'energy', len: 14, body: '#e8e6dc', glow: '#5fe08a', scope: true }, 'Revives the fallen within 10 s.'),
+  W('item_fusion_cutter', 'Fusion cutter', 3, ['engineer'], 8000, { range: 8, damage: 55, interval: 1.2, acc: 0.65, suppress: 0.8, pierce: 0.4 }, { kind: 'energy', len: 12, body: '#c8a02a', glow: '#ff9a2a', scope: true }, 'Opens a bunker; repairs under fire.'),
+  W('item_siege_rig', 'Siege rig', 4, ['engineer'], 38000, { range: 9, damage: 80, interval: 1.3, acc: 0.65, suppress: 1.0, pierce: 0.6 }, { kind: 'heavy', len: 18, body: '#c8a02a', glow: '#ff9a2a' }, 'Builds a turret in 20 s.'),
+  W('item_drone_controller', 'Drone controller', 3, ['signaller'], 5000, { range: 12, damage: 22, interval: 0.8, acc: 0.6, suppress: 0.6, pierce: 0.1 }, { kind: 'energy', len: 10, body: '#8e96a6', glow: '#7fe8ff' }, 'Flies a scout drone; reveals the map.'),
+  W('item_command_uplink', 'Command uplink', 4, ['signaller'], 26000, { range: 13, damage: 28, interval: 0.8, acc: 0.6, suppress: 0.8, pierce: 0.2 }, { kind: 'energy', len: 12, body: '#8e96a6', glow: '#e8c84a', scope: true }, 'Links vision to every squad.'),
+  W('item_plasma_pistol', 'Plasma pistol', 3, ['officer', 'uav'], 3200, { range: 10, damage: 32, interval: 0.8, acc: 0.65, suppress: 0.6, pierce: 0.2 }, { kind: 'energy', len: 11, body: '#8e96a6', glow: '#e8c84a' }, 'Command: squads act faster.'),
+  W('item_command_blade', 'Command blade and plasma pistol', 4, ['officer'], 20000, { range: 11, damage: 48, interval: 0.8, acc: 0.65, suppress: 0.8, pierce: 0.4 }, { kind: 'energy', len: 13, body: '#6a7284', glow: '#e8c84a', scope: true }, 'Inspire: the whole battalion steadier.'),
+  W('item_pulse_carbine', 'Pulse carbine and cloak', 3, ['recon'], 5500, { range: 15, damage: 30, interval: 0.7, acc: 0.7, suppress: 0.8, pierce: 0.2 }, { kind: 'energy', len: 14, body: '#4a5058', glow: '#4ad8e8', scope: true }, 'Cloak: invisible while still.'),
+  W('item_stalker_rifle', 'Stalker rifle', 4, ['recon', 'uav'], 32000, { range: 24, damage: 85, interval: 2.0, acc: 0.9, suppress: 1.0, pierce: 0.5 }, { kind: 'energy', len: 22, body: '#3a3f48', glow: '#7fe8ff', scope: true }, 'Silent, cloaked, one-shot on light targets.'),
+].map((w) => [w.id, w]));
+
+/** The cell every energy weapon is nominally charged from (the open-world rules want an ammunition item; a battle never uses it). */
+const ENERGY_CELL = 'item_energy_cell';
+
+const ITEM = (w) => ({
+  name: w.name, category: 'weapon', price: w.price, tags: ['weapon', 'gun', 'energy'], icon: 'longgun',
+  description: `A tier ${w.tier} energy weapon for the company's ${w.cls.join(' and ')} class${w.cls.length > 1 ? 'es' : ''}. ${w.text} The company buys it from a specialist maker once it has done the research.`,
+  weapon: { look: w.spec.kind === 'launcher' ? 'rpg' : 'ar', kind: 'gun', damage: Math.max(1, Math.round(w.stats.damage / 2)), range: Math.min(30, w.stats.range), cooldown: Math.max(0.1, w.stats.interval / 4), lethal: true, ammo: ENERGY_CELL, mag: 20, reload: 2, spread: 3, noise: 10, sound: 'sfx_gunshot_smg', held: 'longgun' },
+});
+/** The items for the content registry (src/content/index.js): every weapon and the cell. */
+const FUTURE_ITEMS = {
+  ...Object.fromEntries(Object.values(FUTURE_WEAPONS).map((w) => [w.id, ITEM(w)])),
+  [ENERGY_CELL]: { name: 'Energy cell', category: 'ammo', price: 40, bundle: 1, tags: ['ammo', 'energy'], icon: 'ammo', description: 'A sealed power cell. The company\'s energy weapons draw on it in the open world; in a battle they simply fire.' },
+};
+/** What the battle reads for each future weapon (merged into WEAPONS in src/content/battle.js). */
+const FUTURE_STATS = Object.fromEntries(Object.values(FUTURE_WEAPONS).map((w) => [w.id, w.stats]));
+/** The sprite spec by item (src/engine/drawBattle.js, drawSoldiers.js). */
+const FUTURE_LOOKS = Object.fromEntries(Object.values(FUTURE_WEAPONS).map((w) => [w.id, w.spec]));
+
+return { FUTURE_WEAPONS, ENERGY_CELL, FUTURE_ITEMS, FUTURE_STATS, FUTURE_LOOKS };
+})();
+
 // ---- src/world/mapBuilder.js
 __m["src/world/mapBuilder.js"] = (function () {
 // Small authoring helper used by content files to lay out maps with
@@ -18219,6 +18270,7 @@ return { LARIAT_BANK_STAFF, lariatBankInterior };
 __m["src/content/index.js"] = (function () {
 // Content registry: the single import point for all authored game content.
 // New characters, maps, quests etc. are registered here (see docs/CONTENT_FORMAT.md).
+const { FUTURE_ITEMS } = __m["src/content/futureArms.js"];
 const lanternside = __m["src/content/maps/lanternside.js"].default;
 const interiors = __m["src/content/maps/interiors.js"].default;
 const oberMaps = __m["src/content/maps/oberFields.js"].default;
@@ -18359,7 +18411,7 @@ const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS },
+  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS, ...FUTURE_ITEMS },
   facts: FACTS,
   docs: DOCS,
   containers: ALL_CONTAINERS,
@@ -18449,7 +18501,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.103.7';
+const GAME_VERSION = '0.103.8';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -31353,6 +31405,11 @@ const VEHICLES = Object.fromEntries([
   V('viper', 'Viper attack helicopter', 'helicopter', 'works', 2, 980000, [2, 5, 4, 1], 'Rockets and a chin gun.'),
   V('ox', 'Ox heavy-lift helicopter', 'helicopter', 'works', 2, 1100000, [3, 1, 3, 5], 'Lifts a vehicle or a hundred crates.'),
   V('talon', 'Talon gunship', 'helicopter', 'works', 2, 1350000, [3, 5, 4, 3], 'An attack helicopter with armour and a cabin of riflemen.'),
+  // ---- v0.103.8: the future vehicles, open only through the company's research (era 3: hover drives; era 4: heavy hover platforms)
+  V('aegis', 'Aegis hover tank', 'tank', 'works', 3, 2000000, [3, 4, 4, 3], 'Hovers: crosses water, rubble and mud at full speed. An energy shield absorbs the next seconds of fire.'),
+  V('shade', 'Shade stealth recon helicopter', 'helicopter', 'works', 3, 1500000, [1, 2, 5, 1], 'Almost silent; hard to see or lock on to. Invisible while it hovers.'),
+  V('citadel', 'Citadel heavy hover tank', 'tank', 'works', 4, 2600000, [5, 5, 3, 3], 'A fusion-powered hover tank with twin energy guns and a heavy shield.'),
+  V('tempest', 'Tempest energy gunship', 'helicopter', 'works', 4, 2500000, [3, 5, 5, 2], 'A stealthed gunship with energy cannon and plasma pods; carries two.'),
   // ---- bought from suppliers
   V('marten', 'Marten light carrier', 'carrier', 'bought', 1, 140000, [2, 1, 4, 3], 'Carries four, protects them from rifles.'),
   V('wolf', 'Wolf APC', 'carrier', 'bought', 1, 220000, [3, 1, 3, 4], 'A squad and a machine gun.'),
@@ -31379,6 +31436,13 @@ const VEHICLES = Object.fromEntries([
   V('bridgelayer', 'Bridgelayer', 'medical', 'bought', 2, 220000, [2, 0, 2, 2], 'Spans a ditch in a minute.'),
   V('mine_sweeper', 'Mine sweeper', 'medical', 'bought', 2, 190000, [3, 0, 2, 2], 'A flail and a brave crew.'),
   V('repair_crane', 'Repair crane', 'medical', 'bought', 2, 150000, [2, 0, 2, 2], 'Lifts engines out of vehicles.'),
+  // v0.103.8: bought once researched
+  V('ghost', 'Ghost stealth carrier', 'carrier', 'bought', 3, 950000, [2, 0, 5, 3], 'Hard to detect; hovers over water. Cloak: invisible until it fires or stops.'),
+  V('dronecar', 'Drone carrier', 'recon', 'bought', 3, 480000, [1, 1, 3, 2], 'Launches three scout drones that mark everything in an area.'),
+  V('skimmer', 'Skimmer scout', 'recon', 'bought', 3, 260000, [0, 1, 5, 1], 'Skims over anything; seen only up close.'),
+  V('longshot', 'Longshot SAM', 'antiair', 'bought', 3, 900000, [1, 5, 2, 1], 'Reaches strategic bombers; two missiles per target.'),
+  V('lance', 'Lance laser anti-air', 'antiair', 'bought', 3, 1200000, [2, 4, 4, 1], 'Never runs out of ammunition; heats up. Overcharge doubles its damage for a few seconds.'),
+  V('warden', 'Warden shield carrier', 'carrier', 'bought', 4, 1600000, [4, 2, 3, 5], 'A heavy hover carrier under an energy shield: the safest way to bring a squad to a fight.'),
 ].map((v) => [v.id, v]));
 
 /** The classes the company never builds and never buys here: they come from your other companies or not at all. */
@@ -31393,6 +31457,8 @@ const SUPPLIES = {
   radio: { name: 'Field radio', price: 260, group: 'issue', text: 'Two kilometres on a good day.' },
   medicine: { name: 'Medical supplies', price: 140, group: 'issue', text: 'Bandages, morphine and a lot of tape.' },
   plate_carrier: { name: 'Plate carrier', price: 1800, group: 'issue', text: 'Plates, night-vision helmet and knee pads: armour era 2.' },
+  hardsuit: { name: 'Phalanx hardsuit', price: 14000, group: 'issue', tech: { armourEra: 3 }, text: 'A sealed shell with a sensor visor: armour era 3. Researched.' },
+  power_armour: { name: 'Bastion power armour', price: 60000, group: 'issue', tech: { armourEra: 4 }, text: 'Powered plate and a reactor pack: armour era 4. Researched; very costly.' },
   rations: { name: 'Rations (a day for one)', price: 6, group: 'issue', text: 'Food that keeps.' },
   spares: { name: 'Vehicle spares', price: 450, group: 'issue', text: 'Filters, belts and track links.' },
   fuel: { name: 'Fuel (a drum)', price: 180, group: 'issue', text: 'Diesel by the drum.' },
@@ -31401,6 +31467,7 @@ const SUPPLIES = {
   optics: { name: 'Optics and sights', price: 22000, group: 'part', text: 'Gun sights, periscopes and a camera.' },
   rotor: { name: 'Rotor set', price: 48000, group: 'part', text: 'Blades, hub and gearbox.' },
   avionics: { name: 'Avionics', price: 36000, group: 'part', text: 'Radios, instruments and a flight computer.' },
+  core: { name: 'Power core', price: 120000, group: 'part', tech: { vehicleEra: 3 }, text: 'A compact reactor for a hover drive: sold to the works by Teshvar once the company has researched hover drives.' },
   hardpoint: { name: 'Weapon mounts', price: 14000, group: 'part', text: 'Pylons, rails and a ring for a gun.' },
 };
 
@@ -31929,7 +31996,7 @@ __m["src/content/suppliers.js"] = (function () {
 //   mult     its price against the base price; days its delivery time; max the most it ships in one order of one item
 const SUPPLIERS = {
   halden_arsenal: { id: 'halden_arsenal', name: 'Halden Arsenal Cooperative', type: 'Small arms and ammunition', location: 'Daghan, Varnistan', country: 'varn', blurb: 'A workers\' cooperative that has outlived three governments. Fair prices, a queue at the loading dock.', cats: ['smallarms', 'ammo'], mult: 1.0, days: 2, max: 400 },
-  kingsfjord_ordnance: { id: 'kingsfjord_ordnance', name: 'Kingsfjord Ordnance', type: 'Heavy weapons, missiles and drones', location: 'Kingsfjord, Sund', country: 'sund', blurb: 'Royal warrant, discreet invoices. Dearer, and slower, but it ships what the others will not.', cats: ['heavy', 'missiles', 'drones'], mult: 1.1, days: 3, max: 120 },
+  kingsfjord_ordnance: { id: 'kingsfjord_ordnance', name: 'Kingsfjord Ordnance', type: 'Heavy weapons, missiles and drones', location: 'Kingsfjord, Sund', country: 'sund', blurb: 'Royal warrant, discreet invoices. Dearer, and slower, but it ships what the others will not.', cats: ['heavy', 'missiles', 'drones', 'energy'], mult: 1.1, days: 3, max: 120 },
   ostmark_fahrzeugwerke: { id: 'ostmark_fahrzeugwerke', name: 'Ostmark Fahrzeugwerke', type: 'Armoured and fighting vehicles', location: 'Hartmannsburg, Ostmark', country: 'ostmark', blurb: 'Carriers, recon cars, guns and anti-air from the Union\'s big vehicle works.', cats: ['carriers', 'recon', 'artillery', 'antiair'], mult: 1.0, days: 5, max: 20 },
   redwater_motor: { id: 'redwater_motor', name: 'Redwater Motor & Haulage', type: 'Logistics and medical vehicles, fuel', location: 'Calderon, Caldera', country: 'caldera', blurb: 'Trucks, tankers and ambulances, and the diesel to run them.', cats: ['logistics', 'medicalveh', 'fuel'], mult: 1.0, days: 3, max: 60 },
   caldera_field_supply: { id: 'caldera_field_supply', name: 'Caldera Field Supply', type: 'Uniforms, rations, medicine and radios', location: 'Calderon, Caldera', country: 'caldera', blurb: 'Quartermaster\'s goods by the pallet. Always in stock, next day.', cats: ['uniforms', 'medical', 'comms', 'general', 'fuel'], mult: 1.0, days: 1, max: 2000 },
@@ -31937,6 +32004,119 @@ const SUPPLIERS = {
 };
 
 return { SUPPLIERS };
+})();
+
+// ---- src/content/warResearch.js
+__m["src/content/warResearch.js"] = (function () {
+// The company's research (v0.103.8): pure data. The mercenary company researches the future the way Aerospace researches aircraft: a project costs money (from whoever's money the company spends)
+// and days, one at a time, and needs the Command HQ built. Nodes unlock **tiers**: weapon tier 3 (pulse) and 4 (plasma, rail, ion), armour era 3 (Phalanx hardsuit) and 4 (Bastion power armour),
+// and the future vehicles (era 3: hover, stealth and laser; era 4: the heavy designs). Tiers 1 and 2 are what the company starts with. The figures are starting figures to calibrate: about 63M
+// obols and 90 days of research to reach tier 4, against about 20M obols in 5 days for a fully built base (docs/WAR.md).
+//
+//   tier      what the node belongs to (3 = the first future, 4 = the second)
+//   cost      obols      days   how long the project runs
+//   requires  nodes that must be finished first
+//   unlocks   what finishing it opens (read by the rules; the text is for the screen)
+const WAR_RESEARCH = {
+  energy_cells: { tier: 3, name: 'Energy cells', cost: 2_000_000, days: 4, requires: [], unlocks: {}, text: 'Compact, safe power storage. The foundation of everything that follows: no ammunition, no engines that burn.' },
+  pulse_weapons: { tier: 3, name: 'Pulse weapons', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { weaponTier: 3 }, text: 'Pulse rifles, repeaters, med-beams and cutters for every class: weapon tier 3. No ammunition; heat limits long bursts.' },
+  hardsuit: { tier: 3, name: 'Phalanx hardsuit', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { armourEra: 3 }, text: 'A sealed shell with a sensor visor that shrugs off small arms: armour era 3.' },
+  hover_drives: { tier: 3, name: 'Hover drives', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { vehicleEra: 3 }, text: 'Hover, stealth and laser vehicles: the Aegis hover tank, the Shade helicopter, the Ghost stealth carrier, drone carriers, skimmers and laser anti-air.' },
+  fusion_cores: { tier: 4, name: 'Fusion cores', cost: 10_000_000, days: 12, requires: ['pulse_weapons', 'hardsuit'], unlocks: {}, text: 'A reactor small enough to carry: the foundation of tier 4.' },
+  plasma_weapons: { tier: 4, name: 'Plasma, rail and ion weapons', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { weaponTier: 4 }, text: 'Plasma rifles and repeaters, lance cannons, ion lances, regeneration units: weapon tier 4. Costly to buy.' },
+  power_armour: { tier: 4, name: 'Bastion power armour', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { armourEra: 4 }, text: 'Powered plate with a reactor pack and two-handed heavy weapons: armour era 4. Slow, huge, costly.' },
+  heavy_hover: { tier: 4, name: 'Heavy hover platforms', cost: 12_000_000, days: 14, requires: ['hover_drives', 'fusion_cores'], unlocks: { vehicleEra: 4 }, text: 'Heavier fusion-powered vehicles: the Citadel hover tank, the Tempest gunship and the Warden shield carrier.' },
+};
+
+/** The node that opens a weapon tier, an armour era or a vehicle era (tier 2 and below need none). */
+const GATE = {
+  weaponTier: { 3: 'pulse_weapons', 4: 'plasma_weapons' },
+  armourEra: { 3: 'hardsuit', 4: 'power_armour' },
+  vehicleEra: { 3: 'hover_drives', 4: 'heavy_hover' },
+};
+
+/** The research that needs the Command HQ: the building that must stand (and not be a ruin) before any project can start. */
+const RESEARCH_FACILITY = 'command';
+
+return { WAR_RESEARCH, GATE, RESEARCH_FACILITY };
+})();
+
+// ---- src/war/research.js
+__m["src/war/research.js"] = (function () {
+// The company's research (v0.103.8; src/content/warResearch.js): one project at a time, paid by the company when it starts, finished on a morning, needing the Command HQ. What it unlocks is read
+// by the rules that equip, arm and order (`has`, `weaponTierOpen`, `armourEraOpen`, `vehicleEraOpen`); nothing here creates an item.
+//
+//   view(game)              the tree for the screen: each node's state, what it needs, the project under way
+//   start(game, id)         every check first (the HQ stands, the node is open and not done, nothing else under way, the company can pay), then the money moves once
+//   dayTick(game)           a project whose last day has come is finished (once)
+//   has(game, id)           is a node finished
+//   weaponTierOpen(game, t) / armourEraOpen / vehicleEraOpen    tiers up to 2 are always open
+// Saved: company.research = { done: { nodeId: day }, active: { id, start, end, paid } | null, log }
+const { peekMilitary } = __m["src/war/state.js"];
+const { WAR_RESEARCH, GATE, RESEARCH_FACILITY } = __m["src/content/warResearch.js"];
+const { facilityState } = __m["src/war/facilities.js"];
+const { pay, fundingMode } = __m["src/war/company.js"];
+const { cash } = __m["src/war/company.js"];
+
+const rs = (C) => (C.research ||= { done: {}, active: null, log: [] });
+const researchOf = (game) => { const C = peekMilitary(game)?.company; return C?.identity ? rs(C) : null; };
+
+const has = (game, id) => Boolean(researchOf(game)?.done?.[id]);
+const open = (game, gate, t) => t <= 2 || !gate[t] || has(game, gate[t]);
+const weaponTierOpen = (game, t) => open(game, GATE.weaponTier, t);
+const armourEraOpen = (game, e) => open(game, GATE.armourEra, e);
+const vehicleEraOpen = (game, e) => open(game, GATE.vehicleEra, e);
+/** The highest weapon tier, armour era and vehicle era the company may use now. */
+const reach = (game) => ({ weapon: [4, 3].find((t) => weaponTierOpen(game, t)) || 2, armour: [4, 3].find((e) => armourEraOpen(game, e)) || 2, vehicle: [4, 3].find((e) => vehicleEraOpen(game, e)) || 2 });
+
+/** Why a project cannot start now, or null. */
+function why(game, id) {
+  const C = peekMilitary(game)?.company; const N = WAR_RESEARCH[id];
+  if (!C?.identity) return 'You have no company.';
+  if (!N) return 'No such project.';
+  const r = rs(C);
+  if (r.done[id]) return 'Already finished.';
+  if (r.active) return r.active.id === id ? 'Already under way.' : `${WAR_RESEARCH[r.active.id].name} is under way: one project at a time.`;
+  if (facilityState(game, RESEARCH_FACILITY) !== 'built') return 'Research needs the Command HQ built (and standing).';
+  const lack = N.requires.filter((q) => !r.done[q]);
+  if (lack.length) return `Needs ${lack.map((q) => WAR_RESEARCH[q].name).join(' and ')} first.`;
+  if (!game.corp.canAfford('security', N.cost)) return `The project costs ${N.cost.toLocaleString('en-US')} obols; ${fundingMode(game) === 'wallet' ? 'you hold' : fundingMode(game) === 'group' ? 'the group holds' : 'the company holds'} ${Math.floor(cash(game)).toLocaleString('en-US')}.`;
+  return null;
+}
+
+function start(game, id) {
+  const bad = why(game, id); if (bad) return { ok: false, text: bad };
+  const C = peekMilitary(game).company; const N = WAR_RESEARCH[id]; const r = rs(C); const day = game.clock.day;
+  const p = pay(game, N.cost, `Research: ${N.name}`, 'research'); if (!p.ok) return p;
+  r.active = { id, start: day, end: day + N.days, paid: N.cost };
+  r.log.push({ day, text: `Began research: ${N.name} (${N.cost.toLocaleString('en-US')} obols, ${N.days} days).` }); while (r.log.length > 30) r.log.shift();
+  C.log.push({ day, text: `Began research: ${N.name}.` });
+  return { ok: true, text: `Research begun: ${N.name}, ${N.days} days.` };
+}
+
+/** Every morning: a project whose last day has come is finished, once. */
+function dayTick(game) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return;
+  const r = rs(C); const a = r.active; const day = game.clock.day;
+  if (!a || day < a.end) return;
+  r.done[a.id] = day; r.active = null;
+  const N = WAR_RESEARCH[a.id];
+  r.log.push({ day, text: `Finished research: ${N.name}.` }); while (r.log.length > 30) r.log.shift();
+  C.log.push({ day, text: `Research finished: ${N.name}.` });
+  game.notify?.(`Research finished: ${N.name}. ${N.text}`, 'good');
+}
+
+function view(game) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return null;
+  const r = rs(C); const day = game.clock.day; const hq = facilityState(game, RESEARCH_FACILITY) === 'built';
+  const nodes = Object.entries(WAR_RESEARCH).map(([id, N]) => {
+    const state = r.done[id] ? 'done' : r.active?.id === id ? 'active' : N.requires.every((q) => r.done[q]) ? 'open' : 'locked';
+    return { id, ...N, state, why: state === 'open' || state === 'locked' ? why(game, id) : null, daysLeft: state === 'active' ? Math.max(0, r.active.end - day) : null, finished: r.done[id] ?? null };
+  });
+  return { hq, active: r.active ? { ...r.active, name: WAR_RESEARCH[r.active.id].name, daysLeft: Math.max(0, r.active.end - day) } : null, nodes, reach: reach(game), log: r.log.slice(-8), total: Object.values(WAR_RESEARCH).reduce((a, n) => a + n.cost, 0), spent: Object.keys(r.done).reduce((a, id) => a + WAR_RESEARCH[id].cost, 0) };
+}
+
+return { researchOf, has, weaponTierOpen, armourEraOpen, vehicleEraOpen, reach, why, start, dayTick, view };
 })();
 
 // ---- src/war/procurement.js
@@ -31955,13 +32135,15 @@ const { pay } = __m["src/war/company.js"];
 const { unitPrice } = __m["src/war/link.js"];
 const { VEHICLES, SUPPLIES, ARMS_TRANSFERABLE } = __m["src/content/procurement.js"];
 const { SUPPLIERS } = __m["src/content/suppliers.js"];
+const { FUTURE_WEAPONS } = __m["src/content/futureArms.js"];
+const { weaponTierOpen, armourEraOpen, vehicleEraOpen } = __m["src/war/research.js"];
 
 const CATEGORIES = {
-  smallarms: 'Small arms', ammo: 'Ammunition', heavy: 'Heavy weapons', missiles: 'Missiles', drones: 'Drones', carriers: 'Armoured carriers', recon: 'Recon vehicles', artillery: 'Artillery', antiair: 'Anti-air',
+  smallarms: 'Small arms', ammo: 'Ammunition', heavy: 'Heavy weapons', missiles: 'Missiles', drones: 'Drones', energy: 'Energy weapons (researched)', carriers: 'Armoured carriers', recon: 'Recon vehicles', artillery: 'Artillery', antiair: 'Anti-air',
   logistics: 'Logistics vehicles', medicalveh: 'Medical and engineer vehicles', fuel: 'Fuel', uniforms: 'Uniforms and armour', medical: 'Medical supplies', comms: 'Communications', general: 'General supplies', parts: 'Construction and engineering parts',
 };
 const ARMS_CAT = { item_pistol: 'smallarms', item_smg: 'smallarms', item_shotgun: 'smallarms', item_assault_rifle: 'smallarms', item_sniper_rifle: 'smallarms', item_lmg: 'smallarms', item_rpg: 'heavy', item_rpg_rocket: 'ammo', item_artillery_shell: 'ammo', item_breach_charge: 'heavy', item_missile_guided: 'missiles', item_missile_cruise: 'missiles', item_drone_attack: 'drones', item_drone_strike: 'drones' };
-const SUPPLY_CAT = { uniform: 'uniforms', plate_carrier: 'uniforms', radio: 'comms', medicine: 'medical', rations: 'general', spares: 'general', fuel: 'fuel', plate: 'parts', engine: 'parts', optics: 'parts', rotor: 'parts', avionics: 'parts', hardpoint: 'parts' };
+const SUPPLY_CAT = { uniform: 'uniforms', plate_carrier: 'uniforms', hardsuit: 'uniforms', power_armour: 'uniforms', radio: 'comms', medicine: 'medical', rations: 'general', spares: 'general', fuel: 'fuel', plate: 'parts', engine: 'parts', optics: 'parts', rotor: 'parts', avionics: 'parts', hardpoint: 'parts', core: 'parts' };
 const VEH_CAT = { carrier: 'carriers', recon: 'recon', artillery: 'artillery', antiair: 'antiair', logistics: 'logistics', medical: 'medicalveh' };
 const LOG_KEEP = 60;
 const company = (g) => peekMilitary(g)?.company || null;
@@ -31970,8 +32152,10 @@ const company = (g) => peekMilitary(g)?.company || null;
 function catalogue(game) {
   const out = [];
   for (const id of ARMS_TRANSFERABLE) { const it = game.content.items[id]; if (it) out.push({ id: `arms:${id}`, item: id, name: it.name, cat: ARMS_CAT[id] || 'heavy', kind: 'stock', key: `arms:bought:${id}`, base: unitPrice(game, id), text: it.description || it.desc || 'Bought from a manufacturer: it goes into the stores.' }); }
-  for (const [id, S] of Object.entries(SUPPLIES)) out.push({ id: `supply:${id}`, item: id, name: S.name, cat: SUPPLY_CAT[id] || 'general', kind: 'stock', key: `supply:${id}`, base: S.price, text: S.text });
-  for (const V of Object.values(VEHICLES)) if (V.source === 'bought') out.push({ id: `vehicle:${V.id}`, item: V.id, name: V.name, cat: VEH_CAT[V.class] || 'carriers', kind: 'vehicle', base: V.price, text: V.text, bars: { armour: V.armour, firepower: V.firepower, speed: V.speed, capacity: V.capacity } });
+  // v0.103.8: the future weapons are for sale only once the company has researched their tier
+  for (const w of Object.values(FUTURE_WEAPONS)) if (weaponTierOpen(game, w.tier)) out.push({ id: `arms:${w.id}`, item: w.id, name: w.name, cat: 'energy', kind: 'stock', key: `arms:bought:${w.id}`, base: unitPrice(game, w.id), text: `Tier ${w.tier}. ${w.text}` });
+  for (const [id, S] of Object.entries(SUPPLIES)) if (!S.tech || (S.tech.armourEra ? armourEraOpen(game, S.tech.armourEra) : true) && (S.tech.vehicleEra ? vehicleEraOpen(game, S.tech.vehicleEra) : true)) out.push({ id: `supply:${id}`, item: id, name: S.name, cat: SUPPLY_CAT[id] || 'general', kind: 'stock', key: `supply:${id}`, base: S.price, text: S.text });
+  for (const V of Object.values(VEHICLES)) if (V.source === 'bought' && (V.era <= 2 || vehicleEraOpen(game, V.era))) out.push({ id: `vehicle:${V.id}`, item: V.id, name: V.name, cat: VEH_CAT[V.class] || 'carriers', kind: 'vehicle', base: V.price, text: V.text, bars: { armour: V.armour, firepower: V.firepower, speed: V.speed, capacity: V.capacity } });
   return out;
 }
 
@@ -32066,16 +32250,16 @@ __m["src/content/troops.js"] = (function () {
 const CLASSES = {
   guard: { name: 'Guard', group: 'work', wage: 120, train: 0, tiers: { 1: 'item_pistol' }, text: 'Stands a post and watches a door.' },
   technician: { name: 'Technician', group: 'work', wage: 160, train: 0, tiers: {}, text: 'Works a line at the tank factory or the helicopter works.' },
-  rifleman: { name: 'Rifleman', group: 'troop', wage: 150, train: 5, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'The line: carries the fight.' },
-  machine_gunner: { name: 'Machine gunner', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_lmg' }, text: 'Suppresses what the gun points at.' },
-  anti_tank: { name: 'Anti-tank', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_rpg' }, ammo: { 1: 'item_rpg_rocket' }, text: 'Armour killers: one rocket, then reload.' },
-  marksman: { name: 'Marksman', group: 'troop', wage: 180, train: 8, tiers: { 1: 'item_sniper_rifle' }, text: 'Precision at a distance.' },
-  medic: { name: 'Medic', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:medicine', text: 'Keeps the wounded alive until the clinic.' },
-  engineer: { name: 'Combat engineer', group: 'troop', wage: 170, train: 7, tiers: { 1: 'item_shotgun', 2: 'item_smg' }, text: 'Builds, breaks and clears.' },
-  signaller: { name: 'Signaller', group: 'troop', wage: 160, train: 6, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:radio', text: 'Sees and calls: what the squad knows, the command knows.' },
-  officer: { name: 'Officer', group: 'troop', wage: 260, train: 10, tiers: { 1: 'item_pistol', 2: 'item_smg' }, leads: true, text: 'Leads a squad. A squad has one.' },
-  recon: { name: 'Recon', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'Eyes ahead.' },
-  uav: { name: 'UAV operator', group: 'troop', wage: 190, train: 8, tiers: { 1: 'item_pistol' }, gadget: 'item_drone_attack', text: 'Flies a drone and calls what it sees.' },
+  rifleman: { name: 'Rifleman', group: 'troop', wage: 150, train: 5, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' , 3: 'item_pulse_rifle', 4: 'item_plasma_rifle'}, text: 'The line: carries the fight.' },
+  machine_gunner: { name: 'Machine gunner', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_lmg' , 3: 'item_pulse_repeater', 4: 'item_plasma_repeater'}, text: 'Suppresses what the gun points at.' },
+  anti_tank: { name: 'Anti-tank', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_rpg' , 3: 'item_plasma_launcher', 4: 'item_lance_cannon'}, ammo: { 1: 'item_rpg_rocket' }, text: 'Armour killers: one rocket, then reload.' },
+  marksman: { name: 'Marksman', group: 'troop', wage: 180, train: 8, tiers: { 1: 'item_sniper_rifle' , 3: 'item_rail_marksman', 4: 'item_ion_lance'}, text: 'Precision at a distance.' },
+  medic: { name: 'Medic', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_med_beam', 4: 'item_regen_unit'}, gadget: 'supply:medicine', text: 'Keeps the wounded alive until the clinic.' },
+  engineer: { name: 'Combat engineer', group: 'troop', wage: 170, train: 7, tiers: { 1: 'item_shotgun', 2: 'item_smg' , 3: 'item_fusion_cutter', 4: 'item_siege_rig'}, text: 'Builds, breaks and clears.' },
+  signaller: { name: 'Signaller', group: 'troop', wage: 160, train: 6, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_drone_controller', 4: 'item_command_uplink'}, gadget: 'supply:radio', text: 'Sees and calls: what the squad knows, the command knows.' },
+  officer: { name: 'Officer', group: 'troop', wage: 260, train: 10, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_plasma_pistol', 4: 'item_command_blade'}, leads: true, text: 'Leads a squad. A squad has one.' },
+  recon: { name: 'Recon', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' , 3: 'item_pulse_carbine', 4: 'item_stalker_rifle'}, text: 'Eyes ahead.' },
+  uav: { name: 'UAV operator', group: 'troop', wage: 190, train: 8, tiers: { 1: 'item_pistol' , 3: 'item_plasma_pistol', 4: 'item_stalker_rifle'}, gadget: 'item_drone_attack', text: 'Flies a drone and calls what it sees.' },
 };
 
 const TROOP_CLASSES = Object.keys(CLASSES).filter((id) => CLASSES[id].group === 'troop');
@@ -32084,6 +32268,9 @@ const TROOP_CLASSES = Object.keys(CLASSES).filter((id) => CLASSES[id].group === 
 const ARMOUR = {
   1: { name: 'Field uniform', protection: 1, supply: 'supply:uniform', text: 'Cloth, a helmet and a vest. Cheap, quick to train.' },
   2: { name: 'Plate carrier', protection: 1.35, supply: 'supply:plate_carrier', text: 'Plates, night-vision helmet, knee pads. Stops rifle rounds; heavier.' },
+  // v0.103.8: the future armours, open only through the company's research (src/content/warResearch.js GATE.armourEra); each is bought from the suppliers like the plate carrier
+  3: { name: 'Phalanx hardsuit', protection: 1.9, supply: 'supply:hardsuit', text: 'A sealed shell with a sensor visor. Shrugs off small arms; a squad band to find each other.' },
+  4: { name: 'Bastion power armour', protection: 2.7, speed: 0.8, supply: 'supply:power_armour', text: 'Powered plate, a reactor pack and two-handed heavy weapons. Slow, huge, costly.' },
 };
 
 const SQUAD = { max: 12, names: ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima'] };
@@ -32131,6 +32318,11 @@ const MODELS = Object.fromEntries([
   M('viper', 7, { plate: 6, engine: 2, rotor: 1, avionics: 2, hardpoint: 2 }),
   M('ox', 7, { plate: 4, engine: 2, rotor: 2, avionics: 1 }),
   M('talon', 8, { plate: 8, engine: 2, rotor: 1, avionics: 2, hardpoint: 3 }),
+  // v0.103.8: the future models (their research opens them: src/war/production.js `order`)
+  M('aegis', 8, { plate: 14, core: 1, optics: 2, hardpoint: 2 }),
+  M('shade', 6, { plate: 3, core: 1, rotor: 1, avionics: 2 }),
+  M('citadel', 10, { plate: 24, core: 2, optics: 3, hardpoint: 3 }),
+  M('tempest', 10, { plate: 8, core: 2, rotor: 1, avionics: 3, hardpoint: 3 }),
 ].map((m) => [m.id, m]));
 
 const partsValue = (id) => Object.entries(MODELS[id].parts).reduce((a, [k, n]) => a + SUPPLIES[k].price * n, 0);
@@ -32162,6 +32354,8 @@ __m["src/war/loadout.js"] = (function () {
 const { peekMilitary } = __m["src/war/state.js"];
 const { addStock, takeStock } = __m["src/war/equipment.js"];
 const { CLASSES, ARMOUR } = __m["src/content/troops.js"];
+const { weaponTierOpen, armourEraOpen } = __m["src/war/research.js"];
+const { WAR_RESEARCH, GATE } = __m["src/content/warResearch.js"];
 
 const tierOf = (C, p) => p.tier ?? C.tiers?.[p.role] ?? 1;
 /** The best item a class has at or below a tier. */
@@ -32189,7 +32383,7 @@ function give(game, p) {
 }
 function release(game, p) {
   give(game, p);
-  if (p.armour === 2) { addStock(game, ARMOUR[2].supply, 1); p.armour = 1; }
+  if ((p.armour || 1) >= 2) { addStock(game, ARMOUR[p.armour].supply, 1); p.armour = 1; }
 }
 
 /** What this person is missing for their class and tier: the items, in order. */
@@ -32240,7 +32434,8 @@ function setTier(game, role, tier) {
   const K = CLASSES[role];
   if (!C || !K) return { ok: false, text: 'No such class.' };
   tier = Math.floor(Number(tier) || 0);
-  if (!K.tiers[tier]) return { ok: false, text: `${K.name} has no tier ${tier} yet: tiers 3 to 5 are future research.` };
+  if (!K.tiers[tier]) return { ok: false, text: `${K.name} has no tier ${tier}.` };
+  if (!weaponTierOpen(game, tier)) return { ok: false, text: `Tier ${tier} weapons need research: ${WAR_RESEARCH[GATE.weaponTier[tier]].name} (Base Operations, Research).` };
   C.tiers ||= {};
   C.tiers[role] = tier;
   const r = equipClass(game, role);
@@ -32252,10 +32447,11 @@ function setArmour(game, pid, era) {
   const p = C?.personnel.find((x) => x.id === pid);
   if (!p) return { ok: false, text: 'No such person.' };
   if (CLASSES[p.role]?.group !== 'troop') return { ok: false, text: `${p.name} wears no armour.` };
-  if (!ARMOUR[era]) return { ok: false, text: 'Armour eras 3 and 4 are future research.' };
+  if (!ARMOUR[era]) return { ok: false, text: 'No such armour.' };
+  if (!armourEraOpen(game, era)) return { ok: false, text: `${ARMOUR[era].name} needs research: ${WAR_RESEARCH[GATE.armourEra[era]].name} (Base Operations, Research).` };
   if ((p.armour || 1) === era) return { ok: false, text: `${p.name} already wears that.` };
-  if (era === 2) { if (!takeStock(game, ARMOUR[2].supply, 1)) return { ok: false, text: 'There is no plate carrier in the stores: buy one from the suppliers.' }; }
-  else addStock(game, ARMOUR[2].supply, 1);
+  if (era >= 2 && !takeStock(game, ARMOUR[era].supply, 1)) return { ok: false, text: `There is no ${ARMOUR[era].name.toLowerCase()} in the stores: buy one from the suppliers.` };
+  if ((p.armour || 1) >= 2) addStock(game, ARMOUR[p.armour].supply, 1); // (what they wore comes back to the stores)
   p.armour = era;
   return { ok: true, text: `${p.name} wears the ${ARMOUR[era].name.toLowerCase()}.` };
 }
@@ -32517,6 +32713,8 @@ __m["src/war/production.js"] = (function () {
 //   blocked                a line that cannot start or finish says WHY (parts, cash, crew, a free bay, a damaged works) and is saved
 //   upgrade / maintain     a works builds 15% faster per upgrade; it wears with use and slows when worn; mending costs by the point of wear
 // The number of lines comes from the works' capacity (src/war/facilities.js): a damaged works has half its lines, a ruin none.
+const { vehicleEraOpen } = __m["src/war/research.js"];
+const { WAR_RESEARCH, GATE } = __m["src/content/warResearch.js"];
 const { peekMilitary } = __m["src/war/state.js"];
 const { capacity } = __m["src/war/facilities.js"];
 const { addRecord, nextId, stockOf, takeStock } = __m["src/war/equipment.js"];
@@ -32551,6 +32749,7 @@ function order(game, model, qty) {
   if (!C?.identity) return { ok: false, text: 'You have no company.' };
   const V = VEHICLES[model];
   if (!V || !MODELS[model]) return { ok: false, text: 'The company builds tanks and helicopters, and nothing else.' };
+  if (!vehicleEraOpen(game, V.era)) return { ok: false, text: `${V.name} needs research: ${WAR_RESEARCH[GATE.vehicleEra[V.era]].name} (Base Operations, Research).` };
   qty = Math.floor(Number(qty) || 0);
   if (qty < 1 || qty > 20) return { ok: false, text: 'Order between 1 and 20.' };
   const w = worksOf(model);
@@ -32667,7 +32866,7 @@ function view(game) {
     orders: C.production.map((o) => ({ ...o, name: VEHICLES[o.model].name })),
     needs: Object.entries(needs).map(([k, n]) => ({ id: k, name: SUPPLIES[k].name, need: n, have: stockOf(game, `supply:${k}`) })),
     technicians: ofRole(game, 'technician').length,
-    models: Object.values(MODELS).map((m) => ({ ...m, name: VEHICLES[m.id].name, class: VEHICLES[m.id].class, price: VEHICLES[m.id].price, fee: feeOf(m.id), works: worksOf(m.id) })),
+    models: Object.values(MODELS).map((m) => ({ ...m, era: VEHICLES[m.id].era, open: vehicleEraOpen(game, VEHICLES[m.id].era), name: VEHICLES[m.id].name, class: VEHICLES[m.id].class, price: VEHICLES[m.id].price, fee: feeOf(m.id), works: worksOf(m.id) })),
   };
 }
 
@@ -33231,6 +33430,7 @@ __m["src/content/battle.js"] = (function () {
 // The tactical battle (v0.101.0 stage 10a): pure data. Every number the battle simulation reads, in one place, so the aggregate resolver (src/war/combat.js) and the played battle use the
 // same tables where they overlap: the weapons, the armour eras (src/content/troops.js ARMOUR), the class powers (CLASS_POWER) and the cover values. The battle runs at a fixed ten steps a
 // second; a second is ten ticks; chance is a hash of (the engagement's key, the tick, the unit), never a draw, so replaying the same orders gives the same battle.
+const { FUTURE_STATS } = __m["src/content/futureArms.js"];
 const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
 
 /** Tile kinds on a battle map. Walls block sight and movement; windows pass sight and shots but not people; trees block sight; hedges and crops give cover. */
@@ -33258,6 +33458,7 @@ const SPEED = { infantry: 1.8, indoors: 1.2, vehicleBase: 1.0, vehiclePerBar: 0.
  * to a fight of a few minutes, and the calibration test (tests/battle_calibration.test.mjs) holds them to the aggregate resolver.
  */
 const WEAPONS = {
+  ...FUTURE_STATS, // v0.103.8: the company's tier 3 and 4 energy weapons (src/content/futureArms.js)
   item_pistol: { range: 8, damage: 18, interval: 1.2, acc: 0.5, suppress: 0.4, pierce: 0 },
   item_smg: { range: 9, damage: 20, interval: 0.9, acc: 0.55, suppress: 0.6, pierce: 0 },
   item_shotgun: { range: 6, damage: 40, interval: 1.5, acc: 0.6, suppress: 0.6, pierce: 0 },
@@ -33340,7 +33541,7 @@ const STATION = { seconds: 150, mercy: 240 };
 const STANCES = ['aggressive', 'defensive', 'holdfire'];
 const DEFENSIVE = { decay: 1.3 };
 /** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
-const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4 };
+const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12 }; // (v0.103.8: the hover carriers)
 const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
 /** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
 const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };
@@ -33634,7 +33835,7 @@ const THRESHOLDS = [0.55, 0.15, -0.2]; // the score for 3, 2 and 1 objectives; b
 const OUTCOMES = ['lost', 'partial', 'held', 'held_well'];
 
 const personPower = (p, sup) => {
-  const tier = p.armed ? (p.tier === 2 ? 1.25 : 1) : 0.25;
+  const tier = p.armed ? ({ 2: 1.25, 3: 1.8, 4: 2.5 }[p.tier] || 1) : 0.25; // (v0.103.8: the pulse and plasma tiers)
   const ammo = p.role === 'anti_tank' ? 1 - 0.5 * sup.rocketShort : 1;
   return (CLASS_POWER[p.role] ?? 0.8) * tier * ammo * (0.6 + 0.4 * (p.morale ?? 70) / 100) * (1 - (p.fatigue ?? 0) / 250) * (1 + 0.04 * Math.min(10, p.exp ?? 0));
 };
@@ -33957,7 +34158,7 @@ function buildSetup({ key, eng, people, vehicles, support = null, ai = {}, reser
   for (const p of people) {
     const tiers = CLASSES[p.role]?.tiers || {};
     const weapon = p.armed ? (tiers[p.tier] || tiers[1] || 'item_pistol') : 'none';
-    units.push({ id: p.id, side: 'p', kind: 'inf', role: p.role, name: p.name, rec: { t: 'person', id: p.id }, weapon, hp: UNITS.infantry.hp, accMult: 1 + 0.02 * Math.min(10, p.exp || 0), prot: ARMOUR[p.armour || 1]?.protection || 1, morale: p.morale ?? 70, fatigue: p.fatigue || 0, sight: UNITS.infantry.sight, speed: SPEED.infantry });
+    units.push({ id: p.id, side: 'p', kind: 'inf', role: p.role, name: p.name, rec: { t: 'person', id: p.id }, weapon, hp: UNITS.infantry.hp, accMult: 1 + 0.02 * Math.min(10, p.exp || 0), prot: ARMOUR[p.armour || 1]?.protection || 1, era: p.armour || 1, morale: p.morale ?? 70, fatigue: p.fatigue || 0, sight: UNITS.infantry.sight, speed: SPEED.infantry * (ARMOUR[p.armour || 1]?.speed ?? 1) });
   }
   for (const v of vehicles) {
     const kind = KIND[v.cls] || 'other'; const T = UNITS[kind === 'helicopter' ? 'helicopter' : kind] || UNITS.other;
@@ -34019,7 +34220,7 @@ const ownSquad = (eng, s) => Boolean(eng.strategic && s.status === 'battalion' &
 const maxOpen = (rep) => Math.min(E.maxOpen, E.open + Math.floor(Math.max(0, rep) / E.perRep));
 
 // ---- the real forces behind an assignment
-const tierHeld = (p) => (p.weapon && CLASSES[p.role]?.tiers?.[2] && p.weapon.endsWith(`:${CLASSES[p.role].tiers[2]}`) ? 2 : 1);
+const tierHeld = (p) => { const T = CLASSES[p.role]?.tiers || {}; for (const t of [4, 3, 2]) if (T[t] && p.weapon?.endsWith(`:${T[t]}`)) return t; return 1; }; // (v0.103.8: tiers 3 and 4 are the future weapons)
 function forces(game, squadIds, eng = null) {
   const C = peekMilitary(game).company;
   const squads = squadIds.map((id) => C.squads.find((s) => s.id === id)).filter(Boolean);
@@ -34738,6 +34939,7 @@ const { FACILITIES } = __m["src/content/facilities.js"];
 const { MODELS } = __m["src/content/production.js"];
 const { efficiency } = __m["src/war/production.js"];
 const { nowHour } = __m["src/war/strategic.js"];
+const { WAR_RESEARCH } = __m["src/content/warResearch.js"];
 
 const DAY_AT = 6 * 60 + 11; const AFTER = 4;
 
@@ -34757,6 +34959,7 @@ function nextEvent(game) {
   for (const o of C.orders || []) if (o.state !== 'delivered') add(morning(kFor(o.due ?? day)), `Order ${o.id} from ${o.supplierName} arrives`);
   for (const c of C.contracts || []) if (c.state === 'active') add(morning(kFor(c.end ?? day)), `The job "${c.title}" ends`);
   for (const e of C.engagements || []) if (e.state === 'open' && e.expires != null) add(morning(kFor(e.expires)), `${e.title} must be decided`);
+  if (C.research?.active) add(morning(kFor(C.research.active.end)), `Research finishes: ${WAR_RESEARCH[C.research.active.id]?.name}`);
   // the works: a unit in progress is done after the days it still needs; an idle line with a waiting order starts tomorrow morning
   for (const l of C.lines || []) {
     if (l.unit) { const mod2 = MODELS[l.unit.model]; if (mod2) { const perDay = (l.shifts / mod2.days) * efficiency(C, l.works); const left = Math.max(0, 1 - (l.unit.progress || 0)); add(morning(Math.ceil(left / Math.max(perDay, 0.001))), `A ${l.unit.model} comes off line ${l.id}`); } }
@@ -34982,6 +35185,7 @@ const { dayTick: battles } = __m["src/war/engagements.js"];
 const { dayTick: strategic } = __m["src/war/strategic.js"];
 const { dayTick: supplyLink } = __m["src/war/link.js"];
 const { organise } = __m["src/war/organise.js"];
+const { dayTick: researchDay } = __m["src/war/research.js"];
 const { settleFunding } = __m["src/war/company.js"];
 const { dayTick: procurement } = __m["src/war/procurement.js"];
 
@@ -34995,6 +35199,7 @@ function runDay(game) {
   normalise(C);
   if ((C.days.pay || 0) < day) { C.days.pay = day; payroll(game); trainTick(game); }
   if (C.autoSquads) organise(game); // v0.103.3: soldiers whose training has ended join a squad and are armed
+  researchDay(game); // v0.103.8: a research project whose last day has come is finished
   works(game);
   procurement(game); // v0.103.4: orders from outside suppliers arrive on their day
   supplyLink(game); // v0.103.2: the Arms works ship toward the company's standing levels, free
@@ -35528,6 +35733,7 @@ const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } =
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
 const { market: procMarket, quote: procQuote, place: procPlace, ordersView: procOrders, CATEGORIES: PROC_CATEGORIES } = __m["src/war/procurement.js"];
 const { nextEvent: warNextEvent } = __m["src/war/nextEvent.js"];
+const { view: researchView, start: researchStart, reach: researchReach } = __m["src/war/research.js"];
 const { organise: troopsOrganise, setAuto: troopsAuto } = __m["src/war/organise.js"];
 const { view: linkView, setWant: linkWant, setDedicated: linkWorks, buyElsewhere: linkBuy } = __m["src/war/link.js"];
 const { housing: housingOf } = __m["src/war/equipment.js"];
@@ -35578,6 +35784,10 @@ class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
+  research() { return researchView(this.g); }
+  startResearch(id) { return researchStart(this.g, id); }
+  techReach() { return researchReach(this.g); }
   /** v0.103.7: when the next thing happens ({ at (a game minute), why, others }) or null: what the terminal's Next event button runs time up to. */
   nextEvent() { return warNextEvent(this.g); }
   /** Every game minute: the soldiers drawn on Hollowmoor Lot follow the books (src/war/bodies.js). */
@@ -57311,6 +57521,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
   {
+    version: '0.103.8',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Research and the Future Tiers',
+    notes: [
+      'The mercenary company can now research the future. A new Research tab in Base Operations (it needs the Command HQ) holds eight projects to tier 4: about 63 million obols and 90 days. One project runs at a time, paid by the company when it starts.',
+      'Tier 3 opens pulse weapons for every class, the Phalanx hardsuit, and hover vehicles (the Aegis hover tank, Shade stealth helicopter, Ghost stealth carrier, drone carriers, skimmers, Longshot and laser anti-air). Tier 4 opens plasma, rail and ion weapons, Bastion power armour, and heavy hover platforms (the Citadel hover tank, Tempest gunship and Warden shield carrier).',
+      'Weapons, armour and the vehicles you do not build are bought from the suppliers once researched; the hover tanks and helicopters are built on your own lines from parts, including a new power core. The new soldiers and machines are drawn in battle and on the squad board.',
+    ],
+  },
+  {
     version: '0.103.7',
     date: '2026-11-08',
     channel: 'development',
@@ -67706,6 +67927,17 @@ const ALL = [
   V('viper', 'Viper Attack', 'Helicopter', 'works', 2, { L: 46, W: 11, tailL: 26, rotor: 42, canopyL: 10, wings: true, pods: true, nose: true }, [2, 4, 4, 0], 'Rockets and a nose gun; strong against vehicles.', 'Rocket run: 12 rockets on a line.'),
   V('talon', 'Talon Gunship', 'Helicopter', 'works', 2, { L: 56, W: 16, tailL: 28, rotor: 48, canopyL: 12, wings: true, pods: true, nose: true, door: true, blades: 5 }, [3, 5, 2, 3], 'Heavy guns and rockets; carries 4.', 'Strafe: a long cannon run on a squad.'),
   V('mercy', 'Mercy Medevac', 'Helicopter', 'works', 1, { L: 50, W: 18, tailL: 30, rotor: 44, canopyL: 10, door: true, cross: true, skids: true, hull: '#e8e6dc' }, [1, 0, 4, 4], 'Carries 4 wounded; flies into fire.', 'Evacuate: wounded reach the clinic in minutes.'),
+  // v0.103.8: the future vehicles (docs/mockups/src/war/fleet.js era 3, and three heavier designs for era 4)
+  V('aegis', 'Aegis Hover Tank', 'Battle tank', 'works', 3, { gear: 'hover', L: 56, W: 30, shape: 'angular', turret: { type: 'twin', r: 11, gun: 30, barrels: 2 }, feats: ['shield', 'lights'], hull: '#c9ced6' }, [3, 4, 4, 3], 'Hovers: crosses water, rubble and mud at full speed.', 'Energy shield: absorbs the next 4 s of fire.'),
+  V('ghost', 'Ghost Stealth Carrier', 'Armoured carrier', 'buy', 3, { gear: 'hover', L: 48, W: 24, shape: 'angular', turret: { type: 'none' }, feats: ['lights', 'dome'], hull: '#4a5058' }, [2, 0, 5, 3], 'Hard to detect; hovers over water.', 'Cloak: invisible until it fires or stops, 8 s.'),
+  V('dronecar', 'Drone Carrier', 'Recon', 'buy', 3, { gear: 'wheeled', wheels: 3, L: 48, W: 24, shape: 'angular', cab: true, feats: ['pods', 'antenna', 'dome', 'stripe'] }, [1, 1, 3, 2], 'Launches 3 scout drones.', 'Swarm: drones mark everything in an area.'),
+  V('skimmer', 'Skimmer Scout', 'Recon', 'buy', 3, { gear: 'hover', L: 28, W: 14, shape: 'angular', turret: { type: 'none' }, feats: ['lights'], hull: '#4ad8e8' }, [0, 1, 5, 1], 'Skims over anything; seen only up close.', 'Burn: a burst of speed over rough ground.'),
+  V('longshot', 'Longshot SAM', 'Anti-air', 'buy', 3, { gear: 'wheeled', wheels: 3, L: 56, W: 26, shape: 'angular', cab: true, feats: ['radar', 'pods', 'stripe'] }, [1, 5, 2, 1], 'Reaches strategic bombers.', 'Salvo: 2 missiles per target.'),
+  V('lance', 'Lance Laser AA', 'Anti-air', 'buy', 3, { gear: 'hover', L: 44, W: 24, shape: 'angular', turret: { type: 'dome', r: 9 }, feats: ['dome', 'lights'], hull: '#c9ced6' }, [2, 4, 4, 1], 'Never runs out of ammo; heats up.', 'Overcharge: 4 s of double damage.'),
+  V('shade', 'Shade Stealth Recon', 'Helicopter', 'works', 3, { L: 40, W: 16, tailL: 18, rotor: 36, canopyL: 10, stealth: true, coax: true, hull: '#4a5058' }, [1, 2, 5, 1], 'Almost silent; hard to see or lock.', 'Ghost: invisible while it hovers.'),
+  V('citadel', 'Citadel Heavy Hover Tank', 'Battle tank', 'works', 4, { gear: 'hover', L: 66, W: 38, shape: 'angular', skirts: true, turret: { type: 'twin', r: 14, gun: 40, barrels: 2, brake: true }, feats: ['shield', 'lights', 'vents'], hull: '#8a93a6' }, [5, 5, 3, 3], 'A fusion-powered hover tank with twin energy guns.', 'Aegis shield: absorbs the next 8 s of fire.'),
+  V('tempest', 'Tempest Energy Gunship', 'Helicopter', 'works', 4, { L: 58, W: 14, tailL: 24, rotor: 46, canopyL: 12, wings: true, pods: true, nose: true, stealth: true, blades: 5, hull: '#2e3440' }, [3, 5, 5, 2], 'A stealthed gunship with energy cannon and plasma pods.', 'Overdrive: double rate of fire for 6 s.'),
+  V('warden', 'Warden Shield Carrier', 'Armoured carrier', 'buy', 4, { gear: 'hover', L: 56, W: 30, shape: 'angular', turret: { type: 'dome', r: 10 }, feats: ['shield', 'lights', 'dome'], hull: '#5a6a80' }, [4, 2, 3, 5], 'A heavy hover carrier under an energy shield.', 'Shield wall: the squad inside is untouchable for 5 s.'),
   V('ox', 'Ox Heavy Lift', 'Helicopter', 'works', 2, { L: 64, W: 20, tandem: true, tailL: 6, rotor: 38, canopyL: 10, door: true, sling: true }, [2, 0, 2, 5], 'Lifts a vehicle or 14 troops.', 'Sling load: carries a tank-sized load.'),
 ];
 /** a vehicle spec by id */
@@ -79509,6 +79741,98 @@ function replay(setup, log, tick) {
 return { isVeh, createBattle, formationSpots, issueFormation, issue, designated, callReserve, callSupport, step, run, runToEnd, outcome, replay, standNear, inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule };
 })();
 
+// ---- src/engine/drawFuture.js
+__m["src/engine/drawFuture.js"] = (function () {
+// The future soldiers and their weapons (v0.103.8), ported from the approved mock-up (docs/mockups/src/war/trooper.js, proposal-war-troop-eras.png, proposal-war-troop-loadouts-1.png): the armour
+// of eras 3 (Phalanx hardsuit) and 4 (Bastion power armour) and the energy, plasma and launcher weapons of tiers 3 and 4, painted in the game's own idiom (a one-pixel ink outline, lit left,
+// shaded right, cached). Browser only; paint, never state.
+const { INK, shade, mixc, outlined } = __m["src/engine/drawFleet.js"];
+
+const cache = new Map();
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; return [c, g]; };
+const hash = (a, b, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+/** a weapon sprite pointing right, ~28x12, from a spec; ballistic, launcher, energy or heavy */
+function gunCanvas(w) {
+  const key = 'gun|' + JSON.stringify(w); if (cache.has(key)) return cache.get(key); const [c, g] = mk(48, 24); const R = (x, y, ww, h, col) => { g.fillStyle = col; g.fillRect(8 + x, 12 + y, ww, h); };
+  const body = w.body || '#4a4a52', dk = shade(body, -40), hi = shade(body, 40), glow = w.glow; const len = w.len || 18, th = w.th || 3;
+  if (w.kind === 'launcher') { R(-4, -4, len + 6, 7, shade('#6a7a3a', -6)); R(-4, -4, len + 6, 1, shade('#6a7a3a', 30)); R(len + 1, -5, 4, 9, dk); if (w.tubes === 2) { R(-4, 2, len + 6, 5, shade('#6a7a3a', -22)); R(len + 1, 1, 4, 7, dk); } if (w.guided) { R(2, -7, 6, 3, '#26262c'); R(3, -6, 4, 1, '#7fe8ff'); } if (glow) { R(len + 4, -3, 2, 5, glow); R(len + 6, -2, 2, 3, mixc(glow, '#ffffff', 0.5)); } R(4, 3, 3, 5, dk); R(-6, -3, 3, 5, dk); }
+  else if (w.kind === 'heavy') { R(-6, -3, len + 10, 6, body); R(-6, -3, len + 10, 1, hi); R(-6, 2, len + 10, 1, dk); R(len + 4, -4, 6, 8, dk); if (glow) { R(2, -2, len - 2, 3, glow); R(2, -2, len - 2, 1, mixc(glow, '#ffffff', 0.55)); } R(4, 3, 4, 5, dk); R(len - 4, 3, 3, 4, dk); R(-8, -2, 3, 5, dk); }
+  else if (w.kind === 'energy') { R(-5, -2, len + 6, 5, body); R(-5, -2, len + 6, 1, hi); R(-5, 2, len + 6, 1, dk); R(len, -3, 6, 7, dk); if (glow) { R(0, -1, len - 2, 2, glow); R(0, -1, len - 2, 1, mixc(glow, '#ffffff', 0.55)); R(len + 4, -1, 2, 3, glow); } R(2, 3, 3, 5, dk); R(-6, -1, 3, 4, dk); if (w.scope) { R(3, -5, 8, 3, '#26262c'); R(4, -4, 6, 1, glow || '#7fe8ff'); } }
+  else { R(-6, -2, 6, 5, shade('#7a5030', 0)); R(-6, -2, 6, 1, '#a07048'); R(0, -2, len, th + 1, body); R(0, -2, len, 1, hi); R(0, th - 1, len, 1, dk); R(len, -1, w.barrel || 6, 2, dk); if (w.brake) R(len + (w.barrel || 6), -2, 2, 4, '#16161c'); R(len - 8, th + 0, 3, 6, dk); if (w.mag) R(3, th + 1, 4, w.mag, dk); if (w.drum) { R(2, th + 1, 8, 8, dk); R(3, th + 2, 6, 6, '#3a3a44'); } if (w.scope) { R(3, -5, w.scope, 3, '#26262c'); R(3, -5, w.scope, 1, '#6a6a78'); R(4, -4, 2, 1, '#7fe8ff'); } if (w.gl) { R(6, 2, 10, 4, '#2a2a30'); R(15, 1, 3, 6, '#16161c'); } if (w.bipod) { R(len + 2, 2, 1, 6, '#2a2a30'); R(len + 5, 2, 1, 6, '#2a2a30'); } if (w.belt) { R(1, 3, 6, 9, '#c8a02a'); R(1, 3, 6, 1, '#e8c04a'); } if (w.sil) R(len + 2, -1, 9, 3, '#2a2a30'); }
+  const o = outlined(c); cache.set(key, o); return o;
+}
+function patternPx(R, pat, x, y, w, h, c1, c2, seed) { if (pat === 'stripes') for (let i = 0; i < h; i += 4) R(x, y + i, w, 1, c2); else if (pat === 'camo') for (let i = 0; i < w * h / 5; i++) R(x + Math.floor(hash(seed, i, 1) * (w - 1)), y + Math.floor(hash(seed, i, 2) * (h - 1)), 2, 2, i % 2 ? c2 : shade(c1, -22)); else if (pat === 'chevron') for (let i = 0; i < h; i += 4) { R(x + Math.floor(w / 2) - 2, y + i, 4, 1, c2); R(x + Math.floor(w / 2) - 3, y + i + 1, 2, 1, c2); R(x + Math.floor(w / 2) + 1, y + i + 1, 2, 1, c2); } else if (pat === 'checks') for (let i = 0; i < w; i += 3) for (let j = 0; j < h; j += 3) if ((i / 3 + j / 3) % 2 === 0) R(x + i, y + j, 2, 2, c2); }
+/** an armoured trooper sprite (eras 3 and 4); facing 'right' or 'down' (left = mirrored right), feet at the bottom centre of a 64x80 canvas */
+function armouredCanvas(o) {
+  const key = 'arm|' + JSON.stringify({ e: o.era, f: o.facing, c: o.colors, p: o.pattern, i: o.insignia, cr: o.crest, role: o.role, band: o.band, wp: !!o.weapon });
+  if (cache.has(key)) return cache.get(key);
+  const E = o.era, K = o.colors, S = E === 4 ? 1.0 : 1.0; const W = 80, H = 90; const [c, g] = mk(W, H); const OX = 40, OY = 82; const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(OX + x, OY + y, w, h); };
+  const P = K.primary, Q = K.secondary, T = K.trim, V = K.visor, GL = K.glow || V; const side = o.facing === 'right';
+  const lit = (col) => shade(col, 34), shd = (col) => shade(col, -34);
+  const big = E === 4; const hs = big ? 1.35 : 1; // heavier build
+  if (side) {
+    // legs and boots
+    const lw = big ? 5 : 3, lh = big ? 12 : 8;
+    R(-lw - 1, -lh, lw, lh - 2, shd(Q)); R(0, -lh, lw, lh - 2, Q); R(-lw - 1, -lh, 1, lh - 2, lit(Q)); R(-lw - 2, -2, lw + 3, 3, '#26262e'); R(-1, -2, lw + 3, 3, '#1a1a22'); R(-lw - 1, -Math.floor(lh * 0.55), lw + 1, 3, P); R(0, -Math.floor(lh * 0.55), lw + 1, 3, shd(P));
+    if (big) { R(-6, -lh - 3, 11, 5, P); R(-6, -lh - 3, 11, 1, lit(P)); }
+    // pack
+    if (big) { R(-14, -30, 6, 17, shd(Q)); R(-14, -30, 6, 1, lit(Q)); R(-13, -28, 4, 13, '#16161c'); for (let i = 0; i < 4; i++) R(-13, -27 + i * 3, 4, 1, GL); R(-16, -26, 2, 6, '#2a2a30'); R(-13, -34, 2, 5, '#3a3a42'); }
+    else { R(-10, -25, 5, 11, shd(Q)); R(-10, -25, 5, 1, lit(Q)); R(-9, -23, 3, 3, '#16161c'); R(-9, -19, 3, 1, GL); R(-8, -29, 1, 5, '#2a2a30'); }
+    // torso
+    const tt = big ? -32 : -24, tb = big ? -13 : -12; R(-6, tb - 2, 12, 3, '#2a2a32'); R(-8, tt, 16, tb - tt - 2, P); R(-8, tt, 4, tb - tt - 2, lit(P)); R(5, tt + 1, 3, tb - tt - 3, shd(P)); R(-8, tt, 16, 1, lit(P)); R(-6, tt + 3, 8, 2, shd(P));
+    patternPx((x, y, w, h, cc) => R(x, y, w, h, cc), o.pattern, -5, tt + 4, 9, tb - tt - 7, P, T, 3);
+    R(1, tt + 6, 4, 4, T); R(2, tt + 7, 2, 2, shd(T)); // chest emblem
+    if (big) { R(-4, tb - 5, 8, 3, '#16161c'); for (let i = 0; i < 3; i++) R(-3 + i * 3, tb - 5, 2, 3, GL); }
+    // head
+    const hy = tt - (big ? 11 : 10); R(-6, hy, 12, 12, P); R(-6, hy, 4, 12, lit(P)); R(4, hy + 1, 2, 10, shd(P)); R(-6, hy, 12, 1, lit(P)); R(-5, hy - 1, 10, 1, P); R(-4, hy - 2, 8, 1, lit(P));
+    R(0, hy + 4, 6, 4, shd(Q)); R(1, hy + 5, 5, 2, V); R(1, hy + 5, 5, 1, mixc(V, '#ffffff', 0.5)); // visor
+    R(-5, hy + 8, 9, 3, shd(P)); R(-2, hy + 10, 5, 2, '#2a2a32'); // jaw guard
+    if (o.band) R(-2, hy, 3, 5, o.band);
+    if (o.crest === 'crest') { R(-3, hy - 6, 6, 5, T); R(-3, hy - 6, 6, 1, lit(T)); } else if (o.crest === 'antenna') { R(-5, hy - 9, 1, 8, '#3a3a42'); R(-6, hy - 10, 3, 1, GL); } else if (o.crest === 'fin') { R(-5, hy - 4, 9, 3, T); R(-4, hy - 5, 6, 1, T); }
+    if (big) { R(2, hy + 4, 3, 2, GL); }
+    // shoulder pauldron and arm
+    const px = big ? -2 : -1, pw = big ? 11 : 7, ph = big ? 9 : 6; R(px, tt - 3, pw, ph, T === P ? lit(P) : P); R(px, tt - 3, pw, 1, lit(T)); R(px, tt - 3 + ph - 1, pw, 1, shd(P)); R(px + 1, tt - 1, 3, 2, T); patternPx((x, y, w, h, cc) => R(x, y, w, h, cc), o.insignia === 'stripes' ? 'stripes' : 'plain', px + 1, tt - 2, pw - 2, ph - 3, P, T, 5);
+    if (o.insignia === 'star') { R(px + 3, tt - 1, 3, 3, T); R(px + 4, tt - 2, 1, 5, T); R(px + 2, tt, 5, 1, T); } else if (o.insignia === 'bar') { R(px + 2, tt - 1, pw - 4, 2, T); } else if (o.insignia === 'wing') { R(px + 1, tt - 1, 2, 3, T); R(px + 3, tt - 2, 2, 3, T); R(px + 5, tt - 1, 2, 3, T); } else if (o.insignia === 'dots') { R(px + 2, tt - 1, 2, 2, T); R(px + 5, tt - 1, 2, 2, T); }
+    R(2, tt + 4, big ? 8 : 6, 4, Q); R(2, tt + 4, big ? 8 : 6, 1, lit(Q)); R(big ? 10 : 8, tt + 4, 3, 4, '#c8a888'); // forearm and glove
+  } else { // front view
+    const lw = big ? 5 : 4, lh = big ? 12 : 8;
+    R(-lw - 1, -lh, lw, lh - 2, shd(Q)); R(1, -lh, lw, lh - 2, Q); R(-lw - 2, -2, lw + 2, 3, '#26262e'); R(1, -2, lw + 2, 3, '#1a1a22'); R(-lw - 1, -Math.floor(lh * 0.55), lw, 3, P); R(1, -Math.floor(lh * 0.55), lw, 3, shd(P));
+    const tt = big ? -32 : -24, tb = big ? -13 : -12; R(-8, tb - 2, 16, 3, '#2a2a32'); R(-9, tt, 18, tb - tt - 2, P); R(-9, tt, 5, tb - tt - 2, lit(P)); R(5, tt + 1, 4, tb - tt - 3, shd(P)); R(-9, tt, 18, 1, lit(P));
+    patternPx((x, y, w, h, cc) => R(x, y, w, h, cc), o.pattern, -4, tt + 4, 8, tb - tt - 7, P, T, 3); R(-2, tt + 5, 4, 5, T); R(-1, tt + 6, 2, 3, shd(T));
+    if (big) { R(-5, tb - 6, 10, 4, '#16161c'); for (let i = 0; i < 4; i++) R(-4 + i * 2.5, tb - 6, 2, 4, GL); }
+    const hy = tt - (big ? 11 : 10); R(-7, hy, 14, 12, P); R(-7, hy, 5, 12, lit(P)); R(4, hy + 1, 3, 10, shd(P)); R(-7, hy, 14, 1, lit(P)); R(-6, hy - 1, 12, 1, P);
+    R(-6, hy + 4, 12, 4, shd(Q)); R(-5, hy + 5, 10, 2, V); R(-5, hy + 5, 10, 1, mixc(V, '#ffffff', 0.5)); R(-4, hy + 9, 8, 3, shd(P)); R(-1, hy + 11, 2, 2, '#2a2a32');
+    if (o.band) R(-1, hy, 3, 6, o.band); if (o.crest === 'crest') { R(-2, hy - 6, 4, 5, T); R(-2, hy - 6, 4, 1, lit(T)); } else if (o.crest === 'antenna') { R(-6, hy - 9, 1, 8, '#3a3a42'); R(-7, hy - 10, 3, 1, GL); } else if (o.crest === 'fin') { R(-1, hy - 6, 3, 6, T); }
+    if (big) { R(-5, hy + 4, 3, 2, GL); R(2, hy + 4, 3, 2, GL); }
+    for (const sx of [-1, 1]) { const pw = big ? 11 : 8, ph = big ? 9 : 6; const px = sx < 0 ? -9 - pw + 2 : 9 - 2; R(px, tt - 3, pw, ph, sx < 0 ? lit(P) : P); R(px, tt - 3, pw, 1, lit(T)); R(px, tt - 3 + ph - 1, pw, 1, shd(P)); if (o.insignia === 'star' && sx > 0) { R(px + 3, tt - 1, 3, 3, T); R(px + 4, tt - 2, 1, 5, T); R(px + 2, tt, 5, 1, T); } else if (o.insignia === 'bar') R(px + 2, tt - 1, pw - 4, 2, T); else if (o.insignia === 'wing' && sx > 0) { R(px + 1, tt - 1, 2, 3, T); R(px + 3, tt - 2, 2, 3, T); R(px + 5, tt - 1, 2, 3, T); } else if (o.insignia === 'dots') { R(px + 2, tt - 1, 2, 2, T); R(px + 5, tt - 1, 2, 2, T); }
+      R(sx < 0 ? -14 : 9, tt + 3, 5, big ? 12 : 9, Q); R(sx < 0 ? -14 : 9, tt + 3, 5, 1, lit(Q)); R(sx < 0 ? -13 : 10, tt + (big ? 15 : 12), 3, 3, '#c8a888'); }
+  }
+  const out = outlined(c); cache.set(key, out); return out;
+}
+/** Draw a weapon spec (a future weapon's look) from the hand: the gun points right; `ang` turns it, `scale` sizes it. */
+function drawGunSpec(ctx, spec, x = 0, y = 0, ang = 0, scale = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (Math.cos(ang) < 0) ctx.scale(1, -1); const c = gunCanvas(spec); ctx.scale(scale, scale); ctx.drawImage(c, -9, -13); ctx.restore();
+}
+
+/** An armoured soldier (era 3 or 4) with his feet at (x, y). o: { era, colors { primary, secondary, trim, visor, glow }, facing, role, band, pattern, insignia, crest, weapon (a gun spec) }. */
+function drawArmoured(ctx, o, x, y, scale = 1) {
+  const era = o.era || 3; const facing = o.facing || 'right'; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(Math.round(x), Math.round(y));
+  ctx.fillStyle = 'rgba(16,14,36,.3)'; const sw = era === 4 ? 16 : 10; ctx.fillRect(-sw * scale, -1 * scale, sw * 2 * scale, 3 * scale);
+  const c = armouredCanvas({ ...o, era, facing: facing === 'left' ? 'right' : facing === 'up' ? 'down' : facing, weapon: !!o.weapon }); ctx.scale(scale * (facing === 'left' ? -1 : 1), scale); ctx.drawImage(c, -c.width / 2, -(c.height - 7));
+  if (o.weapon) { const big = era === 4; const wx = facing === 'down' || facing === 'up' ? 9 : (big ? 9 : 7); const wy = big ? -30 : -17; ctx.save(); ctx.translate(facing === 'down' ? 0 : wx, wy); drawGunSpec(ctx, o.weapon, 0, 0, facing === 'down' || facing === 'up' ? 0.5 : 0, big ? 1.25 : 1); ctx.restore(); }
+  ctx.restore();
+}
+
+/** The colours of the two armours (the squad's look sets the primary and the glow). */
+const ARMOUR_COLOURS = {
+  3: { primary: '#e8eaf0', secondary: '#9aa0ae', trim: '#e8c84a', visor: '#4ad8e8', glow: '#4ad8e8' },
+  4: { primary: '#4a5570', secondary: '#2e3446', trim: '#e8a02a', visor: '#ff8a3a', glow: '#ff8a3a' },
+};
+
+return { gunCanvas, armouredCanvas, drawGunSpec, drawArmoured, ARMOUR_COLOURS };
+})();
+
 // ---- src/engine/drawSoldiers.js
 __m["src/engine/drawSoldiers.js"] = (function () {
 // Soldiers for the battle (v0.102.0): the game's own people sprites and weapon sprites with the war pieces added on: a helmet in the side's colour, a pack behind the body for the role (radio and
@@ -79516,7 +79840,8 @@ __m["src/engine/drawSoldiers.js"] = (function () {
 // (docs/mockups/src/war/soldiers.js). Browser only; paint, never state.
 const { drawPerson } = __m["src/engine/drawPeople.js"];
 const { drawWeaponSprite } = __m["src/engine/drawPixelWeapons.js"];
-const { shade, INK } = __m["src/engine/drawFleet.js"];
+const { shade, INK, mixc } = __m["src/engine/drawFleet.js"];
+const { drawArmoured, drawGunSpec, ARMOUR_COLOURS } = __m["src/engine/drawFuture.js"];
 
 /** The pieces a role adds: a pack, a build, and what is worn. The weapon comes from the soldier's real loadout, not from here. */
 const ROLE_LOOK = {
@@ -79530,6 +79855,12 @@ const ENEMY = { cloth: '#9a8456', legs: '#6e5e38', helm: '#7a6a42', accent: '#b8
 /** x, y = feet. facing: left | right | up | down. o: { cloth, helm, legs, accent, gun, t, moving, scale, skin }. */
 function drawSoldier(ctx, role, x, y, facing = 'right', o = {}) {
   const key = ROLE_OF[role] || role; const R = ROLE_LOOK[key] || ROLE_LOOK.rifleman; const cloth = o.cloth || '#516b3e';
+  // v0.103.8: the hardsuit (era 3) and the power armour (era 4) are painted soldiers of their own, in the squad's colour; a gun that is not a future weapon is drawn as a plain rifle
+  if (o.era >= 3) {
+    const C = ARMOUR_COLOURS[o.era]; const spec = typeof o.gun === 'object' ? o.gun : o.gun ? { kind: 'ballistic', len: 18, body: '#4a4a52' } : null;
+    drawArmoured(ctx, { era: o.era, role: key, facing, colors: { ...C, primary: o.era === 3 ? mixc(cloth, '#ffffff', 0.62) : mixc(cloth, '#2a3350', 0.6), glow: C.glow }, band: o.accent, weapon: spec }, x, y, o.scale || 1);
+    return;
+  }
   const a = { skin: o.skin || '#e0b088', hair: '#3a2a1a', hairStyle: R.cap ? 'cap' : 'helmet', hatColor: R.cap ? shade(cloth, -10) : (o.helm || shade(cloth, -18)), hatBand: o.accent, outfit: cloth, sleeves: shade(cloth, -6), legs: o.legs || shade(cloth, -30), shoes: '#2a2418', build: R.build || 'average', accessories: ['vest'], vestColor: shade(cloth, -26) };
   const s = { x, y, facing, animTime: o.t ?? 0, moving: Boolean(o.moving), scale: o.scale || 1 };
   ctx.save(); ctx.imageSmoothingEnabled = false;
@@ -79544,7 +79875,7 @@ function drawSoldier(ctx, role, x, y, facing = 'right', o = {}) {
     ctx.restore();
   }
   const gun = o.gun;
-  drawPerson(ctx, a, s, gun ? (c) => { c.save(); c.translate(facing === 'left' ? -3 : 3, -8); if (facing === 'left') c.scale(-1, 1); if (facing === 'up') c.translate(0, -2); drawWeaponSprite(c, gun, 1, { hand: a.skin }); c.restore(); } : null);
+  drawPerson(ctx, a, s, gun ? (c) => { c.save(); c.translate(facing === 'left' ? -3 : 3, -8); if (facing === 'left') c.scale(-1, 1); if (facing === 'up') c.translate(0, -2); (typeof gun === 'object' ? drawGunSpec(c, gun, 0, 0, 0, 1) : drawWeaponSprite(c, gun, 1, { hand: a.skin })); c.restore(); } : null);
   ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(s.scale, s.scale);
   if (R.cross && facing !== 'up') { ctx.fillStyle = '#f0eee4'; ctx.fillRect(-6, -17, 4, 5); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-5, -16, 2, 3); ctx.fillRect(-6, -15, 4, 1); ctx.fillStyle = '#f0eee4'; ctx.fillRect(-4, -26, 8, 3); ctx.fillStyle = '#c82a2a'; ctx.fillRect(-1, -26, 2, 3); }
   if (R.band && o.accent) { ctx.fillStyle = o.accent; ctx.fillRect(-5, -14, 4, 2); ctx.fillRect(-5, -12, 2, 1); }
@@ -79865,6 +80196,8 @@ __m["src/engine/drawBattle.js"] = (function () {
 // The battle on the screen (v0.101.0, the look renderer + the tactical engine's drawing): the ground baked once, buildings seen from above with a roof (or opened to one floor's plan), people on the
 // game's own people sprites (with the new helmet), vehicles, effects, and three camera tiers: far (banners), command (everything at the game's own scale) and close (the same sprites, enlarged by
 // whole numbers). Browser only. It reads a battle (src/battle/sim.js) and never changes it.
+const { FUTURE_LOOKS } = __m["src/content/futureArms.js"];
+const { VEHICLES } = __m["src/content/procurement.js"];
 const { drawVeh, drawHelo, SPEC: FLEET, shade } = __m["src/engine/drawFleet.js"];
 const { drawSoldier, ENEMY } = __m["src/engine/drawSoldiers.js"];
 const { drawRoofed, STYLES: ART_STYLES } = __m["src/engine/drawRoofed.js"];
@@ -79967,7 +80300,7 @@ function plan(g, map, b, floor, gm) {
 
 const dirOf = (u, to) => { const dx = to.x - u.x; const dy = to.y - u.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
 /** Which spec of the fleet a battle unit is drawn as (its kind and class; a helicopter's armour tells an attack helicopter from a scout). */
-const specOf = (u) => (u.vtype === 'rainmaker' || u.vtype === 'longbow' ? u.vtype : u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvil') : u.kind === 'helicopter' ? (u.armourBar >= 2 ? 'talon' : 'viper') : u.kind === 'carrier' ? 'wolf' : u.role === 'recon' ? 'scout' : u.role === 'artillery' ? 'hammer' : u.role === 'antiair' ? 'skyguard' : 'truck');
+const specOf = (u) => (u.vtype === 'rainmaker' || u.vtype === 'longbow' || (FLEET[u.vtype] && VEHICLES[u.vtype]?.era >= 3) ? u.vtype : u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvil') : u.kind === 'helicopter' ? (u.armourBar >= 2 ? 'talon' : 'viper') : u.kind === 'carrier' ? 'wolf' : u.role === 'recon' ? 'scout' : u.role === 'artillery' ? 'hammer' : u.role === 'antiair' ? 'skyguard' : 'truck');
 
 /** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
 class BattleView {
@@ -80102,7 +80435,7 @@ class BattleView {
       if (!u.alive) { g.save(); g.translate(px, py); const c = u.side === 'p' ? '#516b3e' : ENEMY.cloth; g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(-11, 1, 22, 4); g.fillStyle = INK; g.fillRect(-11, -5, 22, 9); g.fillStyle = c; g.fillRect(-9, -4, 14, 7); g.fillStyle = shade(c, 20); g.fillRect(-9, -4, 14, 2); g.fillStyle = shade(c, -34); g.fillRect(5, -3, 5, 5); g.fillStyle = u.side === 'p' ? '#3a5030' : ENEMY.helm; g.fillRect(-12, -4, 5, 6); g.fillStyle = '#e0b088'; g.fillRect(-8, -2, 2, 2); g.restore(); return; }
       const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) }; const mine = u.side === 'p'; const cloth = mine ? (LOOKS.primary[look.primary] || '#5e7a46') : ENEMY.cloth;
       const skin = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(unit(`${u.id}|skin`) * 5)];
-      drawSoldier(g, u.role, px, py, ang, { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, accent: mine ? (LOOKS.band[look.band] || '#e8c84a') : ENEMY.accent, gun: WLOOK[u.weapon], skin, t: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, moving: Boolean(u.moving), scale: 0.95 });
+      drawSoldier(g, u.role, px, py, ang, { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, accent: mine ? (LOOKS.band[look.band] || '#e8c84a') : ENEMY.accent, gun: WLOOK[u.weapon] || FUTURE_LOOKS[u.weapon], era: mine ? (u.era || 1) : 1, skin, t: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, moving: Boolean(u.moving), scale: 0.95 });
       if (u.state !== 'steady') { g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(px - 3, py - 36, 6, 3); }
     } else this.vehicle(g, u, B, px, py);
     if (u.alive && (u.hp < u.hpMax || ui.selected?.has(u.id))) { const w = inf ? 16 : 30; const y = py - (inf ? 32 : u.kind === 'helicopter' ? 60 : 30); g.fillStyle = INK; g.fillRect(px - w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(px - w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(px - w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
@@ -80841,9 +81174,9 @@ function lookColours(look) {
 }
 
 /** Paint a row of soldiers of the given classes, in the squad's colours, feet on y. */
-function paintSquad(ctx, roles, look, x, y, { scale = 1.5, gap = 16 } = {}) {
+function paintSquad(ctx, roles, look, x, y, { scale = 1.5, gap = 16, eras = [] } = {}) {
   const c = lookColours(look);
-  roles.forEach((role, i) => drawSoldier(ctx, role, x + i * gap * scale, y, 'right', { cloth: c.cloth, helm: c.helm, legs: c.legs, accent: c.accent, scale, t: 0, moving: false }));
+  roles.forEach((role, i) => drawSoldier(ctx, role, x + i * gap * scale, y, 'right', { cloth: c.cloth, helm: c.helm, legs: c.legs, accent: c.accent, scale, t: 0, moving: false, era: eras[i] || 1 }));
 }
 
 /** The squad's patch: pattern in the primary colour, insignia, band along the bottom and a crest tick (everything the look setting means, in one picture). */
@@ -80898,15 +81231,15 @@ function squadArt(s, P, E, w, hh, { big = false } = {}) {
   return canvas(w, hh, (g) => {
     g.fillStyle = '#0d1411'; g.fillRect(0, 0, w, hh);
     g.fillStyle = 'rgba(120,160,110,.05)'; for (let x = 0; x < w; x += 12) g.fillRect(x, 0, 1, hh); for (let y = 0; y < hh; y += 12) g.fillRect(0, y, w, 1);
-    const roster = rosterOf(s, P).filter((p) => p.status === 'active'); const roles = roster.map((p) => p.role);
+    const roster = rosterOf(s, P).filter((p) => p.status === 'active'); const roles = roster.map((p) => p.role); const eras = roster.map((p) => p.armour || 1);
     if (big) {
       paintPatch(g, s.look, 10, 10, 56);
-      paintSquad(g, roles.slice(0, 6), s.look, 86, 98, { scale: 1.7, gap: 17 }); paintSquad(g, roles.slice(6, 12), s.look, 86, 164, { scale: 1.7, gap: 17 });
+      paintSquad(g, roles.slice(0, 6), s.look, 86, 98, { scale: 1.7, gap: 17, eras: eras.slice(0, 6) }); paintSquad(g, roles.slice(6, 12), s.look, 86, 164, { scale: 1.7, gap: 17, eras: eras.slice(6, 12) });
       if (!roles.length) { g.fillStyle = '#6a7a71'; g.font = '12px ui-monospace, monospace'; g.fillText('No one in this squad yet', 84, 100); }
       E.slice(0, 2).forEach((e, i) => paintMachine(g, e.type, w - 70, 56 + i * 80, { heading: Math.PI / 2, scale: 0.85 }));
     } else {
       paintPatch(g, s.look, 8, 12, 40);
-      paintSquad(g, roles.slice(0, 6), s.look, 66, hh - 8, { scale: 1.15, gap: 17 });
+      paintSquad(g, roles.slice(0, 6), s.look, 66, hh - 8, { scale: 1.15, gap: 17, eras: eras.slice(0, 6) });
       if (!roles.length) { g.fillStyle = '#5c6b63'; g.font = '11px ui-monospace, monospace'; g.fillText('empty', 64, hh - 22); }
       if (E[0]) paintMachine(g, E[0].type, w - 34, hh / 2 + 2, { heading: Math.PI / 2, scale: 0.5 });
     }
@@ -80954,15 +81287,15 @@ function hirePanel(cx, P, target) {
 }
 
 function loadouts(cx, P) {
-  const { W } = cx; const st = W.stock(); const C = W.company();
+  const { W } = cx; const st = W.stock(); const C = W.company(); const reach = W.techReach();
   const stockOf = (item) => Object.entries(st).filter(([k]) => k.endsWith(`:${item}`) || k === item).reduce((a, [, q]) => a + q, 0);
+  const ERAS = [[1, 'Uniform'], [2, 'Plate'], [3, 'Hardsuit'], [4, 'Power']];
   const rows = TROOP_CLASSES.map((id) => { const K = CLASSES[id]; const mine = P.filter((p) => p.role === id); const tier = C?.tiers?.[id] ?? 1; const tiers = Object.keys(K.tiers).map(Number);
-    const era = mine.length && mine.every((p) => p.armour === 2) ? 1 : 2;
     return h('div', { class: 'osx-loadrow' }, h('span', { class: 'g', style: `--c:${GLYPH_COLOUR[id]}` }, GLYPH[id]),
-      h('div', { class: 'n' }, h('b', {}, `${K.name} · ${mine.filter((p) => p.weapon).length}/${mine.length} armed`), h('small', {}, `${tiers.map((t) => `T${t}: ${cx.g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])})`).join(' · ')}${K.gadget ? ` · carries ${String(K.gadget).replace('supply:', '')}` : ''}`)),
-      h('span', { class: 'ctl' }, ...tiers.map((t) => btn(`T${t}`, () => cx.go(W.setTier(id, t)), { kind: `sm${t === tier ? ' pri' : ''}` })), btn('Equip all', () => cx.go(W.equipClass(id)), { kind: 'sm', disabled: !mine.length }),
-        btn(era === 2 ? `${ARMOUR[2].name}` : `Field uniform`, () => cx.go(W.armourClass(id, era)), { kind: 'sm', disabled: !mine.length, title: era === 2 ? 'Issue plate carriers (bought, one each)' : 'Back to the field uniform' }))); });
-  return panel('Weapons and armour by class', rows, { sub: 'A class carries the weapon of its tier, taken from the stores. The tier and the armour era are real; colours are free.' });
+      h('div', { class: 'n' }, h('b', {}, `${K.name} · ${mine.filter((p) => p.weapon).length}/${mine.length} armed`), h('small', {}, `${tiers.filter((t) => t <= reach.weapon).map((t) => `T${t}: ${cx.g.content.items[K.tiers[t]]?.name || K.tiers[t]} (${stockOf(K.tiers[t])})`).join(' · ')}${tiers.some((t) => t > reach.weapon) ? ' · more tiers need research' : ''}${K.gadget ? ` · carries ${String(K.gadget).replace('supply:', '')}` : ''}`)),
+      h('span', { class: 'ctl' }, ...tiers.map((t) => btn(`T${t}`, () => cx.go(W.setTier(id, t)), { kind: `sm${t === tier ? ' pri' : ''}`, disabled: t > reach.weapon, title: t > reach.weapon ? 'Needs research: see Base Operations, Research' : `${cx.g.content.items[K.tiers[t]]?.name || ''}` })), btn('Equip all', () => cx.go(W.equipClass(id)), { kind: 'sm', disabled: !mine.length }),
+        ...ERAS.map(([e, label]) => btn(label, () => cx.go(W.armourClass(id, e)), { kind: `sm${mine.length && mine.every((p) => (p.armour || 1) === e) ? ' pri' : ''}`, disabled: !mine.length || e > reach.armour, title: e > reach.armour ? 'Needs research: see Base Operations, Research' : ARMOUR[e].text })))); });
+  return panel('Weapons and armour by class', rows, { sub: 'A class carries the weapon of its tier, taken from the stores. Tiers 3 and 4 and armour eras 3 and 4 are researched (Base Operations, Research) and bought from the suppliers. The tier and the armour era are real; colours are free.' });
 }
 
 const swatch = (colour, on, onclick, title) => h('button', { class: `osx-sw${on ? ' on' : ''}`, style: `background:${colour}`, title, onclick });
@@ -81264,7 +81597,8 @@ function modelCard(cx, m, have) {
     h('div', { class: 'osx-sqh' }, h('b', {}, m.name), chip(`${fmt(m.price)} ◎`)), h('small', { class: 'osx-sub', style: 'padding:0' }, V.text),
     h('div', { class: 'osx-bars' }, ...BARS.map((k) => h('span', {}, h('i', {}, k.slice(0, 3)), dots(V[k])))),
     h('div', { class: 'osx-lamps' }, ...Object.entries(m.parts).map(([k, q]) => h('span', { class: `osx-lamp ${(have[k] || 0) >= q ? 'ok' : 'bad'}`, title: `${SUPPLIES[k].name}: ${have[k] || 0} in the stores, ${q} needed` }, `${k} ${have[k] || 0}/${q}`))),
-    h('div', { class: 'osx-sqf' }, h('span', {}, `${m.days} days at one shift · fee ${fmt(m.fee)}`), h('span', {}, btn('Order 1', () => cx.go(W.order(m.id, 1)), { kind: 'pri sm' }), ' ', btn('Order 3', () => cx.go(W.order(m.id, 3)), { kind: 'sm' }))),
+    m.open === false ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `Needs research (era ${m.era}): Base Operations, Research.`) : null,
+    h('div', { class: 'osx-sqf' }, h('span', {}, `${m.days} days at one shift · fee ${fmt(m.fee)}`), h('span', {}, btn('Order 1', () => cx.go(W.order(m.id, 1)), { kind: 'pri sm', disabled: m.open === false }), ' ', btn('Order 3', () => cx.go(W.order(m.id, 3)), { kind: 'sm', disabled: m.open === false }))),
     lacks.length ? h('small', { class: 'osx-sub', style: 'padding:0;color:var(--am)' }, `Short of ${lacks.map(([k, q]) => `${q - (have[k] || 0)} ${k}`).join(', ')}: buy it in Procurement; the line waits for it.`) : null);
 }
 
@@ -81299,6 +81633,44 @@ function renderFactory(cx, box, worksId) {
 return { machinesStrip, renderFactory };
 })();
 
+// ---- src/ui/osint/research.js
+__m["src/ui/osint/research.js"] = (function () {
+// Research (v0.103.8): Base Operations → Research. The company's tree to tier 4, as cards by tier: what each project costs and how long it runs, what it needs, what it opens, and a button that says
+// why it cannot start when it cannot. DOM only: every button calls game.war.
+const { h, panel, stats, stat, btn, chip, bar, kv } = __m["src/ui/osint/kit.js"];
+
+const M = (x) => `${Math.round(x / 1e5) / 10}M`;
+const fmt = (x) => Math.round(Number(x) || 0).toLocaleString('en-US');
+const TIERS = { 3: ['TIER 3 · THE FIRST FUTURE', 'Pulse weapons, the Phalanx hardsuit, hover vehicles.'], 4: ['TIER 4 · THE SECOND FUTURE', 'Plasma, rail and ion weapons, Bastion power armour, heavy hover platforms.'] };
+const STATE = { done: ['finished', 'ok'], active: ['under way', 'bl'], open: ['ready to start', ''], locked: ['locked', ''] };
+
+function renderResearch(cx, box) {
+  const { W } = cx; const R = W.research();
+  if (!R) return;
+  const all = Object.fromEntries(R.nodes.map((n) => [n.id, n]));
+  box.append(stats(stat('Weapons', `tier ${R.reach.weapon}`, { sub: 'of 4' }), stat('Armour', `era ${R.reach.armour}`, { sub: 'of 4' }), stat('Vehicles', `era ${R.reach.vehicle}`, { sub: 'of 4' }),
+    stat('Researched', `${M(R.spent)} / ${M(R.total)}`, { sub: 'obols, to reach tier 4' }), stat('Company can spend', `${fmt(W.cash())} ◎`)));
+  box.append(h('div', { style: 'height:8px' }));
+  if (!R.hq) box.append(h('div', { class: 'osx-note bad', style: 'margin:0 0 8px' }, 'Research needs the Command HQ built: build it on the Facilities tab (stage 2).'));
+  if (R.active) box.append(panel('Under way', [h('div', { class: 'osx-sqh' }, h('b', {}, R.active.name), chip(`${R.active.daysLeft} day${R.active.daysLeft === 1 ? '' : 's'} left`, 'bl')),
+    bar(1 - R.active.daysLeft / Math.max(1, R.active.end - R.active.start), ''), h('small', { class: 'osx-sub', style: 'padding:0' }, `Paid ${fmt(R.active.paid)} ◎ on day ${R.active.start}; it finishes on day ${R.active.end}.`)]), h('div', { style: 'height:8px' }));
+  for (const t of [3, 4]) {
+    const nodes = R.nodes.filter((n) => n.tier === t);
+    box.append(panel(TIERS[t][0], [h('div', { class: 'osx-fgrid' }, ...nodes.map((n) => {
+      const [label, tone] = STATE[n.state];
+      return h('div', { class: `osx-fbay ${n.state === 'active' ? 'working' : ''}` }, h('i', { class: 'c tl' }), h('i', { class: 'c tr' }), h('i', { class: 'c bl' }), h('i', { class: 'c br' }),
+        h('div', { class: 'osx-sqh' }, h('b', {}, n.name.toUpperCase()), chip(label, tone)), h('small', { class: 'osx-sub', style: 'padding:0' }, n.text),
+        kv('Cost', `${fmt(n.cost)} ◎`), kv('Takes', `${n.days} days`), n.requires.length ? kv('Needs', n.requires.map((q) => all[q].name).join(', '), n.requires.every((q) => all[q].state === 'done') ? 'ok' : 'warn') : null,
+        n.state === 'done' ? h('small', { class: 'osx-sub', style: 'padding:0' }, `Finished on day ${n.finished}.`) : n.state === 'active' ? null : btn('Start research', () => cx.go(W.startResearch(n.id)), { kind: 'pri sm', disabled: Boolean(n.why), title: n.why || 'Pay for it and start the project' }),
+        n.why && n.state !== 'done' && n.state !== 'active' ? h('small', { class: 'osx-sub', style: 'padding:0;color:var(--am)' }, n.why) : null);
+    }))], { sub: TIERS[t][1] }), h('div', { style: 'height:8px' }));
+  }
+  box.append(panel('Log', R.log.length ? R.log.slice().reverse().map((l) => h('div', { class: 'osx-feed' }, h('span', { class: 'osx-fd' }, `day ${l.day}`), h('span', {}, l.text))) : [h('div', { class: 'osx-empty' }, 'Nothing researched yet.')]));
+}
+
+return { renderResearch };
+})();
+
 // ---- src/ui/osint/base.js
 __m["src/ui/osint/base.js"] = (function () {
 // Base Operations (v0.103.4): the Hollowmoor installation as a map you can inspect and build on. The map is drawn from the lot's real layout (SLOTS in src/content/maps/hollowmoor.js) and each
@@ -81313,6 +81685,7 @@ const { renderSquadBoard } = __m["src/ui/osint/squadboard.js"];
 const { renderForces } = __m["src/ui/osint/forces.js"];
 const { paintBase } = __m["src/ui/osint/basemap.js"];
 const { renderFactory, machinesStrip } = __m["src/ui/osint/factory.js"];
+const { renderResearch } = __m["src/ui/osint/research.js"];
 
 const CAP_TEXT = { beds: (v) => `${v} beds`, meals: (v) => `${v} hot meals a day`, treat: (v) => `${v} treatment places`, stores: () => 'storage (the stores have no limit)', desks: (v) => `${v} desks`, lines: (v) => `${v} production lines`, bays: (v) => `${v} bays`, training: (v) => `${v} training places`, repair: (v) => `${v} repair places`, racks: (v) => `${v} weapon racks`, surgery: (v) => `${v} surgery theatres`, briefing: (v) => `a briefing room for ${v}` };
 const STATE_TEXT = { none: 'Not built', permit: 'Awaiting permit', foundation: 'Foundations', frame: 'Frame', fitted: 'Fitting out', built: 'Operational', ruin: 'Ruin' };
@@ -81366,10 +81739,11 @@ function mapFor(cx) {
 
 function renderBase(cx, box) {
   const { W, S } = cx; const B = state(S); const V = W.companyView();
-  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
   if (B.tab === 'forces') { renderForces(cx, box); return; }
   if (B.tab === 'people') { renderSquadBoard(cx, box); return; }
   if (B.tab === 'works') { renderWorks(cx, box); return; }
+  if (B.tab === 'research') { renderResearch(cx, box); return; }
   if (!V.lotOwned) { box.append(empty('The company owns no ground yet. Buy the Civic Office licence and Hollowmoor Lot from Command Overview.')); return; }
   const fac = W.facilities(); const sel = fac.find((f) => f.id === B.sel) || null;
   const built = fac.filter((f) => f.state === 'built').length; const dmg = fac.filter((f) => ['damaged', 'ruin'].includes(status(cx, f).mode)).length; const bld = fac.filter((f) => status(cx, f).mode === 'build').length;

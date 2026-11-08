@@ -151,6 +151,34 @@ The owner asked for a heavy re-evaluation: mimic how the aerospace company works
 
 **Where everything that used to be in the Military app now lives:** hiring, squads, weapons, looks, base: Base Operations (Personnel); buildings, repair: Base Operations (map); factories and their lines: Base Operations (tank factory, helicopter works); supply levels and the works that make for the company: Internal Logistics; aircraft and missile transfers and returns: Internal Logistics; buying vehicles and supplies: Procurement; contracts, engagements, generals: Mission Control; battalions, enlisting, orders: the operational map (Theater Operations, in the theater you are in); money in and out and the first steps: Command Overview.
 
+## Research and the future tiers (v0.103.8)
+
+The owner's request (2026-11-08): the company needs a way to research better weapons and tech so the player can reach tier 4, with weapons, armour and vehicles, from the mock-ups (`proposal-war-troop-loadouts-1/2.png`, `proposal-war-troop-eras.png`, `proposal-war-vehicles-1.png`). Decisions: **T3 and T4 are futuristic**; new heavier designs for T4 vehicles (the mock-up has only an era 3); research is done at the **Command HQ** (no new building); total cost about **60M** to T4.
+
+| Piece | Where |
+| --- | --- |
+| The tree (8 nodes, costs, days, gates) | `src/content/warResearch.js` |
+| Rules: start, daily finish, `reach`, `weaponTierOpen`, `armourEraOpen`, `vehicleEraOpen` | `src/war/research.js`; `game.war.research()`, `startResearch(id)`, `techReach()` |
+| 18 future weapons, stats and sprite specs | `src/content/futureArms.js` (registered in `content/index.js`, `WEAPONS` in `content/battle.js`) |
+| Armour eras 3 and 4, supplies `hardsuit` and `power_armour` | `ARMOUR` in `src/content/troops.js`, `SUPPLIES` in `src/content/procurement.js`, `setArmour` in `src/war/loadout.js` |
+| Future vehicles (era 3 and 4), power core, works models | `VEHICLES`, `SUPPLIES.core` in `src/content/procurement.js`, `MODELS` in `src/content/production.js`, `order` gate in `src/war/production.js` |
+| Gating of what is for sale | `catalogue` in `src/war/procurement.js` (an item or vehicle of a closed tier is not offered) |
+| Sprites | `src/engine/drawFuture.js` (the hardsuit, power armour and energy guns, ported from `docs/mockups/src/war/trooper.js`), the new specs in `src/engine/drawFleet.js` |
+| The tab, the locked tiers, the squad pictures | `src/ui/osint/research.js`, `squadboard.js`, `factory.js` |
+
+**How it works.** A project needs the Command HQ built and not a ruin, every prerequisite finished, no other project under way, and the company able to pay (wallet, group or its own account, as for everything). The cost is paid once when it starts and the project finishes on the morning of its last day. Finishing opens nothing by itself: it makes the tier **legal**. Weapons, hardsuits and power armour and the bought vehicles appear in Procurement (Kingsfjord Ordnance sells the energy weapons) and are bought; the Aegis, Shade, Citadel and Tempest can be ordered on the company's lines, from parts including the new power core. A class is set to tier 3 or 4 like any other tier and equips from the stores one weapon to one pair of hands.
+
+**The mock-up's tiers.** The picture has five tiers; the company's tier 3 and 4 are its tiers 4 (pulse) and 5 (plasma, rail, ion). Its conventional tier 3 (assault rifle with a launcher and the like) is not built.
+
+### Honest limits (v0.103.8)
+
+- **The Arms works do not make the future weapons**; they are bought from Kingsfjord Ordnance (the standing rule is that guns come from the Arms works). They have no Arms recipes, crates or export value. A later release can give them recipes behind the same research.
+- **Vehicle perks and abilities** (hover over water, energy shields, cloaks, the drone swarm, overcharge) are printed on the cards from the mock-up but only the four bars (armour, firepower, speed, capacity) act in battle. Hover and stealth are art, not rules yet.
+- **The tier 4 vehicles** (Citadel, Tempest, Warden) have no mock-up: they are new designs in the same painter.
+- **The weapon sprites** show in battle and on the pictures; open-world rules treat the energy weapons as guns with a nominal cell (`item_energy_cell`) and they are not meant to be carried outside the company.
+- **Research figures are starting figures** (about 63M and 90 days), uncalibrated against the company's real income and costs.
+- Armour eras apply to troops in battle by protection (1.9 and 2.7) and, for the power armour, a speed of 0.8; there is no per-class armour restriction (the mock-up's "a heavy plasma repeater needs a power-armour frame" is advice, not a rule).
+
 ## Company funds and next event (v0.103.7)
 
 **Whose money.** The company is funded like Shipping, Aerospace and the Arms works (`src/systems/corporate.js`): `payer('security')` is the company itself, unless it is **assigned to the group** (`company.funding === 'group'` and a parent company exists), when everything it pays and earns goes through the parent's account. With no account of its own (`funded` false) it draws on and pays into your wallet. Three ways, one switch (`setFunding`): *wallet* (the default), *group*, *own account* (what v0.98.0 to v0.103.6 forced on everyone; `fund` and `take` are its pay-in and take-out and are refused while the company is assigned to the group). Moving off an own account returns its cash to your wallet through the ordinary `unfund`; nothing is created or lost (tested). `bill` (wages, fines) never takes the wallet below nothing: the shortfall is `company.owed`, paid first the next time, and counts as unpaid for the base's morale as arrears do. Saved: `company.funding`, `company.ownAccount`, `company.owed`. **Limits:** the group assignment is a way of paying, not a subsidiary: the company is not in the group's consolidation, valuation or intercompany loans, and the parent's books show the war company's spending as the parent's own.

@@ -17,9 +17,9 @@ export function lookColours(look) {
 }
 
 /** Paint a row of soldiers of the given classes, in the squad's colours, feet on y. */
-export function paintSquad(ctx, roles, look, x, y, { scale = 1.5, gap = 16 } = {}) {
+export function paintSquad(ctx, roles, look, x, y, { scale = 1.5, gap = 16, eras = [] } = {}) {
   const c = lookColours(look);
-  roles.forEach((role, i) => drawSoldier(ctx, role, x + i * gap * scale, y, 'right', { cloth: c.cloth, helm: c.helm, legs: c.legs, accent: c.accent, scale, t: 0, moving: false }));
+  roles.forEach((role, i) => drawSoldier(ctx, role, x + i * gap * scale, y, 'right', { cloth: c.cloth, helm: c.helm, legs: c.legs, accent: c.accent, scale, t: 0, moving: false, era: eras[i] || 1 }));
 }
 
 /** The squad's patch: pattern in the primary colour, insignia, band along the bottom and a crest tick (everything the look setting means, in one picture). */

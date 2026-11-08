@@ -9,16 +9,16 @@
 export const CLASSES = {
   guard: { name: 'Guard', group: 'work', wage: 120, train: 0, tiers: { 1: 'item_pistol' }, text: 'Stands a post and watches a door.' },
   technician: { name: 'Technician', group: 'work', wage: 160, train: 0, tiers: {}, text: 'Works a line at the tank factory or the helicopter works.' },
-  rifleman: { name: 'Rifleman', group: 'troop', wage: 150, train: 5, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'The line: carries the fight.' },
-  machine_gunner: { name: 'Machine gunner', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_lmg' }, text: 'Suppresses what the gun points at.' },
-  anti_tank: { name: 'Anti-tank', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_rpg' }, ammo: { 1: 'item_rpg_rocket' }, text: 'Armour killers: one rocket, then reload.' },
-  marksman: { name: 'Marksman', group: 'troop', wage: 180, train: 8, tiers: { 1: 'item_sniper_rifle' }, text: 'Precision at a distance.' },
-  medic: { name: 'Medic', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:medicine', text: 'Keeps the wounded alive until the clinic.' },
-  engineer: { name: 'Combat engineer', group: 'troop', wage: 170, train: 7, tiers: { 1: 'item_shotgun', 2: 'item_smg' }, text: 'Builds, breaks and clears.' },
-  signaller: { name: 'Signaller', group: 'troop', wage: 160, train: 6, tiers: { 1: 'item_pistol', 2: 'item_smg' }, gadget: 'supply:radio', text: 'Sees and calls: what the squad knows, the command knows.' },
-  officer: { name: 'Officer', group: 'troop', wage: 260, train: 10, tiers: { 1: 'item_pistol', 2: 'item_smg' }, leads: true, text: 'Leads a squad. A squad has one.' },
-  recon: { name: 'Recon', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' }, text: 'Eyes ahead.' },
-  uav: { name: 'UAV operator', group: 'troop', wage: 190, train: 8, tiers: { 1: 'item_pistol' }, gadget: 'item_drone_attack', text: 'Flies a drone and calls what it sees.' },
+  rifleman: { name: 'Rifleman', group: 'troop', wage: 150, train: 5, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' , 3: 'item_pulse_rifle', 4: 'item_plasma_rifle'}, text: 'The line: carries the fight.' },
+  machine_gunner: { name: 'Machine gunner', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_lmg' , 3: 'item_pulse_repeater', 4: 'item_plasma_repeater'}, text: 'Suppresses what the gun points at.' },
+  anti_tank: { name: 'Anti-tank', group: 'troop', wage: 170, train: 6, tiers: { 1: 'item_rpg' , 3: 'item_plasma_launcher', 4: 'item_lance_cannon'}, ammo: { 1: 'item_rpg_rocket' }, text: 'Armour killers: one rocket, then reload.' },
+  marksman: { name: 'Marksman', group: 'troop', wage: 180, train: 8, tiers: { 1: 'item_sniper_rifle' , 3: 'item_rail_marksman', 4: 'item_ion_lance'}, text: 'Precision at a distance.' },
+  medic: { name: 'Medic', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_med_beam', 4: 'item_regen_unit'}, gadget: 'supply:medicine', text: 'Keeps the wounded alive until the clinic.' },
+  engineer: { name: 'Combat engineer', group: 'troop', wage: 170, train: 7, tiers: { 1: 'item_shotgun', 2: 'item_smg' , 3: 'item_fusion_cutter', 4: 'item_siege_rig'}, text: 'Builds, breaks and clears.' },
+  signaller: { name: 'Signaller', group: 'troop', wage: 160, train: 6, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_drone_controller', 4: 'item_command_uplink'}, gadget: 'supply:radio', text: 'Sees and calls: what the squad knows, the command knows.' },
+  officer: { name: 'Officer', group: 'troop', wage: 260, train: 10, tiers: { 1: 'item_pistol', 2: 'item_smg' , 3: 'item_plasma_pistol', 4: 'item_command_blade'}, leads: true, text: 'Leads a squad. A squad has one.' },
+  recon: { name: 'Recon', group: 'troop', wage: 170, train: 8, tiers: { 1: 'item_smg', 2: 'item_assault_rifle' , 3: 'item_pulse_carbine', 4: 'item_stalker_rifle'}, text: 'Eyes ahead.' },
+  uav: { name: 'UAV operator', group: 'troop', wage: 190, train: 8, tiers: { 1: 'item_pistol' , 3: 'item_plasma_pistol', 4: 'item_stalker_rifle'}, gadget: 'item_drone_attack', text: 'Flies a drone and calls what it sees.' },
 };
 
 export const TROOP_CLASSES = Object.keys(CLASSES).filter((id) => CLASSES[id].group === 'troop');
@@ -27,6 +27,9 @@ export const TROOP_CLASSES = Object.keys(CLASSES).filter((id) => CLASSES[id].gro
 export const ARMOUR = {
   1: { name: 'Field uniform', protection: 1, supply: 'supply:uniform', text: 'Cloth, a helmet and a vest. Cheap, quick to train.' },
   2: { name: 'Plate carrier', protection: 1.35, supply: 'supply:plate_carrier', text: 'Plates, night-vision helmet, knee pads. Stops rifle rounds; heavier.' },
+  // v0.103.8: the future armours, open only through the company's research (src/content/warResearch.js GATE.armourEra); each is bought from the suppliers like the plate carrier
+  3: { name: 'Phalanx hardsuit', protection: 1.9, supply: 'supply:hardsuit', text: 'A sealed shell with a sensor visor. Shrugs off small arms; a squad band to find each other.' },
+  4: { name: 'Bastion power armour', protection: 2.7, speed: 0.8, supply: 'supply:power_armour', text: 'Powered plate, a reactor pack and two-handed heavy weapons. Slow, huge, costly.' },
 };
 
 export const SQUAD = { max: 12, names: ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima'] };

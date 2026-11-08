@@ -1,6 +1,8 @@
 // The battle on the screen (v0.101.0, the look renderer + the tactical engine's drawing): the ground baked once, buildings seen from above with a roof (or opened to one floor's plan), people on the
 // game's own people sprites (with the new helmet), vehicles, effects, and three camera tiers: far (banners), command (everything at the game's own scale) and close (the same sprites, enlarged by
 // whole numbers). Browser only. It reads a battle (src/battle/sim.js) and never changes it.
+import { FUTURE_LOOKS } from '../content/futureArms.js';
+import { VEHICLES } from '../content/procurement.js';
 import { drawVeh, drawHelo, SPEC as FLEET, shade } from './drawFleet.js';
 import { drawSoldier, ENEMY } from './drawSoldiers.js';
 import { drawRoofed, STYLES as ART_STYLES } from './drawRoofed.js';
@@ -103,7 +105,7 @@ function plan(g, map, b, floor, gm) {
 
 const dirOf = (u, to) => { const dx = to.x - u.x; const dy = to.y - u.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
 /** Which spec of the fleet a battle unit is drawn as (its kind and class; a helicopter's armour tells an attack helicopter from a scout). */
-const specOf = (u) => (u.vtype === 'rainmaker' || u.vtype === 'longbow' ? u.vtype : u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvil') : u.kind === 'helicopter' ? (u.armourBar >= 2 ? 'talon' : 'viper') : u.kind === 'carrier' ? 'wolf' : u.role === 'recon' ? 'scout' : u.role === 'artillery' ? 'hammer' : u.role === 'antiair' ? 'skyguard' : 'truck');
+const specOf = (u) => (u.vtype === 'rainmaker' || u.vtype === 'longbow' || (FLEET[u.vtype] && VEHICLES[u.vtype]?.era >= 3) ? u.vtype : u.kind === 'tank' ? (u.armourBar >= 3 ? 'bulwark' : 'anvil') : u.kind === 'helicopter' ? (u.armourBar >= 2 ? 'talon' : 'viper') : u.kind === 'carrier' ? 'wolf' : u.role === 'recon' ? 'scout' : u.role === 'artillery' ? 'hammer' : u.role === 'antiair' ? 'skyguard' : 'truck');
 
 /** The view: owns a canvas, a camera and the effects; `draw(B, ui)` paints a frame. */
 export class BattleView {
@@ -238,7 +240,7 @@ export class BattleView {
       if (!u.alive) { g.save(); g.translate(px, py); const c = u.side === 'p' ? '#516b3e' : ENEMY.cloth; g.fillStyle = 'rgba(16,14,36,0.3)'; g.fillRect(-11, 1, 22, 4); g.fillStyle = INK; g.fillRect(-11, -5, 22, 9); g.fillStyle = c; g.fillRect(-9, -4, 14, 7); g.fillStyle = shade(c, 20); g.fillRect(-9, -4, 14, 2); g.fillStyle = shade(c, -34); g.fillRect(5, -3, 5, 5); g.fillStyle = u.side === 'p' ? '#3a5030' : ENEMY.helm; g.fillRect(-12, -4, 5, 6); g.fillStyle = '#e0b088'; g.fillRect(-8, -2, 2, 2); g.restore(); return; }
       const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) }; const mine = u.side === 'p'; const cloth = mine ? (LOOKS.primary[look.primary] || '#5e7a46') : ENEMY.cloth;
       const skin = ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(unit(`${u.id}|skin`) * 5)];
-      drawSoldier(g, u.role, px, py, ang, { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, accent: mine ? (LOOKS.band[look.band] || '#e8c84a') : ENEMY.accent, gun: WLOOK[u.weapon], skin, t: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, moving: Boolean(u.moving), scale: 0.95 });
+      drawSoldier(g, u.role, px, py, ang, { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, accent: mine ? (LOOKS.band[look.band] || '#e8c84a') : ENEMY.accent, gun: WLOOK[u.weapon] || FUTURE_LOOKS[u.weapon], era: mine ? (u.era || 1) : 1, skin, t: u.moving ? this.t * 6 + (u.id.length * 0.7) : 0, moving: Boolean(u.moving), scale: 0.95 });
       if (u.state !== 'steady') { g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(px - 3, py - 36, 6, 3); }
     } else this.vehicle(g, u, B, px, py);
     if (u.alive && (u.hp < u.hpMax || ui.selected?.has(u.id))) { const w = inf ? 16 : 30; const y = py - (inf ? 32 : u.kind === 'helicopter' ? 60 : 30); g.fillStyle = INK; g.fillRect(px - w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(px - w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(px - w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }

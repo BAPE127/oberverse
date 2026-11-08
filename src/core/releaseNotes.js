@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.8',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Research and the Future Tiers',
+    notes: [
+      'The mercenary company can now research the future. A new Research tab in Base Operations (it needs the Command HQ) holds eight projects to tier 4: about 63 million obols and 90 days. One project runs at a time, paid by the company when it starts.',
+      'Tier 3 opens pulse weapons for every class, the Phalanx hardsuit, and hover vehicles (the Aegis hover tank, Shade stealth helicopter, Ghost stealth carrier, drone carriers, skimmers, Longshot and laser anti-air). Tier 4 opens plasma, rail and ion weapons, Bastion power armour, and heavy hover platforms (the Citadel hover tank, Tempest gunship and Warden shield carrier).',
+      'Weapons, armour and the vehicles you do not build are bought from the suppliers once researched; the hover tanks and helicopters are built on your own lines from parts, including a new power core. The new soldiers and machines are drawn in battle and on the squad board.',
+    ],
+  },
+  {
     version: '0.103.7',
     date: '2026-11-08',
     channel: 'development',

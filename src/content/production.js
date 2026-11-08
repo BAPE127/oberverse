@@ -26,6 +26,11 @@ export const MODELS = Object.fromEntries([
   M('viper', 7, { plate: 6, engine: 2, rotor: 1, avionics: 2, hardpoint: 2 }),
   M('ox', 7, { plate: 4, engine: 2, rotor: 2, avionics: 1 }),
   M('talon', 8, { plate: 8, engine: 2, rotor: 1, avionics: 2, hardpoint: 3 }),
+  // v0.103.8: the future models (their research opens them: src/war/production.js `order`)
+  M('aegis', 8, { plate: 14, core: 1, optics: 2, hardpoint: 2 }),
+  M('shade', 6, { plate: 3, core: 1, rotor: 1, avionics: 2 }),
+  M('citadel', 10, { plate: 24, core: 2, optics: 3, hardpoint: 3 }),
+  M('tempest', 10, { plate: 8, core: 2, rotor: 1, avionics: 3, hardpoint: 3 }),
 ].map((m) => [m.id, m]));
 
 export const partsValue = (id) => Object.entries(MODELS[id].parts).reduce((a, [k, n]) => a + SUPPLIES[k].price * n, 0);

@@ -42,7 +42,8 @@ function modelCard(cx, m, have) {
     h('div', { class: 'osx-sqh' }, h('b', {}, m.name), chip(`${fmt(m.price)} ◎`)), h('small', { class: 'osx-sub', style: 'padding:0' }, V.text),
     h('div', { class: 'osx-bars' }, ...BARS.map((k) => h('span', {}, h('i', {}, k.slice(0, 3)), dots(V[k])))),
     h('div', { class: 'osx-lamps' }, ...Object.entries(m.parts).map(([k, q]) => h('span', { class: `osx-lamp ${(have[k] || 0) >= q ? 'ok' : 'bad'}`, title: `${SUPPLIES[k].name}: ${have[k] || 0} in the stores, ${q} needed` }, `${k} ${have[k] || 0}/${q}`))),
-    h('div', { class: 'osx-sqf' }, h('span', {}, `${m.days} days at one shift · fee ${fmt(m.fee)}`), h('span', {}, btn('Order 1', () => cx.go(W.order(m.id, 1)), { kind: 'pri sm' }), ' ', btn('Order 3', () => cx.go(W.order(m.id, 3)), { kind: 'sm' }))),
+    m.open === false ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `Needs research (era ${m.era}): Base Operations, Research.`) : null,
+    h('div', { class: 'osx-sqf' }, h('span', {}, `${m.days} days at one shift · fee ${fmt(m.fee)}`), h('span', {}, btn('Order 1', () => cx.go(W.order(m.id, 1)), { kind: 'pri sm', disabled: m.open === false }), ' ', btn('Order 3', () => cx.go(W.order(m.id, 3)), { kind: 'sm', disabled: m.open === false }))),
     lacks.length ? h('small', { class: 'osx-sub', style: 'padding:0;color:var(--am)' }, `Short of ${lacks.map(([k, q]) => `${q - (have[k] || 0)} ${k}`).join(', ')}: buy it in Procurement; the line waits for it.`) : null);
 }
 

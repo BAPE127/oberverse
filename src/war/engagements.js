@@ -31,7 +31,7 @@ const ownSquad = (eng, s) => Boolean(eng.strategic && s.status === 'battalion' &
 const maxOpen = (rep) => Math.min(E.maxOpen, E.open + Math.floor(Math.max(0, rep) / E.perRep));
 
 // ---- the real forces behind an assignment
-const tierHeld = (p) => (p.weapon && CLASSES[p.role]?.tiers?.[2] && p.weapon.endsWith(`:${CLASSES[p.role].tiers[2]}`) ? 2 : 1);
+const tierHeld = (p) => { const T = CLASSES[p.role]?.tiers || {}; for (const t of [4, 3, 2]) if (T[t] && p.weapon?.endsWith(`:${T[t]}`)) return t; return 1; }; // (v0.103.8: tiers 3 and 4 are the future weapons)
 function forces(game, squadIds, eng = null) {
   const C = peekMilitary(game).company;
   const squads = squadIds.map((id) => C.squads.find((s) => s.id === id)).filter(Boolean);

@@ -1,6 +1,7 @@
 // The tactical battle (v0.101.0 stage 10a): pure data. Every number the battle simulation reads, in one place, so the aggregate resolver (src/war/combat.js) and the played battle use the
 // same tables where they overlap: the weapons, the armour eras (src/content/troops.js ARMOUR), the class powers (CLASS_POWER) and the cover values. The battle runs at a fixed ten steps a
 // second; a second is ten ticks; chance is a hash of (the engagement's key, the tick, the unit), never a draw, so replaying the same orders gives the same battle.
+import { FUTURE_STATS } from './futureArms.js';
 export const TICK = { perSecond: 10, maxSeconds: 480, decide: 5 };
 
 /** Tile kinds on a battle map. Walls block sight and movement; windows pass sight and shots but not people; trees block sight; hedges and crops give cover. */
@@ -28,6 +29,7 @@ export const SPEED = { infantry: 1.8, indoors: 1.2, vehicleBase: 1.0, vehiclePer
  * to a fight of a few minutes, and the calibration test (tests/battle_calibration.test.mjs) holds them to the aggregate resolver.
  */
 export const WEAPONS = {
+  ...FUTURE_STATS, // v0.103.8: the company's tier 3 and 4 energy weapons (src/content/futureArms.js)
   item_pistol: { range: 8, damage: 18, interval: 1.2, acc: 0.5, suppress: 0.4, pierce: 0 },
   item_smg: { range: 9, damage: 20, interval: 0.9, acc: 0.55, suppress: 0.6, pierce: 0 },
   item_shotgun: { range: 6, damage: 40, interval: 1.5, acc: 0.6, suppress: 0.6, pierce: 0 },
@@ -110,7 +112,7 @@ export const STATION = { seconds: 150, mercy: 240 };
 export const STANCES = ['aggressive', 'defensive', 'holdfire'];
 export const DEFENSIVE = { decay: 1.3 };
 /** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
-export const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4 };
+export const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12 }; // (v0.103.8: the hover carriers)
 export const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
 /** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
 export const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };

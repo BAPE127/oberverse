@@ -1,5 +1,6 @@
 // Content registry: the single import point for all authored game content.
 // New characters, maps, quests etc. are registered here (see docs/CONTENT_FORMAT.md).
+import { FUTURE_ITEMS } from './futureArms.js';
 import lanternside from './maps/lanternside.js';
 import interiors from './maps/interiors.js';
 import oberMaps from './maps/oberFields.js';
@@ -140,7 +141,7 @@ export const BASE_CONTENT = {
   maps: MAPS,
   regions: REGIONS,
   propTypes: PROP_TYPES,
-  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS },
+  items: { ...ITEMS, ...ARMS_ITEMS, ...CRATE_ITEMS, ...SPECIAL_ITEMS, ...FUTURE_ITEMS },
   facts: FACTS,
   docs: DOCS,
   containers: ALL_CONTAINERS,

@@ -5,6 +5,8 @@
 //   blocked                a line that cannot start or finish says WHY (parts, cash, crew, a free bay, a damaged works) and is saved
 //   upgrade / maintain     a works builds 15% faster per upgrade; it wears with use and slows when worn; mending costs by the point of wear
 // The number of lines comes from the works' capacity (src/war/facilities.js): a damaged works has half its lines, a ruin none.
+import { vehicleEraOpen } from './research.js';
+import { WAR_RESEARCH, GATE } from '../content/warResearch.js';
 import { peekMilitary } from './state.js';
 import { capacity } from './facilities.js';
 import { addRecord, nextId, stockOf, takeStock } from './equipment.js';
@@ -39,6 +41,7 @@ export function order(game, model, qty) {
   if (!C?.identity) return { ok: false, text: 'You have no company.' };
   const V = VEHICLES[model];
   if (!V || !MODELS[model]) return { ok: false, text: 'The company builds tanks and helicopters, and nothing else.' };
+  if (!vehicleEraOpen(game, V.era)) return { ok: false, text: `${V.name} needs research: ${WAR_RESEARCH[GATE.vehicleEra[V.era]].name} (Base Operations, Research).` };
   qty = Math.floor(Number(qty) || 0);
   if (qty < 1 || qty > 20) return { ok: false, text: 'Order between 1 and 20.' };
   const w = worksOf(model);
@@ -155,6 +158,6 @@ export function view(game) {
     orders: C.production.map((o) => ({ ...o, name: VEHICLES[o.model].name })),
     needs: Object.entries(needs).map(([k, n]) => ({ id: k, name: SUPPLIES[k].name, need: n, have: stockOf(game, `supply:${k}`) })),
     technicians: ofRole(game, 'technician').length,
-    models: Object.values(MODELS).map((m) => ({ ...m, name: VEHICLES[m.id].name, class: VEHICLES[m.id].class, price: VEHICLES[m.id].price, fee: feeOf(m.id), works: worksOf(m.id) })),
+    models: Object.values(MODELS).map((m) => ({ ...m, era: VEHICLES[m.id].era, open: vehicleEraOpen(game, VEHICLES[m.id].era), name: VEHICLES[m.id].name, class: VEHICLES[m.id].class, price: VEHICLES[m.id].price, fee: feeOf(m.id), works: worksOf(m.id) })),
   };
 }

@@ -10,6 +10,7 @@ import { FACILITIES } from '../content/facilities.js';
 import { MODELS } from '../content/production.js';
 import { efficiency } from './production.js';
 import { nowHour } from './strategic.js';
+import { WAR_RESEARCH } from '../content/warResearch.js';
 
 const DAY_AT = 6 * 60 + 11; const AFTER = 4;
 
@@ -29,6 +30,7 @@ export function nextEvent(game) {
   for (const o of C.orders || []) if (o.state !== 'delivered') add(morning(kFor(o.due ?? day)), `Order ${o.id} from ${o.supplierName} arrives`);
   for (const c of C.contracts || []) if (c.state === 'active') add(morning(kFor(c.end ?? day)), `The job "${c.title}" ends`);
   for (const e of C.engagements || []) if (e.state === 'open' && e.expires != null) add(morning(kFor(e.expires)), `${e.title} must be decided`);
+  if (C.research?.active) add(morning(kFor(C.research.active.end)), `Research finishes: ${WAR_RESEARCH[C.research.active.id]?.name}`);
   // the works: a unit in progress is done after the days it still needs; an idle line with a waiting order starts tomorrow morning
   for (const l of C.lines || []) {
     if (l.unit) { const mod2 = MODELS[l.unit.model]; if (mod2) { const perDay = (l.shifts / mod2.days) * efficiency(C, l.works); const left = Math.max(0, 1 - (l.unit.progress || 0)); add(morning(Math.ceil(left / Math.max(perDay, 0.001))), `A ${l.unit.model} comes off line ${l.id}`); } }
