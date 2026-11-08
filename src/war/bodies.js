@@ -49,7 +49,8 @@ function profileOf(game, C, p) {
     role: `${K?.name || 'Soldier'} at ${C.identity.name}.`,
     dialogue: 'dlg_soldier', voice: { wave: pick(['triangle', 'square', 'sine'], 1), pitch: 90 + Math.floor(h(2) * 200), variance: 20, rate: 0.95 + h(3) * 0.3 },
     appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: 'helmet', hatColor: colour,
-      outfit: colour, legs: '#2a2e22', build: pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
+      // v0.103.8: a soldier in a hardsuit or power armour walks the base in it (a pale shell, or dark plate with a broad frame)
+      outfit: p.armour === 3 ? '#e8eaf0' : p.armour === 4 ? '#4a5570' : colour, legs: p.armour === 3 ? '#9aa0ae' : p.armour === 4 ? '#2e3446' : '#2a2e22', build: p.armour === 4 ? 'broad' : pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
     personality: { traits: ['disciplined', 'steady'], sociability: 0.4, conscientiousness: 0.9, impulsiveness: 0.15, discretion: 0.85, honesty: 0.7, empathy: 0.4 },
     speech: { rumorPrefix: 'In the barracks they say', factPrefix: 'Boss,', refuse: 'That is not something I can discuss, Boss.' },
     combat: { never: true, maxHealth: 120 }, walkSpeed: 1, punctuality: 10,
@@ -71,7 +72,7 @@ function generalProfile(game, C, g) {
 function signature(game) {
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return '';
-  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location]), homeGenerals(C).map((g) => g.id), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
+  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location, p.armour || 1]), homeGenerals(C).map((g) => g.id), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
 }
 
 export function sync(game) {

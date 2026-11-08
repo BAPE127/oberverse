@@ -177,6 +177,7 @@ The owner's request (2026-11-08): the company needs a way to research better wea
 - **The tier 4 vehicles** (Citadel, Tempest, Warden) have no mock-up: they are new designs in the same painter.
 - **The weapon sprites** show in battle and on the pictures; open-world rules treat the energy weapons as guns with a nominal cell (`item_energy_cell`) and they are not meant to be carried outside the company.
 - **Research figures are starting figures** (about 63M and 90 days), uncalibrated against the company's real income and costs.
+- **The base's walking soldiers** show a hardsuit or power armour as a colour and a build only (`src/war/bodies.js`), not the battle's armoured sprite; the OberPad's older armoury screen (`militaryPeople.js`) only toggles the uniform and the plate carrier (the terminal's squad board handles all four).
 - Armour eras apply to troops in battle by protection (1.9 and 2.7) and, for the power armour, a speed of 0.8; there is no per-class armour restriction (the mock-up's "a heavy plasma repeater needs a power-armour frame" is advice, not a rule).
 
 ## Company funds and next event (v0.103.7)

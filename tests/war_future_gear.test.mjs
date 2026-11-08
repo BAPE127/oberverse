@@ -71,3 +71,12 @@ test('a researched hover tank is built on the company\'s own line from the parts
   assert.ok(g.war.order('aegis', 1).ok); days(g, 12);
   const tank = g.war.equipment().find((e) => e.type === 'aegis'); assert.ok(tank, 'the Aegis rolled out'); assert.equal(tank.kind, 'vehicle'); assert.equal(tank.source, 'works'); assert.deepEqual(g.war.check(), []);
 });
+
+test('no route into the stores skips the research: direct purchase of a closed tier\'s supplies and vehicles, and the supply link, all refuse until it is done', () => {
+  const g = rig(1706); const before = JSON.stringify(g.war.stock());
+  for (const id of ['hardsuit', 'power_armour', 'core']) { const r = g.war.buySupply(id, 1); assert.ok(!r.ok && /needs research/.test(r.text), `${id}: ${r.text}`); }
+  for (const id of ['ghost', 'lance', 'warden', 'skimmer']) { const r = g.war.buyVehicle(id); assert.ok(!r.ok && /needs research/.test(r.text), `${id}: ${r.text}`); }
+  for (const item of ['item_pulse_rifle', 'item_plasma_rifle']) assert.ok(!g.war.setSupplyLevel(item, 5).ok, `the supply link keeps only what the Arms works make: ${item}`); assert.ok(!g.war.buyElsewhere('item_pulse_rifle', 5).ok);
+  assert.equal(JSON.stringify(g.war.stock()), before, 'nothing came in'); assert.equal(g.war.equipment().length, 0);
+  finish(g, 'energy_cells'); finish(g, 'hover_drives'); assert.ok(g.war.buySupply('core', 1).ok && g.war.buyVehicle('ghost').ok, 'open after the research'); assert.ok(!g.war.buyVehicle('warden').ok, 'era 4 still closed');
+});

@@ -31745,6 +31745,119 @@ function giveBack(game, spec) {
 return { offers, transfer, giveBack };
 })();
 
+// ---- src/content/warResearch.js
+__m["src/content/warResearch.js"] = (function () {
+// The company's research (v0.103.8): pure data. The mercenary company researches the future the way Aerospace researches aircraft: a project costs money (from whoever's money the company spends)
+// and days, one at a time, and needs the Command HQ built. Nodes unlock **tiers**: weapon tier 3 (pulse) and 4 (plasma, rail, ion), armour era 3 (Phalanx hardsuit) and 4 (Bastion power armour),
+// and the future vehicles (era 3: hover, stealth and laser; era 4: the heavy designs). Tiers 1 and 2 are what the company starts with. The figures are starting figures to calibrate: about 63M
+// obols and 90 days of research to reach tier 4, against about 20M obols in 5 days for a fully built base (docs/WAR.md).
+//
+//   tier      what the node belongs to (3 = the first future, 4 = the second)
+//   cost      obols      days   how long the project runs
+//   requires  nodes that must be finished first
+//   unlocks   what finishing it opens (read by the rules; the text is for the screen)
+const WAR_RESEARCH = {
+  energy_cells: { tier: 3, name: 'Energy cells', cost: 2_000_000, days: 4, requires: [], unlocks: {}, text: 'Compact, safe power storage. The foundation of everything that follows: no ammunition, no engines that burn.' },
+  pulse_weapons: { tier: 3, name: 'Pulse weapons', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { weaponTier: 3 }, text: 'Pulse rifles, repeaters, med-beams and cutters for every class: weapon tier 3. No ammunition; heat limits long bursts.' },
+  hardsuit: { tier: 3, name: 'Phalanx hardsuit', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { armourEra: 3 }, text: 'A sealed shell with a sensor visor that shrugs off small arms: armour era 3.' },
+  hover_drives: { tier: 3, name: 'Hover drives', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { vehicleEra: 3 }, text: 'Hover, stealth and laser vehicles: the Aegis hover tank, the Shade helicopter, the Ghost stealth carrier, drone carriers, skimmers and laser anti-air.' },
+  fusion_cores: { tier: 4, name: 'Fusion cores', cost: 10_000_000, days: 12, requires: ['pulse_weapons', 'hardsuit'], unlocks: {}, text: 'A reactor small enough to carry: the foundation of tier 4.' },
+  plasma_weapons: { tier: 4, name: 'Plasma, rail and ion weapons', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { weaponTier: 4 }, text: 'Plasma rifles and repeaters, lance cannons, ion lances, regeneration units: weapon tier 4. Costly to buy.' },
+  power_armour: { tier: 4, name: 'Bastion power armour', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { armourEra: 4 }, text: 'Powered plate with a reactor pack and two-handed heavy weapons: armour era 4. Slow, huge, costly.' },
+  heavy_hover: { tier: 4, name: 'Heavy hover platforms', cost: 12_000_000, days: 14, requires: ['hover_drives', 'fusion_cores'], unlocks: { vehicleEra: 4 }, text: 'Heavier fusion-powered vehicles: the Citadel hover tank, the Tempest gunship and the Warden shield carrier.' },
+};
+
+/** The node that opens a weapon tier, an armour era or a vehicle era (tier 2 and below need none). */
+const GATE = {
+  weaponTier: { 3: 'pulse_weapons', 4: 'plasma_weapons' },
+  armourEra: { 3: 'hardsuit', 4: 'power_armour' },
+  vehicleEra: { 3: 'hover_drives', 4: 'heavy_hover' },
+};
+
+/** The research that needs the Command HQ: the building that must stand (and not be a ruin) before any project can start. */
+const RESEARCH_FACILITY = 'command';
+
+return { WAR_RESEARCH, GATE, RESEARCH_FACILITY };
+})();
+
+// ---- src/war/research.js
+__m["src/war/research.js"] = (function () {
+// The company's research (v0.103.8; src/content/warResearch.js): one project at a time, paid by the company when it starts, finished on a morning, needing the Command HQ. What it unlocks is read
+// by the rules that equip, arm and order (`has`, `weaponTierOpen`, `armourEraOpen`, `vehicleEraOpen`); nothing here creates an item.
+//
+//   view(game)              the tree for the screen: each node's state, what it needs, the project under way
+//   start(game, id)         every check first (the HQ stands, the node is open and not done, nothing else under way, the company can pay), then the money moves once
+//   dayTick(game)           a project whose last day has come is finished (once)
+//   has(game, id)           is a node finished
+//   weaponTierOpen(game, t) / armourEraOpen / vehicleEraOpen    tiers up to 2 are always open
+// Saved: company.research = { done: { nodeId: day }, active: { id, start, end, paid } | null, log }
+const { peekMilitary } = __m["src/war/state.js"];
+const { WAR_RESEARCH, GATE, RESEARCH_FACILITY } = __m["src/content/warResearch.js"];
+const { facilityState } = __m["src/war/facilities.js"];
+const { pay, fundingMode } = __m["src/war/company.js"];
+const { cash } = __m["src/war/company.js"];
+
+const rs = (C) => (C.research ||= { done: {}, active: null, log: [] });
+const researchOf = (game) => { const C = peekMilitary(game)?.company; return C?.identity ? rs(C) : null; };
+
+const has = (game, id) => Boolean(researchOf(game)?.done?.[id]);
+const open = (game, gate, t) => t <= 2 || !gate[t] || has(game, gate[t]);
+const weaponTierOpen = (game, t) => open(game, GATE.weaponTier, t);
+const armourEraOpen = (game, e) => open(game, GATE.armourEra, e);
+const vehicleEraOpen = (game, e) => open(game, GATE.vehicleEra, e);
+/** The highest weapon tier, armour era and vehicle era the company may use now. */
+const reach = (game) => ({ weapon: [4, 3].find((t) => weaponTierOpen(game, t)) || 2, armour: [4, 3].find((e) => armourEraOpen(game, e)) || 2, vehicle: [4, 3].find((e) => vehicleEraOpen(game, e)) || 2 });
+
+/** Why a project cannot start now, or null. */
+function why(game, id) {
+  const C = peekMilitary(game)?.company; const N = WAR_RESEARCH[id];
+  if (!C?.identity) return 'You have no company.';
+  if (!N) return 'No such project.';
+  const r = rs(C);
+  if (r.done[id]) return 'Already finished.';
+  if (r.active) return r.active.id === id ? 'Already under way.' : `${WAR_RESEARCH[r.active.id].name} is under way: one project at a time.`;
+  if (facilityState(game, RESEARCH_FACILITY) !== 'built') return 'Research needs the Command HQ built (and standing).';
+  const lack = N.requires.filter((q) => !r.done[q]);
+  if (lack.length) return `Needs ${lack.map((q) => WAR_RESEARCH[q].name).join(' and ')} first.`;
+  if (!game.corp.canAfford('security', N.cost)) return `The project costs ${N.cost.toLocaleString('en-US')} obols; ${fundingMode(game) === 'wallet' ? 'you hold' : fundingMode(game) === 'group' ? 'the group holds' : 'the company holds'} ${Math.floor(cash(game)).toLocaleString('en-US')}.`;
+  return null;
+}
+
+function start(game, id) {
+  const bad = why(game, id); if (bad) return { ok: false, text: bad };
+  const C = peekMilitary(game).company; const N = WAR_RESEARCH[id]; const r = rs(C); const day = game.clock.day;
+  const p = pay(game, N.cost, `Research: ${N.name}`, 'research'); if (!p.ok) return p;
+  r.active = { id, start: day, end: day + N.days, paid: N.cost };
+  r.log.push({ day, text: `Began research: ${N.name} (${N.cost.toLocaleString('en-US')} obols, ${N.days} days).` }); while (r.log.length > 30) r.log.shift();
+  C.log.push({ day, text: `Began research: ${N.name}.` });
+  return { ok: true, text: `Research begun: ${N.name}, ${N.days} days.` };
+}
+
+/** Every morning: a project whose last day has come is finished, once. */
+function dayTick(game) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return;
+  const r = rs(C); const a = r.active; const day = game.clock.day;
+  if (!a || day < a.end) return;
+  r.done[a.id] = day; r.active = null;
+  const N = WAR_RESEARCH[a.id];
+  r.log.push({ day, text: `Finished research: ${N.name}.` }); while (r.log.length > 30) r.log.shift();
+  C.log.push({ day, text: `Research finished: ${N.name}.` });
+  game.notify?.(`Research finished: ${N.name}. ${N.text}`, 'good');
+}
+
+function view(game) {
+  const C = peekMilitary(game)?.company; if (!C?.identity) return null;
+  const r = rs(C); const day = game.clock.day; const hq = facilityState(game, RESEARCH_FACILITY) === 'built';
+  const nodes = Object.entries(WAR_RESEARCH).map(([id, N]) => {
+    const state = r.done[id] ? 'done' : r.active?.id === id ? 'active' : N.requires.every((q) => r.done[q]) ? 'open' : 'locked';
+    return { id, ...N, state, why: state === 'open' || state === 'locked' ? why(game, id) : null, daysLeft: state === 'active' ? Math.max(0, r.active.end - day) : null, finished: r.done[id] ?? null };
+  });
+  return { hq, active: r.active ? { ...r.active, name: WAR_RESEARCH[r.active.id].name, daysLeft: Math.max(0, r.active.end - day) } : null, nodes, reach: reach(game), log: r.log.slice(-8), total: Object.values(WAR_RESEARCH).reduce((a, n) => a + n.cost, 0), spent: Object.keys(r.done).reduce((a, id) => a + WAR_RESEARCH[id].cost, 0) };
+}
+
+return { researchOf, has, weaponTierOpen, armourEraOpen, vehicleEraOpen, reach, why, start, dayTick, view };
+})();
+
 // ---- src/war/purchase.js
 __m["src/war/purchase.js"] = (function () {
 // Buying from suppliers (v0.99.0): carriers, recon, artillery, anti-air, logistics and medical vehicles, and the supplies and parts. Paid by the company from its own account; the
@@ -31753,12 +31866,17 @@ const { peekMilitary } = __m["src/war/state.js"];
 const { addRecord, addStock, roomFor } = __m["src/war/equipment.js"];
 const { pay } = __m["src/war/company.js"];
 const { VEHICLES, SUPPLIES } = __m["src/content/procurement.js"];
+const { armourEraOpen, vehicleEraOpen } = __m["src/war/research.js"];
+const { WAR_RESEARCH, GATE } = __m["src/content/warResearch.js"];
+// v0.103.8: what a closed tier keeps out of the stores, by whichever route it is bought
+const closed = (game, tech) => (tech?.armourEra && !armourEraOpen(game, tech.armourEra) ? WAR_RESEARCH[GATE.armourEra[tech.armourEra]].name : tech?.vehicleEra && !vehicleEraOpen(game, tech.vehicleEra) ? WAR_RESEARCH[GATE.vehicleEra[tech.vehicleEra]].name : null);
 
 function buyVehicle(game, id) {
   const V = VEHICLES[id];
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return { ok: false, text: 'You have no company.' };
   if (!V || V.source !== 'bought') return { ok: false, text: V ? `${V.name} is built at the company's own works, not bought.` : 'No such vehicle.' };
+  if (V.era >= 3 && !vehicleEraOpen(game, V.era)) return { ok: false, text: `${V.name} needs research: ${WAR_RESEARCH[GATE.vehicleEra[V.era]].name} (Base Operations, Research).` };
   const why = roomFor(game, 'vehicle');
   if (why) return { ok: false, text: why };
   const r = pay(game, V.price, `Supplier: ${V.name}`);
@@ -31773,6 +31891,7 @@ function buySupply(game, id, qty) {
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return { ok: false, text: 'You have no company.' };
   if (!S) return { ok: false, text: 'No such supply.' };
+  const need = closed(game, S.tech); if (need) return { ok: false, text: `${S.name} needs research: ${need} (Base Operations, Research).` };
   qty = Math.floor(Number(qty) || 0);
   if (qty < 1) return { ok: false, text: 'Order at least one.' };
   const why = roomFor(game, 'stock', qty);
@@ -32004,119 +32123,6 @@ const SUPPLIERS = {
 };
 
 return { SUPPLIERS };
-})();
-
-// ---- src/content/warResearch.js
-__m["src/content/warResearch.js"] = (function () {
-// The company's research (v0.103.8): pure data. The mercenary company researches the future the way Aerospace researches aircraft: a project costs money (from whoever's money the company spends)
-// and days, one at a time, and needs the Command HQ built. Nodes unlock **tiers**: weapon tier 3 (pulse) and 4 (plasma, rail, ion), armour era 3 (Phalanx hardsuit) and 4 (Bastion power armour),
-// and the future vehicles (era 3: hover, stealth and laser; era 4: the heavy designs). Tiers 1 and 2 are what the company starts with. The figures are starting figures to calibrate: about 63M
-// obols and 90 days of research to reach tier 4, against about 20M obols in 5 days for a fully built base (docs/WAR.md).
-//
-//   tier      what the node belongs to (3 = the first future, 4 = the second)
-//   cost      obols      days   how long the project runs
-//   requires  nodes that must be finished first
-//   unlocks   what finishing it opens (read by the rules; the text is for the screen)
-const WAR_RESEARCH = {
-  energy_cells: { tier: 3, name: 'Energy cells', cost: 2_000_000, days: 4, requires: [], unlocks: {}, text: 'Compact, safe power storage. The foundation of everything that follows: no ammunition, no engines that burn.' },
-  pulse_weapons: { tier: 3, name: 'Pulse weapons', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { weaponTier: 3 }, text: 'Pulse rifles, repeaters, med-beams and cutters for every class: weapon tier 3. No ammunition; heat limits long bursts.' },
-  hardsuit: { tier: 3, name: 'Phalanx hardsuit', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { armourEra: 3 }, text: 'A sealed shell with a sensor visor that shrugs off small arms: armour era 3.' },
-  hover_drives: { tier: 3, name: 'Hover drives', cost: 5_000_000, days: 8, requires: ['energy_cells'], unlocks: { vehicleEra: 3 }, text: 'Hover, stealth and laser vehicles: the Aegis hover tank, the Shade helicopter, the Ghost stealth carrier, drone carriers, skimmers and laser anti-air.' },
-  fusion_cores: { tier: 4, name: 'Fusion cores', cost: 10_000_000, days: 12, requires: ['pulse_weapons', 'hardsuit'], unlocks: {}, text: 'A reactor small enough to carry: the foundation of tier 4.' },
-  plasma_weapons: { tier: 4, name: 'Plasma, rail and ion weapons', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { weaponTier: 4 }, text: 'Plasma rifles and repeaters, lance cannons, ion lances, regeneration units: weapon tier 4. Costly to buy.' },
-  power_armour: { tier: 4, name: 'Bastion power armour', cost: 12_000_000, days: 14, requires: ['fusion_cores'], unlocks: { armourEra: 4 }, text: 'Powered plate with a reactor pack and two-handed heavy weapons: armour era 4. Slow, huge, costly.' },
-  heavy_hover: { tier: 4, name: 'Heavy hover platforms', cost: 12_000_000, days: 14, requires: ['hover_drives', 'fusion_cores'], unlocks: { vehicleEra: 4 }, text: 'Heavier fusion-powered vehicles: the Citadel hover tank, the Tempest gunship and the Warden shield carrier.' },
-};
-
-/** The node that opens a weapon tier, an armour era or a vehicle era (tier 2 and below need none). */
-const GATE = {
-  weaponTier: { 3: 'pulse_weapons', 4: 'plasma_weapons' },
-  armourEra: { 3: 'hardsuit', 4: 'power_armour' },
-  vehicleEra: { 3: 'hover_drives', 4: 'heavy_hover' },
-};
-
-/** The research that needs the Command HQ: the building that must stand (and not be a ruin) before any project can start. */
-const RESEARCH_FACILITY = 'command';
-
-return { WAR_RESEARCH, GATE, RESEARCH_FACILITY };
-})();
-
-// ---- src/war/research.js
-__m["src/war/research.js"] = (function () {
-// The company's research (v0.103.8; src/content/warResearch.js): one project at a time, paid by the company when it starts, finished on a morning, needing the Command HQ. What it unlocks is read
-// by the rules that equip, arm and order (`has`, `weaponTierOpen`, `armourEraOpen`, `vehicleEraOpen`); nothing here creates an item.
-//
-//   view(game)              the tree for the screen: each node's state, what it needs, the project under way
-//   start(game, id)         every check first (the HQ stands, the node is open and not done, nothing else under way, the company can pay), then the money moves once
-//   dayTick(game)           a project whose last day has come is finished (once)
-//   has(game, id)           is a node finished
-//   weaponTierOpen(game, t) / armourEraOpen / vehicleEraOpen    tiers up to 2 are always open
-// Saved: company.research = { done: { nodeId: day }, active: { id, start, end, paid } | null, log }
-const { peekMilitary } = __m["src/war/state.js"];
-const { WAR_RESEARCH, GATE, RESEARCH_FACILITY } = __m["src/content/warResearch.js"];
-const { facilityState } = __m["src/war/facilities.js"];
-const { pay, fundingMode } = __m["src/war/company.js"];
-const { cash } = __m["src/war/company.js"];
-
-const rs = (C) => (C.research ||= { done: {}, active: null, log: [] });
-const researchOf = (game) => { const C = peekMilitary(game)?.company; return C?.identity ? rs(C) : null; };
-
-const has = (game, id) => Boolean(researchOf(game)?.done?.[id]);
-const open = (game, gate, t) => t <= 2 || !gate[t] || has(game, gate[t]);
-const weaponTierOpen = (game, t) => open(game, GATE.weaponTier, t);
-const armourEraOpen = (game, e) => open(game, GATE.armourEra, e);
-const vehicleEraOpen = (game, e) => open(game, GATE.vehicleEra, e);
-/** The highest weapon tier, armour era and vehicle era the company may use now. */
-const reach = (game) => ({ weapon: [4, 3].find((t) => weaponTierOpen(game, t)) || 2, armour: [4, 3].find((e) => armourEraOpen(game, e)) || 2, vehicle: [4, 3].find((e) => vehicleEraOpen(game, e)) || 2 });
-
-/** Why a project cannot start now, or null. */
-function why(game, id) {
-  const C = peekMilitary(game)?.company; const N = WAR_RESEARCH[id];
-  if (!C?.identity) return 'You have no company.';
-  if (!N) return 'No such project.';
-  const r = rs(C);
-  if (r.done[id]) return 'Already finished.';
-  if (r.active) return r.active.id === id ? 'Already under way.' : `${WAR_RESEARCH[r.active.id].name} is under way: one project at a time.`;
-  if (facilityState(game, RESEARCH_FACILITY) !== 'built') return 'Research needs the Command HQ built (and standing).';
-  const lack = N.requires.filter((q) => !r.done[q]);
-  if (lack.length) return `Needs ${lack.map((q) => WAR_RESEARCH[q].name).join(' and ')} first.`;
-  if (!game.corp.canAfford('security', N.cost)) return `The project costs ${N.cost.toLocaleString('en-US')} obols; ${fundingMode(game) === 'wallet' ? 'you hold' : fundingMode(game) === 'group' ? 'the group holds' : 'the company holds'} ${Math.floor(cash(game)).toLocaleString('en-US')}.`;
-  return null;
-}
-
-function start(game, id) {
-  const bad = why(game, id); if (bad) return { ok: false, text: bad };
-  const C = peekMilitary(game).company; const N = WAR_RESEARCH[id]; const r = rs(C); const day = game.clock.day;
-  const p = pay(game, N.cost, `Research: ${N.name}`, 'research'); if (!p.ok) return p;
-  r.active = { id, start: day, end: day + N.days, paid: N.cost };
-  r.log.push({ day, text: `Began research: ${N.name} (${N.cost.toLocaleString('en-US')} obols, ${N.days} days).` }); while (r.log.length > 30) r.log.shift();
-  C.log.push({ day, text: `Began research: ${N.name}.` });
-  return { ok: true, text: `Research begun: ${N.name}, ${N.days} days.` };
-}
-
-/** Every morning: a project whose last day has come is finished, once. */
-function dayTick(game) {
-  const C = peekMilitary(game)?.company; if (!C?.identity) return;
-  const r = rs(C); const a = r.active; const day = game.clock.day;
-  if (!a || day < a.end) return;
-  r.done[a.id] = day; r.active = null;
-  const N = WAR_RESEARCH[a.id];
-  r.log.push({ day, text: `Finished research: ${N.name}.` }); while (r.log.length > 30) r.log.shift();
-  C.log.push({ day, text: `Research finished: ${N.name}.` });
-  game.notify?.(`Research finished: ${N.name}. ${N.text}`, 'good');
-}
-
-function view(game) {
-  const C = peekMilitary(game)?.company; if (!C?.identity) return null;
-  const r = rs(C); const day = game.clock.day; const hq = facilityState(game, RESEARCH_FACILITY) === 'built';
-  const nodes = Object.entries(WAR_RESEARCH).map(([id, N]) => {
-    const state = r.done[id] ? 'done' : r.active?.id === id ? 'active' : N.requires.every((q) => r.done[q]) ? 'open' : 'locked';
-    return { id, ...N, state, why: state === 'open' || state === 'locked' ? why(game, id) : null, daysLeft: state === 'active' ? Math.max(0, r.active.end - day) : null, finished: r.done[id] ?? null };
-  });
-  return { hq, active: r.active ? { ...r.active, name: WAR_RESEARCH[r.active.id].name, daysLeft: Math.max(0, r.active.end - day) } : null, nodes, reach: reach(game), log: r.log.slice(-8), total: Object.values(WAR_RESEARCH).reduce((a, n) => a + n.cost, 0), spent: Object.keys(r.done).reduce((a, id) => a + WAR_RESEARCH[id].cost, 0) };
-}
-
-return { researchOf, has, weaponTierOpen, armourEraOpen, vehicleEraOpen, reach, why, start, dayTick, view };
 })();
 
 // ---- src/war/procurement.js
@@ -35312,7 +35318,8 @@ function profileOf(game, C, p) {
     role: `${K?.name || 'Soldier'} at ${C.identity.name}.`,
     dialogue: 'dlg_soldier', voice: { wave: pick(['triangle', 'square', 'sine'], 1), pitch: 90 + Math.floor(h(2) * 200), variance: 20, rate: 0.95 + h(3) * 0.3 },
     appearance: { skin: pick(['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430', '#f0c8a8', '#d9a77c'], 4), hair: pick(['#1a1410', '#3a2a20', '#6a3a2a', '#c9813a', '#e8e2d4', '#8a7a6a', '#2a1e1a'], 5), hairStyle: 'helmet', hatColor: colour,
-      outfit: colour, legs: '#2a2e22', build: pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
+      // v0.103.8: a soldier in a hardsuit or power armour walks the base in it (a pale shell, or dark plate with a broad frame)
+      outfit: p.armour === 3 ? '#e8eaf0' : p.armour === 4 ? '#4a5570' : colour, legs: p.armour === 3 ? '#9aa0ae' : p.armour === 4 ? '#2e3446' : '#2a2e22', build: p.armour === 4 ? 'broad' : pick(['thin', 'average', 'broad', 'wiry'], 8), height: 0.96 + h(9) * 0.12, accessories: [], accent: LOOKS.band[look.band] || '#e8c84a' },
     personality: { traits: ['disciplined', 'steady'], sociability: 0.4, conscientiousness: 0.9, impulsiveness: 0.15, discretion: 0.85, honesty: 0.7, empathy: 0.4 },
     speech: { rumorPrefix: 'In the barracks they say', factPrefix: 'Boss,', refuse: 'That is not something I can discuss, Boss.' },
     combat: { never: true, maxHealth: 120 }, walkSpeed: 1, punctuality: 10,
@@ -35334,7 +35341,7 @@ function generalProfile(game, C, g) {
 function signature(game) {
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return '';
-  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location]), homeGenerals(C).map((g) => g.id), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
+  return JSON.stringify([wanted(game).map((p) => [p.id, p.status, p.assignedTo, p.location, p.armour || 1]), homeGenerals(C).map((g) => g.id), C.facilities.filter((f) => f.state === 'built').map((f) => f.id), C.squads.map((s) => [s.id, s.look.primary, s.look.band])]);
 }
 
 function sync(game) {
