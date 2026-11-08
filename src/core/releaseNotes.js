@@ -2,6 +2,16 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.7',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Company Funds and Next Event',
+    notes: [
+      'The mercenary company\'s money now works like your other companies: by default it spends and earns through your wallet, you can assign it to your group (the parent company\'s cash), or give it an account of its own to pay into. Choose in Command Overview, Funding. Wages and fines never take your wallet below nothing: what it cannot cover is owed and paid first next time.',
+      'The command terminal\'s time button is now Next event, as in the Aerospace and Shipping terminals: it runs time up to the next thing that happens (a construction stage, a recruit finishing training, an order arriving, a unit coming off a line, a job ending, a battalion landing) and tells you what it is.',
+    ],
+  },
+  {
     version: '0.103.6',
     date: '2026-11-07',
     channel: 'development',

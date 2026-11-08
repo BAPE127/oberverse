@@ -25,7 +25,7 @@ export function militaryApp(ui, body, open) {
 
 function register(ui, body, go) {
   const draft = ui.milName || '';
-  body.append(hero({ label: 'A private security company', value: 'Register one', sub: 'A name first. Then pay money in, buy a licence from the Civic Office, and a lot at Hollowmoor where Mason\'s Os builds your base.' }));
+  body.append(hero({ label: 'A private security company', value: 'Register one', sub: 'A name first. Then buy a licence from the Civic Office, and a lot at Hollowmoor where Mason\'s Os builds your base. It spends your wallet unless you assign it to your group or give it money of its own.' }));
   const input = h('input', { type: 'text', value: draft, placeholder: 'A name for the company', maxlength: '40', style: 'width:100%;padding:10px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px', oninput: (e) => { ui.milName = e.target.value; } });
   body.append(h('div', { class: 'tb-card', style: 'padding:12px' }, input));
   body.append(h('div', { class: 'tb-btns' }, h('button', { class: 'tb-btn pri', onclick: () => go(ui.game.war.found(ui.milName || '')) }, 'Register the company')));

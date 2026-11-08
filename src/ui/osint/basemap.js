@@ -27,7 +27,7 @@ function roof(ctx, look, x, y, w, h, tone, z) {
   const K = KIT[look]; const lite = shade(tone, 22); const dark = shade(tone, -26);
   ctx.lineWidth = 1; ctx.strokeStyle = dark;
   if (K.roof === 'pitched') { ctx.beginPath(); ctx.moveTo(x + 2, y + h / 2); ctx.lineTo(x + w - 2, y + h / 2); ctx.stroke(); for (let i = x + 4; i < x + w - 3; i += Math.max(5, z * 1.1)) { ctx.beginPath(); ctx.moveTo(i, y + 2); ctx.lineTo(i, y + h - 2); ctx.globalAlpha = 0.35; ctx.stroke(); ctx.globalAlpha = 1; } }
-  else if (K.roof === 'saw') { const step = Math.max(5, z * 1.6); for (let i = x + step; i < x + w - 2; i += step) { ctx.fillStyle = lite; ctx.fillRect(i - step * 0.45, y + 2, step * 0.45, h - 4); ctx.fillStyle = dark; ctx.fillRect(i - 1, y + 2, 1.5, h - 4); } }
+  else if (K.roof === 'saw') { const step = Math.max(5, z * 1.6); ctx.globalAlpha = 0.55; for (let i = x + step; i < x + w - 2; i += step) { ctx.fillStyle = lite; ctx.fillRect(i - step * 0.45, y + 2, step * 0.45, h - 4); ctx.fillStyle = dark; ctx.fillRect(i - 1, y + 2, 1.5, h - 4); } ctx.globalAlpha = 1; }
   else if (K.roof === 'arch') { const step = Math.max(5, z * 1.3); ctx.fillStyle = lite; ctx.fillRect(x + 2, y + h / 2 - 1, w - 4, 2); for (let i = x + step; i < x + w - 2; i += step) { ctx.fillStyle = dark; ctx.fillRect(i, y + 2, 1.2, h - 4); } ctx.fillStyle = shade(tone, 10); ctx.fillRect(x + 2, y + 2, w - 4, 2); ctx.fillRect(x + 2, y + h - 4, w - 4, 2); }
   else { ctx.strokeRect(x + 3, y + 3, w - 6, h - 6); ctx.fillStyle = lite; ctx.fillRect(x + w - 7, y + 4, 4, 4); }
 }
@@ -86,9 +86,15 @@ export function paintBase(ctx, V, o) {
       ctx.fillStyle = '#e8c35a'; ctx.fillRect(a + W / 2 - 2, b + H - 3, 4, 3);
     }
     if (f.id === o.sel) { ctx.strokeStyle = '#e8f4d8'; ctx.lineWidth = 1; ctx.strokeRect(a - 3, b - 3, W + 6, H + 6); }
-    ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = st.mode === 'site' ? '#6a7a71' : '#eef3ea'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-    const label = f.name.replace(' & briefing room', '').replace(' & tank workshop', ''); if (W > fs * 3) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 3; ctx.fillText(label, a + 4, b + 4, W - 8); ctx.restore(); }
-    if (W > 70 && H > 36) { ctx.font = `${Math.max(8, fs - 2)}px ui-monospace, monospace`; ctx.fillStyle = line; ctx.fillText(st.label.toUpperCase(), a + 4, b + 4 + fs + 3, W - 8); }
+    ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    const label = f.name.replace(' & briefing room', '').replace(' & tank workshop', ''); const showState = W > 70 && H > 36;
+    if (W > fs * 3) {
+      // a plate under the words, so the roof's stripes never run through them
+      const lw = Math.min(W - 8, ctx.measureText(label).width); ctx.font = `${Math.max(8, fs - 2)}px ui-monospace, monospace`; const sw = showState ? Math.min(W - 8, ctx.measureText(st.label.toUpperCase()).width) : 0;
+      ctx.fillStyle = st.mode === 'site' ? 'rgba(8,12,10,.55)' : 'rgba(8,12,10,.82)'; ctx.fillRect(a + 2, b + 2, Math.min(W - 4, Math.max(lw, sw) + 10), fs + (showState ? fs + 3 : 0) + 8);
+      ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = st.mode === 'site' ? '#6a7a71' : '#eef3ea'; ctx.fillText(label, a + 4, b + 4, W - 8);
+    }
+    if (showState && W > fs * 3) { ctx.font = `${Math.max(8, fs - 2)}px ui-monospace, monospace`; ctx.fillStyle = line; ctx.fillText(st.label.toUpperCase(), a + 4, b + 4 + fs + 3, W - 8); }
   }
   // the company's vehicles and aircraft, where they park: the same sprites as in the walkable lot
   const k = z / 32;

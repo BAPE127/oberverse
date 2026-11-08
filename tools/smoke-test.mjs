@@ -475,7 +475,9 @@ try {
     const conf = [...document.querySelectorAll('.osx-side button')].find((b) => /Confirm purchase/.test(b.textContent)); conf?.click(); await new Promise((r) => setTimeout(r, 300));
     out.orderPaid = g.war.cash() === cash0 - 12 * un.price && g.war.orders().transit.length === 1;
     const u0 = g.war.stock()['supply:uniform'] || 0;
-    const nm = [...document.querySelectorAll('.osx-top button')].find((b) => /Next morning/.test(b.textContent)); nm?.click(); for (let i = 0; i < 80; i++) { await new Promise((r) => setTimeout(r, 250)); if (!/Time passing/.test(document.querySelector('.osx-top')?.textContent || '')) break; } await new Promise((r) => setTimeout(r, 300));
+    // v0.103.7: "Next event" runs time up to the next thing that happens; press it until the order has arrived (other events, such as construction, may come first)
+    for (let k = 0; k < 14 && g.war.orders().delivered.length < 1; k++) { const nm = [...document.querySelectorAll('.osx-top button')].find((b) => /Next event/.test(b.textContent)); if (!nm || nm.disabled) break; nm.click(); for (let i = 0; i < 120; i++) { await new Promise((r) => setTimeout(r, 250)); if (!/Time passing/.test(document.querySelector('.osx-top')?.textContent || '')) break; } await new Promise((r) => setTimeout(r, 200)); }
+    out.nextEventButton = /Next event|No event pending/.test(document.querySelector('.osx-top')?.textContent || '') && !/Next morning/.test(document.querySelector('.osx-top')?.textContent || '');
     out.timePassed = (g.war.stock()['supply:uniform'] || 0) === u0 + 12 && g.war.orders().delivered.length === 1;
     // Internal Logistics: a free transfer from the Arms works moves goods and no money
     g.setFlag('owns_aw1', true); const cage = g.world.containers.ct_aw1_cage; cage.items.item_pistol = 10;

@@ -3,6 +3,7 @@
 //     open → delegated | tactical → resolved        (or: expired, declined)
 // and it only moves forward: once a general has it, you cannot also play it (the overhead battle itself arrives in v0.101.0, so `play` refuses for now). The result is applied ONCE to the
 // real records (the dead, the wounded, the vehicles lost, the stock used) and written down in an after-action report built from what was actually applied.
+import { bill } from './company.js';
 import { peekMilitary } from './state.js';
 import { capacity } from './facilities.js';
 import { nextId, takeStock } from './equipment.js';
@@ -229,7 +230,7 @@ export function applyOutcome(game, C, eng, R) {
   const share = eng.strategic ? 0 : [0, 0.45, 0.9, 1][R.objectives]; // (a battle on the map pays through the employer's retainer and bonus, not a contract)
   let paid = 0; let fine = 0;
   if (share > 0) { paid = Math.round(eng.pay * share); game.corp.receive('security', paid, { cat: 'contract' }); }
-  if (R.objectives === 0 && !eng.strategic) { fine = Math.round(eng.pay * E.penalty); game.corp.pay('security', fine, { cat: 'penalty', owe: true }); rep.ban[eng.client] = day + E.ban; }
+  if (R.objectives === 0 && !eng.strategic) { fine = Math.round(eng.pay * E.penalty); bill(game, fine, { cat: 'penalty', quiet: false }); rep.ban[eng.client] = day + E.ban; }
   if (!eng.strategic) {
     rep.score += R.objectives === 3 ? E.repWin : R.objectives === 2 ? E.repHold : R.objectives === 0 ? E.repLose : 0;
     const cl = (rep.clients[eng.client] ||= { done: 0, failed: 0 });

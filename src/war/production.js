@@ -30,7 +30,7 @@ function startBlock(game, C, model, crewLeft, need) {
   const missing = Object.entries(MODELS[model].parts).filter(([k, n]) => stockOf(game, `supply:${k}`) < n).map(([k, n]) => `${n - stockOf(game, `supply:${k}`)} ${SUPPLIES[k].name.toLowerCase()}`);
   if (missing.length) return `waiting for parts: ${missing.join(', ')}`;
   if (crewLeft < need) return `needs ${need} technicians (${crewLeft} free)`;
-  if (game.corp.account('security').cash < fee) return `cannot pay the works' fee (${fee.toLocaleString('en-US')} obols)`;
+  if (!game.corp.canAfford('security', fee)) return `cannot pay the works' fee (${fee.toLocaleString('en-US')} obols)`;
   return null;
 }
 

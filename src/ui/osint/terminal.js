@@ -60,10 +60,11 @@ export function osintTerminalPanel(ui, body, opts = {}) {
     topBar(); step();
   }
   // (the company's day runs at 06:11: orders arrive, wages are paid, construction advances; so the morning ends at 06:15)
-  const toMorning = () => { const m = g.clock.minuteOfDay; return m < 375 ? 375 - m : 1440 - m + 375; };
+  // v0.103.7: "Next event", as in the Aerospace and Shipping terminals: time runs up to the next thing that happens (src/war/nextEvent.js), at most two weeks at once
+  const hrs = (min) => { const h2 = Math.floor(min / 60); const m2 = Math.round(min % 60); return h2 >= 48 ? `${Math.round(h2 / 24)} d` : h2 >= 1 ? `${h2} h${m2 ? ` ${m2} m` : ''}` : `${m2} m`; };
 
   function topBar() {
-    const B = W.briefing(); top.replaceChildren();
+    const B = W.briefing(); const ev = W.nextEvent(); top.replaceChildren();
     if (!B) { top.append(h('div', { class: 'osx-brand' }, h('b', {}, 'Command terminal'), h('small', {}, 'Hollowmoor Lot · site office')), h('div', { class: 'osx-sp' }), btn('✕ Close', () => ui.closePanel())); return; }
     const f = (label, val, tone = '') => h('div', { class: `osx-tf ${tone}` }, h('small', {}, label), h('b', {}, val));
     const rtone = B.readiness >= 70 ? 'ok' : B.readiness >= 40 ? 'warn' : 'bad';
@@ -73,7 +74,7 @@ export function osintTerminalPanel(ui, body, opts = {}) {
       f('Date / time', `Day ${g.clock.day} · ${g.clock.timeString}`), f('Operations', String(B.missions.active), B.missions.active ? 'ok' : ''), f('Readiness', `${B.readiness}%`, rtone),
       f('Base', !B.base.online ? 'not built' : !B.base.protectedBase ? 'AT RISK' : B.base.damaged ? `${B.base.damaged} damaged` : `${B.base.built}/${B.base.total} built`, baseTone),
       h('div', { class: 'osx-sp' }),
-      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : '⏭ Next morning', () => pass(toMorning()), { kind: 'pri sm', disabled: Boolean(ff), title: 'Let time pass until 06:15, after the company\'s day: orders arrive, wages are paid, construction moves on' })),
+      h('div', { class: 'osx-time' }, btn('+1 h', () => pass(MIN.h1), { kind: 'sm', disabled: Boolean(ff) }), btn('+6 h', () => pass(MIN.h6), { kind: 'sm', disabled: Boolean(ff) }), btn(ff ? 'Time passing…' : ev ? `⏭ Next event (${hrs(ev.at - g.clock.total)})` : '⏭ No event pending', () => pass(Math.min(ev.at - g.clock.total, 14 * 1440)), { kind: 'pri sm', disabled: Boolean(ff) || !ev, title: ev ? `Let time pass until: ${ev.why}${ev.others ? ` (and ${ev.others} more at the same time)` : ''}` : 'Nothing is due: no construction, training, order, job, production or battalion on the move. Use +1 h or +6 h to let time pass.' })),
       btn('✕ Close', () => ui.closePanel()));
   }
 

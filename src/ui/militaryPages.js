@@ -49,21 +49,21 @@ function homePage(ui, box, go, open) {
   const B = W.baseView(); const fac = V.lotOwned ? W.facilities() : [];
   const office = fac.find((f) => f.id === 'site_office');
   box.append(
-    hero({ label: V.name, value: `${n(V.cash)} obols`, sub: `The company's own money. You hold ${n(g.player.money)}. It pays only from its own account, never from yours.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
+    hero({ label: V.name, value: `${n(V.cash)} obols`, sub: V.mode === 'wallet' ? `It spends your wallet (you hold ${n(g.player.money)}) and earns into it.` : V.mode === 'group' ? `It spends the group's cash and earns into it. Your wallet is not touched.` : `Its own account. You hold ${n(g.player.money)}.`, tone: V.cash > 0 ? 'pos' : 'warn' }),
     tiles([{ n: `${B.readiness}%`, t: 'ready', tone: B.readiness < 40 ? 'neg' : B.readiness < 70 ? 'warn' : '' }, { n: String(W.people().length), t: 'people' }, { n: W.baseProtected() ? 'safe' : 'at risk', t: 'the base', tone: W.baseProtected() ? '' : 'warn' }]));
-  // money in and out: the only two acts that cross between you and the company
+  // whose money it spends (v0.103.7): your wallet, the group's cash, or an account of its own
   const amount = h('input', { type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px;padding:8px;border-radius:10px;border:2px solid #3a3794;background:#15133e;color:inherit;font-size:16px' });
   const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
-  box.append(h('div', { class: 'tb-card', style: 'padding:12px' }, h('div', { class: 'tb-btns', style: 'align-items:center' }, amount,
-    h('button', { class: 'tb-btn pri', onclick: () => go(W.fund(amt())) }, 'Pay in'),
-    h('button', { class: 'tb-btn', disabled: V.cash <= 0 || V.arrears > 0, onclick: () => go(W.take(amt())) }, 'Take out'))));
+  const mb = (m, t) => h('button', { class: `tb-mini${V.mode === m ? ' pri' : ''}`, disabled: m === 'group' && !V.hasGroup, onclick: () => go(W.setFunding(m)) }, t);
+  box.append(h('div', { class: 'tb-card', style: 'padding:12px' }, h('div', { class: 'tb-btns', style: 'align-items:center;flex-wrap:wrap' }, h('small', {}, 'Spends:'), mb('wallet', 'Your wallet'), mb('group', 'The group'), mb('own', 'Own account')),
+    V.mode === 'own' ? h('div', { class: 'tb-btns', style: 'align-items:center;margin-top:8px' }, amount, h('button', { class: 'tb-btn pri', onclick: () => go(W.fund(amt())) }, 'Pay in'), h('button', { class: 'tb-btn', disabled: V.cash <= 0 || V.arrears > 0, onclick: () => go(W.take(amt())) }, 'Take out')) : null));
   // the first steps, until the site office is ordered
   if (!office || office.state === 'none') {
     const costs = { licence: LOT.licence, lot: LOT.price, office: W.quote('site_office')?.cost ?? 20000 };
     const step = (done, title, sub, action) => row({ icon: done ? '✅' : '➤', title, sub, tone: done ? 'good' : '', action: done ? null : action });
     const need = (V.licensed ? 0 : costs.licence) + (V.lotOwned ? 0 : costs.lot) + costs.office;
     box.append(label('Getting started'), list(
-      step(V.cash >= need, `Cash: ${n(need)} obols needed`, `The company holds ${n(V.cash)}.`, h('button', { class: 'tb-mini pri', disabled: g.player.money < need - V.cash || need - V.cash <= 0, onclick: () => go(W.fund(Math.max(0, need - V.cash))) }, 'Pay in the rest')),
+      step(V.cash >= need, `Cash: ${n(need)} obols needed`, `The company holds ${n(V.cash)}.`, V.mode === 'own' ? h('button', { class: 'tb-mini pri', disabled: g.player.money < need - V.cash || need - V.cash <= 0, onclick: () => go(W.fund(Math.max(0, need - V.cash))) }, 'Pay in the rest') : null),
       step(V.licensed, `Civic Office licence · ${n(costs.licence)}`, 'Mason\'s Os cannot get a permit without it.', h('button', { class: 'tb-mini pri', disabled: V.cash < costs.licence, onclick: () => go(W.buyLicence()) }, 'Buy')),
       step(V.lotOwned, `${LOT.name} · ${n(costs.lot)}`, V.licensed ? 'Fenced ground with a gate: where the base is built.' : 'Needs the licence first.', h('button', { class: 'tb-mini pri', disabled: !V.licensed || V.cash < costs.lot, onclick: () => go(W.buyLot()) }, 'Buy')),
       step(false, `Site office · ${n(costs.office)}`, V.lotOwned ? 'Built in a few days. The rest of the base opens after it, and the command terminal is inside it.' : 'Needs the lot first.', h('button', { class: 'tb-mini pri', disabled: !V.lotOwned || V.cash < costs.office, onclick: () => go(W.commission('site_office')) }, 'Order'))));
@@ -93,7 +93,7 @@ function homePage(ui, box, go, open) {
   box.append(fold(ui, 'MilFactories', 'Factories (tanks and helicopters) ›', (b) => productionTab(ui, b, go, open)));
   box.append(fold(ui, 'MilBase', 'The base in detail ›', (b) => baseScreen(ui, b, go, open)));
   box.append(fold(ui, 'MilLog', 'The company\'s log ›', (b) => b.append(list(...(V.log.length ? V.log.slice().reverse().map((e) => row({ icon: '🗒️', title: `Day ${e.day}`, sub: e.text })) : [row({ icon: '—', title: 'Nothing yet', sub: 'The log fills as the company works.' })])))));
-  box.append(help('How the company works', 'The company is its own thing: its own name and its own money. Pay money in and it can buy a licence, the lot and buildings; take it out again when it holds more than it needs. The same five pages are on the command terminal in the site office and in the Military app on your OberPad.'));
+  box.append(help('How the company works', 'The company has its own name. Its money is whoever you assign it to, as for your other companies: your wallet (the default), the group, or an account of its own that you pay into and take out of. The same five pages are on the command terminal in the site office and in the Military app on your OberPad.'));
 }
 
 // ---------------------------------------------------------------- Troops

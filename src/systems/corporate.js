@@ -83,8 +83,18 @@ export class Corporate {
     return this.account(id).funded;
   }
 
+  /**
+   * v0.103.7: whose money a company really spends and earns. Every company draws on the owner's wallet until it is funded; the war company ('security') can also be assigned to the
+   * group (`company.funding === 'group'`, set from Command Overview), and then it spends and earns through the parent company's account. Everything else is its own.
+   */
+  payer(id) {
+    if (id !== 'security') return id;
+    return this.game.world.military?.company?.funding === 'group' && this.group.parent ? 'parent' : id;
+  }
+
   /** What the company can spend now: its own cash once funded, otherwise the owner's wallet. */
   cashOf(id) {
+    id = this.payer(id);
     const a = this.account(id);
     return a.funded ? a.cash : this.game.player.money;
   }
@@ -95,6 +105,7 @@ export class Corporate {
 
   /** The balance changed in the owner's wallet: tell the HUD (a funded company's cash is not the wallet). */
   announce(id, delta) {
+    id = this.payer(id);
     const g = this.game;
     if (delta && !this.account(id).funded) g.bus.emit('money:changed', { delta, total: g.player.money });
   }
@@ -110,6 +121,7 @@ export class Corporate {
   pay(id, amount, { cat = 'purchase', quiet = false, owe = false, actor = null } = {}) {
     if (!Number.isFinite(amount) || amount < 0) return false;
     if (amount === 0) return true;
+    id = this.payer(id);
     const a = this.account(id);
     const g = this.game;
     if (actor) this.noteActor(id, actor, amount);
@@ -146,6 +158,7 @@ export class Corporate {
   receive(id, amount, { cat = 'sales', quiet = false } = {}) {
     if (!Number.isFinite(amount) || amount < 0) return false;
     if (amount === 0) return true;
+    id = this.payer(id);
     const a = this.account(id);
     const g = this.game;
     if (a.funded) {

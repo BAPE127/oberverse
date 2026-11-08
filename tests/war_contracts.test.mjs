@@ -114,7 +114,7 @@ test('reputation raises how many offers can be open; a save in the middle of a j
   days(g, 1); assert.ok(g.war.state().company.contracts.filter((c) => !['open', 'active'].includes(c.state)).length <= K.kept + 1);
 });
 
-test('a long run stays small, consistent and honest: 300 days of a working firm leave the record bounded, the checker silent, the account reconciled and the wallet untouched; an older company\'s unfunded account is mended', () => {
+test('a long run stays small, consistent and honest: 300 days of a working firm leave the record bounded, the checker silent, the account reconciled and the wallet only ever up by what the test paid in; a company with no account of its own stays a wallet company (v0.103.7)', () => {
   const g = warGame(520, { cash: 6_000_000 }); build(g, STAGE1);
   for (let i = 0; i < 6; i++) g.war.hire('guard');
   cageGoods(g, 'aw1', { item_pistol: 60 }); g.war.transfer({ source: 'arms', works: 'aw1', item: 'item_pistol', qty: 40 }); g.war.buySupply('radio', 20);
@@ -131,7 +131,7 @@ test('a long run stays small, consistent and honest: 300 days of a working firm 
   assert.ok(g.war.contracts().wins + g.war.contracts().losses >= 10, 'it worked a good many jobs');
   assert.equal((g.war.stock()['arms:aw1:item_pistol'] || 0) + g.war.people().filter((p) => p.weapon === 'arms:aw1:item_pistol').length, 40, 'every pistol is either in the stores or in a guard\'s hand');
   assert.ok(g.war.transfers().length <= 80);
-  // an older save's account
-  const old = warGame(521); old.corp.account('security').funded = false; old.war.dailyTick(); days(old, 1); assert.ok(old.corp.account('security').funded);
+  // v0.103.7: an unfunded account is how the company is meant to run (it spends the wallet like the others): the day no longer forces an account on it
+  const old = warGame(521); old.war.setFunding('wallet'); old.war.dailyTick(); days(old, 1); assert.equal(old.corp.account('security').funded, false); assert.equal(old.war.fundingMode(), 'wallet');
   assert.ok(w1 >= w0, 'the wallet only ever went up here: by what the test paid in, never down');
 });

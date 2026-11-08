@@ -25,22 +25,25 @@ test('the company is registered through the same naming rules as every company, 
   assert.ok(g.war.rename('Ironclad Company').ok && g.war.rename('Ironclad Co').ok && g.war.companyView().name === 'Ironclad Co');
 });
 
-test('its money is its own: you pay it in and take it out; everything it buys comes from its account and never from your wallet; a short account refuses and changes nothing', () => {
+test('its money is whoever\'s it is assigned to: your wallet by default (like the other companies); money paid in makes an account of its own; a short balance refuses and changes nothing; moving back returns it', () => {
   const g = newGame(202); g.player.money = 500_000; g.war.found('Ironclad Company');
-  const r0 = g.war.pay(100, 'x'); assert.ok(!r0.ok && /holds 0/.test(r0.text));
+  assert.equal(g.war.fundingMode(), 'wallet'); assert.equal(g.war.cash(), 500_000, 'it can spend what you hold');
+  const r0 = g.war.pay(600_000, 'x'); assert.ok(!r0.ok && /You hold/.test(r0.text)); assert.equal(g.player.money, 500_000);
+  assert.ok(g.war.pay(100, 'x').ok); assert.equal(g.player.money, 499_900, 'it spent the wallet');
   assert.ok(!g.war.fund(0).ok); assert.ok(!g.war.fund(9e9).ok, 'not more than you have');
-  assert.ok(g.war.fund(200_000).ok); assert.equal(g.player.money, 300_000); assert.equal(g.war.cash(), 200_000);
+  assert.ok(g.war.fund(200_000).ok); assert.equal(g.war.fundingMode(), 'own'); assert.equal(g.player.money, 299_900); assert.equal(g.war.cash(), 200_000);
   const before = JSON.stringify(g.world.military);
-  assert.ok(!g.war.pay(250_000, 'too much').ok); assert.equal(JSON.stringify(g.world.military), before); assert.equal(g.war.cash(), 200_000); assert.equal(g.player.money, 300_000);
-  assert.ok(g.war.pay(50_000, 'a thing').ok); assert.equal(g.war.cash(), 150_000); assert.equal(g.player.money, 300_000, 'the wallet did not move');
-  assert.ok(g.war.take(100_000).ok); assert.equal(g.player.money, 400_000); assert.equal(g.war.cash(), 50_000);
+  assert.ok(!g.war.pay(250_000, 'too much').ok); assert.equal(JSON.stringify(g.world.military), before); assert.equal(g.war.cash(), 200_000); assert.equal(g.player.money, 299_900);
+  assert.ok(g.war.pay(50_000, 'a thing').ok); assert.equal(g.war.cash(), 150_000); assert.equal(g.player.money, 299_900, 'its own account paid, the wallet did not move');
+  assert.ok(g.war.take(100_000).ok); assert.equal(g.player.money, 399_900); assert.equal(g.war.cash(), 50_000);
+  assert.ok(g.war.setFunding('wallet').ok); assert.equal(g.war.fundingMode(), 'wallet'); assert.equal(g.player.money, 449_900, 'what it held came back to you'); assert.equal(g.war.cash(), 449_900);
   assert.ok(g.corp.reconciles(), 'the account reconciles with its history like the businesses\'');
 });
 
 test('licence and lot: the licence first, then the lot, both paid by the company; the fence and gate then join the damage gate as core structures; each is bought once', () => {
-  const g = newGame(203); g.player.money = 1e6; g.war.found('Ironclad Company');
-  assert.ok(!g.war.buyLicence().ok, 'no money in the company'); assert.ok(!g.war.buyLot().ok);
-  g.war.fund(300_000);
+  const g = newGame(203); g.player.money = 1000; g.war.found('Ironclad Company');
+  assert.ok(!g.war.buyLicence().ok, 'no money to pay with'); assert.ok(!g.war.buyLot().ok);
+  g.player.money = 1e6; g.war.fund(300_000);
   assert.ok(/licen/i.test(g.war.buyLot().text), 'the lot is for licensed companies');
   assert.ok(g.war.buyLicence().ok); assert.equal(g.war.cash(), 300_000 - LOT.licence); assert.ok(!g.war.buyLicence().ok);
   assert.ok(g.war.buyLot().ok); assert.equal(g.war.cash(), 300_000 - LOT.licence - LOT.price); assert.ok(!g.war.buyLot().ok);

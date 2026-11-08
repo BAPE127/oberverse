@@ -47,7 +47,7 @@ export function renderProcurement(cx, box) {
   if (P.review && quote.lines.length) {
     cartNode = panel('Order summary', [
       ...quote.lines.map((l) => kv(`${fmt(l.qty)} × ${l.name}`, fmt(l.total))), ...bySupplier, kv('Total', `${fmt(total)} ◎`), kv('Funds after', `${fmt(cash - total)} ◎`, cash - total < 0 ? 'bad' : ''),
-      cash < total ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `The company holds ${fmt(cash)}: pay money in from Command Overview.`) : null,
+      cash < total ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `The company can spend ${fmt(cash)}: ${W.fundingMode() === 'own' ? 'pay money in from Command Overview' : W.fundingMode() === 'group' ? 'the group is short: pay money into the parent company' : 'you are short: your wallet pays for it'}.`) : null,
       h('div', { style: 'display:flex;gap:6px' }, btn('Confirm purchase', function confirmIt() { if (P.busy) return; P.busy = true; const r = W.placeOrder(P.cart, P.token); P.busy = false; if (r.ok) { P.cart = []; P.review = false; P.token = null; P.tab = 'orders'; } cx.go(r); }, { kind: 'pri', disabled: cash < total || Boolean(quote.bad.length) }), btn('Back to cart', () => { P.review = false; cx.refresh(); })),
     ].filter(Boolean), { cls: 'osx-sidepan' });
   } else {

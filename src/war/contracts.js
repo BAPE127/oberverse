@@ -5,6 +5,7 @@
 //   accept(game, id)     guards go on the post and the kit is reserved; `check(game, id)` says what is missing without changing anything
 //   decline(game, id)    turn an offer down
 //   view(game)           what the Contracts page shows
+import { bill } from './company.js';
 import { peekMilitary } from './state.js';
 import { nextId } from './equipment.js';
 import { idle } from './people.js';
@@ -93,7 +94,7 @@ function resolve(game, C, c) {
     game.notify?.(`${c.title} ends well. ${c.clientName} pays ${c.pay.toLocaleString('en-US')} obols.`, 'good');
   } else {
     const fine = Math.round(c.pay * K.penalty);
-    game.corp.pay('security', fine, { cat: 'penalty', owe: true });
+    bill(game, fine, { cat: 'penalty', quiet: false });
     rep.score += K.repLose; rep.failed++; cl.failed++; c.state = 'failed'; c.fine = fine;
     rep.ban[c.client] = game.clock.day + K.ban;
     C.log.push({ day: game.clock.day, text: `${c.title}: it went wrong. ${c.clientName} wants ${fine} obols back and will not call for ${K.ban} days.` });

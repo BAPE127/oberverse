@@ -3,10 +3,11 @@
 import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected, setCoupState, settle } from './protection.js';
 import { register as registerStructure, apply as applyDamage, repair as repairStructure, view as structureView } from './damage.js';
-import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash } from './company.js';
+import { found as foundCompany, rename as renameCompany, fund as fundCompany, take as takeFromCompany, pay as companyPay, buyLicence as licenceBuy, buyLot as lotBuy, view as companyView, cash as companyCash, setFunding as companyFunding, fundingMode as companyFundingMode, settleFunding as settleCompanyFunding } from './company.js';
 import { offers as transferOffers, transfer as transferIn, giveBack as transferBack } from './transfers.js';
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { market as procMarket, quote as procQuote, place as procPlace, ordersView as procOrders, CATEGORIES as PROC_CATEGORIES } from './procurement.js';
+import { nextEvent as warNextEvent } from './nextEvent.js';
 import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
 import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
 import { housing as housingOf } from './equipment.js';
@@ -57,9 +58,11 @@ export class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  /** v0.103.7: when the next thing happens ({ at (a game minute), why, others }) or null: what the terminal's Next event button runs time up to. */
+  nextEvent() { return warNextEvent(this.g); }
   /** Every game minute: the soldiers drawn on Hollowmoor Lot follow the books (src/war/bodies.js). */
   bodiesTick() { this._bodies ||= {}; bodiesStep(this.g, this._bodies); }
-  afterLoad() { this._bodies = {}; if (this.peek()?.company?.identity) bodiesSync(this.g); }
+  afterLoad() { this._bodies = {}; if (this.peek()?.company?.identity) { settleCompanyFunding(this.g); bodiesSync(this.g); } }
   bodies() { return [...this.g.npcs.values()].filter((n) => n.profile?.warStaff); }
   // ---- the company (v0.98.0 stage 3): its own account (game.corp 'security'); the wallet is touched only by fund() and take(), the two acts of the owner
   found(name) { return foundCompany(this.g, name); }
@@ -67,6 +70,9 @@ export class War {
   fund(amount) { return fundCompany(this.g, amount); }
   take(amount) { return takeFromCompany(this.g, amount); }
   cash() { return companyCash(this.g); }
+  /** v0.103.7: whose money the company uses: 'wallet' (the default), 'group' (the parent company's) or 'own' (an account of its own). */
+  setFunding(mode) { return companyFunding(this.g, mode); }
+  fundingMode() { return companyFundingMode(this.g); }
   buyLicence() { return licenceBuy(this.g); }
   buyLot() { return lotBuy(this.g); }
   companyView() { return companyView(this.g); }

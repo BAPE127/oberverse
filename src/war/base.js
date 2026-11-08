@@ -53,7 +53,7 @@ export function dayTick(game) {
     let target = M.start;
     if (!housed.has(p.id)) target += M.overcrowded;
     target += fed.has(p.id) ? (hot.has(p.id) ? BASE.food.hot : 0) : BASE.food.hungry;
-    if (acct.arrears > 0) target += M.unpaid;
+    if (acct.arrears > 0 || (C.owed || 0) > 0) target += M.unpaid;
     if ((p.wounds || 0) > 0) target += M.wounded;
     const tired = (p.fatigue ?? 0) > BASE.fatigue.tired;
     if (tired) target += M.tired; else if ((p.fatigue ?? 0) < BASE.fatigue.rested) target += M.rested;

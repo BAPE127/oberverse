@@ -12,7 +12,7 @@ export function renderOverview(cx, box) {
     const need = (V.licensed ? 0 : costs.licence) + (V.lotOwned ? 0 : costs.lot) + costs.office;
     const step = (done, title, sub, action) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, `${done ? '✓' : '▸'} ${title}`), h('small', {}, sub)), done ? chip('done', 'ok') : action);
     box.append(panel('Getting started: your first building', [
-      step(V.cash >= need, `Company funds: ${fmt(need)} needed`, `The company holds ${fmt(V.cash)}. You hold ${fmt(g.player.money)}.`, btn('Pay in the rest', () => cx.go(W.fund(Math.max(0, need - V.cash))), { kind: 'pri sm', disabled: need - V.cash <= 0 || g.player.money < need - V.cash })),
+      step(V.cash >= need, `Funds: ${fmt(need)} needed`, `${V.mode === 'wallet' ? `The company spends your wallet: you hold ${fmt(g.player.money)}.` : V.mode === 'group' ? `The company spends the group's cash: ${fmt(V.cash)}.` : `Its own account holds ${fmt(V.cash)}. You hold ${fmt(g.player.money)}.`}`, V.mode === 'own' ? btn('Pay in the rest', () => cx.go(W.fund(Math.max(0, need - V.cash))), { kind: 'pri sm', disabled: need - V.cash <= 0 || g.player.money < need - V.cash }) : h('small', {}, 'Short: see Funding below.')),
       step(V.licensed, `Civic Office licence · ${fmt(costs.licence)}`, 'Mason\'s Os cannot get a building permit without it.', btn('Buy', () => cx.go(W.buyLicence()), { kind: 'pri sm', disabled: V.cash < costs.licence })),
       step(V.lotOwned, `${LOT.name} · ${fmt(costs.lot)}`, V.licensed ? 'Fenced ground with a gate: where the base is built.' : 'Needs the licence first.', btn('Buy', () => cx.go(W.buyLot()), { kind: 'pri sm', disabled: !V.licensed || V.cash < costs.lot })),
       step(false, `Site office · ${fmt(costs.office)}`, V.lotOwned ? 'Built in a few days; the rest of the base opens after it.' : 'Needs the lot first.', btn('Order', () => cx.go(W.commission('site_office')), { kind: 'pri sm', disabled: !V.lotOwned || V.cash < costs.office })),
@@ -58,8 +58,13 @@ export function renderOverview(cx, box) {
   box.append(panel('Quick actions', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
     btn('Order supplies', () => cx.open('procurement'), { kind: 'pri' }), btn('Transfer internal supplies', () => cx.open('logistics')), btn('Review missions', () => cx.open('missions')),
     btn('Hire troops', () => cx.open('base', { base: { tab: 'people', sel: null } })), btn('Battalions', () => cx.open('base', { base: { tab: 'forces', sel: null } })), btn('Open base map', () => cx.open('base', { base: { tab: 'map', sel: null } })), btn('View global conflicts', () => cx.open('intel')), btn('Open theater map', () => cx.open('theaters')))));
-  // money in and out: the only two acts that cross between you and the company
+  // whose money the company spends (v0.103.7): your wallet, the group's cash, or an account of its own, as for the other companies
   const amount = h('input', { class: 'osx-input', type: 'number', min: 1, step: 1000, value: 50000, style: 'width:120px' }); const amt = () => Math.max(0, Math.floor(Number(amount.value) || 0));
-  box.append(panel('Company account', h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, amount, btn('Pay in', () => cx.go(W.fund(amt())), { kind: 'pri' }), btn('Take out', () => cx.go(W.take(amt())), { disabled: V.cash <= 0 || V.arrears > 0 }),
-    h('span', { class: 'osx-sub' }, `You hold ${fmt(g.player.money)} ◎. The company pays only from its own account, never from yours.`))));
+  const modeBtn = (m, label, why) => btn(label, () => cx.go(W.setFunding(m)), { kind: V.mode === m ? 'pri sm' : 'sm', disabled: m === 'group' && !V.hasGroup, title: m === 'group' && !V.hasGroup ? 'Found the parent company first (Group on your tablet).' : why });
+  box.append(panel('Funding', [
+    h('div', { style: 'display:flex;gap:6px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'osx-sub', style: 'padding:0' }, 'The company spends:'), modeBtn('wallet', 'Your wallet', 'It spends and earns through your cash'), modeBtn('group', 'The group\'s cash', 'It spends and earns through the parent company'), modeBtn('own', 'An account of its own', 'A separate account you pay into and take out of')),
+    V.mode === 'own' ? h('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap' }, amount, btn('Pay in', () => cx.go(W.fund(amt())), { kind: 'pri' }), btn('Take out', () => cx.go(W.take(amt())), { disabled: V.cash <= 0 || V.arrears > 0 })) : null,
+    h('span', { class: 'osx-sub', style: 'padding:0' }, V.mode === 'wallet' ? `Everything it buys comes off your wallet (${fmt(g.player.money)} ◎) and everything it earns goes into it.` : V.mode === 'group' ? `It spends and earns through the parent company: ${fmt(V.cash)} ◎ there. Your wallet is not touched.` : `Its own account holds ${fmt(V.cash)} ◎; you hold ${fmt(g.player.money)} ◎. Switching to your wallet or the group returns what it holds to you.`),
+    V.arrears > 0 ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `It owes ${fmt(V.arrears)} ◎ (wages or a fine it could not cover): it is paid first when money is available.`) : null,
+  ].filter(Boolean)));
 }

@@ -10,13 +10,14 @@ import { dayTick as battles } from './engagements.js';
 import { dayTick as strategic } from './strategic.js';
 import { dayTick as supplyLink } from './link.js';
 import { organise } from './organise.js';
+import { settleFunding } from './company.js';
 import { dayTick as procurement } from './procurement.js';
 
 export function runDay(game) {
   construction(game);
   const C = peekMilitary(game)?.company;
   if (!C?.identity) return;
-  game.corp.account('security').funded = true; // (a company registered in v0.98.0 may have an unfunded account: its income must never reach the wallet)
+  settleFunding(game); // v0.103.7: a company registered before it was told to use the wallet like the others, and held nothing, goes back to spending the wallet
   C.days ||= {};
   const day = game.clock.day;
   normalise(C);
