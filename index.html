@@ -18501,7 +18501,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.103.8';
+const GAME_VERSION = '0.103.9';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -33547,7 +33547,7 @@ const STATION = { seconds: 150, mercy: 240 };
 const STANCES = ['aggressive', 'defensive', 'holdfire'];
 const DEFENSIVE = { decay: 1.3 };
 /** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
-const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12 }; // (v0.103.8: the hover carriers)
+const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12, tempest: 2 }; // (v0.103.8: the hover carriers)
 const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
 /** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
 const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };
@@ -33687,6 +33687,33 @@ const AI = {
 const EXCHANGE = { hours: 36, breakAt: 25, rate: 0.018, armour: 5.5, fort: 0.07, entrench: 0.05, luck: 0.2 };
 
 return { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, SUPPLY, WEAKEN, FUEL, INTEL, COUNTRY_AI, COUNTRY_AI_DEFAULT, AI, EXCHANGE };
+})();
+
+// ---- src/content/airpower.js
+__m["src/content/airpower.js"] = (function () {
+// Air power on the strategic map (v0.103.9): pure data, all starting figures to calibrate (docs/PROPOSAL_WAR_STRATEGIC.md section 5). The rules that read them are in src/war/airpower.js.
+//
+//   range / weight   by the aircraft's look (src/content/aerospace.js): how far a wing's shortest-legged aircraft reaches from its airfield (km), and its weight in close air support
+//   cas / strike     the share of the enemy force a wing removes from the next fight at the target, per weight point (to a cap), and what a missile strike removes
+//   interdict        the share of a province's garrison cut while its roads are being bombed, and for how many days
+//   recon / loss     how long a recon pass keeps a province seen, and the chance per aircraft that a mission loses it (permanently): a base, plus the fort's anti-air, times a factor for the mission
+//   lift             a helicopter lift: range and speed (km, km/h) and the organisation it costs
+//   satellites       the intel level an owned, working satellite gives over the whole theatre (1 spotted, 2 known), by product
+const { RETAINER } = __m["src/content/strategic.js"];
+const AIR = {
+  range: { trainer: 500, fighter: 900, twinfighter: 1100, stealthfighter: 1200, futurefighter: 1400, tacbomber: 1600, stratbomber: 4000, flyingwing: 3500, futurebomber: 5000 },
+  weight: { trainer: 0.5, fighter: 1, twinfighter: 1.2, stealthfighter: 1.4, futurefighter: 1.8, tacbomber: 2, stratbomber: 3, flyingwing: 2.6, futurebomber: 3.6 },
+  cas: { cut: 0.07, max: 0.4 }, strike: { cut: 0.35 },
+  interdict: { cut: 0.15, days: 3 },
+  recon: { hours: 24, known: 1, spotted: 2 },
+  loss: { base: 0.03, perFort: 0.025, cas: 1.5, strike: 1.2, interdict: 1, recon: 0.6 },
+  lift: { range: 400, speed: 200, orgCost: 4 },
+  satellites: { st_cartographer: 1, st_watchtower: 2 },
+  perAircraft: RETAINER.perVehicle.helicopter,
+  missions: { recon: 'Reconnaissance', cas: 'Close air support', interdict: 'Interdiction', strike: 'Missile strike' },
+};
+
+return { AIR };
 })();
 
 // ---- src/war/supply.js
@@ -34533,6 +34560,7 @@ const { ATLAS } = __m["src/content/atlas.js"];
 const { VEHICLES } = __m["src/content/procurement.js"];
 const { CLASSES } = __m["src/content/troops.js"];
 const { CARRY, styleOf } = __m["src/content/battle.js"];
+const { AIR } = __m["src/content/airpower.js"];
 const { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL, EXCHANGE } = __m["src/content/strategic.js"];
 const { weatherOf, supplyMap, intelMap, estimate } = __m["src/war/supply.js"];
 const { stockOf, takeStock } = __m["src/war/equipment.js"];
@@ -34549,7 +34577,7 @@ const countryName = (id) => ATLAS.countries[id]?.name || id;
 function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
@@ -34575,10 +34603,13 @@ function intelLevels(game) {
   const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces(); const th = theatreOf(game, e.theatre); const inTh = inTheatre(th);
   const src = w.battalions.filter((b) => b.status === 'theatre').map((b) => ({ n: provinceById(b.pos).n, ...(reconOf(game, b) ? INTEL.reach.recon : INTEL.reach.plain) }));
   for (const s of hooks.allySources?.(game) || []) src.push(s);
+  for (const s of hooks.airSources?.(game) || []) src.push(s); // v0.103.9: satellites over the theatre and air recon passes
   for (const p of P) if (inTh(p) && controllerOf(game, p) === e.side) src.push({ n: p.n, known: 0, spotted: 1 });
   return intelMap(P, ctlOf(game), e.side, src);
 }
 const intelAt = (game, p) => intelLevels(game)?.[p.n] ?? 0;
+/** Is a province in the theatre the company serves in (true while it serves nowhere)? Read by air power through a hook. */
+hooks.inEmployerTheatre = (game, p) => { const e = warOf(game)?.employer; if (!e) return true; const th = theatreOf(game, e.theatre); return th ? inTheatre(th)(p) : true; };
 const homeProvince = () => provinceAt(52.6, -21.5); // Fort Gullcrest's province: where a battalion is raised
 const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
@@ -34587,7 +34618,8 @@ function garrisonOf(game, p) {
   const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
   if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown));
+  const cutI = 1 - (hooks.airInterdiction?.(game, p) || 0); // v0.103.9: bombed roads and depots thin a garrison for a few days
+  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown * cutI));
   const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
 }
@@ -34772,6 +34804,18 @@ function order(game, id, o) {
     bn.order = { type: 'move', to: to.id }; bn.path = r.path.slice(1); const first = provinceById(r.path[0]); bn.moving = { to: first.id, left: legHours(game, bn, here, first), attack: false }; bn.entrench = 0;
     return { ok: true, text: `${bn.name} sets out for ${to.name}: about ${r.hours} hours.`, hours: r.hours };
   }
+  if (o.type === 'airlift') { // v0.103.9: transport helicopters carry the battalion over ground it does not hold, within a short range; into enemy ground it is an air assault
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    if (to.id === bn.pos) return { ok: false, text: 'It is already there.' };
+    const lift = liftOf(game, bn); const troops = providedBy(game, bn.squads).people;
+    if (lift < troops) return { ok: false, text: `${bn.name} has ${lift} places in transport helicopters for ${troops} soldiers: it needs more (a Drover carries 8, an Ox 14, a Mercy 4).` };
+    const d = km(here, to); if (d > AIR.lift.range) return { ok: false, text: `${to.name} is ${Math.round(d)} km away; a helicopter lift reaches ${AIR.lift.range} km.` };
+    const mine = friendly(game, to); const foe = controllerOf(game, to) === e.enemy;
+    if (!mine && !foe) return { ok: false, text: 'You fly only into ground you hold or ground the enemy holds.' };
+    if (foe && bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
+    const hours = Math.max(1, Math.ceil(d / AIR.lift.speed)); bn.order = { type: foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: hours, attack: foe, air: true }; bn.org = Math.max(0, bn.org - AIR.lift.orgCost); bn.entrench = 0;
+    return { ok: true, text: `${bn.name} lifts off for ${to.name}: ${foe ? 'an air assault, contact' : 'landing'} in about ${hours} hour${hours === 1 ? '' : 's'}.`, hours };
+  }
   if (o.type === 'attack') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
     if (friendly(game, to)) return { ok: false, text: 'That ground is already yours.' };
@@ -34782,6 +34826,13 @@ function order(game, id, o) {
     return { ok: true, text: `${bn.name} moves on ${to.name}: contact in about ${Math.round(bn.moving.left)} hours.` };
   }
   return { ok: false, text: 'No such order.' };
+}
+
+/** The places the battalion's transport helicopters give (a Drover 8, an Ox 14, a Mercy 4: src/content/battle.js CARRY). */
+function liftOf(game, bn) {
+  const C = peekMilitary(game)?.company; let n = 0;
+  for (const sid of bn.squads) { const s = C?.squads.find((q) => q.id === sid); for (const e of s?.equipment || []) { const x = C.equipment.find((q) => q.id === e); if (x && x.status !== 'destroyed' && clsOf(x) === 'helicopter') n += CARRY[x.type] || 0; } }
+  return n;
 }
 
 // ---- time
@@ -34797,6 +34848,8 @@ function hostileForce(game, prov) {
 }
 function contact(game, w, bn, prov) {
   const real = hostileForce(game, prov); const lvl = intelAt(game, prov) + (reconOf(game, bn) ? 1 : 0); const k = `${prov.id}|${w.hour}`;
+  const aircut = hooks.airCut?.(game, prov) || 0; // v0.103.9: close air support and strikes flown against this province take their share off the enemy before the fight (once)
+  if (aircut) { real.troops = Math.max(0, Math.round(real.troops * (1 - aircut))); real.armour = Math.max(0, Math.round(real.armour * (1 - aircut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
   const reported = { troops: estimate(real.troops, Math.min(2, lvl), `${k}t`), armour: estimate(real.armour, Math.min(2, lvl), `${k}a`) };
   bn.moving = null; bn.order = { type: 'hold' };
   const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
@@ -34864,6 +34917,7 @@ function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
   if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
@@ -34928,7 +34982,7 @@ function view(game) {
 
 const SOLDIER_RETAINER = (game, bn) => { const P = providedBy(game, bn.squads); return P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); };
 
-return { unit, nowHour, countryName, warOf, nextId, note, controllerOf, setControl, ctlOf, weatherNow, supplyAt, intelLevels, intelAt, garrisonOf, DEFAULT_TEMPLATES, templates, saveTemplate, removeTemplate, needsOf, providedBy, raise, disband, statsOf, theatres, theatreOf, inTheatre, enlist, discharge, deploy, recall, marchHours, order, hostileForce, defend, recipeOf, battleTerrain, advance, ensureEmployer, dayTick, view, SOLDIER_RETAINER };
+return { unit, nowHour, countryName, warOf, nextId, note, controllerOf, setControl, ctlOf, weatherNow, supplyAt, intelLevels, intelAt, garrisonOf, DEFAULT_TEMPLATES, templates, saveTemplate, removeTemplate, needsOf, providedBy, raise, disband, statsOf, theatres, theatreOf, inTheatre, enlist, discharge, deploy, recall, marchHours, order, liftOf, hostileForce, defend, recipeOf, battleTerrain, advance, ensureEmployer, dayTick, view, SOLDIER_RETAINER };
 })();
 
 // ---- src/war/nextEvent.js
@@ -34984,6 +35038,175 @@ function nextEvent(game) {
 }
 
 return { nextEvent };
+})();
+
+// ---- src/war/airpower.js
+__m["src/war/airpower.js"] = (function () {
+// Air power on the strategic map (v0.103.9; src/content/airpower.js): wings raised from the company's real aircraft, based at an airfield the employer's side holds, flying one mission a day. Nothing is
+// spawned: an aircraft is a saved record locked to its wing (`wing`, status 'deployed'), a strike spends a real missile, and a loss is permanent. Satellites the company owns (Aerospace's network)
+// raise the fog over the whole theatre. Pure rules over `world.military.war` (`wings`, `air`) and the clock.
+//
+//   raiseWing(game, { name, aircraft })   disbandWing(game, id)        aircraft from the hangars into a wing, and back
+//   deployWing(game, id, provinceId) / recallWing(game, id)            to an airfield province of the employer's, and home
+//   mission(game, id, { type, to })       recon | cas | interdict | strike, one a day, within range
+//   takeCut(game, prov, side)             what air power takes off a force before a fight at a province (used once), 0 to 0.4
+//   wingsView(game)                       everything the screen shows
+// Saved: war.wings = [{ id, name, aircraft:[ids], base, status:'home'|'abroad', flown }], war.air = { recon: { prov: untilHour }, cas: { prov: cut }, strike: { prov: cut }, interdict: { prov: untilDay } }
+const { peekMilitary } = __m["src/war/state.js"];
+const { warOf, controllerOf, nowHour, note, nextId, countryName } = __m["src/war/strategic.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
+const { AIR } = __m["src/content/airpower.js"];
+const { hooks } = __m["src/war/hooks.js"];
+const { VEHICLES } = __m["src/content/procurement.js"];
+
+const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+const provinceKm = km;
+const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+const company = (g) => peekMilitary(g)?.company || null;
+const lookOf = (game, x) => game.aero?.cfg?.products?.[x.type]?.look || null;
+const kindOf = (game, x) => lookOf(game, x)?.kind || 'fighter';
+const alive = (game, w) => w.aircraft.map((id) => company(game).equipment.find((e) => e.id === id)).filter((e) => e && e.status !== 'destroyed');
+const wingsOf = (game) => (warOf(game)?.wings || []);
+
+/** A wing's reach from its airfield: that of its shortest-legged aircraft. */
+const reachOf = (game, w) => Math.min(...alive(game, w).map((x) => AIR.range[kindOf(game, x)] || 600), Infinity);
+const weightOf = (game, w) => alive(game, w).reduce((a, x) => a + (AIR.weight[kindOf(game, x)] || 1), 0);
+
+function raiseWing(game, { name, aircraft } = {}) {
+  const w = warOf(game); const C = company(game); if (!w || !C?.identity) return { ok: false, text: 'You have no company.' };
+  const ids = [...new Set(aircraft || [])]; if (!ids.length) return { ok: false, text: 'Choose at least one aircraft.' };
+  const picked = [];
+  for (const id of ids) {
+    const x = C.equipment.find((e) => e.id === id);
+    if (!x || x.kind !== 'aircraft') return { ok: false, text: `${id} is not an aircraft of the company.` };
+    if (x.status !== 'stored') return { ok: false, text: `${x.name} ${id} is ${x.status}: only an aircraft in the hangars can join a wing.` };
+    picked.push(x);
+  }
+  const id = nextId(w, 'W'); const n = w.wings.length + 1;
+  const wing = { id, name: String(name || '').trim().slice(0, 28) || `${n}${[, 'st', 'nd', 'rd'][n % 10] && ![11, 12, 13].includes(n % 100) ? [, 'st', 'nd', 'rd'][n % 10] : 'th'} Air Wing`, aircraft: ids, base: null, status: 'home', flown: 0 };
+  w.wings.push(wing); for (const x of picked) { x.status = 'deployed'; x.wing = id; }
+  C.log.push({ day: game.clock.day, text: `${wing.name} raised from ${ids.length} aircraft.` });
+  return { ok: true, text: `${wing.name} is raised: ${ids.length} aircraft.`, id };
+}
+
+function disbandWing(game, id) {
+  const w = warOf(game); const C = company(game); const wing = w?.wings.find((x) => x.id === id); if (!wing) return { ok: false, text: 'No such wing.' };
+  if (wing.status !== 'home') return { ok: false, text: `${wing.name} is abroad: recall it first.` };
+  for (const x of alive(game, wing)) { x.status = 'stored'; delete x.wing; }
+  w.wings = w.wings.filter((x) => x !== wing); C.log.push({ day: game.clock.day, text: `${wing.name} stood down.` });
+  return { ok: true, text: `${wing.name} is stood down; the aircraft are in the hangars.` };
+}
+
+/** Where a wing can be based: any ground the employer's side holds in its theatre (the atlas models only two airfields in the whole world, none in a theatre, so an expeditionary wing uses a strip on held ground; a province with an airfield, a port or a capital is simply the sensible place). */
+const hasStrip = () => true;
+
+/** The places the employer's side holds in its theatre where a wing can be based, by name. */
+function airfields(game) {
+  const w = warOf(game); const e = w?.employer; if (!e) return [];
+  return provinces().filter((p) => hasStrip(p) && controllerOf(game, p) === e.side && theatreHas(game, p)).sort((a, b) => a.name.localeCompare(b.name));
+}
+const theatreHas = (game, p) => { const e = warOf(game)?.employer; return !e || hooks.inEmployerTheatre?.(game, p) !== false; };
+
+function deployWing(game, id, provinceId) {
+  const w = warOf(game); const wing = w?.wings.find((x) => x.id === id); if (!wing) return { ok: false, text: 'No such wing.' };
+  if (!w.employer) return { ok: false, text: 'Enlist in a theatre first: a wing flies for the side you serve.' };
+  if (wing.status === 'abroad') return { ok: false, text: `${wing.name} is already abroad.` };
+  const p = provinceById(provinceId); if (!p || !hasStrip(p)) return { ok: false, text: 'No such province.' };
+  if (controllerOf(game, p) !== w.employer.side) return { ok: false, text: 'That airfield is not held by the side you serve.' };
+  wing.status = 'abroad'; wing.base = p.id; note(w, game, `${wing.name} flies out to ${p.name}.`);
+  return { ok: true, text: `${wing.name} deploys to ${p.name}.` };
+}
+function recallWing(game, id) {
+  const w = warOf(game); const wing = w?.wings.find((x) => x.id === id); if (!wing) return { ok: false, text: 'No such wing.' };
+  if (wing.status !== 'abroad') return { ok: false, text: `${wing.name} is at home.` };
+  wing.status = 'home'; wing.base = null; note(w, game, `${wing.name} flies home.`);
+  return { ok: true, text: `${wing.name} is home.` };
+}
+
+/** Provinces a wing could be sent against from where it is, with the distance: the enemy's, within reach, nearest first. */
+function targets(game, id, limit = 24) {
+  const w = warOf(game); const wing = w?.wings.find((x) => x.id === id); if (!wing || wing.status !== 'abroad' || !w.employer) return [];
+  const base = provinceById(wing.base); const reach = reachOf(game, wing);
+  return provinces().filter((p) => controllerOf(game, p) === w.employer.enemy).map((p) => ({ p, d: km(base, p) })).filter((x) => x.d <= reach).sort((a, b) => a.d - b.d).slice(0, limit).map((x) => ({ id: x.p.id, name: x.p.name, km: Math.round(x.d), fort: x.p.fort }));
+}
+
+function mission(game, id, { type, to } = {}) {
+  const w = warOf(game); const C = company(game); const wing = w?.wings.find((x) => x.id === id); if (!wing) return { ok: false, text: 'No such wing.' };
+  if (!AIR.missions[type]) return { ok: false, text: 'No such mission.' };
+  if (wing.status !== 'abroad' || !w.employer) return { ok: false, text: `${wing.name} is not abroad: deploy it to an airfield first.` };
+  if (wing.flown >= game.clock.day) return { ok: false, text: `${wing.name} has flown today: the aircraft need a night's work.` };
+  const air = alive(game, wing); if (!air.length) return { ok: false, text: `${wing.name} has no aircraft left.` };
+  const target = provinceById(to); if (!target) return { ok: false, text: 'No such province.' };
+  if (controllerOf(game, target) !== w.employer.enemy) return { ok: false, text: 'A wing flies against the enemy only.' };
+  const base = provinceById(wing.base); const d = km(base, target); const reach = reachOf(game, wing);
+  if (d > reach) return { ok: false, text: `${target.name} is ${Math.round(d)} km from ${base.name}; the wing reaches ${Math.round(reach)} km.` };
+  let missile = null;
+  if (type === 'strike') { missile = C.equipment.find((e) => e.kind === 'missile' && e.status === 'stored' && e.assignedTo == null); if (!missile) return { ok: false, text: 'A strike spends a strategic missile, and the stores have none.' }; }
+  // every check passed: now the changes. A strike spends its missile; each aircraft may be lost (permanently).
+  if (missile) { missile.status = 'destroyed'; missile.expended = game.clock.day; }
+  wing.flown = game.clock.day;
+  const day = game.clock.day; const lost = [];
+  for (const x of air) { const p = (AIR.loss.base + AIR.loss.perFort * (target.fort || 0)) * (AIR.loss[type] ?? 1); if (unit(`air|${wing.id}|${x.id}|${day}|${type}`) < p) { x.status = 'destroyed'; x.lostDay = day; lost.push(x); } }
+  for (const x of lost) { wing.aircraft = wing.aircraft.filter((i) => i !== x.id); delete x.wing; }
+  const survivors = air.filter((x) => !lost.includes(x)); const wt = survivors.reduce((a, x) => a + (AIR.weight[kindOf(game, x)] || 1), 0);
+  let effect = '';
+  if (type === 'recon') { w.air.recon[target.id] = nowHour(game) + AIR.recon.hours; effect = `${target.name} and its neighbours are seen for a day.`; }
+  else if (type === 'cas') { const cut = Math.min(AIR.cas.max, AIR.cas.cut * wt); w.air.cas[target.id] = Math.max(w.air.cas[target.id] || 0, cut); effect = `the next fight at ${target.name} meets ${Math.round(cut * 100)}% fewer of the enemy.`; }
+  else if (type === 'interdict') { w.air.interdict[target.id] = day + AIR.interdict.days; effect = `${target.name}'s garrison is cut by ${Math.round(AIR.interdict.cut * 100)}% for ${AIR.interdict.days} days.`; }
+  else if (type === 'strike') { w.air.strike[target.id] = AIR.strike.cut; effect = `a missile strikes ${target.name}: ${Math.round(AIR.strike.cut * 100)}% fewer of the enemy in the next fight there.`; }
+  if (type !== 'recon' && !survivors.length) effect = 'the wing was lost before it could do anything.';
+  const text = `${wing.name}: ${AIR.missions[type]} over ${target.name}; ${effect}${lost.length ? ` Lost: ${lost.map((x) => `${x.name} ${x.id}`).join(', ')}.` : ''}`;
+  note(w, game, text); if (lost.length) game.notify?.(`${wing.name} lost ${lost.length} aircraft over ${target.name}.`, 'warn');
+  return { ok: true, text, lost: lost.length };
+}
+
+/** What air power takes off the enemy before a fight at a province (the cut is used up by the fight). For a battle against our own province, `ours` is true and it is our cover that counts. */
+function takeCut(game, prov) {
+  const w = warOf(game); if (!w?.air) return 0;
+  const cas = w.air.cas[prov.id] || 0; const strike = w.air.strike[prov.id] || 0; delete w.air.cas[prov.id]; delete w.air.strike[prov.id];
+  return Math.min(0.7, cas + strike);
+}
+/** The share of a province's garrison cut by interdiction today. */
+function interdiction(game, prov) {
+  const w = warOf(game); const until = w?.air?.interdict?.[prov.id]; return until && until >= game.clock.day ? AIR.interdict.cut : 0;
+}
+
+/** The intel sources air power gives (used by intelLevels): working satellites cover the whole theatre, a recon pass the target and what is next to it. */
+hooks.airSources = (game) => {
+  const w = warOf(game); const e = w?.employer; if (!e) return [];
+  const out = []; const A = game.aero?.state?.satellites || {};
+  let level = 0;
+  for (const s of Object.values(A)) if (s.own && (s.status === 'operational' || s.status === 'degraded')) level = Math.max(level, AIR.satellites[s.product] || 0);
+  if (level) for (const p of provinces()) if (hooks.inEmployerTheatre?.(game, p) !== false) out.push(level >= 2 ? { n: p.n, known: 0, spotted: 0 } : { n: p.n, known: -1, spotted: 0 });
+  const h = nowHour(game);
+  for (const [pid, until] of Object.entries(w.air?.recon || {})) if (until >= h) { const p = provinceById(pid); if (p) out.push({ n: p.n, known: 0, spotted: 1 }); }
+  return out;
+};
+
+hooks.airCut = (game, prov) => takeCut(game, prov);
+hooks.airInterdiction = (game, prov) => interdiction(game, prov);
+hooks.airPay = (game) => dailyPay(game);
+
+/** The daily retainer for the aircraft of wings abroad, at the helicopter's vehicle rate (the owner's rule: the vehicle scale), and a clean-up of old effects. */
+function dailyPay(game) {
+  const w = warOf(game); if (!w) return 0; let pay = 0;
+  for (const wing of w.wings) if (wing.status === 'abroad' && w.employer) pay += alive(game, wing).length * AIR.perAircraft;
+  const day = game.clock.day; const h = nowHour(game);
+  for (const k of Object.keys(w.air.recon)) if (w.air.recon[k] < h) delete w.air.recon[k];
+  for (const k of Object.keys(w.air.interdict)) if (w.air.interdict[k] < day) delete w.air.interdict[k];
+  return pay;
+}
+
+function wingsView(game) {
+  const w = warOf(game); const C = company(game); if (!w || !C?.identity) return null;
+  const free = C.equipment.filter((e) => e.kind === 'aircraft' && e.status === 'stored').map((e) => ({ id: e.id, name: e.name, kind: kindOf(game, e) }));
+  const missiles = C.equipment.filter((e) => e.kind === 'missile' && e.status === 'stored' && e.assignedTo == null).length;
+  const sats = Object.values(game.aero?.state?.satellites || {}).filter((s) => s.own && (s.status === 'operational' || s.status === 'degraded') && AIR.satellites[s.product]).map((s) => ({ name: game.aero.cfg.products[s.product].name, level: AIR.satellites[s.product] }));
+  return { free, missiles, satellites: sats, airfields: airfields(game).map((p) => ({ id: p.id, name: p.name, country: countryName(p.country) })), missions: AIR.missions,
+    wings: w.wings.map((x) => ({ ...x, aircraftNow: alive(game, x).map((e) => ({ id: e.id, name: e.name, kind: kindOf(game, e) })), reach: Math.round(reachOf(game, x)), weight: Math.round(weightOf(game, x) * 10) / 10, baseName: x.base ? provinceById(x.base).name : null, canFly: x.status === 'abroad' && x.flown < game.clock.day })) };
+}
+
+return { provinceKm, wingsOf, reachOf, raiseWing, disbandWing, hasStrip, airfields, deployWing, recallWing, targets, mission, takeCut, interdiction, dailyPay, wingsView };
 })();
 
 // ---- src/war/organise.js
@@ -35422,6 +35645,9 @@ function checkMilitary(m) {
     if (b.commander != null && !people.some((p) => p.id === b.commander)) add('missing_reference', b.id, `battalion ${b.id} has a commander ${b.commander} who is not in the personnel`);
   }
   for (const s of squads) if (s.battalion && !(m.war?.battalions || []).some((b) => b.id === s.battalion && b.squads.includes(s.id))) add('missing_reference', s.id, `squad ${s.id} says it is in battalion ${s.battalion}, which does not list it`);
+  // v0.103.9: air wings: their aircraft exist, are theirs alone and are locked to them
+  for (const wg of m.war?.wings || []) for (const id of wg.aircraft || []) { const x = items.find((i) => i.id === id); if (!x) add('missing_reference', wg.id, `wing ${wg.id} lists ${id}, which does not exist`); else if (x.wing !== wg.id) add('double_assignment', id, `${id} is in wing ${wg.id} but says ${x.wing ?? 'none'}`); }
+  for (const x of items) if (x.wing && !(m.war?.wings || []).some((wg) => wg.id === x.wing && wg.aircraft.includes(x.id))) add('missing_reference', x.id, `${x.id} says it is in wing ${x.wing}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
@@ -35740,6 +35966,7 @@ const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } =
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
 const { market: procMarket, quote: procQuote, place: procPlace, ordersView: procOrders, CATEGORIES: PROC_CATEGORIES } = __m["src/war/procurement.js"];
 const { nextEvent: warNextEvent } = __m["src/war/nextEvent.js"];
+const { raiseWing: airRaise, disbandWing: airDisband, deployWing: airDeploy, recallWing: airRecall, mission: airMission, wingsView: airView, targets: airTargets } = __m["src/war/airpower.js"];
 const { view: researchView, start: researchStart, reach: researchReach } = __m["src/war/research.js"];
 const { organise: troopsOrganise, setAuto: troopsAuto } = __m["src/war/organise.js"];
 const { view: linkView, setWant: linkWant, setDedicated: linkWorks, buyElsewhere: linkBuy } = __m["src/war/link.js"];
@@ -35791,6 +36018,14 @@ class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  // ---- v0.103.9: air power on the strategic map (wings, missions, helicopter lifts through `order(id, { type: 'airlift', to })`)
+  air() { return airView(this.g); }
+  raiseWing(name, aircraft) { return airRaise(this.g, { name, aircraft }); }
+  disbandWing(id) { return airDisband(this.g, id); }
+  deployWing(id, provinceId) { return airDeploy(this.g, id, provinceId); }
+  recallWing(id) { return airRecall(this.g, id); }
+  wingMission(id, type, to) { return airMission(this.g, id, { type, to }); }
+  wingTargets(id) { return airTargets(this.g, id); }
   // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
   research() { return researchView(this.g); }
   startResearch(id) { return researchStart(this.g, id); }
@@ -57527,6 +57762,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.103.9',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Air Power on the Strategic Map',
+    notes: [
+      'Air wings: raise a wing from the aircraft in your hangars (Base Operations, Air wings), base it on ground the side you serve holds, and fly one mission a day within its reach: reconnaissance, close air support, interdiction, or a missile strike that spends a real missile. Aircraft can be lost, for good.',
+      'Satellites you own (a Cartographer or a Watchtower from Aerospace) now lift the fog over the whole theatre, and a recon pass lifts it over a province for a day.',
+      'Helicopter lifts: a battalion with enough transport helicopters (Drover, Ox, Mercy) can be lifted over ground it does not hold, or into an air assault on the enemy, with the new Airlift order on the strategic map. Aircraft abroad are paid like the other vehicles in the theatre.',
+    ],
+  },
   {
     version: '0.103.8',
     date: '2026-11-08',
@@ -80886,7 +81132,7 @@ function strategicPanel(ui, body) {
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
       h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('div', { class: 'stc-meters' }, ...[['Supply', s.supply, s.supply >= 70 ? '#3ddc84' : s.supply >= 25 ? '#e8b84a' : '#e05a4a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, `${val}%`)))), h('p', { class: 'stc-note' }, `${s.supply < 70 ? 'Short of supply: it recovers slowly and fights with less morale; it is never stopped. ' : ''}${s.fuelShort ? `Short of fuel (${s.fuelShort}%): its vehicles count for less. ` : ''}Weather here: ${WEATHER[(v.provinces.find((q) => q.id === b.pos) || {}).weather || 'clear'].name}.`),
-      h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
+      h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('airlift', 'Airlift', 'airlift'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
       b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.milPage = 'Missions'; ui.openPanel('militaryterminal'); } }, 'Decide the battle')) : null,
       h('div', { class: 'stc-btns' }, b.status === 'home' ? h('button', { class: 'pri', disabled: !v.employer, title: v.employer ? '' : 'Enlist first', onclick: () => act(W.deploy(b.id)) }, 'Send to the theatre') : null, b.status === 'theatre' ? h('button', { disabled: Boolean(b.engaged || b.moving), onclick: () => act(W.recall(b.id)) }, 'Bring home') : null, b.status === 'home' ? h('button', { onclick: () => act(W.standDown(b.id)) }, 'Stand down') : null)].filter(Boolean));
   };
@@ -81678,6 +81924,43 @@ function renderResearch(cx, box) {
 return { renderResearch };
 })();
 
+// ---- src/ui/osint/air.js
+__m["src/ui/osint/air.js"] = (function () {
+// Air wings (v0.103.9): Base Operations → Air wings. Raise a wing from the aircraft in the hangars, base it on ground the employer's side holds, and fly one mission a day (reconnaissance, close air
+// support, interdiction, a missile strike) against the enemy within reach. The same rules as `game.war` (src/war/airpower.js); nothing here advances the war.
+const { h, panel, stats, stat, btn, chip, empty, kv } = __m["src/ui/osint/kit.js"];
+
+const form = (S) => (S.air ||= { name: '', pick: [], base: {}, target: {}, type: {} });
+
+function renderAir(cx, box) {
+  const { W, S } = cx; const A = W.air(); const F = form(S.base || S); if (!A) return;
+  F.pick = F.pick.filter((id) => A.free.some((x) => x.id === id));
+  box.append(stats(stat('Aircraft in the hangars', String(A.free.length)), stat('Wings', String(A.wings.length)), stat('Strategic missiles', String(A.missiles), { sub: 'a strike spends one' }), stat('Own satellites', String(A.satellites.length), { sub: A.satellites.length ? A.satellites.map((s) => `${s.name}: ${s.level >= 2 ? 'knows' : 'spots'}`).join(', ') : 'none working: the fog stays' })));
+  box.append(h('div', { style: 'height:8px' }));
+  const name = h('input', { class: 'osx-input', value: F.name, placeholder: 'name (optional)', style: 'width:200px', oninput: (e) => { F.name = e.target.value; } });
+  box.append(panel('Raise a wing', [
+    h('div', { class: 'osx-sub' }, 'A wing is made of real aircraft, locked to it while it stands. Aircraft come from Aerospace (Internal Logistics: transfers) and are never built here. A lost aircraft is lost for good.'),
+    ...(A.free.length ? A.free.map((x) => h('label', { class: 'osx-row tap', style: 'cursor:pointer' }, h('span', {}, h('input', { type: 'checkbox', checked: F.pick.includes(x.id), onchange: (e) => { F.pick = e.target.checked ? [...F.pick, x.id] : F.pick.filter((i) => i !== x.id); cx.refresh(); } }), ` ${x.name} `, h('small', {}, `${x.id} · ${x.kind}`)))) : [empty('No aircraft in the hangars: move some from Aerospace (Internal Logistics).')]),
+    h('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:8px' }, name, btn('Raise wing', () => { const r = W.raiseWing(F.name, F.pick); if (r.ok) { F.name = ''; F.pick = []; } cx.go(r); }, { kind: 'pri', disabled: !F.pick.length }))]));
+  box.append(h('div', { style: 'height:8px' }));
+  if (!A.wings.length) { box.append(empty('No wings yet.')); return; }
+  for (const w of A.wings) {
+    const abroad = w.status === 'abroad'; const targets = abroad ? W.wingTargets(w.id) : [];
+    const sel = (opts, ph, on, cur) => h('select', { onchange: (e) => on(e.target.value) }, h('option', { value: '' }, ph), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
+    box.append(panel(w.name, [
+      h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, chip(abroad ? `at ${w.baseName}` : 'at home', abroad ? 'bl' : 'ok'), chip(`${w.aircraftNow.length} aircraft`), chip(`reach ${w.reach} km`), chip(`weight ${w.weight}`), abroad ? chip(w.canFly ? 'can fly today' : 'flown today', w.canFly ? 'ok' : 'warn') : null),
+      h('div', { class: 'osx-sub', style: 'padding:0' }, w.aircraftNow.map((x) => `${x.name} ${x.id}`).join(' · ') || 'No aircraft left.'),
+      !abroad ? h('div', { class: 'osx-ctl' }, sel(A.airfields.map((p) => [p.id, `${p.name} (${p.country})`]), A.airfields.length ? 'Base it at…' : 'Enlist in a theater first', (v) => { F.base[w.id] = v; }, F.base[w.id]), btn('Deploy', () => cx.go(W.deployWing(w.id, F.base[w.id])), { kind: 'pri sm', disabled: !A.airfields.length }), btn('Stand the wing down', () => cx.go(W.disbandWing(w.id)), { kind: 'sm' }))
+        : h('div', {}, h('div', { class: 'osx-ctl' }, sel(targets.map((t) => [t.id, `${t.name} · ${t.km} km${t.fort ? ` · fort ${t.fort}` : ''}`]), 'Target…', (v) => { F.target[w.id] = v; }, F.target[w.id]),
+          ...Object.entries(A.missions).map(([type, label]) => btn(label, () => cx.go(W.wingMission(w.id, type, F.target[w.id])), { kind: 'sm', disabled: !w.canFly || !targets.length, title: ({ recon: 'Lifts the fog over the target for a day', cas: 'Takes a share off the next fight there', interdict: 'Thins the garrison for three days', strike: 'Spends a strategic missile; a larger share off the next fight' })[type] }))),
+          h('div', { class: 'osx-ctl', style: 'margin-top:6px' }, btn('Recall', () => cx.go(W.recallWing(w.id)), { kind: 'sm' }))),
+    ].filter(Boolean), { sub: abroad ? 'One mission a day. Aircraft may be lost; a strike spends a real missile.' : 'Base it on ground the side you serve holds.' }), h('div', { style: 'height:8px' }));
+  }
+}
+
+return { renderAir };
+})();
+
 // ---- src/ui/osint/base.js
 __m["src/ui/osint/base.js"] = (function () {
 // Base Operations (v0.103.4): the Hollowmoor installation as a map you can inspect and build on. The map is drawn from the lot's real layout (SLOTS in src/content/maps/hollowmoor.js) and each
@@ -81693,6 +81976,7 @@ const { renderForces } = __m["src/ui/osint/forces.js"];
 const { paintBase } = __m["src/ui/osint/basemap.js"];
 const { renderFactory, machinesStrip } = __m["src/ui/osint/factory.js"];
 const { renderResearch } = __m["src/ui/osint/research.js"];
+const { renderAir } = __m["src/ui/osint/air.js"];
 
 const CAP_TEXT = { beds: (v) => `${v} beds`, meals: (v) => `${v} hot meals a day`, treat: (v) => `${v} treatment places`, stores: () => 'storage (the stores have no limit)', desks: (v) => `${v} desks`, lines: (v) => `${v} production lines`, bays: (v) => `${v} bays`, training: (v) => `${v} training places`, repair: (v) => `${v} repair places`, racks: (v) => `${v} weapon racks`, surgery: (v) => `${v} surgery theatres`, briefing: (v) => `a briefing room for ${v}` };
 const STATE_TEXT = { none: 'Not built', permit: 'Awaiting permit', foundation: 'Foundations', frame: 'Frame', fitted: 'Fitting out', built: 'Operational', ruin: 'Ruin' };
@@ -81746,11 +82030,12 @@ function mapFor(cx) {
 
 function renderBase(cx, box) {
   const { W, S } = cx; const B = state(S); const V = W.companyView();
-  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'air', label: 'Air wings' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
   if (B.tab === 'forces') { renderForces(cx, box); return; }
   if (B.tab === 'people') { renderSquadBoard(cx, box); return; }
   if (B.tab === 'works') { renderWorks(cx, box); return; }
   if (B.tab === 'research') { renderResearch(cx, box); return; }
+  if (B.tab === 'air') { renderAir(cx, box); return; }
   if (!V.lotOwned) { box.append(empty('The company owns no ground yet. Buy the Civic Office licence and Hollowmoor Lot from Command Overview.')); return; }
   const fac = W.facilities(); const sel = fac.find((f) => f.id === B.sel) || null;
   const built = fac.filter((f) => f.state === 'built').length; const dmg = fac.filter((f) => ['damaged', 'ruin'].includes(status(cx, f).mode)).length; const bld = fac.filter((f) => status(cx, f).mode === 'build').length;

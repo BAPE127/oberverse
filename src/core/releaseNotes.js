@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.9',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Air Power on the Strategic Map',
+    notes: [
+      'Air wings: raise a wing from the aircraft in your hangars (Base Operations, Air wings), base it on ground the side you serve holds, and fly one mission a day within its reach: reconnaissance, close air support, interdiction, or a missile strike that spends a real missile. Aircraft can be lost, for good.',
+      'Satellites you own (a Cartographer or a Watchtower from Aerospace) now lift the fog over the whole theatre, and a recon pass lifts it over a province for a day.',
+      'Helicopter lifts: a battalion with enough transport helicopters (Drover, Ox, Mercy) can be lifted over ground it does not hold, or into an air assault on the enemy, with the new Airlift order on the strategic map. Aircraft abroad are paid like the other vehicles in the theatre.',
+    ],
+  },
+  {
     version: '0.103.8',
     date: '2026-11-08',
     channel: 'development',

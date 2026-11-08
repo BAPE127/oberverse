@@ -617,6 +617,22 @@ try {
   });
   record('the Research tab shows the tree, a project starts and shows under way, and tiers 3 and 4 are locked on the squad board until researched', Object.values(rsr).every(Boolean), JSON.stringify(rsr));
   await shot('war-research');
+  // v0.103.9: the Air wings tab: raise a wing from aircraft in the hangars, base it, fly a mission; and the strategic map's Airlift order button
+  const air = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    const C = g.war.state().company; for (const [id, type] of [['Sa1', 'af_falcon'], ['Sa2', 'af_falcon']]) C.equipment.push({ id, kind: 'aircraft', type, name: 'Falcon', source: 'aero', origin: null, location: 'facility:hangars', status: 'stored', assignedTo: null, day: 1 });
+    if (!g.war.state().war?.employer) g.war.enlist({ theatre: 'th_halden', side: 'ostmark' });
+    const w1 = g.war.raiseWing('Smoke Wing', ['Sa1', 'Sa2']); out.raised = w1.ok;
+    const A = g.war.air(); out.airfields = A.airfields.length > 3; g.war.deployWing(w1.id, A.airfields[0].id);
+    const tg = g.war.wingTargets(w1.id); out.targets = tg.length > 0; const m = g.war.wingMission(w1.id, 'recon', tg[0]?.id); out.flew = m.ok;
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'air', sel: null } }; ui.openPanel('militaryterminal'); await T(600);
+    const main = () => document.querySelector('.osx-main')?.textContent || '';
+    out.airTab = /SMOKE WING/i.test(main()) && /Reconnaissance/.test(main()) && /flown today/i.test(main()) && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');
+    out.check = g.war.check().length === 0;
+    return out;
+  });
+  record('the Air wings tab raises a wing, bases it, flies a mission and shows it flown', Object.values(air).every(Boolean), JSON.stringify(air));
+  await shot('war-air-wings');
   const bm = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
     ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'works', works: 'motor_pool', sel: null } }; ui.openPanel('militaryterminal'); await T(500);

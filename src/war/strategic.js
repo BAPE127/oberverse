@@ -20,6 +20,7 @@ import { ATLAS } from '../content/atlas.js';
 import { VEHICLES } from '../content/procurement.js';
 import { CLASSES } from '../content/troops.js';
 import { CARRY, styleOf } from '../content/battle.js';
+import { AIR } from '../content/airpower.js';
 import { TERRAIN_FX, INFRA_SPEED, MARCH, SEALIFT, RETAINER, BATTALION, GARRISON, SLOTS, MAX_LINE, WEATHER, WEAKEN, FUEL, INTEL, EXCHANGE } from '../content/strategic.js';
 import { weatherOf, supplyMap, intelMap, estimate } from './supply.js';
 import { stockOf, takeStock } from './equipment.js';
@@ -36,7 +37,7 @@ export const countryName = (id) => ATLAS.countries[id]?.name || id;
 export function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
@@ -62,10 +63,13 @@ export function intelLevels(game) {
   const w = warOf(game); const e = w?.employer; if (!e) return null; const P = provinces(); const th = theatreOf(game, e.theatre); const inTh = inTheatre(th);
   const src = w.battalions.filter((b) => b.status === 'theatre').map((b) => ({ n: provinceById(b.pos).n, ...(reconOf(game, b) ? INTEL.reach.recon : INTEL.reach.plain) }));
   for (const s of hooks.allySources?.(game) || []) src.push(s);
+  for (const s of hooks.airSources?.(game) || []) src.push(s); // v0.103.9: satellites over the theatre and air recon passes
   for (const p of P) if (inTh(p) && controllerOf(game, p) === e.side) src.push({ n: p.n, known: 0, spotted: 1 });
   return intelMap(P, ctlOf(game), e.side, src);
 }
 export const intelAt = (game, p) => intelLevels(game)?.[p.n] ?? 0;
+/** Is a province in the theatre the company serves in (true while it serves nowhere)? Read by air power through a hook. */
+hooks.inEmployerTheatre = (game, p) => { const e = warOf(game)?.employer; if (!e) return true; const th = theatreOf(game, e.theatre); return th ? inTheatre(th)(p) : true; };
 const homeProvince = () => provinceAt(52.6, -21.5); // Fort Gullcrest's province: where a battalion is raised
 const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
@@ -74,7 +78,8 @@ export function garrisonOf(game, p) {
   const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
   if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown));
+  const cutI = 1 - (hooks.airInterdiction?.(game, p) || 0); // v0.103.9: bombed roads and depots thin a garrison for a few days
+  const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown * cutI));
   const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
 }
@@ -259,6 +264,18 @@ export function order(game, id, o) {
     bn.order = { type: 'move', to: to.id }; bn.path = r.path.slice(1); const first = provinceById(r.path[0]); bn.moving = { to: first.id, left: legHours(game, bn, here, first), attack: false }; bn.entrench = 0;
     return { ok: true, text: `${bn.name} sets out for ${to.name}: about ${r.hours} hours.`, hours: r.hours };
   }
+  if (o.type === 'airlift') { // v0.103.9: transport helicopters carry the battalion over ground it does not hold, within a short range; into enemy ground it is an air assault
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    if (to.id === bn.pos) return { ok: false, text: 'It is already there.' };
+    const lift = liftOf(game, bn); const troops = providedBy(game, bn.squads).people;
+    if (lift < troops) return { ok: false, text: `${bn.name} has ${lift} places in transport helicopters for ${troops} soldiers: it needs more (a Drover carries 8, an Ox 14, a Mercy 4).` };
+    const d = km(here, to); if (d > AIR.lift.range) return { ok: false, text: `${to.name} is ${Math.round(d)} km away; a helicopter lift reaches ${AIR.lift.range} km.` };
+    const mine = friendly(game, to); const foe = controllerOf(game, to) === e.enemy;
+    if (!mine && !foe) return { ok: false, text: 'You fly only into ground you hold or ground the enemy holds.' };
+    if (foe && bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
+    const hours = Math.max(1, Math.ceil(d / AIR.lift.speed)); bn.order = { type: foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: hours, attack: foe, air: true }; bn.org = Math.max(0, bn.org - AIR.lift.orgCost); bn.entrench = 0;
+    return { ok: true, text: `${bn.name} lifts off for ${to.name}: ${foe ? 'an air assault, contact' : 'landing'} in about ${hours} hour${hours === 1 ? '' : 's'}.`, hours };
+  }
   if (o.type === 'attack') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
     if (friendly(game, to)) return { ok: false, text: 'That ground is already yours.' };
@@ -269,6 +286,13 @@ export function order(game, id, o) {
     return { ok: true, text: `${bn.name} moves on ${to.name}: contact in about ${Math.round(bn.moving.left)} hours.` };
   }
   return { ok: false, text: 'No such order.' };
+}
+
+/** The places the battalion's transport helicopters give (a Drover 8, an Ox 14, a Mercy 4: src/content/battle.js CARRY). */
+export function liftOf(game, bn) {
+  const C = peekMilitary(game)?.company; let n = 0;
+  for (const sid of bn.squads) { const s = C?.squads.find((q) => q.id === sid); for (const e of s?.equipment || []) { const x = C.equipment.find((q) => q.id === e); if (x && x.status !== 'destroyed' && clsOf(x) === 'helicopter') n += CARRY[x.type] || 0; } }
+  return n;
 }
 
 // ---- time
@@ -284,6 +308,8 @@ export function hostileForce(game, prov) {
 }
 function contact(game, w, bn, prov) {
   const real = hostileForce(game, prov); const lvl = intelAt(game, prov) + (reconOf(game, bn) ? 1 : 0); const k = `${prov.id}|${w.hour}`;
+  const aircut = hooks.airCut?.(game, prov) || 0; // v0.103.9: close air support and strikes flown against this province take their share off the enemy before the fight (once)
+  if (aircut) { real.troops = Math.max(0, Math.round(real.troops * (1 - aircut))); real.armour = Math.max(0, Math.round(real.armour * (1 - aircut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
   const reported = { troops: estimate(real.troops, Math.min(2, lvl), `${k}t`), armour: estimate(real.armour, Math.min(2, lvl), `${k}a`) };
   bn.moving = null; bn.order = { type: 'hold' };
   const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
@@ -351,6 +377,7 @@ export function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
   if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 

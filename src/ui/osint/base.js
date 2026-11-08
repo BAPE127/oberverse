@@ -11,6 +11,7 @@ import { renderForces } from './forces.js';
 import { paintBase } from './basemap.js';
 import { renderFactory, machinesStrip } from './factory.js';
 import { renderResearch } from './research.js';
+import { renderAir } from './air.js';
 
 const CAP_TEXT = { beds: (v) => `${v} beds`, meals: (v) => `${v} hot meals a day`, treat: (v) => `${v} treatment places`, stores: () => 'storage (the stores have no limit)', desks: (v) => `${v} desks`, lines: (v) => `${v} production lines`, bays: (v) => `${v} bays`, training: (v) => `${v} training places`, repair: (v) => `${v} repair places`, racks: (v) => `${v} weapon racks`, surgery: (v) => `${v} surgery theatres`, briefing: (v) => `a briefing room for ${v}` };
 const STATE_TEXT = { none: 'Not built', permit: 'Awaiting permit', foundation: 'Foundations', frame: 'Frame', fitted: 'Fitting out', built: 'Operational', ruin: 'Ruin' };
@@ -64,11 +65,12 @@ function mapFor(cx) {
 
 export function renderBase(cx, box) {
   const { W, S } = cx; const B = state(S); const V = W.companyView();
-  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'air', label: 'Air wings' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
   if (B.tab === 'forces') { renderForces(cx, box); return; }
   if (B.tab === 'people') { renderSquadBoard(cx, box); return; }
   if (B.tab === 'works') { renderWorks(cx, box); return; }
   if (B.tab === 'research') { renderResearch(cx, box); return; }
+  if (B.tab === 'air') { renderAir(cx, box); return; }
   if (!V.lotOwned) { box.append(empty('The company owns no ground yet. Buy the Civic Office licence and Hollowmoor Lot from Command Overview.')); return; }
   const fac = W.facilities(); const sel = fac.find((f) => f.id === B.sel) || null;
   const built = fac.filter((f) => f.state === 'built').length; const dmg = fac.filter((f) => ['damaged', 'ruin'].includes(status(cx, f).mode)).length; const bld = fac.filter((f) => status(cx, f).mode === 'build').length;

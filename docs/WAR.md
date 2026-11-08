@@ -151,6 +151,26 @@ The owner asked for a heavy re-evaluation: mimic how the aerospace company works
 
 **Where everything that used to be in the Military app now lives:** hiring, squads, weapons, looks, base: Base Operations (Personnel); buildings, repair: Base Operations (map); factories and their lines: Base Operations (tank factory, helicopter works); supply levels and the works that make for the company: Internal Logistics; aircraft and missile transfers and returns: Internal Logistics; buying vehicles and supplies: Procurement; contracts, engagements, generals: Mission Control; battalions, enlisting, orders: the operational map (Theater Operations, in the theater you are in); money in and out and the first steps: Command Overview.
 
+## Air power on the strategic map (v0.103.9)
+
+| Piece | Where |
+| --- | --- |
+| Figures (reach, weights, cuts, losses, lift, satellites) | `src/content/airpower.js` |
+| Wings, missions, losses, recon and satellite intel, daily pay | `src/war/airpower.js`; `game.war.air()`, `raiseWing`, `disbandWing`, `deployWing`, `recallWing`, `wingMission`, `wingTargets` |
+| The hooks into the strategic layer | `intelLevels` (`hooks.airSources`), `garrisonOf` (interdiction), `contact` (the cut off the enemy), `dayTick` (pay) in `src/war/strategic.js` |
+| The helicopter lift | the `airlift` order in `order` and `liftOf` in `src/war/strategic.js` |
+| The tab and the order button | `src/ui/osint/air.js`, `src/ui/strategic.js` |
+
+A wing's aircraft are the company's real aircraft, `deployed` and locked to the wing; the checker enforces it. The cut that close air support or a strike takes off the enemy is taken from the garrison force the fight starts with, so the played battle and the general's resolution both see fewer enemies (one function, as always). Nothing here writes a war or an embargo.
+
+### Honest limits (v0.103.9)
+
+- The atlas has two airfields in the whole world and none in a theatre, so a wing bases on **any** held ground; the choice of base only sets its reach.
+- Air power acts on fights you start. An enemy attack on your battalion is not helped by air cover; the nations' own exchange between armies ignores the wings.
+- A lift burns no extra fuel and has no weather or interception. Heavy lift of vehicles (an Ox slinging a tank) is not modelled.
+- No air superiority, no bombing of bridges, depots or rail, and no sea strikes: those come with the structures of v0.104.0 and the navy of v0.103.10.
+- The air figures are starting figures, uncalibrated.
+
 ## Research and the future tiers (v0.103.8)
 
 The owner's request (2026-11-08): the company needs a way to research better weapons and tech so the player can reach tier 4, with weapons, armour and vehicles, from the mock-ups (`proposal-war-troop-loadouts-1/2.png`, `proposal-war-troop-eras.png`, `proposal-war-vehicles-1.png`). Decisions: **T3 and T4 are futuristic**; new heavier designs for T4 vehicles (the mock-up has only an era 3); research is done at the **Command HQ** (no new building); total cost about **60M** to T4.
@@ -288,7 +308,7 @@ The owner found the v0.103.2 terminal too complicated (nine pages and a map, a P
 - **A formation attacks one province at a time and only from where it stands**: no flanking, no encirclement, no cutting of supply by design (cunning countries pick weak spots but do not aim at your supply line).
 - **Fuel and ammunition.** Fuel is burnt by vehicles in the theatre at a flat rate and only changes the aggregate result; ammunition and rations are not tracked (supply stands for them). A played battle does not read fuel.
 - **Weather** is regional by coarse cells and a hash, not a climate model; it does not change a played battle's map.
-- **Intelligence** has no air or satellite source yet (103.3): your battalions, recon companies and ground are all there is. An enemy formation out of sight is not drawn and not counted.
+- **Intelligence** had no air or satellite source in this release (it has since: v0.103.9): your battalions, recon companies and ground are all there is. An enemy formation out of sight is not drawn and not counted.
 - **A contract's end.** If your employer loses everything in the theatre your battalions are shipped home and the contract ends with nothing owed either way; the retainer for the days served has been paid already.
 - **The debug switch `war.aiOff`** stops the nations (it is what the older tests use); it is not reachable from the game.
 
@@ -321,7 +341,7 @@ Release 6a of the war update: the strategic layer's ground, units and orders. Th
 
 - **The strategic exchange of the proposal is not here.** There is no hourly battle between battalions, no combat width, reserve or plan bonus: a contact is one engagement, decided by the same aggregate function or the played battle as every other. The stats shown for a battalion are derived for the player to read and are **not** used by the resolver (the engagement's forces are the real squads and vehicles, as before).
 - (103.0's limits on supply, fog and a static enemy are answered in 103.1, above.)
-- **No air, sea or landings.** A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.5.
+- **No air, sea or landings.** (Air and helicopter lifts came in v0.103.9; sea and landings are v0.103.10.) A theatre's land is the only ground; a province on an island is reached only by the sealift to the staging province. Air wings, fleets, convoys and helicopters moving troops are 103.5.
 - **Employers and money.** The retainer rates are starting figures, set from the existing engagement pay rates and not calibrated against the company's costs; reputation moves only with ground taken. Discharging is allowed only with every battalion at home; ground keeps the owners it has when you go.
 - **Strategic engagements** are not the client's contracts: no pay of their own, no client reputation, no ban; if nobody decides one in three days the battalion breaks off. The ordinary contract offers (hold, retake, raid, extract, rescue) are unchanged and are not yet tied to provinces on the map.
 - **Drawing.** Battalions are banners with two bars, not the mock-up's figurines; the map's modes Supply, Weather, Air, Naval, Intel and Contracts are greyed buttons; the ground is drawn from the world's shape, so coasts are the world's own and the province borders are the exact cut. A theatre draws once per session in about three seconds (a progress count shows).

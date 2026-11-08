@@ -112,7 +112,7 @@ export const STATION = { seconds: 150, mercy: 240 };
 export const STANCES = ['aggressive', 'defensive', 'holdfire'];
 export const DEFENSIVE = { decay: 1.3 };
 /** How many a carrier takes aboard (by the vehicle's type), and how a carrier's loss goes for those inside: a share are killed with it, the rest come out hurt and shaken. */
-export const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12 }; // (v0.103.8: the hover carriers)
+export const CARRY = { marten: 4, wolf: 8, badger: 8, mule: 12, drover: 8, ox: 14, mercy: 4, ghost: 6, warden: 12, tempest: 2 }; // (v0.103.8: the hover carriers)
 export const BAIL = { killed: 0.35, hurt: 0.4, shaken: 40, board: 2.2 };
 /** A vehicle crew's repair: an engineer beside it restores a module this fast (integrity a second); an engine put right puts the fire out. */
 export const REPAIR = { rate: 0.06, reach: 2.2, fireOut: 0.3 };

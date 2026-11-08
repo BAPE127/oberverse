@@ -131,3 +131,7 @@ Nothing is ever deleted automatically. Deleting a slot keeps its `.bak`.
 ## Company research (v0.103.8)
 
 `world.military.company.research = { done: { nodeId: day }, active: { id, start, end, paid } | null, log: [] }`, made on first use; an older save simply has none. Also (v0.103.7) `company.funding` ('wallet' or 'group'), `company.ownAccount` and `company.owed`.
+
+## Air wings (v0.103.9)
+
+`world.military.war.wings = [{ id, name, aircraft: [equipmentIds], base: provinceId|null, status: 'home'|'abroad', flown: day }]` and `war.air = { recon: {provinceId: untilHour}, cas: {provinceId: cut}, strike: {provinceId: cut}, interdict: {provinceId: untilDay} }`; an aircraft in a wing is `status: 'deployed'` with `wing: id`. An older save has neither.

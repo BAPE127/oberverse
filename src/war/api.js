@@ -8,6 +8,7 @@ import { offers as transferOffers, transfer as transferIn, giveBack as transferB
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { market as procMarket, quote as procQuote, place as procPlace, ordersView as procOrders, CATEGORIES as PROC_CATEGORIES } from './procurement.js';
 import { nextEvent as warNextEvent } from './nextEvent.js';
+import { raiseWing as airRaise, disbandWing as airDisband, deployWing as airDeploy, recallWing as airRecall, mission as airMission, wingsView as airView, targets as airTargets } from './airpower.js';
 import { view as researchView, start as researchStart, reach as researchReach } from './research.js';
 import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
 import { view as linkView, setWant as linkWant, setDedicated as linkWorks, buyElsewhere as linkBuy } from './link.js';
@@ -59,6 +60,14 @@ export class War {
   repairCost(id) { return facilityRepairCost(this.g, id); }
   capacity(kind) { return baseCapacity(this.g, kind); }
   dailyTick() { runDay(this.g); }
+  // ---- v0.103.9: air power on the strategic map (wings, missions, helicopter lifts through `order(id, { type: 'airlift', to })`)
+  air() { return airView(this.g); }
+  raiseWing(name, aircraft) { return airRaise(this.g, { name, aircraft }); }
+  disbandWing(id) { return airDisband(this.g, id); }
+  deployWing(id, provinceId) { return airDeploy(this.g, id, provinceId); }
+  recallWing(id) { return airRecall(this.g, id); }
+  wingMission(id, type, to) { return airMission(this.g, id, { type, to }); }
+  wingTargets(id) { return airTargets(this.g, id); }
   // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
   research() { return researchView(this.g); }
   startResearch(id) { return researchStart(this.g, id); }

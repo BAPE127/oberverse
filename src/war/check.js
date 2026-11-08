@@ -54,6 +54,9 @@ export function checkMilitary(m) {
     if (b.commander != null && !people.some((p) => p.id === b.commander)) add('missing_reference', b.id, `battalion ${b.id} has a commander ${b.commander} who is not in the personnel`);
   }
   for (const s of squads) if (s.battalion && !(m.war?.battalions || []).some((b) => b.id === s.battalion && b.squads.includes(s.id))) add('missing_reference', s.id, `squad ${s.id} says it is in battalion ${s.battalion}, which does not list it`);
+  // v0.103.9: air wings: their aircraft exist, are theirs alone and are locked to them
+  for (const wg of m.war?.wings || []) for (const id of wg.aircraft || []) { const x = items.find((i) => i.id === id); if (!x) add('missing_reference', wg.id, `wing ${wg.id} lists ${id}, which does not exist`); else if (x.wing !== wg.id) add('double_assignment', id, `${id} is in wing ${wg.id} but says ${x.wing ?? 'none'}`); }
+  for (const x of items) if (x.wing && !(m.war?.wings || []).some((wg) => wg.id === x.wing && wg.aircraft.includes(x.id))) add('missing_reference', x.id, `${x.id} says it is in wing ${x.wing}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);

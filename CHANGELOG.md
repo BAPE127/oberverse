@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.9] — 2026-11-08 — War: Air Power on the Strategic Map (development build)
+
+The first half of Strategic Command III (`PROPOSAL_WAR_STRATEGIC.md` section 5); fleets, convoys, landings and international contracts are v0.103.10.
+
+**Air wings** (`src/war/airpower.js`, `src/content/airpower.js`, Base Operations → Air wings). A wing is raised from aircraft in the hangars (status `deployed`, `wing` set; a battalion-style lock: nothing else can have them, and `check.js` knows wings), based on ground the employer's side holds in its theatre, and flies **one mission a day** within the reach of its shortest-legged aircraft (a trainer 500 km, a fighter 900, a tactical bomber 1,600, a strategic bomber 4,000): **reconnaissance** (the target and what is next to it are seen for a day), **close air support** (a share of the enemy, 7% a weight point to 40%, is taken off the next fight there, once), **interdiction** (the garrison cut 15% for three days) and a **missile strike** (spends one strategic missile from the hangars; takes 35% off the next fight). Each aircraft may be lost on a mission: `0.03 + 0.025 × the fort`, times 1.5 for air support, 1.2 for a strike; a loss is permanent (the aircraft is destroyed and leaves its wing). A wing abroad earns each aircraft's daily rate at the helicopter's vehicle rate, with the retainer (the owner's rule: the vehicle scale). Saved: `war.wings`, `war.air`.
+
+**Intelligence from the air.** An owned, working Cartographer satellite spots every province of the theatre, a Watchtower knows them (`intelLevels`, the fog in the battle and the estimates follow); losing one gives the fog back. A recon pass is a source at its target for 24 hours.
+
+**Helicopter lifts.** A new order, `airlift` (the *Airlift* button on the strategic map): a battalion whose transport helicopters hold a place for every soldier (a Drover 8, an Ox 14, a Mercy 4, a Tempest 2) is lifted to a province within 400 km at 200 km/h, over ground it does not hold, into ground it holds or an air assault on the enemy's (a contact on landing); it costs 4 organisation. The retainer, fuel and the rest are unchanged.
+
+**Limits.** The atlas models two airfields in the whole world, none in a theatre, so a wing bases on any held ground; close air support and strikes act on fights **you** start (an attack, a lift) and on nothing the nations start; the nations' exchange between armies does not see the wings; the wing's aircraft are not drawn on the lot (they are abroad); a lift burns no extra fuel; no air superiority or strategic bombing of structures yet.
+
+**Edited existing tests (0).** New: `tests/strategic_air.test.mjs` (7). Smoke: the Air wings tab.
+
 ## [0.103.8] — 2026-11-08 — War: Research and the Future Tiers (development build)
 
 **Research** (`src/content/warResearch.js`, `src/war/research.js`, Base Operations → Research). Eight projects, like Aerospace's: they cost money from whoever's money the company spends and take days, one at a time, and need the Command HQ built and standing. Tier 3: *Energy cells* (2M, 4 days), then *Pulse weapons*, *Phalanx hardsuit* and *Hover drives* (5M, 8 days each). Tier 4: *Fusion cores* (10M, 12 days, needs pulse weapons and the hardsuit), then *Plasma, rail and ion weapons*, *Bastion power armour* and *Heavy hover platforms* (12M, 14 days each). About 63M obols and 90 days in all, against about 20M in 5 days for a fully built base (starting figures). Saved: `company.research = { done, active, log }`. A project finishes on a morning (`dayTick`), is an event for Next event, and is checked once when it starts: the money moves once, a short purse refuses and changes nothing.
