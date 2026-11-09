@@ -135,3 +135,7 @@ Nothing is ever deleted automatically. Deleting a slot keeps its `.bak`.
 ## Air wings (v0.103.9)
 
 `world.military.war.wings = [{ id, name, aircraft: [equipmentIds], base: provinceId|null, status: 'home'|'abroad', flown: day }]` and `war.air = { recon: {provinceId: untilHour}, cas: {provinceId: cut}, strike: {provinceId: cut}, interdict: {provinceId: untilDay} }`; an aircraft in a wing is `status: 'deployed'` with `wing: id`. An older save has neither.
+
+## Fleets, sea power and international contracts (v0.103.10)
+
+`world.military.war.fleets = [{ id, name, ships: [vesselIds], base: provinceId|null, status: 'home'|'abroad', acted: day, contract?: id }]`, `war.navy = { bombard: {provinceId: cut}, blockade: {provinceId: untilDay} }` and `war.intl = { offers: [...], active: [{ id, client, enemy, theatre, kind: 'take'|'hold'|'blockade', target, size, start, end, rate, bonus, need, progress, battalions: [ids], fleets: [ids] }], done: [last ten], seen: day|null }`. A lent ship (in the shipping company's own record) carries `cargo: { type: 'war', fleet: id, reserved: true }` and is `docked` while its fleet is at home, `mission` abroad. A battalion on a contract has `contract: id`; one on the water has `moving: { to, left, attack, sea: true, fleet, pen }`. An older save has none of these.

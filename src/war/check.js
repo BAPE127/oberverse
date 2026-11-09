@@ -57,6 +57,14 @@ export function checkMilitary(m) {
   // v0.103.9: air wings: their aircraft exist, are theirs alone and are locked to them
   for (const wg of m.war?.wings || []) for (const id of wg.aircraft || []) { const x = items.find((i) => i.id === id); if (!x) add('missing_reference', wg.id, `wing ${wg.id} lists ${id}, which does not exist`); else if (x.wing !== wg.id) add('double_assignment', id, `${id} is in wing ${wg.id} but says ${x.wing ?? 'none'}`); }
   for (const x of items) if (x.wing && !(m.war?.wings || []).some((wg) => wg.id === x.wing && wg.aircraft.includes(x.id))) add('missing_reference', x.id, `${x.id} says it is in wing ${x.wing}, which does not list it`);
+  // v0.103.10: international contracts: the battalions and fleets on one are on it, and say so
+  const act = m.war?.intl?.active || []; const fleets = m.war?.fleets || [];
+  for (const c of act) {
+    for (const id of c.battalions || []) if (!(m.war.battalions || []).some((b) => b.id === id && b.contract === c.id)) add('missing_reference', c.id, `contract ${c.id} lists battalion ${id}, which does not say so`);
+    for (const id of c.fleets || []) if (!fleets.some((f) => f.id === id && f.contract === c.id)) add('missing_reference', c.id, `contract ${c.id} lists fleet ${id}, which does not say so`);
+  }
+  for (const b of m.war?.battalions || []) if (b.contract && !act.some((c) => c.id === b.contract && (c.battalions || []).includes(b.id))) add('missing_reference', b.id, `battalion ${b.id} says it is on contract ${b.contract}, which does not list it`);
+  for (const f of fleets) if (f.contract && !act.some((c) => c.id === f.contract && (c.fleets || []).includes(f.id))) add('missing_reference', f.id, `fleet ${f.id} says it is on contract ${f.contract}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);

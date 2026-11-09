@@ -531,6 +531,7 @@ export class Logistics {
     if (!v) return { ok: false, text: 'No such ship.' };
     if (!this.port(to)) return { ok: false, text: 'No such port.' };
     if (v.cargo?.type === 'aero') return { ok: false, text: `The ${v.name} is reserved for aerospace freight (release it on the aerospace terminal's Supply page).` };
+    if (v.cargo?.type === 'war') return { ok: false, text: `The ${v.name} is lent to the war company's fleet (stand the fleet down in Base Operations, Fleets).` };
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: `Can't sail: ${pl.reasons[0]}.` };
     if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };

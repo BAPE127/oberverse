@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.10',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Fleets, Landings and International Contracts',
+    notes: [
+      'Fleets: lend ships from your shipping company (Base Operations, Fleets), base them on a coast the side you serve holds, and bombard or blockade an enemy coast once a day. The ships stay the shipping company\'s: they cannot sail for it while lent, wear on missions, and a lost ship is lost for good.',
+      'Landing order on the strategic map: a battalion on a coast boards a fleet near it with room in its holds, and sails to another coast you hold or lands on an enemy coast. A landing meets a contested beach; escort warships take part of that off.',
+      'International contracts (Base Operations, Contracts): embassies of countries fighting in a hot theatre offer take, hold and blockade jobs. The units on a contract are paid its rate instead of the retainer, with a completion bonus at the victory-point rate. Diplomacy is only read, never changed.',
+    ],
+  },
+  {
     version: '0.103.9',
     date: '2026-11-08',
     channel: 'development',

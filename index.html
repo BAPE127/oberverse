@@ -18501,7 +18501,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.103.9';
+const GAME_VERSION = '0.103.10';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -34577,7 +34577,7 @@ const countryName = (id) => ATLAS.countries[id]?.name || id;
 function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.fleets ||= []; w.navy ||= { bombard: {}, blockade: {} }; w.intl ||= { offers: [], active: [], done: [], seen: null }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
@@ -34618,7 +34618,7 @@ function garrisonOf(game, p) {
   const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
   if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const cutI = 1 - (hooks.airInterdiction?.(game, p) || 0); // v0.103.9: bombed roads and depots thin a garrison for a few days
+  const cutI = (1 - (hooks.airInterdiction?.(game, p) || 0)) * (1 - (hooks.navalBlockade?.(game, p) || 0)); // v0.103.9: bombed roads and depots thin a garrison for a few days; v0.103.10: so does a shut port
   const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown * cutI));
   const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
@@ -34706,6 +34706,7 @@ function release(game, bn) {
 function disband(game, id) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
   if (bn.status !== 'home') return { ok: false, text: `${bn.name} is ${bn.status === 'theatre' ? 'in the theatre' : bn.status}: bring it home first.` };
+  if (bn.contract) return { ok: false, text: `${bn.name} is on an international contract: it ends first.` };
   release(game, bn); w.battalions = w.battalions.filter((b) => b !== bn); note(w, game, `${bn.name} is stood down.`); return { ok: true, text: `${bn.name} is stood down; its squads and vehicles are free.` };
 }
 
@@ -34816,6 +34817,13 @@ function order(game, id, o) {
     const hours = Math.max(1, Math.ceil(d / AIR.lift.speed)); bn.order = { type: foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: hours, attack: foe, air: true }; bn.org = Math.max(0, bn.org - AIR.lift.orgCost); bn.entrench = 0;
     return { ok: true, text: `${bn.name} lifts off for ${to.name}: ${foe ? 'an air assault, contact' : 'landing'} in about ${hours} hour${hours === 1 ? '' : 's'}.`, hours };
   }
+  if (o.type === 'land') { // v0.103.10: by the sea in a fleet's ships: a passage to a coast the employer holds, or a landing on one the enemy holds
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    const plan = hooks.landingPlan?.(game, bn, to, o.fleet); if (!plan) return { ok: false, text: 'No fleet can carry it.' }; if (!plan.ok) return plan;
+    if (plan.foe && bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
+    bn.order = { type: plan.foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: plan.hours, attack: plan.foe, sea: true, fleet: plan.fleet, pen: plan.penalty }; bn.org = Math.max(0, bn.org - plan.org); bn.entrench = 0;
+    return { ok: true, text: plan.text, hours: plan.hours };
+  }
   if (o.type === 'attack') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
     if (friendly(game, to)) return { ok: false, text: 'That ground is already yours.' };
@@ -34850,9 +34858,13 @@ function contact(game, w, bn, prov) {
   const real = hostileForce(game, prov); const lvl = intelAt(game, prov) + (reconOf(game, bn) ? 1 : 0); const k = `${prov.id}|${w.hour}`;
   const aircut = hooks.airCut?.(game, prov) || 0; // v0.103.9: close air support and strikes flown against this province take their share off the enemy before the fight (once)
   if (aircut) { real.troops = Math.max(0, Math.round(real.troops * (1 - aircut))); real.armour = Math.max(0, Math.round(real.armour * (1 - aircut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
+  const navalcut = hooks.navalCut?.(game, prov) || 0; // v0.103.10: a bombardment off the coast does the same
+  if (navalcut) { real.troops = Math.max(0, Math.round(real.troops * (1 - navalcut))); real.armour = Math.max(0, Math.round(real.armour * (1 - navalcut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
+  const sea = bn.moving?.sea ? bn.moving : null; // a landing meets a contested beach: more of the enemy, and the ships pay for it
+  if (sea) { real.troops = Math.round(real.troops * (1 + (sea.pen || 0))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; hooks.landingContact?.(game, w, bn, prov, sea); }
   const reported = { troops: estimate(real.troops, Math.min(2, lvl), `${k}t`), armour: estimate(real.armour, Math.min(2, lvl), `${k}a`) };
   bn.moving = null; bn.order = { type: 'hold' };
-  const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: sea ? `${bn.name} lands at ${prov.name}` : `${bn.name} attacks ${prov.name}` });
   if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.name}.`); game.notify?.(`${bn.name} is in contact at ${prov.name}: choose how to fight it.`, 'warn'); }
 }
 /** An enemy formation has come against a province where a battalion of yours stands: the same choice, with you defending. Returns the engagement id. */
@@ -34906,7 +34918,7 @@ function dayTick(game) {
   const day = game.clock.day; w.day ||= 0; if (w.day >= day) return; w.day = day;
   let pay = 0;
   for (const bn of w.battalions) {
-    if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); pay += P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); }
+    if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); const rate = w.intl.active.find((c) => c.id === bn.contract)?.rate ?? 1; /* v0.103.10: a contract's rate replaces the retainer's */ pay += (P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0)) * rate; }
     if (bn.status === 'theatre') {
       // fuel: a vehicle in the theatre burns some of the company's own stock each day; short of it, the vehicles count for less in a fight (they are never stopped)
       const P = providedBy(game, bn.squads); const need = Math.ceil(P.vehicles * FUEL.perVehicleDay * 10) / 10; const have = Math.min(need, stockOf(game, 'supply:fuel')); if (have > 0) takeStock(game, 'supply:fuel', Math.ceil(have)); bn.fuelShort = need > 0 ? Math.max(0, 1 - Math.ceil(have) / need) : 0;
@@ -34917,8 +34929,11 @@ function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  hooks.intlDay?.(game, w); // v0.103.10: international contracts are checked once a day (done, failed, or closed with the employer)
   pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
-  if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
+  pay += hooks.navyPay?.(game) || 0; // v0.103.10: and so are fleets
+  pay = Math.round(pay);
+  if (pay > 0 && w.employer) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
 // ---- a battle on the map ends (called from src/war/engagements.js)
@@ -34930,7 +34945,7 @@ function resolved(game, C, eng, R) {
     if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj, prov.id); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj, prov.id); }
   } else if (obj >= 2) {
     hooks.attackWon?.(game, prov);
-    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
+    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = hooks.intlTaken?.(game, bn, prov) ? 0 : prov.vp * RETAINER.perVP; // v0.103.10: ground named in a contract pays the contract's completion bonus instead, never both
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
     const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
     line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;
@@ -35038,6 +35053,412 @@ function nextEvent(game) {
 }
 
 return { nextEvent };
+})();
+
+// ---- src/content/navy.js
+__m["src/content/navy.js"] = (function () {
+// Sea power and international contracts on the strategic map (v0.103.10): pure data, all starting figures to calibrate. The rules that read them are in src/war/navy.js and src/war/intl.js.
+//
+//   NAVY.reach        how far from its base a fleet's guns and blockade reach (km); the atlas has no sea zones, so a fleet works the waters off the coastal provinces of its theatre
+//   NAVY.meet         how far a fleet may be from a battalion and still take it aboard (km)
+//   NAVY.knot         km an hour for one knot of the catalogue's speed
+//   NAVY.bombard      the share of the enemy force a bombardment removes from the next fight at a coastal province, per point of firepower (attack / 50), to a cap
+//   NAVY.blockade     the share of a coastal garrison cut while its port is shut, and for how many days
+//   NAVY.landing      a landing: farthest voyage, quickest, the places a soldier and a vehicle take in the holds, the extra strength the enemy has on a contested beach (before escorts), the share
+//                     of that the escorts can take off, the escort strength that takes all of it, and the organisation it costs
+//   NAVY.loss         the chance per ship that a bombardment or a landing loses it for good: a base, plus the coast's fort, times a factor; escorts lower the landing's
+//   NAVY.wear         the condition a ship loses on a mission (the shipping company's own scale, 0 to 100)
+//   NAVY.pay          a fleet's daily pay in a theatre, per ship, at the same vehicle scale as the ground vehicles
+//   INTL              international contracts: how warm a country must be, how often the offers change, how many, the three kinds with their term and size rules, and the rate by relation
+const { RETAINER } = __m["src/content/strategic.js"];
+
+const NAVY = {
+  reach: 900, meet: 400, knot: 1.85,
+  bombard: { cut: 0.05, max: 0.35 },
+  blockade: { cut: 0.12, days: 4 },
+  landing: { range: 1500, minHours: 6, perSoldier: 1, perVehicle: 5, penalty: 0.6, escortShare: 0.7, escortFull: 3, orgCost: 12 },
+  loss: { base: 0.02, perFort: 0.02, bombard: 1.3, landing: 1, blockade: 0.6, escortCut: 0.5 },
+  wear: { bombard: 3, blockade: 2, landing: 4 },
+  pay: { warship: RETAINER.perVehicle.tank, transport: RETAINER.perVehicle.carrier },
+  missions: { bombard: 'Bombardment', blockade: 'Blockade' },
+};
+
+const INTL = {
+  minScore: 10, refreshDays: 3, max: 5, offerDays: 6,
+  rate: [1.0, 1.4],
+  rep: { done: 2, failed: 3 },
+  kinds: {
+    take: { name: 'Take a province', text: 'Take the named enemy province by the end of the term.', days: [10, 6], people: 10, hulls: { tank: 1, from: 2 } },
+    hold: { name: 'Hold a province', text: 'Keep the named province in the client\'s hands to the end of the term, with a battalion of yours on it.', days: [8, 4], people: 8, hulls: { tank: 1, from: 3 } },
+    blockade: { name: 'Blockade a port', text: 'Keep the named coast under blockade for the term (a bombardment or blockade mission flown by a fleet of yours there).', days: [8, 3], ships: 1 },
+  },
+};
+
+return { NAVY, INTL };
+})();
+
+// ---- src/war/navy.js
+__m["src/war/navy.js"] = (function () {
+// Fleets on the strategic map (v0.103.10; src/content/navy.js): ships lent by the shipping company, never copied. A fleet is a list of the company's own vessels (warships, and cargo ships as transports)
+// held with a reserved marker on the vessel (`cargo: { type: 'war', fleet, reserved: true }`, the way Aerospace holds a ship), based at a coastal province the employer holds. It bombards and blockades the
+// enemy's coasts, and it carries a battalion: over the sea between coastal provinces ("sail") or onto an enemy coast ("landing", which meets a contested beach and risks the ships). A ship lost is lost for good
+// in the shipping company's books. The atlas has no sea zones, so a fleet works the waters off the coastal provinces of its theatre (a stated limit).
+//
+//   raiseFleet(game, { name, ships }) / disbandFleet(game, id)     ships out of the shipping company's yards into a fleet, and back
+//   deployFleet(game, id, provinceId) / recallFleet(game, id)      to a coastal province the employer holds, and home
+//   mission(game, id, { type, to })                                bombard | blockade, one a day, within reach of the base
+//   landingPlan(game, bn, to, fleetId)                             what an order of the 'land' kind needs: a fleet, the room in its holds, the hours (used by strategic.order through a hook)
+//   takeCut(game, prov) / blockaded(game, prov)                    what bombardment took off a force before a fight (used once) / the share of a garrison cut by a blockade today
+//   fleetsView(game)                                               everything the screen shows
+// Saved: war.fleets = [{ id, name, ships:[vesselIds], base, status:'home'|'abroad', acted }], war.navy = { bombard: { prov: cut }, blockade: { prov: untilDay } }
+const { peekMilitary } = __m["src/war/state.js"];
+const { warOf, controllerOf, nowHour, note, nextId, countryName, unit, providedBy } = __m["src/war/strategic.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
+const { NAVY } = __m["src/content/navy.js"];
+const { hooks } = __m["src/war/hooks.js"];
+
+const km = (a, b) => { const R = 6371; const D = Math.PI / 180; const x = Math.sin(((b.lat - a.lat) * D) / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(((b.lon - a.lon) * D) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+const Lg = (game) => game.logistics;
+const vesselOf = (game, id) => Lg(game)?.vessel?.(id) || null;
+const isWar = (v) => v.kind === 'warship';
+const fleetsOf = (game) => (warOf(game)?.fleets || []);
+const live = (game, f) => f.ships.map((id) => vesselOf(game, id)).filter((v) => v && v.status !== 'lost' && v.status !== 'retired');
+const attackOf = (game, v) => Lg(game).stats(v).combat.attack || 0;
+const defenceOf = (game, v) => Lg(game).stats(v).combat.defense || 0;
+/** Firepower of a fleet's warships (a point is 50 attack). */
+const firepower = (game, f) => live(game, f).filter(isWar).reduce((a, v) => a + attackOf(game, v) / 50, 0);
+/** Escort strength: the warships' attack and defence together (a point is 100). */
+const escortOf = (game, f) => live(game, f).filter(isWar).reduce((a, v) => a + (attackOf(game, v) + defenceOf(game, v)) / 100, 0);
+/** Places in the holds of the fleet's ships (a soldier takes one, a vehicle five). */
+const holdOf = (game, f) => live(game, f).reduce((a, v) => a + (Lg(game).stats(v).capacity || 0), 0);
+/** A fleet's slowest ship, in km an hour. */
+const speedOf = (game, f) => Math.max(1, Math.min(...live(game, f).map((v) => Lg(game).stats(v).speed * NAVY.knot), Infinity));
+/** A fleet on a landing or a sea passage: its battalion is on the water. */
+const busy = (game, f) => (warOf(game)?.battalions || []).some((b) => b.moving?.sea && b.moving.fleet === f.id);
+
+const lend = (v, f) => { v.cargo = { type: 'war', fleet: f.id, reserved: true }; };
+const free = (v) => { if (v?.cargo?.type === 'war') v.cargo = null; };
+const loseShip = (game, f, v, why) => {
+  f.ships = f.ships.filter((i) => i !== v.id); free(v);
+  try { Lg(game).setStatus(v, 'lost'); } catch { v.status = 'lost'; }
+  Lg(game).report?.('mission', `⚓ The ${v.name} is lost ${why}.`, 'warn');
+};
+
+function raiseFleet(game, { name, ships } = {}) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return { ok: false, text: 'You have no company.' };
+  const ids = [...new Set(ships || [])]; if (!ids.length) return { ok: false, text: 'Choose at least one ship.' };
+  const picked = [];
+  for (const id of ids) {
+    const v = vesselOf(game, id); if (!v) return { ok: false, text: `${id} is not a ship of the shipping company.` };
+    if (v.status !== 'docked') return { ok: false, text: `The ${v.name} is ${v.status}: only a ship docked in a port can be lent.` };
+    if (v.contract || v.cargo) return { ok: false, text: `The ${v.name} is on a contract or held for other cargo.` };
+    if (!isWar(v) && !(Lg(game).stats(v).capacity > 0)) return { ok: false, text: `The ${v.name} is neither a warship nor a ship with holds.` };
+    picked.push(v);
+  }
+  const id = nextId(w, 'F'); const n = w.fleets.length + 1;
+  const fleet = { id, name: String(name || '').trim().slice(0, 28) || `${n}${[, 'st', 'nd', 'rd'][n % 10] && ![11, 12, 13].includes(n % 100) ? [, 'st', 'nd', 'rd'][n % 10] : 'th'} Fleet`, ships: ids, base: null, status: 'home', acted: 0 };
+  w.fleets.push(fleet); for (const v of picked) lend(v, fleet);
+  C.log.push({ day: game.clock.day, text: `${fleet.name} formed from ${ids.length} ship${ids.length === 1 ? '' : 's'} lent by the shipping company.` });
+  return { ok: true, text: `${fleet.name} is formed: ${ids.length} ship${ids.length === 1 ? '' : 's'}, lent by the shipping company.`, id };
+}
+function disbandFleet(game, id) {
+  const w = warOf(game); const f = w?.fleets.find((x) => x.id === id); if (!f) return { ok: false, text: 'No such fleet.' };
+  if (f.status !== 'home') return { ok: false, text: `${f.name} is abroad: recall it first.` };
+  for (const v of live(game, f)) free(v);
+  w.fleets = w.fleets.filter((x) => x !== f); return { ok: true, text: `${f.name} is stood down; the ships are back with the shipping company.` };
+}
+
+/** The coastal ground the employer's side holds in its theatre, where a fleet can be based. */
+function bases(game) {
+  const w = warOf(game); const e = w?.employer; if (!e) return [];
+  return provinces().filter((p) => p.coast && controllerOf(game, p) === e.side && hooks.inEmployerTheatre?.(game, p) !== false).sort((a, b) => a.name.localeCompare(b.name));
+}
+function deployFleet(game, id, provinceId) {
+  const w = warOf(game); const f = w?.fleets.find((x) => x.id === id); if (!f) return { ok: false, text: 'No such fleet.' };
+  if (!w.employer) return { ok: false, text: 'Enlist in a theatre first: a fleet sails for the side you serve.' };
+  if (f.status === 'abroad') return { ok: false, text: `${f.name} is already abroad.` };
+  const p = provinceById(provinceId); if (!p || !p.coast) return { ok: false, text: 'A fleet is based on a coast.' };
+  if (controllerOf(game, p) !== w.employer.side) return { ok: false, text: 'That coast is not held by the side you serve.' };
+  const ships = live(game, f); if (!ships.length) return { ok: false, text: `${f.name} has no ships left.` };
+  for (const v of ships) try { Lg(game).setStatus(v, 'mission'); } catch { return { ok: false, text: `The ${v.name} cannot put to sea (${v.status}).` }; }
+  f.status = 'abroad'; f.base = p.id; note(w, game, `${f.name} sails for ${p.name}.`);
+  return { ok: true, text: `${f.name} sails for ${p.name}.` };
+}
+function recallFleet(game, id) {
+  const w = warOf(game); const f = w?.fleets.find((x) => x.id === id); if (!f) return { ok: false, text: 'No such fleet.' };
+  if (f.status !== 'abroad') return { ok: false, text: `${f.name} is at home.` };
+  if (busy(game, f)) return { ok: false, text: `${f.name} has a battalion aboard: let it land first.` };
+  for (const v of live(game, f)) if (v.status === 'mission') try { Lg(game).setStatus(v, 'docked'); } catch { /* already home */ }
+  f.status = 'home'; f.base = null; note(w, game, `${f.name} comes home.`); return { ok: true, text: `${f.name} is home.` };
+}
+
+/** Enemy coasts a fleet could be sent against from its base: within reach, nearest first. */
+function targets(game, id, limit = 24) {
+  const w = warOf(game); const f = w?.fleets.find((x) => x.id === id); if (!f || f.status !== 'abroad' || !w.employer) return [];
+  const base = provinceById(f.base);
+  return provinces().filter((p) => p.coast && controllerOf(game, p) === w.employer.enemy).map((p) => ({ p, d: km(base, p) })).filter((x) => x.d <= NAVY.reach).sort((a, b) => a.d - b.d).slice(0, limit).map((x) => ({ id: x.p.id, name: x.p.name, km: Math.round(x.d), fort: x.p.fort, vp: x.p.vp }));
+}
+
+function wearAndLose(game, f, kind, fort, escorted) {
+  const day = game.clock.day; const lost = [];
+  const esc = escorted ? 1 - NAVY.loss.escortCut * Math.min(1, escortOf(game, f) / NAVY.landing.escortFull) : 1;
+  for (const v of live(game, f)) {
+    v.condition = Math.max(0, Math.round(((v.condition ?? 100) - NAVY.wear[kind]) * 10) / 10);
+    const p = (NAVY.loss.base + NAVY.loss.perFort * fort) * (NAVY.loss[kind] ?? 1) * esc;
+    if (unit(`navy|${f.id}|${v.id}|${day}|${kind}`) < p) lost.push(v);
+  }
+  for (const v of lost) loseShip(game, f, v, `off the enemy coast (${kind})`);
+  return lost;
+}
+
+function mission(game, id, { type, to } = {}) {
+  const w = warOf(game); const f = w?.fleets.find((x) => x.id === id); if (!f) return { ok: false, text: 'No such fleet.' };
+  if (!NAVY.missions[type]) return { ok: false, text: 'No such mission.' };
+  if (f.status !== 'abroad' || !w.employer) return { ok: false, text: `${f.name} is not abroad: base it on a coast first.` };
+  if (f.acted >= game.clock.day) return { ok: false, text: `${f.name} has acted today: the ships need a night in port.` };
+  if (busy(game, f)) return { ok: false, text: `${f.name} has a battalion aboard.` };
+  const guns = live(game, f).filter(isWar); if (!guns.length) return { ok: false, text: `${f.name} has no warship left.` };
+  const target = provinceById(to); if (!target) return { ok: false, text: 'No such province.' };
+  if (controllerOf(game, target) !== w.employer.enemy) return { ok: false, text: 'A fleet acts against the enemy only.' };
+  if (!target.coast) return { ok: false, text: `${target.name} has no coast.` };
+  const d = km(provinceById(f.base), target); if (d > NAVY.reach) return { ok: false, text: `${target.name} is ${Math.round(d)} km from ${provinceById(f.base).name}; the fleet reaches ${NAVY.reach} km.` };
+  f.acted = game.clock.day; const day = game.clock.day;
+  const lost = wearAndLose(game, f, type, target.fort || 0, false); const left = live(game, f).filter(isWar);
+  let effect;
+  if (!left.length) effect = 'the fleet was beaten off before it could do anything.';
+  else if (type === 'bombard') { const cut = Math.min(NAVY.bombard.max, NAVY.bombard.cut * firepower(game, f)); w.navy.bombard[target.id] = Math.max(w.navy.bombard[target.id] || 0, cut); effect = `the next fight at ${target.name} meets ${Math.round(cut * 100)}% fewer of the enemy.`; }
+  else { w.navy.blockade[target.id] = day + NAVY.blockade.days; effect = `${target.name}'s port is shut: its garrison is cut by ${Math.round(NAVY.blockade.cut * 100)}% for ${NAVY.blockade.days} days.`; }
+  const text = `${f.name}: ${NAVY.missions[type].toLowerCase()} off ${target.name}; ${effect}${lost.length ? ` Lost: ${lost.map((v) => v.name).join(', ')}.` : ''}`;
+  note(w, game, text); if (lost.length) game.notify?.(`${f.name} lost ${lost.length} ship${lost.length === 1 ? '' : 's'} off ${target.name}.`, 'warn');
+  return { ok: true, text, lost: lost.length };
+}
+
+/** What bombardment took off the enemy before a fight at a province (used up by the fight). */
+function takeCut(game, prov) {
+  const w = warOf(game); if (!w?.navy) return 0; const cut = w.navy.bombard[prov.id] || 0; delete w.navy.bombard[prov.id]; return Math.min(0.6, cut);
+}
+/** The share of a province's garrison cut by a blockade today. */
+function blockaded(game, prov) {
+  const w = warOf(game); const until = w?.navy?.blockade?.[prov.id]; return until && until >= game.clock.day ? NAVY.blockade.cut : 0;
+}
+hooks.navalCut = (game, prov) => takeCut(game, prov);
+hooks.navalBlockade = (game, prov) => blockaded(game, prov);
+
+/** An order of the 'land' kind (strategic.js asks through a hook): onto an enemy coast it is a landing, to a coast the employer holds it is a passage by sea. */
+function landingPlan(game, bn, to, fleetId) {
+  const w = warOf(game); const e = w?.employer; const here = provinceById(bn.pos);
+  if (!here.coast) return { ok: false, text: `${here.name} has no coast to embark from: move to a coastal province first.` };
+  if (!to.coast) return { ok: false, text: `${to.name} has no coast.` };
+  if (to.id === bn.pos) return { ok: false, text: 'It is already there.' };
+  const mine = controllerOf(game, to) === e.side; const foe = controllerOf(game, to) === e.enemy;
+  if (!mine && !foe) return { ok: false, text: 'You sail only to ground you hold, or land on ground the enemy holds.' };
+  const P = providedBy(game, bn.squads); const need = P.people * NAVY.landing.perSoldier + P.vehicles * NAVY.landing.perVehicle;
+  const d = km(here, to); if (d > NAVY.landing.range) return { ok: false, text: `${to.name} is ${Math.round(d)} km away; a fleet carries a battalion ${NAVY.landing.range} km.` };
+  const cand = w.fleets.filter((f) => f.status === 'abroad' && (!fleetId || f.id === fleetId) && !busy(game, f) && live(game, f).length && km(provinceById(f.base), here) <= NAVY.meet);
+  if (!cand.length) return { ok: false, text: fleetId ? 'That fleet cannot take the battalion aboard (it is not abroad, busy, or too far from where the battalion stands).' : `No fleet of yours is abroad within ${NAVY.meet} km of ${here.name}: lend ships from the shipping company and base them on a coast near it (Base Operations, Fleets).` };
+  const fit = cand.filter((f) => holdOf(game, f) >= need).sort((a, b) => escortOf(game, b) - escortOf(game, a));
+  if (!fit.length) return { ok: false, text: `${bn.name} needs room for ${need} (${P.people} soldiers and ${P.vehicles} vehicles); the best fleet has ${Math.max(...cand.map((f) => holdOf(game, f)))}. Add cargo ships.` };
+  const f = fit[0]; const hours = Math.max(NAVY.landing.minHours, Math.ceil(d * 1.1 / speedOf(game, f)));
+  const relief = Math.min(NAVY.landing.escortShare, NAVY.landing.escortShare * escortOf(game, f) / NAVY.landing.escortFull);
+  return { ok: true, fleet: f.id, hours, foe, penalty: foe ? Math.round(NAVY.landing.penalty * (1 - relief) * 100) / 100 : 0, org: foe ? NAVY.landing.orgCost : 2, text: `${bn.name} embarks in ${f.name}: ${foe ? `a landing at ${to.name}, about ${hours} hours; the beach gives the enemy ${Math.round(NAVY.landing.penalty * (1 - relief) * 100)}% more${relief > 0 ? ` (escorts take ${Math.round(relief * 100)}% of that off)` : ''}` : `a passage to ${to.name}, about ${hours} hours`}.` };
+}
+hooks.landingPlan = landingPlan;
+
+/** Called when a landing meets the beach: the fleet pays for it. Returns the ships lost. */
+hooks.landingContact = (game, w, bn, prov, sea) => {
+  const f = w.fleets.find((x) => x.id === sea.fleet); if (!f) return [];
+  const lost = wearAndLose(game, f, 'landing', prov.fort || 0, true);
+  if (lost.length) { note(w, game, `${f.name} loses ${lost.map((v) => v.name).join(', ')} covering the landing at ${prov.name}.`); game.notify?.(`${f.name} lost ${lost.length} ship${lost.length === 1 ? '' : 's'} at ${prov.name}.`, 'warn'); }
+  return lost;
+};
+
+/** Once a day: a fleet abroad is paid like the other vehicles in the theatre (its ships on a contract at the contract's rate), and old effects are cleared. */
+function dailyPay(game) {
+  const w = warOf(game); if (!w) return 0; let pay = 0;
+  for (const f of w.fleets) {
+    if (f.status !== 'abroad' || !w.employer) continue;
+    const c = (w.intl?.active || []).find((x) => (x.fleets || []).includes(f.id)); const rate = c ? c.rate : 1;
+    for (const v of live(game, f)) pay += (isWar(v) ? NAVY.pay.warship : NAVY.pay.transport) * rate;
+  }
+  const day = game.clock.day; for (const k of Object.keys(w.navy.blockade)) if (w.navy.blockade[k] < day) delete w.navy.blockade[k];
+  return Math.round(pay);
+}
+hooks.navyPay = (game) => dailyPay(game);
+
+/** A ship the shipping company lost or retired some other way drops out of its fleet. */
+function sweep(game) {
+  const w = warOf(game); if (!w) return;
+  for (const f of w.fleets) f.ships = f.ships.filter((id) => { const v = vesselOf(game, id); return v && v.status !== 'lost' && v.status !== 'retired'; });
+}
+
+function fleetsView(game) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity || !Lg(game)) return null;
+  sweep(game);
+  const row = (v) => { const s = Lg(game).stats(v); return { id: v.id, name: v.name, model: v.model, role: isWar(v) ? 'warship' : 'transport', attack: s.combat.attack || 0, defense: s.combat.defense || 0, hold: s.capacity || 0, speed: Math.round(s.speed * NAVY.knot), condition: Math.round(v.condition ?? 100), port: v.port }; };
+  const freeShips = Lg(game).vessels().filter((v) => v.status === 'docked' && !v.contract && !v.cargo && (isWar(v) || Lg(game).stats(v).capacity > 0)).map(row);
+  return {
+    free: freeShips, bases: bases(game).map((p) => ({ id: p.id, name: p.name, country: countryName(p.country) })), missions: NAVY.missions, reach: NAVY.reach,
+    fleets: w.fleets.map((f) => ({ id: f.id, name: f.name, status: f.status, base: f.base, baseName: f.base ? provinceById(f.base).name : null, ships: live(game, f).map(row), firepower: Math.round(firepower(game, f) * 10) / 10, escort: Math.round(escortOf(game, f) * 10) / 10, hold: holdOf(game, f), busy: busy(game, f), contract: f.contract || null, canAct: f.status === 'abroad' && f.acted < game.clock.day && !busy(game, f) })),
+    hour: nowHour(game),
+  };
+}
+
+/** The shipping company's side of the books: every ship in a fleet exists and is held by that fleet; no ship is held by a fleet that is gone. */
+function checkFleets(game) {
+  const w = warOf(game); const out = []; if (!w || !Lg(game)) return out;
+  for (const f of w.fleets) for (const id of f.ships) { const v = vesselOf(game, id); if (!v) out.push({ kind: 'missing_reference', id: f.id, text: `fleet ${f.id} lists ${id}, which is not a ship of the shipping company` }); else if (v.status !== 'lost' && (v.cargo?.type !== 'war' || v.cargo.fleet !== f.id)) out.push({ kind: 'double_assignment', id, text: `${id} is in fleet ${f.id} but is not held by it` }); }
+  for (const v of Lg(game).vessels()) if (v.cargo?.type === 'war' && !w.fleets.some((f) => f.id === v.cargo.fleet && f.ships.includes(v.id))) out.push({ kind: 'missing_reference', id: v.id, text: `the ${v.name} is held for fleet ${v.cargo.fleet}, which does not list it` });
+  return out;
+}
+
+return { fleetsOf, firepower, escortOf, holdOf, busy, raiseFleet, disbandFleet, bases, deployFleet, recallFleet, targets, mission, takeCut, blockaded, landingPlan, dailyPay, sweep, fleetsView, checkFleets };
+})();
+
+// ---- src/war/intl.js
+__m["src/war/intl.js"] = (function () {
+// International contracts (v0.103.10; src/content/navy.js INTL): the embassies' offers. A country that is fighting in a hot theatre and whose relation with Sund is warm enough offers work: take a named
+// province, hold one, or blockade a port. An offer states what it asks (soldiers and a tank for a ground job, warships for a blockade) and the check is made against the battalions and fleets you name, which
+// must really be yours and free. An accepted contract REPLACES the retainer for the units on it (they are paid at the contract's rate, a little above the plain one for a warm country), and finishing it pays a
+// completion bonus at the victory-point rate; ground named in a contract pays that bonus instead of the plain capture bonus, never both. Failing costs standing with the clients. Diplomacy is only read:
+// nothing here starts a war, ends one, or lays an embargo.
+//
+//   offers(game)                              the open offers (refreshed every few days from the day's relations)
+//   acceptContract(game, id, { battalions, fleets })      enlists with the client if needed, then puts the units on the contract
+//   abandon(game, id)                         give it up (counts as failing)
+//   intlView(game)                            everything the screen shows
+// Saved: war.intl = { offers:[…], active:[{ id, client, enemy, theatre, kind, target, size, start, end, rate, bonus, need, progress, battalions, fleets }], done:[…last ten], seen }
+const { peekMilitary } = __m["src/war/state.js"];
+const { warOf, controllerOf, countryName, nextId, note, theatres, theatreOf, inTheatre, providedBy, enlist, unit } = __m["src/war/strategic.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
+const { INTL } = __m["src/content/navy.js"];
+const { RETAINER } = __m["src/content/strategic.js"];
+const { hooks } = __m["src/war/hooks.js"];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const vpOf = (p) => Math.max(1, p.vp || 0);
+const sizeOf = (kind, p) => clamp(1 + (kind === 'blockade' ? ((p.fort || 0) >= 2) + ((p.fort || 0) >= 4) : (vpOf(p) >= 2) + (vpOf(p) >= 4)), 1, 3);
+
+/** The relations with Sund, read from the diplomacy page's rows (never written). */
+function relations(game) {
+  try { return Object.fromEntries((game.politics?.diplomacy?.().countries || []).map((r) => [r.id, r])); } catch { return {}; }
+}
+const reqOf = (kind, size) => {
+  const K = INTL.kinds[kind];
+  if (kind === 'blockade') return { warships: K.ships * size };
+  return { people: K.people * size, tank: size >= K.hulls.from ? K.hulls.tank : 0 };
+};
+const needDays = (kind, days) => (kind === 'take' ? 0 : Math.ceil(days * 0.6));
+
+/** Is a named target still what the offer says it is? */
+function targetOk(game, c) {
+  const p = provinceById(c.target); if (!p) return false;
+  if (c.kind === 'take') return controllerOf(game, p) === c.enemy;
+  if (c.kind === 'hold') return controllerOf(game, p) === c.client;
+  return controllerOf(game, p) === c.enemy && p.coast;
+}
+
+function candidates(game, th, client, enemy, kind) {
+  const P = provinces(); const inT = inTheatre(th); const ctl = (p) => controllerOf(game, p);
+  const list = P.filter((p) => inT(p) && (kind === 'hold' ? ctl(p) === client && p.neighbours.some((n) => ctl(P[n]) === enemy) : kind === 'take' ? ctl(p) === enemy && p.neighbours.some((n) => ctl(P[n]) === client) : ctl(p) === enemy && p.coast));
+  const good = list.filter((p) => (kind === 'blockade' ? true : p.vp > 0)); return (good.length ? good : list).sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+function refreshOffers(game, force = false) {
+  const w = warOf(game); if (!w) return; const day = game.clock.day; const I = w.intl;
+  if (!force && I.seen !== null && day - I.seen < INTL.refreshDays) { I.offers = I.offers.filter((o) => o.expires >= day); return; }
+  I.seen = day; const R = relations(game); const out = []; const bucket = Math.floor(day / INTL.refreshDays);
+  for (const th of theatres(game).filter((t) => t.hot)) for (const client of th.between) {
+    const rel = R[client]; if (!rel || rel.score < INTL.minScore) continue; const enemy = th.between.find((c) => c !== client);
+    for (const kind of Object.keys(INTL.kinds)) {
+      const cand = candidates(game, th, client, enemy, kind); if (!cand.length) continue;
+      const p = cand[Math.floor(unit(`intl|${th.id}|${client}|${kind}|${bucket}`) * cand.length)]; const size = sizeOf(kind, p); const K = INTL.kinds[kind];
+      const days = K.days[0] + K.days[1] * size; const mix = clamp((rel.score - INTL.minScore) / (100 - INTL.minScore), 0, 1);
+      out.push({ id: null, client, enemy, theatre: th.id, kind, target: p.id, size, days, rate: Math.round((INTL.rate[0] + (INTL.rate[1] - INTL.rate[0]) * mix) * 100) / 100, bonus: vpOf(p) * RETAINER.perVP, req: reqOf(kind, size), expires: day + INTL.offerDays, score: rel.score, ambassador: rel.ambassador || null });
+    }
+  }
+  out.sort((a, b) => b.score - a.score || (a.target < b.target ? -1 : 1)); I.offers = out.slice(0, INTL.max).map((o) => ({ ...o, id: nextId(w, 'K') }));
+}
+const offers = (game) => { refreshOffers(game); return warOf(game)?.intl.offers || []; };
+
+/** What the units named bring against what an offer asks: a list of the shortfalls (empty means it fits). */
+function shortfalls(game, offer, battalions, fleets) {
+  const w = warOf(game); const out = [];
+  if (offer.kind === 'blockade') {
+    const fl = (fleets || []).map((id) => w.fleets.find((f) => f.id === id)).filter(Boolean); if (!fl.length) return ['name a fleet'];
+    let n = 0; for (const f of fl) for (const id of f.ships) { const v = game.logistics?.vessel?.(id); if (v && v.kind === 'warship' && v.status !== 'lost') n++; }
+    if (n < offer.req.warships) out.push(`${offer.req.warships - n} more warship${offer.req.warships - n === 1 ? '' : 's'} (${offer.req.warships} needed, ${n} in the fleets named)`);
+    return out;
+  }
+  const bs = (battalions || []).map((id) => w.battalions.find((b) => b.id === id)).filter(Boolean); if (!bs.length) return ['name a battalion'];
+  const P = bs.reduce((a, b) => { const q = providedBy(game, b.squads); a.people += q.people; a.tank += q.cls.tank || 0; return a; }, { people: 0, tank: 0 });
+  if (P.people < offer.req.people) out.push(`${offer.req.people - P.people} more soldiers (${offer.req.people} needed, ${P.people} in the battalions named)`);
+  if (P.tank < offer.req.tank) out.push(`${offer.req.tank - P.tank} more tank${offer.req.tank - P.tank === 1 ? '' : 's'}`);
+  return out;
+}
+
+function acceptContract(game, id, { battalions = [], fleets = [] } = {}) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return { ok: false, text: 'You have no company.' };
+  refreshOffers(game); const o = w.intl.offers.find((x) => x.id === id); if (!o) return { ok: false, text: 'That offer has been withdrawn.' };
+  if (w.intl.active.length >= 3) return { ok: false, text: 'Three contracts at a time is the most a company can honour.' };
+  if (w.employer && (w.employer.side !== o.client || w.employer.theatre !== o.theatre)) return { ok: false, text: `You serve ${countryName(w.employer.side)} in ${theatreOf(game, w.employer.theatre)?.name}: a contract is for the side you serve.` };
+  const bs = battalions.map((b) => w.battalions.find((x) => x.id === b)); const fl = fleets.map((f) => w.fleets.find((x) => x.id === f));
+  if (bs.some((b) => !b) || fl.some((f) => !f)) return { ok: false, text: 'Name only battalions and fleets that are yours.' };
+  const used = [...bs.filter((b) => b.contract), ...fl.filter((f) => f.contract)]; if (used.length) return { ok: false, text: `${used[0].name} is already on a contract.` };
+  const probe = { ...o }; if (!targetOk(game, probe)) return { ok: false, text: 'The ground has changed hands since the offer was made.' };
+  const miss = shortfalls(game, o, battalions, fleets); if (miss.length) return { ok: false, text: `The ${INTL.kinds[o.kind].name.toLowerCase()} asks for ${miss.join('; ')}. Nothing is invented to make up the difference.` };
+  if (!w.employer) { const r = enlist(game, { theatre: o.theatre, side: o.client }); if (!r.ok) return r; }
+  const c = { id: o.id, client: o.client, enemy: o.enemy, theatre: o.theatre, kind: o.kind, target: o.target, size: o.size, start: game.clock.day, end: game.clock.day + o.days, rate: o.rate, bonus: o.bonus, need: needDays(o.kind, o.days), progress: 0, battalions: [...battalions], fleets: [...fleets] };
+  w.intl.offers = w.intl.offers.filter((x) => x !== o); w.intl.active.push(c); for (const b of bs) b.contract = c.id; for (const f of fl) f.contract = c.id;
+  const p = provinceById(c.target); note(w, game, `Contract with ${countryName(c.client)}: ${INTL.kinds[c.kind].name.toLowerCase()} (${p.name}), ${o.days} days, paid at ${c.rate}× the retainer and ${c.bonus.toLocaleString('en-US')} on completion.`);
+  return { ok: true, text: `You take the contract: ${INTL.kinds[c.kind].name.toLowerCase()} — ${p.name}, ${o.days} days.`, id: c.id };
+}
+
+const unlink = (w, c) => { for (const b of w.battalions) if (b.contract === c.id) delete b.contract; for (const f of w.fleets) if (f.contract === c.id) delete f.contract; };
+function close(game, w, c, how) {
+  const C = peekMilitary(game)?.company; const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); const p = provinceById(c.target);
+  w.intl.active = w.intl.active.filter((x) => x !== c); unlink(w, c);
+  if (how === 'done') {
+    game.corp.receive('security', c.bonus, { cat: 'contract' }); rep.score += INTL.rep.done; rep.done = (rep.done || 0) + 1; w.paid = (w.paid || 0) + c.bonus;
+    note(w, game, `Contract done for ${countryName(c.client)}: ${INTL.kinds[c.kind].name.toLowerCase()} at ${p.name}. ${c.bonus.toLocaleString('en-US')} paid.`); game.notify?.(`Contract done: ${p.name}. ${c.bonus.toLocaleString('en-US')} obols.`, 'good');
+  } else if (how === 'failed') {
+    rep.score = Math.max(0, rep.score - INTL.rep.failed); rep.failed = (rep.failed || 0) + 1; note(w, game, `Contract failed for ${countryName(c.client)}: ${INTL.kinds[c.kind].name.toLowerCase()} at ${p.name}.`); game.notify?.(`Contract failed: ${p.name}.`, 'warn');
+  } else note(w, game, how === 'void' ? `Contract with ${countryName(c.client)} lapses: ${p.name} changed hands without you; nothing is owed either way.` : `Contract with ${countryName(c.client)} ends with the employer's collapse (${p.name}); nothing is owed either way.`);
+  w.intl.done.unshift({ id: c.id, client: c.client, kind: c.kind, target: c.target, result: how, day: game.clock.day }); w.intl.done.length = Math.min(w.intl.done.length, 10);
+}
+function abandon(game, id) {
+  const w = warOf(game); const c = w?.intl.active.find((x) => x.id === id); if (!c) return { ok: false, text: 'No such contract.' };
+  close(game, w, c, 'failed'); return { ok: true, text: 'You walk away from the contract. The clients remember.' };
+}
+
+hooks.intlTaken = (game, bn, prov) => {
+  const w = warOf(game); const c = w?.intl.active.find((x) => x.kind === 'take' && x.target === prov.id); if (!c) return false;
+  close(game, w, c, 'done'); return true;
+};
+/** Once a day: progress, completion, expiry. */
+hooks.intlDay = (game, w) => {
+  const day = game.clock.day;
+  for (const c of [...w.intl.active]) {
+    if (!w.employer || w.employer.side !== c.client) { close(game, w, c, 'collapsed'); continue; }
+    c.battalions = c.battalions.filter((id) => w.battalions.some((b) => b.id === id)); c.fleets = c.fleets.filter((id) => w.fleets.some((f) => f.id === id));
+    if (c.kind !== 'blockade' && !c.battalions.length) { close(game, w, c, 'failed'); continue; }
+    if (c.kind === 'hold') { if (controllerOf(game, provinceById(c.target)) !== c.client) { close(game, w, c, 'failed'); continue; } if (c.battalions.some((id) => { const b = w.battalions.find((x) => x.id === id); return b.status === 'theatre' && b.pos === c.target; })) c.progress++; }
+    else if (c.kind === 'blockade') { if ((w.navy.blockade[c.target] || 0) >= day) c.progress++; }
+    else if (controllerOf(game, provinceById(c.target)) === c.client) { close(game, w, c, 'void'); continue; } // taken some other way (by the client's own army): nothing was earned, and nothing is owed
+    if (c.kind !== 'take' && c.progress >= c.need) { close(game, w, c, 'done'); continue; }
+    if (day > c.end) close(game, w, c, 'failed');
+  }
+  refreshOffers(game);
+};
+
+function intlView(game) {
+  const w = warOf(game); const C = peekMilitary(game)?.company; if (!w || !C?.identity) return null;
+  refreshOffers(game);
+  const nm = (id) => provinceById(id)?.name || id; const free = { battalions: w.battalions.filter((b) => !b.contract).map((b) => ({ id: b.id, name: b.name, status: b.status })), fleets: w.fleets.filter((f) => !f.contract).map((f) => ({ id: f.id, name: f.name, status: f.status })) };
+  const row = (c, active) => ({ ...c, kindName: INTL.kinds[c.kind].name, text: INTL.kinds[c.kind].text, targetName: nm(c.target), clientName: countryName(c.client), enemyName: countryName(c.enemy), theatreName: theatreOf(game, c.theatre)?.name, daysLeft: active ? Math.max(0, c.end - game.clock.day + 1) : Math.max(0, c.expires - game.clock.day + 1), targetOk: targetOk(game, c) });
+  return { offers: w.intl.offers.map((o) => row(o, false)), active: w.intl.active.map((c) => row(c, true)), done: w.intl.done.map((d) => ({ ...d, targetName: nm(d.target), clientName: countryName(d.client), kindName: INTL.kinds[d.kind].name })), free, rep: C.rep || null, kinds: INTL.kinds };
+}
+
+return { refreshOffers, offers, shortfalls, acceptContract, abandon, intlView };
 })();
 
 // ---- src/war/airpower.js
@@ -35648,6 +36069,14 @@ function checkMilitary(m) {
   // v0.103.9: air wings: their aircraft exist, are theirs alone and are locked to them
   for (const wg of m.war?.wings || []) for (const id of wg.aircraft || []) { const x = items.find((i) => i.id === id); if (!x) add('missing_reference', wg.id, `wing ${wg.id} lists ${id}, which does not exist`); else if (x.wing !== wg.id) add('double_assignment', id, `${id} is in wing ${wg.id} but says ${x.wing ?? 'none'}`); }
   for (const x of items) if (x.wing && !(m.war?.wings || []).some((wg) => wg.id === x.wing && wg.aircraft.includes(x.id))) add('missing_reference', x.id, `${x.id} says it is in wing ${x.wing}, which does not list it`);
+  // v0.103.10: international contracts: the battalions and fleets on one are on it, and say so
+  const act = m.war?.intl?.active || []; const fleets = m.war?.fleets || [];
+  for (const c of act) {
+    for (const id of c.battalions || []) if (!(m.war.battalions || []).some((b) => b.id === id && b.contract === c.id)) add('missing_reference', c.id, `contract ${c.id} lists battalion ${id}, which does not say so`);
+    for (const id of c.fleets || []) if (!fleets.some((f) => f.id === id && f.contract === c.id)) add('missing_reference', c.id, `contract ${c.id} lists fleet ${id}, which does not say so`);
+  }
+  for (const b of m.war?.battalions || []) if (b.contract && !act.some((c) => c.id === b.contract && (c.battalions || []).includes(b.id))) add('missing_reference', b.id, `battalion ${b.id} says it is on contract ${b.contract}, which does not list it`);
+  for (const f of fleets) if (f.contract && !act.some((c) => c.id === f.contract && (c.fleets || []).includes(f.id))) add('missing_reference', f.id, `fleet ${f.id} says it is on contract ${f.contract}, which does not list it`);
   // the coup flag and what is derived from it
   if (!COUP_STATES.includes(m.coup?.state)) add('bad_coup', 'coup', `the coup state is "${m.coup?.state}"`);
   else if (Boolean(m.protection?.baseProtected) !== (m.coup.state === 'none')) add('protection_mismatch', 'protection', `the coup is ${m.coup.state} but the base is ${m.protection?.baseProtected ? '' : 'not '}protected`);
@@ -35966,6 +36395,8 @@ const { offers: transferOffers, transfer: transferIn, giveBack: transferBack } =
 const { buyVehicle: vehicleBuy, buySupply: supplyBuy } = __m["src/war/purchase.js"];
 const { market: procMarket, quote: procQuote, place: procPlace, ordersView: procOrders, CATEGORIES: PROC_CATEGORIES } = __m["src/war/procurement.js"];
 const { nextEvent: warNextEvent } = __m["src/war/nextEvent.js"];
+const { raiseFleet: navyRaise, disbandFleet: navyDisband, deployFleet: navyDeploy, recallFleet: navyRecall, mission: navyMission, fleetsView: navyView, targets: navyTargets, checkFleets: navyCheck } = __m["src/war/navy.js"];
+const { acceptContract: intlAccept, abandon: intlAbandon, intlView } = __m["src/war/intl.js"];
 const { raiseWing: airRaise, disbandWing: airDisband, deployWing: airDeploy, recallWing: airRecall, mission: airMission, wingsView: airView, targets: airTargets } = __m["src/war/airpower.js"];
 const { view: researchView, start: researchStart, reach: researchReach } = __m["src/war/research.js"];
 const { organise: troopsOrganise, setAuto: troopsAuto } = __m["src/war/organise.js"];
@@ -36005,7 +36436,7 @@ class War {
   repair(id, amount, source) { return repairStructure(this.g, id, amount, source); }
   structures() { return structureView(this.g); }
 
-  check() { return checkMilitary(this.peek()); }
+  check() { return [...checkMilitary(this.peek()), ...navyCheck(this.g)]; }
 
   // ---- the company's construction (v0.98.0). `pay` is the company's way of paying; stage 3 makes it the company's own account.
   company() { return this.peek()?.company || null; }
@@ -36026,6 +36457,17 @@ class War {
   recallWing(id) { return airRecall(this.g, id); }
   wingMission(id, type, to) { return airMission(this.g, id, { type, to }); }
   wingTargets(id) { return airTargets(this.g, id); }
+  // ---- v0.103.10: fleets lent by the shipping company (landings through `order(id, { type: 'land', to, fleet })`) and international contracts
+  navy() { return navyView(this.g); }
+  raiseFleet(name, ships) { return navyRaise(this.g, { name, ships }); }
+  disbandFleet(id) { return navyDisband(this.g, id); }
+  deployFleet(id, provinceId) { return navyDeploy(this.g, id, provinceId); }
+  recallFleet(id) { return navyRecall(this.g, id); }
+  fleetMission(id, type, to) { return navyMission(this.g, id, { type, to }); }
+  fleetTargets(id) { return navyTargets(this.g, id); }
+  intl() { return intlView(this.g); }
+  acceptContract(id, battalions, fleets) { return intlAccept(this.g, id, { battalions, fleets }); }
+  abandonContract(id) { return intlAbandon(this.g, id); }
   // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
   research() { return researchView(this.g); }
   startResearch(id) { return researchStart(this.g, id); }
@@ -44118,6 +44560,7 @@ class Logistics {
     if (!v) return { ok: false, text: 'No such ship.' };
     if (!this.port(to)) return { ok: false, text: 'No such port.' };
     if (v.cargo?.type === 'aero') return { ok: false, text: `The ${v.name} is reserved for aerospace freight (release it on the aerospace terminal's Supply page).` };
+    if (v.cargo?.type === 'war') return { ok: false, text: `The ${v.name} is lent to the war company's fleet (stand the fleet down in Base Operations, Fleets).` };
     const pl = this.plan(v, to);
     if (!pl.ok) return { ok: false, text: `Can't sail: ${pl.reasons[0]}.` };
     if (!g.corp.canAfford('shipping', pl.cost)) return { ok: false, text: `The passage costs ${pl.cost} obols (running costs and port fees).` };
@@ -57762,6 +58205,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.103.10',
+    date: '2026-11-08',
+    channel: 'development',
+    title: 'War: Fleets, Landings and International Contracts',
+    notes: [
+      'Fleets: lend ships from your shipping company (Base Operations, Fleets), base them on a coast the side you serve holds, and bombard or blockade an enemy coast once a day. The ships stay the shipping company\'s: they cannot sail for it while lent, wear on missions, and a lost ship is lost for good.',
+      'Landing order on the strategic map: a battalion on a coast boards a fleet near it with room in its holds, and sails to another coast you hold or lands on an enemy coast. A landing meets a contested beach; escort warships take part of that off.',
+      'International contracts (Base Operations, Contracts): embassies of countries fighting in a hot theatre offer take, hold and blockade jobs. The units on a contract are paid its rate instead of the retainer, with a completion bonus at the victory-point rate. Diplomacy is only read, never changed.',
+    ],
+  },
   {
     version: '0.103.9',
     date: '2026-11-08',
@@ -81132,7 +81586,7 @@ function strategicPanel(ui, body) {
       h('div', { class: 'stc-meters' }, ...[['Strength', s.strength, '#3ddc84'], ['Organisation', s.org, '#4aa8ff'], ['Entrenchment', s.entrench * 20, '#e8b84a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, k === 'Entrenchment' ? `${s.entrench} / 5` : `${val}%`)))),
       h('h4', {}, 'STATS (from what it is made of)'), h('div', { class: 'stc-stats' }, stat('Soft attack', s.soft), stat('Hard attack', s.hard), stat('Defence', s.defence), stat('Armour', s.armour), stat('Speed', `${s.speed} km/h${s.mounted ? '' : ' (on foot)'}`), stat('Combat width', s.width)),
       h('h4', {}, 'MADE OF (real squads and vehicles)'), h('ul', {}, ...parts.map((t) => h('li', {}, t))), h('div', { class: 'stc-meters' }, ...[['Supply', s.supply, s.supply >= 70 ? '#3ddc84' : s.supply >= 25 ? '#e8b84a' : '#e05a4a']].map(([k, val, c]) => h('div', {}, h('span', {}, k), bar(val, c), h('b', {}, `${val}%`)))), h('p', { class: 'stc-note' }, `${s.supply < 70 ? 'Short of supply: it recovers slowly and fights with less morale; it is never stopped. ' : ''}${s.fuelShort ? `Short of fuel (${s.fuelShort}%): its vehicles count for less. ` : ''}Weather here: ${WEATHER[(v.provinces.find((q) => q.id === b.pos) || {}).weather || 'clear'].name}.`),
-      h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('airlift', 'Airlift', 'airlift'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
+      h('div', { class: 'stc-btns' }, ord('move', 'Move', 'move'), ord('attack', 'Attack', 'attack'), ord('airlift', 'Airlift', 'airlift'), ord('land', 'Landing', 'land'), ord('defend', 'Defend'), ord('hold', 'Hold'), ord('withdraw', 'Withdraw')),
       b.engaged ? h('div', { class: 'stc-alert' }, h('b', {}, 'In contact'), h('span', {}, eng?.title || ''), h('button', { class: 'pri', onclick: () => { ui.milSub = 'Engagement'; ui.milTab = 'Company'; ui.milEng = b.engaged; ui.milPage = 'Missions'; ui.openPanel('militaryterminal'); } }, 'Decide the battle')) : null,
       h('div', { class: 'stc-btns' }, b.status === 'home' ? h('button', { class: 'pri', disabled: !v.employer, title: v.employer ? '' : 'Enlist first', onclick: () => act(W.deploy(b.id)) }, 'Send to the theatre') : null, b.status === 'theatre' ? h('button', { disabled: Boolean(b.engaged || b.moving), onclick: () => act(W.recall(b.id)) }, 'Bring home') : null, b.status === 'home' ? h('button', { onclick: () => act(W.standDown(b.id)) }, 'Stand down') : null)].filter(Boolean));
   };
@@ -81961,6 +82415,66 @@ function renderAir(cx, box) {
 return { renderAir };
 })();
 
+// ---- src/ui/osint/navy.js
+__m["src/ui/osint/navy.js"] = (function () {
+// Fleets and international contracts (v0.103.10): Base Operations → Fleets and Contracts. A fleet is made of ships lent by the shipping company (never copied): warships to bombard and blockade and to
+// escort, cargo ships as transports. A battalion boards a fleet with the Landing order on the strategic map. Contracts are the embassies' offers: the screen shows what each asks and whether the
+// battalions and fleets you own can meet it. Every button calls `game.war`; nothing here changes a record.
+const { h, panel, stats, stat, btn, chip, empty } = __m["src/ui/osint/kit.js"];
+
+const fmt = (x) => Math.round(Number(x) || 0).toLocaleString('en-US');
+const form = (S) => (S.navy ||= { name: '', pick: [], base: {}, target: {}, take: {} });
+const sel = (opts, ph, on, cur) => h('select', { onchange: (e) => on(e.target.value) }, h('option', { value: '' }, ph), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
+const shipLine = (x) => `${x.name} · ${x.role === 'warship' ? `attack ${x.attack}, defence ${x.defense}` : `holds ${x.hold}`} · ${x.speed} km/h · condition ${x.condition}%`;
+
+function renderFleets(cx, box) {
+  const { W, S } = cx; const N = W.navy(); const F = form(S.base || S); if (!N) { box.append(empty('The shipping company is not started: ships are lent from it.')); return; }
+  F.pick = F.pick.filter((id) => N.free.some((x) => x.id === id));
+  box.append(stats(stat('Ships free to lend', String(N.free.length), { sub: 'docked, no cargo, no contract' }), stat('Fleets', String(N.fleets.length)), stat('Coasts to base on', String(N.bases.length), { sub: N.bases.length ? 'held by the side you serve' : 'enlist in a theatre first' })));
+  box.append(h('div', { style: 'height:8px' }));
+  const name = h('input', { class: 'osx-input', value: F.name, placeholder: 'name (optional)', style: 'width:200px', oninput: (e) => { F.name = e.target.value; } });
+  box.append(panel('Form a fleet', [
+    h('div', { class: 'osx-sub' }, 'Ships come from your shipping company and go back to it: a lent ship is held and cannot sail for the shipping company meanwhile. Warships bombard, blockade and escort; ships with holds carry a battalion (a soldier takes one place, a vehicle five). A ship lost at sea is lost for good.'),
+    ...(N.free.length ? N.free.map((x) => h('label', { class: 'osx-row tap', style: 'cursor:pointer' }, h('span', {}, h('input', { type: 'checkbox', checked: F.pick.includes(x.id), onchange: (e) => { F.pick = e.target.checked ? [...F.pick, x.id] : F.pick.filter((i) => i !== x.id); cx.refresh(); } }), ' ', h('b', {}, x.name), h('small', { style: 'margin-left:6px' }, shipLine(x))), chip(x.role, x.role === 'warship' ? 'warn' : ''))) : [empty('No free ships. Buy some in Fleet Command (the shipping company).')]),
+    h('div', { style: 'display:flex;gap:8px;align-items:center;margin-top:8px' }, name, btn('Form fleet', () => { const r = W.raiseFleet(F.name, F.pick); if (r.ok) { F.name = ''; F.pick = []; } cx.go(r); }, { kind: 'pri', disabled: !F.pick.length }))]));
+  box.append(h('div', { style: 'height:8px' }));
+  if (!N.fleets.length) { box.append(empty('No fleets yet.')); return; }
+  for (const f of N.fleets) {
+    const abroad = f.status === 'abroad'; const targets = abroad ? W.fleetTargets(f.id) : [];
+    box.append(panel(f.name, [
+      h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, chip(abroad ? `off ${f.baseName}` : 'at home', abroad ? 'bl' : 'ok'), chip(`${f.ships.length} ships`), chip(`firepower ${f.firepower}`), chip(`escort ${f.escort}`), chip(`holds ${f.hold}`), f.busy ? chip('battalion aboard', 'warn') : abroad ? chip(f.canAct ? 'can act today' : 'acted today', f.canAct ? 'ok' : 'warn') : null, f.contract ? chip(`contract ${f.contract}`, 'bl') : null),
+      ...f.ships.map((x) => h('div', { class: 'osx-sub', style: 'padding:0' }, `${x.role === 'warship' ? '⚔' : '▣'} ${shipLine(x)}`)),
+      !abroad ? h('div', { class: 'osx-ctl' }, sel(N.bases.map((p) => [p.id, `${p.name} (${p.country})`]), N.bases.length ? 'Base it on…' : 'Enlist in a theatre first', (v) => { F.base[f.id] = v; }, F.base[f.id]), btn('Sail', () => cx.go(W.deployFleet(f.id, F.base[f.id])), { kind: 'pri sm', disabled: !N.bases.length }), btn('Stand down', () => cx.go(W.disbandFleet(f.id)), { kind: 'sm', disabled: Boolean(f.contract) }))
+        : h('div', {}, h('div', { class: 'osx-ctl' }, sel(targets.map((t) => [t.id, `${t.name} · ${t.km} km${t.fort ? ` · fort ${t.fort}` : ''}`]), 'Coast…', (v) => { F.target[f.id] = v; }, F.target[f.id]),
+          ...Object.entries(N.missions).map(([type, label]) => btn(label, () => cx.go(W.fleetMission(f.id, type, F.target[f.id])), { kind: 'sm', disabled: !f.canAct || !targets.length, title: type === 'bombard' ? 'Takes a share off the next fight at that coast' : 'Shuts the port: its garrison is cut for some days' }))),
+          h('div', { class: 'osx-ctl', style: 'margin-top:6px' }, btn('Recall', () => cx.go(W.recallFleet(f.id)), { kind: 'sm', disabled: f.busy }), h('small', { class: 'osx-sub', style: 'padding:0' }, 'To land or sail a battalion: Strategic Map → pick it → Landing, then the coast. The best fleet near it with room takes it.'))),
+    ].filter(Boolean), { sub: abroad ? `One act a day within ${N.reach} km of the base. Ships wear and may be lost.` : 'Base it on a coast held by the side you serve.' }), h('div', { style: 'height:8px' }));
+  }
+}
+
+function renderContracts(cx, box) {
+  const { W, S } = cx; const I = W.intl(); const F = form(S.base || S); if (!I) { box.append(empty('You have no company.')); return; }
+  box.append(stats(stat('Offers', String(I.offers.length), { sub: 'from the embassies, refreshed every few days' }), stat('On contract', String(I.active.length), { sub: 'three at most' }), stat('Standing', String(Math.round(I.rep?.score || 0)), { sub: `${I.rep?.done || 0} done · ${I.rep?.failed || 0} failed` })));
+  box.append(h('div', { style: 'height:8px' }));
+  if (I.active.length) {
+    box.append(panel('Your contracts', I.active.map((c) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, `${c.kindName}: ${c.targetName}`), h('small', {}, `${c.clientName} against ${c.enemyName} · ${c.daysLeft} days left · ${c.kind === 'take' ? 'take it' : `${c.progress}/${c.need} days served`} · paid at ${c.rate}× the retainer, ${fmt(c.bonus)} ◎ on completion · ${[...c.battalions, ...c.fleets].join(', ') || 'no units'}`)), btn('Walk away', () => cx.go(W.abandonContract(c.id)), { kind: 'warn sm' }))), { sub: 'The units on a contract are paid its rate instead of the retainer, never both.' }), h('div', { style: 'height:8px' }));
+  }
+  box.append(panel('Offers from the embassies', I.offers.length ? I.offers.map((o) => {
+    const pick = (F.take[o.id] ||= { b: [], f: [] }); const bs = I.free.battalions; const fs = I.free.fleets;
+    const needs = o.kind === 'blockade' ? `${o.req.warships} warship${o.req.warships === 1 ? '' : 's'} in the fleets named` : `${o.req.people} soldiers${o.req.tank ? ` and ${o.req.tank} tank` : ''} in the battalions named`;
+    const tick = (list, key, id) => h('label', { style: 'margin-right:10px;cursor:pointer' }, h('input', { type: 'checkbox', checked: pick[key].includes(id), onchange: (e) => { pick[key] = e.target.checked ? [...pick[key], id] : pick[key].filter((i) => i !== id); cx.refresh(); } }), ` ${list.find((x) => x.id === id).name}`);
+    return h('div', { class: 'osx-row', style: 'display:block' },
+      h('div', { class: 'osx-sqh' }, h('b', {}, `${o.kindName}: ${o.targetName}`), chip(`${o.clientName}${o.ambassador ? ` · ${o.ambassador}` : ''}`, 'bl')),
+      h('small', { class: 'osx-sub', style: 'padding:0' }, `${o.text} Against ${o.enemyName} in ${o.theatreName}. ${o.days} days. Asks ${needs}. Pays ${o.rate}× the retainer to the units on it and ${fmt(o.bonus)} ◎ on completion. Offer open ${o.daysLeft} more days.`),
+      h('div', { style: 'margin:6px 0' }, ...(o.kind === 'blockade' ? (fs.length ? fs.map((x) => tick(fs, 'f', x.id)) : [h('small', {}, 'No free fleet: form one on the Fleets tab.')]) : (bs.length ? bs.map((x) => tick(bs, 'b', x.id)) : [h('small', {}, 'No free battalion: raise one on the Battalions tab.')]))),
+      h('div', { class: 'osx-ctl' }, btn('Take the contract', () => { const r = W.acceptContract(o.id, o.kind === 'blockade' ? [] : pick.b, o.kind === 'blockade' ? pick.f : []); if (r.ok) delete F.take[o.id]; cx.go(r); }, { kind: 'pri sm', disabled: !o.targetOk })));
+  }) : [empty('No offers. An embassy offers work when its country is fighting in a hot theatre and is warm enough toward Sund (Politics, Diplomacy).')], { sub: 'Requirements are checked against the battalions and fleets you name. Diplomacy is only read: a contract never starts or ends a war.' }));
+  if (I.done.length) box.append(h('div', { style: 'height:8px' }), panel('Done and failed', I.done.map((d) => h('div', { class: 'osx-row' }, h('span', {}, `${d.kindName}: ${d.targetName} · ${d.clientName}`), chip(d.result, d.result === 'done' ? 'ok' : d.result === 'failed' ? 'warn' : ''))), {}));
+}
+
+return { renderFleets, renderContracts };
+})();
+
 // ---- src/ui/osint/base.js
 __m["src/ui/osint/base.js"] = (function () {
 // Base Operations (v0.103.4): the Hollowmoor installation as a map you can inspect and build on. The map is drawn from the lot's real layout (SLOTS in src/content/maps/hollowmoor.js) and each
@@ -81977,6 +82491,7 @@ const { paintBase } = __m["src/ui/osint/basemap.js"];
 const { renderFactory, machinesStrip } = __m["src/ui/osint/factory.js"];
 const { renderResearch } = __m["src/ui/osint/research.js"];
 const { renderAir } = __m["src/ui/osint/air.js"];
+const { renderFleets, renderContracts } = __m["src/ui/osint/navy.js"];
 
 const CAP_TEXT = { beds: (v) => `${v} beds`, meals: (v) => `${v} hot meals a day`, treat: (v) => `${v} treatment places`, stores: () => 'storage (the stores have no limit)', desks: (v) => `${v} desks`, lines: (v) => `${v} production lines`, bays: (v) => `${v} bays`, training: (v) => `${v} training places`, repair: (v) => `${v} repair places`, racks: (v) => `${v} weapon racks`, surgery: (v) => `${v} surgery theatres`, briefing: (v) => `a briefing room for ${v}` };
 const STATE_TEXT = { none: 'Not built', permit: 'Awaiting permit', foundation: 'Foundations', frame: 'Frame', fitted: 'Fitting out', built: 'Operational', ruin: 'Ruin' };
@@ -82030,12 +82545,14 @@ function mapFor(cx) {
 
 function renderBase(cx, box) {
   const { W, S } = cx; const B = state(S); const V = W.companyView();
-  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'air', label: 'Air wings' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
+  box.append(tabs([{ id: 'map', label: 'Facilities' }, { id: 'people', label: 'Squads and hiring' }, { id: 'works', label: 'Factories and vehicles' }, { id: 'research', label: 'Research' }, { id: 'air', label: 'Air wings' }, { id: 'fleets', label: 'Fleets' }, { id: 'contracts', label: 'Contracts' }, { id: 'forces', label: 'Battalions' }], B.tab, (t) => { B.tab = t; cx.refresh(); }));
   if (B.tab === 'forces') { renderForces(cx, box); return; }
   if (B.tab === 'people') { renderSquadBoard(cx, box); return; }
   if (B.tab === 'works') { renderWorks(cx, box); return; }
   if (B.tab === 'research') { renderResearch(cx, box); return; }
   if (B.tab === 'air') { renderAir(cx, box); return; }
+  if (B.tab === 'fleets') { renderFleets(cx, box); return; }
+  if (B.tab === 'contracts') { renderContracts(cx, box); return; }
   if (!V.lotOwned) { box.append(empty('The company owns no ground yet. Buy the Civic Office licence and Hollowmoor Lot from Command Overview.')); return; }
   const fac = W.facilities(); const sel = fac.find((f) => f.id === B.sel) || null;
   const built = fac.filter((f) => f.state === 'built').length; const dmg = fac.filter((f) => ['damaged', 'ruin'].includes(status(cx, f).mode)).length; const bld = fac.filter((f) => status(cx, f).mode === 'build').length;

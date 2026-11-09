@@ -8,6 +8,8 @@ import { offers as transferOffers, transfer as transferIn, giveBack as transferB
 import { buyVehicle as vehicleBuy, buySupply as supplyBuy } from './purchase.js';
 import { market as procMarket, quote as procQuote, place as procPlace, ordersView as procOrders, CATEGORIES as PROC_CATEGORIES } from './procurement.js';
 import { nextEvent as warNextEvent } from './nextEvent.js';
+import { raiseFleet as navyRaise, disbandFleet as navyDisband, deployFleet as navyDeploy, recallFleet as navyRecall, mission as navyMission, fleetsView as navyView, targets as navyTargets, checkFleets as navyCheck } from './navy.js';
+import { acceptContract as intlAccept, abandon as intlAbandon, intlView } from './intl.js';
 import { raiseWing as airRaise, disbandWing as airDisband, deployWing as airDeploy, recallWing as airRecall, mission as airMission, wingsView as airView, targets as airTargets } from './airpower.js';
 import { view as researchView, start as researchStart, reach as researchReach } from './research.js';
 import { organise as troopsOrganise, setAuto as troopsAuto } from './organise.js';
@@ -47,7 +49,7 @@ export class War {
   repair(id, amount, source) { return repairStructure(this.g, id, amount, source); }
   structures() { return structureView(this.g); }
 
-  check() { return checkMilitary(this.peek()); }
+  check() { return [...checkMilitary(this.peek()), ...navyCheck(this.g)]; }
 
   // ---- the company's construction (v0.98.0). `pay` is the company's way of paying; stage 3 makes it the company's own account.
   company() { return this.peek()?.company || null; }
@@ -68,6 +70,17 @@ export class War {
   recallWing(id) { return airRecall(this.g, id); }
   wingMission(id, type, to) { return airMission(this.g, id, { type, to }); }
   wingTargets(id) { return airTargets(this.g, id); }
+  // ---- v0.103.10: fleets lent by the shipping company (landings through `order(id, { type: 'land', to, fleet })`) and international contracts
+  navy() { return navyView(this.g); }
+  raiseFleet(name, ships) { return navyRaise(this.g, { name, ships }); }
+  disbandFleet(id) { return navyDisband(this.g, id); }
+  deployFleet(id, provinceId) { return navyDeploy(this.g, id, provinceId); }
+  recallFleet(id) { return navyRecall(this.g, id); }
+  fleetMission(id, type, to) { return navyMission(this.g, id, { type, to }); }
+  fleetTargets(id) { return navyTargets(this.g, id); }
+  intl() { return intlView(this.g); }
+  acceptContract(id, battalions, fleets) { return intlAccept(this.g, id, { battalions, fleets }); }
+  abandonContract(id) { return intlAbandon(this.g, id); }
   // ---- v0.103.8: the company's research (tiers 3 and 4: pulse and plasma weapons, hardsuit and power armour, hover and heavy vehicles)
   research() { return researchView(this.g); }
   startResearch(id) { return researchStart(this.g, id); }

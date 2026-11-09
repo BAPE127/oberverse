@@ -2,6 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.10] — 2026-11-08 — War: Fleets, Landings and International Contracts (development build)
+
+The second half of Strategic Command III (`PROPOSAL_WAR_STRATEGIC.md` section 5). Full rules and limits in `docs/WAR.md`.
+
+**Fleets** (`src/war/navy.js`, `src/content/navy.js`, Base Operations → Fleets). Ships are **lent by the shipping company and never copied**: a lent vessel carries `cargo: { type: 'war', fleet, reserved: true }` (the way Aerospace holds one), cannot be sailed away by the shipping company, and comes back when the fleet is stood down; a ship lost at sea is lost in the shipping company's books for good. A fleet sails to a coast the employer holds and acts once a day against an enemy coast within 900 km: a **bombardment** (a share of the enemy off the next fight there, once) or a **blockade** (the garrison cut by 12% for four days). Ships wear and may be lost.
+
+**Landings and passages** (the *Landing* order on the strategic map). A battalion on a coastal province boards a fleet abroad within 400 km that has room (one place a soldier, five a vehicle, from the ships' real capacities): to a coast the employer holds it is a passage; onto an enemy coast a **landing** that costs 12 organisation and meets a contested beach (the enemy 60% stronger in the fight, less what the escorts take off; the fleet's ships pay in wear and chance of loss). Convoys here are the transports of a landing with their escorts.
+
+**International contracts** (`src/war/intl.js`, Base Operations → Contracts). The embassies' offers: a country fighting in a hot theatre and warm enough toward Sund (read from diplomacy, never written) offers *take*, *hold* or *blockade* jobs. Requirements are checked against the battalions and fleets you name. A contract **replaces the retainer** for the units on it (a rate from 1.0 to 1.4 times by relation) and pays a **completion bonus at the victory-point rate**; ground named in a take contract pays that bonus instead of the plain capture bonus, never both. Failing costs standing.
+
+**Also.** The daily pay line no longer fails when the employer collapses on the same day it is computed; `check.js` knows contracts and a new fleet check knows the lent-ship markers; disbanding a battalion on a contract is refused.
+
+**Limits.** No sea zones, no enemy navy or sea battles, no supply convoy, a blockade does not starve the enemy's supply, bombardments act on fights you start; see `docs/WAR.md`.
+
+**Edited existing tests (0).** New: `tests/strategic_navy.test.mjs` (15). Smoke: the Fleets and Contracts tabs.
+
 ## [0.103.9] — 2026-11-08 — War: Air Power on the Strategic Map (development build)
 
 The first half of Strategic Command III (`PROPOSAL_WAR_STRATEGIC.md` section 5); fleets, convoys, landings and international contracts are v0.103.10.

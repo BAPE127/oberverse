@@ -37,7 +37,7 @@ export const countryName = (id) => ATLAS.countries[id]?.name || id;
 export function warOf(game) {
   const m = peekMilitary(game); if (!m) return null;
   const w = (m.war ||= {});
-  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
+  w.v ||= 1; w.control ||= {}; w.flipped ||= {}; w.lost ||= []; w.ai ??= null; w.templates ||= []; w.wings ||= []; w.air ||= { recon: {}, cas: {}, strike: {}, interdict: {} }; w.fleets ||= []; w.navy ||= { bombard: {}, blockade: {} }; w.intl ||= { offers: [], active: [], done: [], seen: null }; w.battalions ||= []; w.employer ??= null; w.hour ??= null; w.log ||= []; w.next ||= {}; w.battles ||= [];
   return w;
 }
 const touch = (w, game) => { if (w.hour === null) w.hour = nowHour(game); };
@@ -78,7 +78,7 @@ export function garrisonOf(game, p) {
   const w = warOf(game); const fl = w?.flipped?.[p.id]; const grown = fl === undefined ? 1 : Math.max(0, Math.min(1, (game.clock.day - fl) / GARRISON.rebuildDays));
   if (controllerOf(game, p) !== p.country || grown === 0) return { troops: 0, armour: 0, air: 0, aa: 0, battery: 0, skill: 1 }; // ground that changed hands holds nothing until a garrison has been rebuilt (or a formation stands on it)
   const spread = 1 - GARRISON.spread / 2 + GARRISON.spread * unit(`garrison|${p.id}`);
-  const cutI = 1 - (hooks.airInterdiction?.(game, p) || 0); // v0.103.9: bombed roads and depots thin a garrison for a few days
+  const cutI = (1 - (hooks.airInterdiction?.(game, p) || 0)) * (1 - (hooks.navalBlockade?.(game, p) || 0)); // v0.103.9: bombed roads and depots thin a garrison for a few days; v0.103.10: so does a shut port
   const troops = Math.min(GARRISON.max, Math.round((GARRISON.base + GARRISON.perFort * p.fort + GARRISON.perVP * p.vp + (p.terrain === 'urban' ? GARRISON.urban : 0) + GARRISON.perInfra * p.infra) * spread * grown * cutI));
   const armour = grown < 1 ? 0 : (p.fort >= 2 ? 1 : 0) + (p.capital ? 1 : 0) + (p.fort >= 4 ? 1 : 0);
   return { troops, armour, air: 0, aa: 0, battery: troops >= 28 ? 2 : troops >= 16 ? 1 : 0, skill: 1 };
@@ -166,6 +166,7 @@ function release(game, bn) {
 export function disband(game, id) {
   const w = warOf(game); const bn = w?.battalions.find((b) => b.id === id); if (!bn) return { ok: false, text: 'No such battalion.' };
   if (bn.status !== 'home') return { ok: false, text: `${bn.name} is ${bn.status === 'theatre' ? 'in the theatre' : bn.status}: bring it home first.` };
+  if (bn.contract) return { ok: false, text: `${bn.name} is on an international contract: it ends first.` };
   release(game, bn); w.battalions = w.battalions.filter((b) => b !== bn); note(w, game, `${bn.name} is stood down.`); return { ok: true, text: `${bn.name} is stood down; its squads and vehicles are free.` };
 }
 
@@ -276,6 +277,13 @@ export function order(game, id, o) {
     const hours = Math.max(1, Math.ceil(d / AIR.lift.speed)); bn.order = { type: foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: hours, attack: foe, air: true }; bn.org = Math.max(0, bn.org - AIR.lift.orgCost); bn.entrench = 0;
     return { ok: true, text: `${bn.name} lifts off for ${to.name}: ${foe ? 'an air assault, contact' : 'landing'} in about ${hours} hour${hours === 1 ? '' : 's'}.`, hours };
   }
+  if (o.type === 'land') { // v0.103.10: by the sea in a fleet's ships: a passage to a coast the employer holds, or a landing on one the enemy holds
+    const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
+    const plan = hooks.landingPlan?.(game, bn, to, o.fleet); if (!plan) return { ok: false, text: 'No fleet can carry it.' }; if (!plan.ok) return plan;
+    if (plan.foe && bn.org < BATTALION.attackMin) return { ok: false, text: `${bn.name} has no stomach for it: its organisation is ${Math.round(bn.org)} (it needs ${BATTALION.attackMin}).` };
+    bn.order = { type: plan.foe ? 'attack' : 'move', to: to.id }; bn.path = []; bn.moving = { to: to.id, left: plan.hours, attack: plan.foe, sea: true, fleet: plan.fleet, pen: plan.penalty }; bn.org = Math.max(0, bn.org - plan.org); bn.entrench = 0;
+    return { ok: true, text: plan.text, hours: plan.hours };
+  }
   if (o.type === 'attack') {
     const to = provinceById(o.to); if (!to) return { ok: false, text: 'No such province.' };
     if (friendly(game, to)) return { ok: false, text: 'That ground is already yours.' };
@@ -310,9 +318,13 @@ function contact(game, w, bn, prov) {
   const real = hostileForce(game, prov); const lvl = intelAt(game, prov) + (reconOf(game, bn) ? 1 : 0); const k = `${prov.id}|${w.hour}`;
   const aircut = hooks.airCut?.(game, prov) || 0; // v0.103.9: close air support and strikes flown against this province take their share off the enemy before the fight (once)
   if (aircut) { real.troops = Math.max(0, Math.round(real.troops * (1 - aircut))); real.armour = Math.max(0, Math.round(real.armour * (1 - aircut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
+  const navalcut = hooks.navalCut?.(game, prov) || 0; // v0.103.10: a bombardment off the coast does the same
+  if (navalcut) { real.troops = Math.max(0, Math.round(real.troops * (1 - navalcut))); real.armour = Math.max(0, Math.round(real.armour * (1 - navalcut))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; }
+  const sea = bn.moving?.sea ? bn.moving : null; // a landing meets a contested beach: more of the enemy, and the ships pay for it
+  if (sea) { real.troops = Math.round(real.troops * (1 + (sea.pen || 0))); real.battery = real.troops >= 28 ? 2 : real.troops >= 16 ? 1 : 0; hooks.landingContact?.(game, w, bn, prov, sea); }
   const reported = { troops: estimate(real.troops, Math.min(2, lvl), `${k}t`), armour: estimate(real.armour, Math.min(2, lvl), `${k}a`) };
   bn.moving = null; bn.order = { type: 'hold' };
-  const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: `${bn.name} attacks ${prov.name}` });
+  const id = openStrategic(game, { battalion: bn, province: prov, enemy: real, reported, intel: Math.min(2, lvl), recipe: recipeOf(prov), terrain: battleTerrain(prov), style: styleOf(prov.country), title: sea ? `${bn.name} lands at ${prov.name}` : `${bn.name} attacks ${prov.name}` });
   if (id) { bn.engaged = id; note(w, game, `${bn.name} meets the enemy at ${prov.name}.`); game.notify?.(`${bn.name} is in contact at ${prov.name}: choose how to fight it.`, 'warn'); }
 }
 /** An enemy formation has come against a province where a battalion of yours stands: the same choice, with you defending. Returns the engagement id. */
@@ -366,7 +378,7 @@ export function dayTick(game) {
   const day = game.clock.day; w.day ||= 0; if (w.day >= day) return; w.day = day;
   let pay = 0;
   for (const bn of w.battalions) {
-    if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); pay += P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0); }
+    if (bn.status === 'theatre' && w.employer) { const P = providedBy(game, bn.squads); const rate = w.intl.active.find((c) => c.id === bn.contract)?.rate ?? 1; /* v0.103.10: a contract's rate replaces the retainer's */ pay += (P.people * RETAINER.perTrooper + P.hulls.reduce((a, x) => a + (RETAINER.perVehicle[clsOf(x)] || 0), 0)) * rate; }
     if (bn.status === 'theatre') {
       // fuel: a vehicle in the theatre burns some of the company's own stock each day; short of it, the vehicles count for less in a fight (they are never stopped)
       const P = providedBy(game, bn.squads); const need = Math.ceil(P.vehicles * FUEL.perVehicleDay * 10) / 10; const have = Math.min(need, stockOf(game, 'supply:fuel')); if (have > 0) takeStock(game, 'supply:fuel', Math.ceil(have)); bn.fuelShort = need > 0 ? Math.max(0, 1 - Math.ceil(have) / need) : 0;
@@ -377,8 +389,11 @@ export function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  hooks.intlDay?.(game, w); // v0.103.10: international contracts are checked once a day (done, failed, or closed with the employer)
   pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
-  if (pay > 0) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
+  pay += hooks.navyPay?.(game) || 0; // v0.103.10: and so are fleets
+  pay = Math.round(pay);
+  if (pay > 0 && w.employer) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
 // ---- a battle on the map ends (called from src/war/engagements.js)
@@ -390,7 +405,7 @@ function resolved(game, C, eng, R) {
     if (obj >= 2) { line += 'the attack is thrown back.'; hooks.aiDefenceEnd?.(game, eng.strategic.fid, true, obj, prov.id); } else { line += fallBack(game, w, bn, prov, obj); hooks.aiDefenceEnd?.(game, eng.strategic.fid, false, obj, prov.id); }
   } else if (obj >= 2) {
     hooks.attackWon?.(game, prov);
-    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = prov.vp * RETAINER.perVP;
+    setControl(game, prov.id, w.employer.side); bn.pos = prov.id; const bonus = hooks.intlTaken?.(game, bn, prov) ? 0 : prov.vp * RETAINER.perVP; // v0.103.10: ground named in a contract pays the contract's completion bonus instead, never both
     if (bonus > 0) game.corp.receive('security', bonus, { cat: 'contract' });
     const rep = (C.rep ||= { score: 0, done: 0, failed: 0, clients: {}, ban: {} }); rep.score += RETAINER.rep * Math.max(1, prov.vp);
     line += `taken${bonus ? `; ${countryName(w.employer.side)} pays ${bonus.toLocaleString('en-US')} for it` : ''}.`;

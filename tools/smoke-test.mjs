@@ -633,6 +633,23 @@ try {
   });
   record('the Air wings tab raises a wing, bases it, flies a mission and shows it flown', Object.values(air).every(Boolean), JSON.stringify(air));
   await shot('war-air-wings');
+  // v0.103.10: the Fleets and Contracts tabs: lend a ship from the shipping company into a fleet, base it, and take an embassy's offer
+  const nav = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    g.player.money += 30_000_000; g.logistics.buyCompany?.(); const b = g.logistics.buyShip('corvette', 'port_millroad', 'Smoke Corvette'); out.ship = Boolean(b?.ok);
+    if (!g.war.state().war?.employer) g.war.enlist({ theatre: 'th_halden', side: 'ostmark' });
+    const f = g.war.raiseFleet('Smoke Fleet', [b.vessel.id]); out.fleet = f.ok; const N = g.war.navy(); out.bases = N.bases.length > 3; out.sail = g.war.deployFleet(f.id, N.bases[0].id).ok;
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'fleets', sel: null } }; ui.openPanel('militaryterminal'); await T(600);
+    const main = () => document.querySelector('.osx-main')?.textContent || '';
+    out.fleetsTab = /SMOKE FLEET/i.test(main()) && /Bombardment/.test(main()) && /Blockade/.test(main()) && /lent/i.test(main());
+    g.politics.ensureDiplomacy(g.politics.ensure()).relations.ostmark.score = 80; g.war.state().war.intl.seen = null; out.offers = g.war.intl().offers.length > 0;
+    ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'contracts', sel: null } }; ui.openPanel('militaryterminal'); await T(600);
+    out.contractsTab = /Offers from the embassies/.test(main()) && /Take the contract/.test(main()) && /Ostmark/.test(main());
+    out.check = g.war.check().length === 0;
+    return out;
+  });
+  record('the Fleets tab lends a ship into a fleet and bases it, and the Contracts tab shows the embassies\' offers', Object.values(nav).every(Boolean), JSON.stringify(nav));
+  await shot('war-fleets');
   const bm = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
     ui.closePanel(); ui.osx = { section: 'base', maps: {}, msg: null, game: g, base: { tab: 'works', works: 'motor_pool', sel: null } }; ui.openPanel('militaryterminal'); await T(500);
