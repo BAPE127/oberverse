@@ -20,9 +20,10 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const vpOf = (p) => Math.max(1, p.vp || 0);
 const sizeOf = (kind, p) => clamp(1 + (kind === 'blockade' ? ((p.fort || 0) >= 2) + ((p.fort || 0) >= 4) : (vpOf(p) >= 2) + (vpOf(p) >= 4)), 1, 3);
 
-/** The relations with Sund, read from the diplomacy page's rows (never written). */
+/** The relations with Sund, peeked from the diplomacy record (never written, and never made: asking must not start the politics' own state or move its dice). Empty until diplomacy has started. */
 function relations(game) {
-  try { return Object.fromEntries((game.politics?.diplomacy?.().countries || []).map((r) => [r.id, r])); } catch { return {}; }
+  const d = game.politics?.peek?.()?.diplomacy; if (!d?.relations) return {};
+  return Object.fromEntries(Object.entries(d.relations).map(([id, r]) => [id, { id, score: r.score, ambassador: null }]));
 }
 const reqOf = (kind, size) => {
   const K = INTL.kinds[kind];
