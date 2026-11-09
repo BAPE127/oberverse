@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.103.11 | 2026-11-09 | development | 1 | War, the battle screen: a right-click order menu, one slim bar, order pings. No save changes. |
 | 0.103.10 | 2026-11-08 | development | 1 | War, sea power: fleets of ships lent by the shipping company (bombardment, blockade), passages and landings with escorts, international contracts from the embassies. Saves gain optional `war.fleets`, `war.navy`, `war.intl`, `contract` on a battalion and a war marker on a lent vessel. |
 | 0.103.9 | 2026-11-08 | development | 1 | War, air power: wings with reconnaissance, close air support, interdiction and missile strikes; satellites and recon over the fog; helicopter lifts. Saves gain optional `war.wings` and `war.air`, and `wing` on an aircraft. |
 | 0.103.8 | 2026-11-08 | development | 1 | War, research and the future tiers: eight company research projects to tier 4 (about 63M obols); pulse, plasma, rail and ion weapons for every class, the Phalanx hardsuit and Bastion power armour, and ten hover and stealth vehicles. Saves gain an optional `company.research`. |

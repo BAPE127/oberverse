@@ -537,6 +537,12 @@ try {
       const H = ui.battleHandle; const f0 = ui.battleFrames || 0; await new Promise((r) => setTimeout(r, 300));
       out[`battle_${recipe}`] = Boolean(H) && (ui.battleFrames || 0) > f0 && document.querySelector('.bt-canvas')?.width > 300;
       const ids = H.B.units.filter((u) => u.side === 'p').map((u) => u.id); H.S.sel = new Set(ids); H.give({ type: 'amove', x: H.B.map.objective.x, y: H.B.map.objective.y }, 'attack-move');
+      // v0.103.11: a right click opens the order menu at the cursor; its Move here item gives the order (a ping is drawn) and closes the menu
+      { const cv = document.querySelector('.bt-canvas'); const rc = cv.getBoundingClientRect(); H.S.sel = new Set(ids); H.S.pings.length = 0;
+        cv.dispatchEvent(new PointerEvent('pointerdown', { button: 2, clientX: rc.left + rc.width / 2, clientY: rc.top + rc.height / 2, bubbles: true, pointerId: 7 })); await new Promise((r) => setTimeout(r, 120));
+        const mi = [...document.querySelectorAll('.bt-menu .bt-mi')]; const menu = document.querySelector('.bt-menu'); out[`battle_${recipe}_menu`] = mi.length >= 6 && mi.some((b) => /Move here/.test(b.textContent)) && mi.some((b) => /Hold position/.test(b.textContent)) && !menu.classList.contains('hidden');
+        mi.find((b) => /Move here/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 60)); out[`battle_${recipe}_menuOrder`] = menu.classList.contains('hidden') && H.S.pings.length > 0;
+        out[`battle_${recipe}_barSlim`] = document.querySelectorAll('.bt-bar button').length <= 14 && document.querySelector('.bt-bar').getBoundingClientRect().height < 60; }
       H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
       H.step(6000); await new Promise((r) => setTimeout(r, 200));
       out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');

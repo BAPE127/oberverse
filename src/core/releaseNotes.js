@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.103.11',
+    date: '2026-11-09',
+    channel: 'development',
+    title: 'War: A Cleaner Battle Screen',
+    notes: [
+      'Right-click the map in a battle to open an order menu at the cursor: move, attack-move, garrison the building under it (by floor), flank, regroup, scout, reverse, smoke, suppress, breach, fire missions, charges, drones, escort, repair, board, calls for support, hold, retreat and unload. It lists only what the people you selected can do. Shift + right-click is still an instant attack-move.',
+      'The bottom bar is one slim row (speed, formation, stance, reserve, zoom, floors) instead of a wall of buttons; the selection card has role chips that narrow the selection when clicked; the top bar and message feed are lighter.',
+      'Orders now show a ring and a line from the units that go, and a hotkey order shows a hint until you click or press Escape.',
+    ],
+  },
+  {
     version: '0.103.10',
     date: '2026-11-08',
     channel: 'development',

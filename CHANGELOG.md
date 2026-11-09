@@ -2,6 +2,18 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.103.11] — 2026-11-09 — War: A Cleaner Battle Screen (development build)
+
+The played battle (`src/ui/battle.js`, `styles.css`) only; no rules or saves change.
+
+**Right-click order menu.** A right click on the map opens a menu at the cursor with every order the old button bar carried, for that spot and for the people selected (nothing is listed that they cannot do): move, attack-move, garrison the building under the cursor (a floor each), flank, regroup, scout ahead, reverse, smoke, suppress, breach, fire mission (artillery), plant charge (engineer), scout drone and FPV (UAV operator), escort, repair or board the unit under the cursor, the support and air calls in the stock, tend (medic), unload, hold and retreat. A right click with nobody selected selects the unit under it. Shift + right-click is the instant attack-move; a right click while a hotkey order is armed cancels it; Escape closes the menu, then cancels an armed order, then leaves the battle.
+
+**Slimmer chrome.** The pixel skin gave every battle button a 3 px border, which is why the bar wrapped over several rows; the bar is now one slim pill (speed, formation, stance, reserve, zoom, building floors, help), the top bar is a single faded line, the message feed fades its older lines, and the selection card shows role chips (click one to keep only those).
+
+**Feedback.** An order draws an expanding ring at the target and a thin line from each unit that goes (in real time, so it plays while paused); an armed hotkey order shows a hint chip; the menu marks the spot it was opened on.
+
+**Edited existing tests (0).** Smoke: the menu opens on a right click, offers Move here and Hold, gives the order (a ping) and closes; the bar is one slim row.
+
 ## [0.103.10] — 2026-11-08 — War: Fleets, Landings and International Contracts (development build)
 
 The second half of Strategic Command III (`PROPOSAL_WAR_STRATEGIC.md` section 5). Full rules and limits in `docs/WAR.md`.
