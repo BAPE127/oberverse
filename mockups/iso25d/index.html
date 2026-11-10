@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Oberverse — 2.5D concept mock-ups (not the game)</title>
+<style>
+  html, body { margin: 0; background: #0b0c10; color: #ddd; font: 14px system-ui, sans-serif; overflow: hidden; }
+  #stage { position: relative; }
+  #stage canvas { position: absolute; left: 0; top: 0; display: block; }
+  #gl { image-rendering: pixelated; }
+  nav { position: fixed; right: 8px; top: 8px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 520px; justify-content: flex-end; z-index: 5; }
+  nav a { background: #23222ccc; color: #ddd; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas><canvas id="ov"></canvas></div>
+<nav id="nav"></nav>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
