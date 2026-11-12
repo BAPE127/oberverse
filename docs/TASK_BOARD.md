@@ -8,8 +8,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| G-3 | Isometric view phase 4: diagonal walking sprites, boxy/linear props, pitched roofs, lighthouse | sonnet-ui | Next. Inventory: `RENDERING_PROPS.md` |
-| G-4 | Isometric view phase 7: real-GPU frame time, battle open time, sort particles, defects in `RENDERING.md` §6, Opus final review | sonnet-technical, opus-reviewer | After G-3 |
+| G-5 | 3D renderer (three.js), phase 3D-1 foundation (`RENDERING.md` section 7) | sonnet-ui | Started 2026-11-12, owner's change of direction |
+| G-6 | 3D-2 props, 3D-3 vehicles, 3D-4 battles, 3D-5 test/optimise/review | queued | After G-5 |
 
 ## Waiting on the owner
 

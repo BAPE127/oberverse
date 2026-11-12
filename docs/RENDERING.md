@@ -148,3 +148,45 @@ Wrath: the world behind a cutscene is scaled 1.4× through the pixel pass, so pi
 Battles: smoke and blast particles are not depth-sorted (they draw over buildings); furniture is flat on open floors; open upper floors are drawn at ground level; trench parapets and wire are flat paint; all roofs are flat; a Move order clicked on a roof goes to the ground behind it; opening a battle takes 0.6–1.3 s while building pictures are painted.
 
 Controls: `player.facing` is four-way, so keyboard-only interaction and auto-aim point along a street axis (section 2.5). There is no `view` debug command: switch views with `window.oberverse.ui.renderer.iso = false` in the browser console.
+
+## 7. The 3D renderer (owner's decision, later on 2026-11-12)
+
+After seeing the Canvas 2D isometric view, the owner chose the direction of the concept study instead: **three.js (WebGL) with blocky low-poly 3D models**, as in the mock-ups on `claude/kind-rubin-3nafrm` (prototype source now in `mockups/iso25d/`). The cars and several props of the 2D view were the reason. This supersedes section 2.2's sprite methods; decision TD-19 records the exception to "no dependencies".
+
+### 7.1 What carries over unchanged
+
+- The **camera is the same** 2:1 dimetric projection, so `src/engine/iso.js`, `renderer.toScreen(wx, wy, z)` and `toWorld` stay the one mapping; the on-foot input rotation, chest-plane aim, the battle screen's picking and orders, and every smoke step keep working.
+- The **simulation boundary**: the 3D scene is a pure function of `Game` state.
+- The **building visibility rules** of 2.4 (roofed, open, see-through when the focus is behind), now done with geometry and a shader instead of pictures.
+- The **2D canvas stays on top** for everything that is not solid: HUD overlays, name tags, bubbles, health bars, crosshair, highlights, bullets and sparks, damage numbers, and the Wrath cutscene art (already drawn from projected actor positions).
+- The **Canvas 2D isometric view remains as the fallback** when WebGL is not available, and for comparison (`renderer.mode = 'iso2d'`). The old top-down path stays behind it.
+
+### 7.2 Design
+
+| Part | How |
+| --- | --- |
+| Library | three.js r160 (MIT), vendored as one file under `src/vendor/`, inlined into `index.html` by `tools/build.mjs`. No npm dependency, no network, still one file that opens from `file://` |
+| Canvases | A WebGL canvas under the existing 2D canvas. In 3D mode the 2D canvas is cleared transparent each frame and draws only overlays |
+| Camera | `THREE.OrthographicCamera` placed so that a world point lands on exactly the pixel `toScreen` gives (a test asserts this for points at several heights). Depth order comes from the depth buffer; `sortItems` is not used in 3D |
+| Units | 1 three unit = 1 tile (32 world px); x east, z south, y up |
+| Ground | First: the existing pixel-art ground chunks as nearest-filtered textures on flat quads (keeps the game's look and every special ground painter). Later: kerb and water heights |
+| Buildings | Walls, windows, doors, signs and roofs from the building record, starting from `mockups/iso25d/src/buildings.js`; heights from `isoBuildings.buildingHeight`. Open: roof and near walls removed, the interior map's walls, props and people shown. See-through: a shader discards a dithered disc around the focus on buildings standing in front of it |
+| People | Box figures from `profile.appearance` (skin, hair, outfit, accent, build, height), limbs swinging with the walk, facing the direction of travel in 8+ directions, the held weapon as a part; lying when down, asleep in beds |
+| Vehicles | A model per body type from `content/vehicles` models, heading from `car.angle`, wheels that turn and steer, lamps as emissive parts and night lights |
+| Props | One builder per prop type in a registry (`register(type, build)`), starting from the 85 in the prototype; an unmodelled type shows a plain box of its footprint so nothing is missing |
+| Light | A sun with shadows and sky ambient driven by `clock.darkness`; lamps, lit windows, headlights and open-room lights as real lights, nearest ~24 only. The 2D darkness overlay is off in 3D mode |
+| Battles | The same modules behind `BattleView` |
+
+### 7.3 Phases
+
+| # | Phase | Agent |
+| --- | --- | --- |
+| 3D-1 | Foundation: vendoring and build, WebGL canvas, matched camera, ground, buildings with the visibility rules, people, light, overlays, fallback | Sonnet |
+| 3D-2 | Props: every one of the 159 types | Sonnet (parallel, own file) |
+| 3D-3 | Vehicles and large machines: cars, buses, signature cars, tractors, aircraft, ships, tanks, helicopters, the rocket | Sonnet (parallel, own file) |
+| 3D-4 | Battles in 3D | Sonnet (parallel, own files) |
+| 3D-5 | Regression, frame time, load time, Opus review | Sonnet technical, Opus |
+
+### 7.4 What is built in 3D
+
+Nothing yet.
