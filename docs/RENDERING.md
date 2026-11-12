@@ -41,7 +41,8 @@ Inverse on the ground: `wx = iy + ix / 2`, `wy = iy - ix / 2`. A 32 px tile beco
 
 | Kind | Method |
 | --- | --- |
-| Ground, water, flat props, prop shadows, skid marks, decals, fields | The existing painters, unchanged, inside the ground transform |
+| Ground | The existing chunk painters, then each chunk is baked once into an iso diamond canvas (nearest sampling, whole pixels) and cached like the chunks are now |
+| Water shimmer, flat props, prop shadows, skid marks, decals | The existing painters, unchanged, inside the ground transform |
 | People, trees, lamps, small props | Upright sprites (billboards) at the projected ground anchor |
 | Walls and solid buildings | Extruded from the tile grid (2.3) |
 | Boxy and linear props (desks, counters, fences, belts…) | Phase 4: sheared or rebuilt per category; billboards until then |
@@ -50,13 +51,13 @@ Inverse on the ground: `wx = iy + ix / 2`, `wy = iy - ix / 2`. A 32 px tile beco
 
 ### 2.3 Depth sorting
 
-Everything upright is an item with a depth key `d = wx + wy` at its ground anchor; items are drawn in ascending `d`. This is exact as long as no item is wider than about half a tile along the ground, so large things are cut into pieces that each carry their own key:
+Revised after the Opus review of 2026-11-12 (a single key per item is not exact: an actor's feet stand 2 to 6 px from a wall, cars are 60 px long, tree crowns are 48 px wide).
 
-- **Roofs** (any horizontal surface at height H): painted once in iso into a cached canvas, drawn as horizontal strips 16 px tall; a strip's key is the depth of the roof points it shows.
-- **South and east faces**: painted once as a flat facade, drawn sheared as vertical strips 16 px wide; key = depth at the strip's middle. Tall faces are also cut every 32 px of height so the fade (2.4) is local.
-- **Interior wall tiles** (`W` in an open room): one extruded column per tile, key = the tile centre's depth.
+Every upright item carries a **ground box** `{x0, y0, x1, y1}` in world pixels: a point with a small radius for people and small props, the footprint for multi-tile props, the bounding box of the rotated body for vehicles, the footprint for a roofed building, the tile for an interior wall column. Item A is **in front of** B when `A.x0 >= B.x1` or `A.y0 >= B.y1`, and not the other way round; when neither or both hold, the larger centre depth `d = cx + cy` is in front.
 
-Why 16 px: an actor's collision box keeps its feet about 8 px from a wall and its sprite is about 14 px wide, so a strip of at most 16 px is never both in front of one actor and behind another that overlaps it on screen.
+The order is a topological sort: items are bucketed by screen cell, the rule is applied to each pair whose screen rectangles overlap, and the graph is walked back to front with `d` as the tie-break and as the way out of a cycle. A roofed building is therefore one item (one cached picture of its two faces and roof), not strips.
+
+Height is never a negative world y. Anything above the ground (bullets at chest height, name tags, lamp heads, damage numbers, a lifted Wrath victim) is placed with `toScreen(x, y, z)`.
 
 ### 2.4 Building visibility
 
@@ -66,17 +67,19 @@ Each building has a state the renderer owns (never saved, never read by the simu
 | --- | --- | --- |
 | **Roofed** | Default | South and east faces at full height, roof on top. The interior map (floor, props, people) is not drawn |
 | **Open** | The player (or the driven car) is on the building's interior map | No roof. North and west walls at one storey showing their inner faces; south and east walls and partitions cut to a low kerb; floor, props and people drawn. Animated over about 0.2 s |
-| **Faded locally** | A roofed building's pieces lie in front of the focus (key greater than the focus's) and within about 110 px of it on screen | Those strips fade towards about 15% opacity, nearest most: a see-through hole that follows the player. The rest of the building is untouched |
+| **Faded locally** | The focus is behind a roofed building (`focus.x < x1` and `focus.y < y1`, outside the footprint) and the building's picture covers the focus on screen | The building is drawn through a scratch canvas with a soft round hole (radial `destination-out`, about 110 px) punched at the focus: a see-through window that follows the player. The rest of the building is untouched. A building beside or behind the player never fades |
+
+Buildings whose interior is not laid over their footprint (round buildings, doors that lead to another place) are entered as a scene change, as now, and that room is drawn alone as an open room. Name tags, speech bubbles, signs and room lights belonging to a hidden interior are not drawn.
 
 NPCs and vehicles are ordinary items: hidden behind buildings by the sort, visible through the hole, hidden inside roofed buildings, visible inside an open one. Upper tower floors stay separate `aloft` maps: on one, only that floor is drawn, over the city below. Building height comes from `b.tower` (storeys), else from size and kind; data fields `storeys` and `roofKind` may be added to buildings later without a save change.
 
 ### 2.5 Gameplay stays where it is
 
-- **Movement**: the UI rotates the input vector 45° before `game.update` (screen-right = world `(+x, −y)`), so keys follow the screen. Speed, collision, doors and `player.facing` logic are untouched.
+- **Movement**: on foot only, the UI rotates the input vector 45° before `game.update` (screen-right = world `(+x, −y)`), so keys follow the screen; a screen-cardinal key is nudged by 2% so `player.facing` resolves to the nearer world direction the same way every time (right→east, down→south, left→west, up→north). Speed, collision, doors and the `facing` logic are untouched. Driving input is not rotated. Known limit: `facing` stays four-way, so keyboard-only interaction and auto-aim point along a street axis, up to 45° from the walking direction; a world facing vector would fix it but is a simulation change and needs the owner's approval.
 - **Sprite facing** is chosen by the renderer from the screen direction of velocity (or of `facing` when still); it does not write `facing`.
-- **Aim**: mouse → `renderer.toWorld` → the same world aim vector combat already uses. Bullets, hits and auto-aim are unchanged.
+- **Aim**: the mouse is inverted on the chest plane (`combat` flies bullets `BODY_Y` = 18 px "above" the feet, stored as world y − 18): aim = `toWorld(mouse, z = 18)` minus the player's position, the same world vector combat already uses. Bullets are drawn at `(b.x, b.y + 18)` lifted by `z = 18`. Hits and auto-aim are unchanged.
 - **Driving**: unchanged (controls are relative to the car).
-- **Wrath**: mechanics untouched. The cutscene is drawn as a stage anchored at the projected position of its focus; any deeper restaging is art work, not logic.
+- **Wrath**: mechanics untouched. Interim (phases 2–4): while a Wrath cutscene plays, the frame is drawn by the old top-down path, which the cutscene was made for. Phase 5: the cutscene gets the iso camera and projected player and victim positions, its own "up is −y" art unchanged.
 - **Saves**: nothing new is saved.
 
 ### 2.6 Battles ("Special Operations")
