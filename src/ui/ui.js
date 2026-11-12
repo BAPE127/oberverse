@@ -6,6 +6,7 @@ import { TILE } from '../core/util.js';
 import { versionLabel, GAME_VERSION } from '../core/version.js';
 import { RELEASE_NOTES } from '../core/releaseNotes.js';
 import { Renderer } from '../engine/renderer.js';
+import { rotateInput } from '../engine/iso.js';
 import { drawPortrait } from '../engine/drawCharacter.js';
 import { DialogueUI } from './dialogueUI.js';
 import { MapRenderer } from './maps.js';
@@ -685,9 +686,9 @@ export class UI {
     const g = this.game;
     const b = this.build;
     if (g.player.map !== b.sys.def(b.wh).map) return this.exitBuild();
-    const z = this.renderer.cam.zoom;
-    const tx = Math.floor((this.renderer.cam.x + this.mouse.x / z) / TILE);
-    const ty = Math.floor((this.renderer.cam.y + this.mouse.y / z) / TILE);
+    const at = this.renderer.toWorld(this.mouse.x, this.mouse.y);
+    const tx = Math.floor(at.x / TILE);
+    const ty = Math.floor(at.y / TILE);
     const def = b.tool !== 'remove' ? g.content.items[b.tool]?.build : null;
     const w = def?.w || 1;
     const hh = def?.h || 1;
@@ -723,14 +724,15 @@ export class UI {
     const g = this.game;
     if (!g) return;
     if (this.state === 'playing') {
-      const move = this.panelOpen || this.dialogue.open || this.casinoWait ? { x: 0, y: 0, sprint: false } : this.input.movement();
+      let move = this.panelOpen || this.dialogue.open || this.casinoWait ? { x: 0, y: 0, sprint: false } : this.input.movement();
+      // isometric view: on foot the keys follow the screen (driving is relative to the car, and is not rotated)
+      if (this.renderer.isoNow && !g.player.driving) move = rotateInput(move);
       const busy = this.panelOpen || this.dialogue.open || g.combat.wrath;
-      // aim at the mouse while it is being used; otherwise facing + auto-aim
+      // aim at the mouse while it is being used; otherwise facing + auto-aim. The mouse is read on the chest plane
+      // (bullets fly 18 px above the feet), so a point on someone's chest on screen is that someone
       if (!busy && this.time - this.mouse.movedAt < 4 && this.renderer.cam) {
-        const z = this.renderer.cam.zoom;
-        const wx = this.renderer.cam.x + this.mouse.x / z;
-        const wy = this.renderer.cam.y + this.mouse.y / z;
-        g.player.aim = { x: wx - g.player.x, y: wy - (g.player.y - 18) };
+        const w = this.renderer.toWorld(this.mouse.x, this.mouse.y, 18);
+        g.player.aim = { x: w.x - g.player.x, y: w.y - g.player.y };
       } else g.player.aim = null;
       // automatic weapons fire while the button is held
       if (!busy && !this.build && g.combat.equipped().weapon.auto && (this.mouse.down || this.input.down.has('KeyF'))) g.combat.attack();

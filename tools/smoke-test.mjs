@@ -46,7 +46,9 @@ const state = () => page.evaluate(() => {
   const g = window.oberverse.ui.game;
   return { state: window.oberverse.ui.state, map: g.player.map, x: g.player.x, y: g.player.y, time: g.clock.timeString, money: g.player.money, paused: g.paused, warnings: g.warnings };
 });
-const hold = async (key, ms) => { await page.keyboard.down(key); await wait(ms); await page.keyboard.up(key); };
+// v0.104.0: in the isometric view on-foot keys follow the screen: W alone walks north-west, so world-north is W and D together,
+// world-south is S and A, world-east is D and S, world-west is W and A.
+const hold = async (keys, ms) => { const ks = [].concat(keys); for (const k of ks) await page.keyboard.down(k); await wait(ms); for (const k of ks) await page.keyboard.up(k); };
 const closeAll = () => page.evaluate(() => { const ui = window.oberverse.ui; ui.closeAllPanels(); if (ui.dialogue.open) ui.dialogue.close(); ui.afterModalClose(); });
 
 try {
@@ -66,7 +68,7 @@ try {
   await shot('02-flat');
 
   // Read the letter on the desk: walk up to the back wall, the desk is beside us
-  await hold('KeyW', 1400);
+  await hold(['KeyW', 'KeyD'], 1400); // (north)
   const prompt = await page.textContent('#hud-prompt');
   await page.keyboard.press('KeyE');
   await wait(400);
@@ -93,12 +95,12 @@ try {
   record('escape closes the document', !(await page.isVisible('#modal:not(.hidden)')));
 
   // Leave the flat
-  await hold('KeyS', 2600);
+  await hold(['KeyS', 'KeyA'], 2600); // (south)
   await wait(500);
   s = await state();
   record('walking out of the door reaches Lanternside', s.map === 'lanternside', JSON.stringify(s));
-  await hold('KeyS', 500);
-  await hold('KeyD', 900);
+  await hold(['KeyS', 'KeyA'], 500);
+  await hold(['KeyD', 'KeyS'], 900); // (east)
   await shot('04-outside');
 
   // Inventory, tablet (the old journal), map panels
@@ -676,6 +678,52 @@ try {
   });
   record('Hollowmoor Lot loads as a military base: the runway, and the vehicle yard with the company\'s machines', Object.values(lot).every(Boolean), JSON.stringify(lot));
   await shot('war-base-yard');
+  await closeAll();
+
+  // v0.104.0: the isometric view. Tower t_ledgerline in Halvermouth: the player behind it stays visible through a
+  // see-through hole, inside it the room is open, in front of it nothing is hidden. (Screenshots: iso-tower-*.png)
+  const isoStep = (mode) => page.evaluate(async (mode) => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    while (ui.panelStack.length) ui.closePanel();
+    const m = g.maps.get('halvermouth');
+    const b = m.buildings.find((q) => q.id === 't_ledgerline');
+    g.changeMap('halvermouth', Object.keys(m.spots)[0]);
+    if (mode === 'inside') g.changeMap(b.interior, 'entry');
+    else { g.player.x = (b.x + b.w / 2) * 32; g.player.y = (b.y + (mode === 'behind' ? -1.6 : b.h + 3.2)) * 32; }
+    R.snapCamera();
+    await T(1100);
+    const st = R.bld.stateOf(b);
+    return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior) };
+  }, mode);
+  let iv = await isoStep('behind');
+  record('iso: behind a tower the player is seen through a see-through hole', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden, JSON.stringify(iv));
+  await shot('iso-tower-behind');
+  iv = await isoStep('inside');
+  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.95 && !iv.hidden, JSON.stringify(iv));
+  await shot('iso-tower-inside');
+  iv = await isoStep('front');
+  record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden, JSON.stringify(iv));
+  await shot('iso-tower-front');
+  // aim: with the mouse on an NPC's chest on screen, the aim vector points at that NPC
+  const aim = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    const npc = [...g.npcs.values()].find((n) => !n.dead);
+    const out = [];
+    for (const [dx, dy] of [[90, 30], [-70, 60], [40, -80], [-120, -20]]) {
+      npc.map = g.player.map; npc.x = g.player.x + dx; npc.y = g.player.y + dy;
+      const c = R.toScreen(npc.x, npc.y, 18); // the chest, on screen
+      ui.mouse.x = c.x; ui.mouse.y = c.y; ui.mouse.movedAt = ui.time;
+      await T(150);
+      const a = g.player.aim;
+      if (!a) { out.push(999); continue; }
+      let d = Math.abs(Math.atan2(a.y, a.x) - Math.atan2(dy, dx)) * 180 / Math.PI;
+      if (d > 180) d = 360 - d;
+      out.push(Math.round(d * 100) / 100);
+    }
+    ui.mouse.movedAt = -1e9;
+    return out;
+  });
+  record('iso: a shot aimed at an NPC\'s chest on screen goes to that NPC (within 3 degrees)', aim.length === 4 && aim.every((d) => d < 3), JSON.stringify(aim));
   await closeAll();
 
   // Saves survive closing and reopening the page
