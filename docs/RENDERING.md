@@ -126,4 +126,13 @@ The top-down path stays in the code behind `renderer.iso = false` (debug command
 
 ## 6. What is built
 
-Nothing yet (plan only, 2026-11-12).
+| Phase | State (2026-11-12) |
+| --- | --- |
+| 2 Foundation | **Tested.** `iso.js`, baked iso ground, box sort, billboards, iso camera, `toScreen`/`toWorld` with z, on-foot input rotation, chest-plane aim. `tests/iso.test.mjs`; smoke 69/69 on the built `index.html` (aim step: 0° error on four NPCs) |
+| 3 Building visibility | **Tested and seen** in screenshots: roofed by default, open on entering (0.2 s, hysteresis), dithered see-through hole when the player is behind; tags and bubbles of hidden NPCs suppressed; 318 maps render without error |
+| 4 People and props | Not started. People use the four existing facings chosen by screen direction; multi-tile props are upright sprites; houses have flat roofs |
+| 5 Vehicles, combat effects, Wrath | In progress. Until done: vehicles lie flat, the Wrath plays in the old top-down view |
+| 6 Battles | In progress. Until done the battle screen is top-down |
+| 7 Test and optimise | Frame time measured for phases 2–3 only (Halvermouth, headless: iso 1.9–2.9 ms, old view 2.4–3.0 ms). Full suite to be re-run after integration |
+
+Known defects after phases 2–3: the lighthouse is a striped box; the Phonograph marquee is a plain sign plate; props' `sortRow` is ignored; prop text is replayed over everything; faint window patches on baked interior floors; map edges show diamond corners over the sea; wall tops are a full tile thick; the see-through hole dithers dark over asphalt. There is no `view` debug command: switch with `window.oberverse.ui.renderer.iso = false` in the browser console.
