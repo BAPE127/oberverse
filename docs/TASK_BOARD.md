@@ -12,7 +12,6 @@ None.
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| O-1 | Push the initialisation commit to `claude/beautiful-wright-xe2yb8`? | Cloud sessions are temporary: an unpushed commit is lost when the container is reclaimed |
 | O-2 | Should the live site (Pages, branch `claude/funny-mayer-52dll8`, at v0.103.5-era) be brought up to v0.103.11? | Players see a build eleven commits old |
 | O-3 | Go-ahead for v0.104.0 as the next feature, or a different priority | Sets the next assignment |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
