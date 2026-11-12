@@ -8,8 +8,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| G-1 | Isometric view, phases 2–3: projection, baked ground, sort, buildings roofed/open/faded, input and aim (`RENDERING.md`) | sonnet-ui | Started 2026-11-12 |
-| G-2 | Phases 4–7 (people and props, vehicles/combat/Wrath, battles, test and optimise) | queued | After G-1 is reviewed |
+| G-3 | Isometric view phase 4: diagonal walking sprites, boxy/linear props, pitched roofs, lighthouse | sonnet-ui | Next. Inventory: `RENDERING_PROPS.md` |
+| G-4 | Isometric view phase 7: real-GPU frame time, battle open time, sort particles, defects in `RENDERING.md` §6, Opus final review | sonnet-technical, opus-reviewer | After G-3 |
 
 ## Waiting on the owner
 
@@ -17,6 +17,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 | --- | --- | --- |
 | O-2 | Should the live site (Pages, branch `claude/funny-mayer-52dll8`, at v0.103.5-era) be brought up to v0.103.11? | Players see a build eleven commits old |
 | O-3 | v0.104.0 (War: destruction, coup) waits behind the isometric view, by the owner's priority of 2026-11-12 | — |
+| O-5 | Version number and name for the isometric release (roadmap has v0.104.0 as War: destruction) | Needed before release notes and tags |
+| O-6 | Add a world facing vector so keyboard interaction and auto-aim follow the walking direction (a small simulation change; `RENDERING.md` 2.5) | Owner's approval required by the brief |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
 
 ## Ready (in suggested order)

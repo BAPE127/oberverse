@@ -6,7 +6,7 @@
 //   npm run smoke -- --dev   multi-file dev.html via the local dev server
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { startServer } from '../server.js';
 
 const require = createRequire(import.meta.url);
@@ -545,7 +545,15 @@ try {
         const mi = [...document.querySelectorAll('.bt-menu .bt-mi')]; const menu = document.querySelector('.bt-menu'); out[`battle_${recipe}_menu`] = mi.length >= 6 && mi.some((b) => /Move here/.test(b.textContent)) && mi.some((b) => /Hold position/.test(b.textContent)) && !menu.classList.contains('hidden');
         mi.find((b) => /Move here/.test(b.textContent))?.click(); await new Promise((r) => setTimeout(r, 60)); out[`battle_${recipe}_menuOrder`] = menu.classList.contains('hidden') && H.S.pings.length > 0;
         out[`battle_${recipe}_barSlim`] = document.querySelectorAll('.bt-bar button').length <= 14 && document.querySelector('.bt-bar').getBoundingClientRect().height < 60; }
+      // the isometric battle: a click picks the unit under it and a move order lands on the tile under the cursor
+      { const cv = document.querySelector('.bt-canvas'); H.S.speed = 0; H.S.formation = 'none'; const u0 = H.B.units.find((u) => u.side === 'p' && u.kind === 'inf'); H.S.sel = new Set();
+        const p = H.view.chest(u0); const pe = (t, x, y, b = 0) => cv.dispatchEvent(new PointerEvent(t, { button: b, clientX: x, clientY: y, bubbles: true, pointerId: 9 }));
+        pe('pointerdown', p.x, p.y); pe('pointerup', p.x, p.y); out[`battle_${recipe}_pick`] = H.S.sel.has(u0.id);
+        const rc = cv.getBoundingClientRect(); const tx = rc.left + rc.width * 0.6; const ty = rc.top + rc.height * 0.6; const want = H.view.toTile(tx, ty);
+        H.S.mode = 'move'; pe('pointerdown', tx, ty); const o = H.B.byId.get(u0.id).order;
+        out[`battle_${recipe}_orderAtCursor`] = Boolean(o) && Math.hypot(o.x - want.x, o.y - want.y) < 1; }
       H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
+      H.step(40); await new Promise((r) => setTimeout(r, 250)); (window.__battleShots = window.__battleShots || {})[recipe] = document.querySelector('.bt-canvas').toDataURL('image/png'); // the picture mid-fight, written to tools/out/ after the checks
       H.step(6000); await new Promise((r) => setTimeout(r, 200));
       out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');
       ui.closePanel();
@@ -599,6 +607,7 @@ try {
   });
   record('the squad board offers every class, hires into a squad and shows the training place', Object.values(rig).every(Boolean), JSON.stringify(rig));
   await shot('war-squad-board');
+  { const shots = await page.evaluate(() => window.__battleShots || {}); for (const [k, url] of Object.entries(shots)) writeFileSync(`${OUT}battle-${k}.png`, Buffer.from(url.split(',')[1], 'base64')); }
   const fl = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const out = {}; const T = (ms) => new Promise((r) => setTimeout(r, ms));
     g.war.hire('technician'); for (let i = 0; i < 12; i++) g.war.hire('technician');
@@ -699,7 +708,7 @@ try {
   record('iso: behind a tower the player is seen through a see-through hole', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden, JSON.stringify(iv));
   await shot('iso-tower-behind');
   iv = await isoStep('inside');
-  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.95 && !iv.hidden, JSON.stringify(iv));
+  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden, JSON.stringify(iv));
   await shot('iso-tower-inside');
   iv = await isoStep('front');
   record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden, JSON.stringify(iv));

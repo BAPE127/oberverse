@@ -9,17 +9,17 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 - **Version:** v0.103.11, development channel, save schema 1.
 - **Size:** about 84,000 lines of source in `src/` (18 folders), 163 test files, 48 system and design documents.
 - **Released:** the home coast and Halvermouth, the living-world simulation, combat, quests and emergent events, the corporate empire (companies, group, bank, bonds, exchange, managers, headquarters), shipping, arms works, aerospace, farming, casino, the World Atlas, the complete Politics update (v0.93–v0.97), and the War update through Strategic Command (v0.98–v0.103.11).
-- **In progress:** nothing. The tree is clean.
+- **In progress:** the **isometric view** (owner's priority, 2026-11-12). Phases 2, 3, 5 and 6 of `RENDERING.md` are built and tested (world, buildings, vehicles, combat, Wrath, battles); phase 4 (people and prop art) and phase 7 (optimise, final review) remain. Unreleased: no version number set.
 - **Next on the roadmap:** v0.104.0 *War: Destruction, Government Response and Coup*, then v0.105.0 *War: Migration and Release*, then the Post-War Expansion (v0.106.0–v0.114.0). See `ROADMAP.md` section 0.
 
 ## Last work
 
-2026-11-12 — **Repository initialisation** (no game code changed). Audit (`REPOSITORY_AUDIT.md`); `CLAUDE.md`; ten agent definitions in `.claude/agents/`; five rule files in `.claude/rules/`; new `PROJECT_STATUS.md`, `TASK_BOARD.md`, `SYSTEM_REGISTRY.md`, `TECHNICAL_DECISIONS.md`, `GAME_DESIGN.md`.
+2026-11-12 — **Isometric view**, phases 2, 3, 5, 6 (see `CHANGELOG.md` Unreleased, `RENDERING.md` section 6). Earlier the same day: repository initialisation (`REPOSITORY_AUDIT.md`).
 
 ## Health
 
-- `npm run check` on 2026-11-12: validator 0 errors (2 warnings), 1,318 of 1,318 tests passed. The full suite takes about 8 minutes.
-- Smoke test (`npm run smoke`): not run in the initialisation session.
+- `npm run check` on 2026-11-12: after the isometric work, validator 0 errors (2 warnings), 1,348 of 1,348 tests passed. The full suite takes about 8 minutes.
+- Smoke test (`npm run smoke`): 76 of 76 on the built `index.html`, 2026-11-12.
 - Known issues: `KNOWN_ISSUES.md`. Its title still says v0.80.0 although it has later entries.
 
 ## Things a new session must know
@@ -31,4 +31,4 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Recommended next assignment
 
-v0.104.0, starting with stage 12a (destruction in battles: walls blown open, rubble, trenches destructible per tile; owner's decisions in `ROADMAP.md` sections 4 and 6). Before it, the owner may want the small documentation fixes on the task board done.
+Isometric view phase 4 (diagonal walking sprites; boxy and linear props from `RENDERING_PROPS.md`; pitched roofs, the lighthouse), then phase 7 (frame time on a real GPU, battle open time, particle sorting, Opus final review). The owner sets the version number for the release. v0.104.0 (War: destruction and coup) follows.

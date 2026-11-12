@@ -49,5 +49,14 @@ export function car(kind, color, dir = 'E') {
   // shadow
   const [o, og] = mk(r.width + 6, r.height + 6); og.imageSmoothingEnabled = false; const [s, sg] = mk(r.width, r.height); sg.drawImage(r, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = 'rgba(15,15,35,0.32)'; sg.fillRect(0, 0, s.width, s.height); og.drawImage(s, 4, 4); og.drawImage(r, 0, 0); cache.set(key, o); return o;
 }
+/** The same car, turned and outlined, with no shadow painted into it (the isometric view stacks it and casts its own): canvas size is the body's size in world px. */
+export function carBody(kind, color, dir = 'E') {
+  const key = `body|${kind}|${color}|${dir}`; if (cache.has(key)) return cache.get(key); const base = ink(paint(kind, color)); const w = base.width, h = base.height; let r;
+  if (dir === 'E' || dir === 'W') { const [c, g] = mk(w * 2, h * 2); g.imageSmoothingEnabled = false; if (dir === 'W') { g.translate(w * 2, 0); g.scale(-1, 1); } g.drawImage(base, 0, 0, w * 2, h * 2); r = c; }
+  else { const [c, g] = mk(h * 2, w * 2); g.imageSmoothingEnabled = false; g.translate(h * 2 / 2, w * 2 / 2); g.rotate(dir === 'S' ? Math.PI / 2 : -Math.PI / 2); g.drawImage(base, -w, -h, w * 2, h * 2); r = c; }
+  cache.set(key, r); return r;
+}
+/** How tall a car stands, in px (a bus is taller than a sedan). */
+export const carHeight = (kind) => ({ bus: 20, truck: 20, van: 15, ambulance: 15, pickup: 12, jeep: 11 }[kind] || 9);
 export const MODELS = [['sedan', '#b8483a'], ['sedan', '#3a5a8a'], ['sedan', '#2a2a2e'], ['hatch', '#4a7a4a'], ['hatch', '#c8b848'], ['sedan', '#e8e2d4'], ['taxi', '#e8c02a'], ['police', '#1f2f56'], ['van', '#a8a8a8'], ['van', '#6a4a8a'], ['ambulance', '#f4f2ee'], ['pickup', '#c8683a'], ['pickup', '#4a6a4a'], ['truck', '#3a5a8a'], ['bus', '#4a8a6a'], ['jeep', '#566a3e']];
 export function drawCar(g, kind, color, dir, x, y) { const s = car(kind, color, dir); g.drawImage(s, Math.round(x - (s.width - 6) / 2), Math.round(y - (s.height - 6) / 2)); }

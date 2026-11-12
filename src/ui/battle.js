@@ -1,4 +1,4 @@
-// The battle (v0.101.0, stage 10a): a full-screen panel in the manner of Fleet Command. It shows a battle (src/battle/sim.js) on the look renderer (src/engine/drawBattle.js): a camera with
+// The battle (v0.101.0, stage 10a): a full-screen panel in the manner of Fleet Command. It shows a battle (src/battle/sim.js) on the look renderer (src/engine/drawBattle.js): a camera (the isometric one of docs/RENDERING.md 2.6) with
 // three tiers (far: banners, command: everything at the game's own scale, close: the same sprites enlarged), selection by click or box, orders (move, attack-move, hold, garrison, retreat), a
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
@@ -62,7 +62,8 @@ export function battlePanel(ui, body, opts = {}) {
 
   // ---- orders
   const give = (order, label) => { const ids = [...S.sel].filter((x) => B.byId.get(x)?.alive); if (!ids.length) { say('Select someone first.'); return; } issue(B, ids, order); save(); say(`${ids.length} ${label}.`); if (order.x !== undefined) ping(order.x, order.y, order.type, ids); };
-  const buildingAt = (t) => { const b = B.map.bid[Math.floor(t.y) * B.map.w + Math.floor(t.x)]; return b >= 0 ? B.map.buildings[b] : null; };
+  // (the standing building under the pointer wins: its picture covers ground further back; failing that, the building on the ground tile)
+  const buildingAt = (t, e) => { const on = e ? view.buildingAt(e.clientX, e.clientY) : null; if (on) return on; const b = B.map.bid[Math.floor(t.y) * B.map.w + Math.floor(t.x)]; return b >= 0 ? B.map.buildings[b] : null; };
   const target = (e, shift, forced) => {
     const t = view.toTile(e.clientX, e.clientY); if (t.x < 0 || t.y < 0 || t.x >= B.map.w || t.y >= B.map.h) return;
     const mode = forced || S.mode || (shift ? 'amove' : 'move');
@@ -74,12 +75,12 @@ export function battlePanel(ui, body, opts = {}) {
     if (mode === 'flank' || mode === 'regroup' || mode === 'recon') { give({ type: mode, x: t.x, y: t.y }, { flank: 'flank round to the point', regroup: 'regroup at the point', recon: 'scout ahead' }[mode]); S.mode = null; paintBar(); return; }
     if (mode === 'charge' || mode === 'scout' || mode === 'fpv') { const want = { charge: 'engineer', scout: 'uav', fpv: 'uav' }[mode]; const ids = [...S.sel].filter((x) => B.byId.get(x)?.role === want && B.byId.get(x).alive); if (!ids.length) { say(`Select ${want === 'uav' ? 'a UAV operator' : 'an engineer'} first.`); S.mode = null; paintBar(); return; } issue(B, ids, { type: mode, x: t.x, y: t.y }); save(); say({ charge: 'plant a charge', scout: 'send the scout drone', fpv: 'launch an FPV drone' }[mode] + '.'); S.mode = null; paintBar(); return; }
     if (mode === 'smoke' || mode === 'suppress' || mode === 'breach' || mode === 'fire') { give({ type: mode, x: t.x, y: t.y }, { smoke: 'throw smoke', suppress: 'suppress the point', breach: 'open the wall', fire: 'fire at the point' }[mode]); S.mode = null; paintBar(); return; }
-    if (mode === 'garrison') { const b = buildingAt(t); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
+    if (mode === 'garrison') { const b = buildingAt(t, e); if (!b) { say('Click a building.'); return; } give({ type: 'garrison', b: b.id, floor: Math.min(S.gFloor, b.floors - 1) }, `garrison building ${b.id + 1}, floor ${Math.min(S.gFloor, b.floors - 1) + 1}`); }
     else if (S.formation !== 'none' && (mode === 'move' || mode === 'amove') && [...S.sel].filter((x) => B.byId.get(x)?.alive).length >= 3) { const ids = [...S.sel].filter((x) => B.byId.get(x)?.alive); issueFormation(B, ids, mode, t.x, t.y, S.formation); ping(t.x, t.y, mode, ids); save(); say(`${ids.length} ${mode === 'amove' ? 'attack-move' : 'move'} in a ${S.formation}.`); }
     else give({ type: mode, x: t.x, y: t.y }, mode === 'amove' ? 'attack-move' : 'move');
     S.mode = null; paintBar();
   };
-  const unitAtPoint = (e) => { const w = view.toWorld(e.clientX, e.clientY); let best = null; let bd = 22 / view.cam.zoom + 8; for (const u of B.units) { if (u.side !== 'p' || !u.alive || u.fled) continue; const d = Math.hypot(u.x * TP - w.x, u.y * TP - 10 - w.y); if (d < bd) { bd = d; best = u; } } return best; };
+  const unitAtPoint = (e) => view.unitAt(B.units.filter((u) => u.side === 'p' && u.alive && !u.fled), e.clientX, e.clientY);
 
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
@@ -92,7 +93,7 @@ export function battlePanel(ui, body, opts = {}) {
     S.drag = { x: e.clientX, y: e.clientY, x1: e.clientX, y1: e.clientY, sel: true, shift: e.shiftKey };
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (B) S.mouse = view.toTile(e.clientX, e.clientY);
+    if (B) { S.mouse = view.toTile(e.clientX, e.clientY); S.mouseAt = { x: e.clientX, y: e.clientY }; }
     const d = S.drag; if (!d) return;
     if (d.pan) { view.cam.x -= (e.clientX - d.x) / view.cam.zoom; view.cam.y -= (e.clientY - d.y) / view.cam.zoom; d.x = e.clientX; d.y = e.clientY; view.clamp(); return; }
     d.x1 = e.clientX; d.y1 = e.clientY;
@@ -101,7 +102,7 @@ export function battlePanel(ui, body, opts = {}) {
     const d = S.drag; S.drag = null; if (!d || !d.sel) return;
     const moved = Math.hypot(d.x1 - d.x, d.y1 - d.y) > 6;
     if (!d.shift) S.sel.clear();
-    if (moved) { const a = view.toWorld(Math.min(d.x, d.x1), Math.min(d.y, d.y1)); const b = view.toWorld(Math.max(d.x, d.x1), Math.max(d.y, d.y1)); for (const u of B.units) if (u.side === 'p' && u.alive && !u.fled && u.x * TP >= a.x && u.x * TP <= b.x && u.y * TP >= a.y && u.y * TP <= b.y) S.sel.add(u.id); }
+    if (moved) { for (const u of view.unitsIn(B.units.filter((q) => q.side === 'p' && q.alive && !q.fled), d.x, d.y, d.x1, d.y1)) S.sel.add(u.id); } // (the units whose screen positions are in the dragged screen rectangle)
     else { const u = unitAtPoint(e); if (u) { if (d.shift && S.sel.has(u.id)) S.sel.delete(u.id); else S.sel.add(u.id); } }
     paintCard();
   });
@@ -141,13 +142,13 @@ export function battlePanel(ui, body, opts = {}) {
   const ping = (x, y, kind, ids) => { S.pings.push({ x, y, kind, ids: ids || [...S.sel], t0: performance.now() }); if (S.pings.length > 12) S.pings.shift(); };
   const drawPings = () => {
     const now = performance.now(); S.pings = S.pings.filter((p) => now - p.t0 < 900); if (!S.pings.length && !S.menu) return;
-    const g2 = canvas.getContext('2d'); const z = view.cam.zoom; g2.setTransform(1, 0, 0, 1, 0, 0); const sc = (x, y) => [(x * TP - view.cam.x) * z, (y * TP - view.cam.y) * z]; const zs = Math.max(0.8, z);
+    const g2 = canvas.getContext('2d'); const z = view.cam.zoom; g2.setTransform(1, 0, 0, 1, 0, 0); const sc = (x, y, h = 0) => { const q = view.toCanvas(x * TP, y * TP, h); return [q.x, q.y]; }; const zs = Math.max(0.8, z); const ell = (x, y, r) => { g2.beginPath(); g2.ellipse(x, y, r, r / 2, 0, 0, 7); }; // (rings lie on the ground: 2:1 ellipses)
     for (const p of S.pings) {
       const k = (now - p.t0) / 900; const col = PING[p.kind] || '#7af0a0'; const [x, y] = sc(p.x, p.y); g2.strokeStyle = col; g2.fillStyle = col; g2.lineWidth = 2;
-      if (k < 0.7) for (const id of p.ids) { const u = B.byId.get(id); if (!u || !u.alive) continue; const [ux, uy] = sc(u.x, u.y); g2.setLineDash([5, 5]); g2.globalAlpha = (1 - k / 0.7) * 0.45; g2.beginPath(); g2.moveTo(ux, uy - 4 * z); g2.lineTo(x, y); g2.stroke(); }
-      g2.setLineDash([]); g2.globalAlpha = 1 - k; g2.beginPath(); g2.arc(x, y, (8 + 28 * k) * zs, 0, 7); g2.stroke(); g2.beginPath(); g2.arc(x, y, (6 + 16 * k) * zs, 0, 7); g2.stroke(); g2.beginPath(); g2.arc(x, y, 3 + 2 * (1 - k), 0, 7); g2.fill();
+      if (k < 0.7) for (const id of p.ids) { const u = B.byId.get(id); if (!u || !u.alive) continue; const [ux, uy] = sc(u.x, u.y, 8); g2.setLineDash([5, 5]); g2.globalAlpha = (1 - k / 0.7) * 0.45; g2.beginPath(); g2.moveTo(ux, uy); g2.lineTo(x, y); g2.stroke(); }
+      g2.setLineDash([]); g2.globalAlpha = 1 - k; ell(x, y, (8 + 28 * k) * zs); g2.stroke(); ell(x, y, (6 + 16 * k) * zs); g2.stroke(); g2.beginPath(); g2.ellipse(x, y, 3 + 2 * (1 - k), 1.5 + (1 - k), 0, 0, 7); g2.fill();
     }
-    if (S.menu) { const [x, y] = sc(S.menu.t.x, S.menu.t.y); const k = (now % 1200) / 1200; g2.globalAlpha = 0.9 - 0.6 * k; g2.strokeStyle = '#ffffff'; g2.lineWidth = 1.5; g2.setLineDash([]); g2.beginPath(); g2.arc(x, y, (6 + 8 * k) * zs, 0, 7); g2.stroke(); }
+    if (S.menu) { const [x, y] = sc(S.menu.t.x, S.menu.t.y); const k = (now % 1200) / 1200; g2.globalAlpha = 0.9 - 0.6 * k; g2.strokeStyle = '#ffffff'; g2.lineWidth = 1.5; g2.setLineDash([]); ell(x, y, (6 + 8 * k) * zs); g2.stroke(); }
     g2.globalAlpha = 1; g2.setLineDash([]);
   };
 
@@ -158,7 +159,7 @@ export function battlePanel(ui, body, opts = {}) {
     const pe = { clientX: e.clientX, clientY: e.clientY }; const f = unitAtPoint(pe);
     if (!S.sel.size && f) { S.sel.add(f.id); paintCard(); }
     const us = [...S.sel].map((x) => B.byId.get(x)).filter((u) => u && u.alive && !u.fled); if (!us.length) { say('Select someone first: click a soldier or drag a box.'); return; }
-    const has = (fn) => us.some(fn); const b = buildingAt(t); const via = (mode) => () => target(pe, false, mode);
+    const has = (fn) => us.some(fn); const b = buildingAt(t, pe); const via = (mode) => () => target(pe, false, mode);
     const go = [['➜', 'Move here', 'M', via('move')], ['⚔', 'Attack-move here', 'A', via('amove')]];
     if (b) for (let i = 0; i < Math.min(b.floors, 5); i++) go.push(['⌂', b.floors > 1 ? `Garrison building ${b.id + 1}, floor ${i + 1}` : `Garrison building ${b.id + 1}`, i === Math.min(S.gFloor, b.floors - 1) ? 'G' : '', () => { S.gFloor = i; target(pe, false, 'garrison'); }]);
     const tac = [['↷', 'Flank round to here', '', via('flank')], ['◎', 'Regroup here', '', via('regroup')], ['👁', 'Scout ahead to here', '', via('recon')]];
@@ -222,9 +223,9 @@ export function battlePanel(ui, body, opts = {}) {
     if (B.over && !S.filed) finish();
     view.effects(B);
     view.visible = (e) => seenSet().has(e.id);
-    view.draw(B, { selected: S.sel, open: opened(), seen: seenSet() });
+    view.draw(B, { selected: S.sel, open: opened(), seen: seenSet(), cursor: S.mouse });
     if (S.drag?.sel && Math.hypot(S.drag.x1 - S.drag.x, S.drag.y1 - S.drag.y) > 6) { const g2 = canvas.getContext('2d'); const rr = canvas.getBoundingClientRect(); g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#7af0a0'; g2.lineWidth = 1; g2.strokeRect(Math.min(S.drag.x, S.drag.x1) - rr.left, Math.min(S.drag.y, S.drag.y1) - rr.top, Math.abs(S.drag.x1 - S.drag.x), Math.abs(S.drag.y1 - S.drag.y)); }
-    if (S.mode?.startsWith('support:') && S.mouse) { const q = SUPPORT[S.mode.split(':')[1]]; const g2 = canvas.getContext('2d'); const z = view.cam.zoom; const sx = (S.mouse.x * TP - view.cam.x) * z; const sy = (S.mouse.y * TP - view.cam.y) * z; g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#ff6a4a'; g2.lineWidth = 2; g2.setLineDash([8, 6]); g2.beginPath(); g2.ellipse(sx, sy, (q.r || q.width || 1.5) * TP * z, (q.r || q.width || 1.5) * TP * z * 0.8, 0, 0, Math.PI * 2); g2.stroke(); if (q.len) { g2.beginPath(); g2.moveTo(sx - (q.len / 2) * TP * z, sy); g2.lineTo(sx + (q.len / 2) * TP * z, sy); g2.stroke(); } g2.setLineDash([]); }
+    if (S.mode?.startsWith('support:') && S.mouse) { const q = SUPPORT[S.mode.split(':')[1]]; const g2 = canvas.getContext('2d'); const z = view.cam.zoom; const c0 = view.toCanvas(S.mouse.x * TP, S.mouse.y * TP); const r = (q.r || q.width || 1.5) * TP * z; g2.setTransform(1, 0, 0, 1, 0, 0); g2.strokeStyle = '#ff6a4a'; g2.lineWidth = 2; g2.setLineDash([8, 6]); g2.beginPath(); g2.ellipse(c0.x, c0.y, r * Math.SQRT2, r * Math.SQRT1_2, 0, 0, Math.PI * 2); g2.stroke(); if (q.len) { const a = view.toCanvas((S.mouse.x - q.len / 2) * TP, S.mouse.y * TP); const b = view.toCanvas((S.mouse.x + q.len / 2) * TP, S.mouse.y * TP); g2.beginPath(); g2.moveTo(a.x, a.y); g2.lineTo(b.x, b.y); g2.stroke(); } g2.setLineDash([]); } // (the strike's circle lies on the ground: a 2:1 ellipse; its run is a line along the map's x axis)
     drawPings();
     if (B.tick % 10 === 0) { paintTop(); paintCard(); }
     if (B.tick - S.lastSave >= 100) { S.lastSave = B.tick; save(); }

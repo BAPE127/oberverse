@@ -126,13 +126,25 @@ The top-down path stays in the code behind `renderer.iso = false` (debug command
 
 ## 6. What is built
 
-| Phase | State (2026-11-12) |
-| --- | --- |
-| 2 Foundation | **Tested.** `iso.js`, baked iso ground, box sort, billboards, iso camera, `toScreen`/`toWorld` with z, on-foot input rotation, chest-plane aim. `tests/iso.test.mjs`; smoke 69/69 on the built `index.html` (aim step: 0° error on four NPCs) |
-| 3 Building visibility | **Tested and seen** in screenshots: roofed by default, open on entering (0.2 s, hysteresis), dithered see-through hole when the player is behind; tags and bubbles of hidden NPCs suppressed; 318 maps render without error |
-| 4 People and props | Not started. People use the four existing facings chosen by screen direction; multi-tile props are upright sprites; houses have flat roofs |
-| 5 Vehicles, combat effects, Wrath | In progress. Until done: vehicles lie flat, the Wrath plays in the old top-down view |
-| 6 Battles | In progress. Until done the battle screen is top-down |
-| 7 Test and optimise | Frame time measured for phases 2–3 only (Halvermouth, headless: iso 1.9–2.9 ms, old view 2.4–3.0 ms). Full suite to be re-run after integration |
+Verified on 2026-11-12 at the integrated build: `npm run check` 1,348 of 1,348 tests, validator 0 errors; `npm run smoke` 76 of 76 on the built `index.html`; screenshots looked at by Fable for each row marked "seen".
 
-Known defects after phases 2–3: the lighthouse is a striped box; the Phonograph marquee is a plain sign plate; props' `sortRow` is ignored; prop text is replayed over everything; faint window patches on baked interior floors; map edges show diamond corners over the sea; wall tops are a full tile thick; the see-through hole dithers dark over asphalt. There is no `view` debug command: switch with `window.oberverse.ui.renderer.iso = false` in the browser console.
+| Phase | State |
+| --- | --- |
+| 2 Foundation | **Tested, seen.** `iso.js`, baked iso ground, box sort, billboards, iso camera, `toScreen`/`toWorld` with z, on-foot input rotation, chest-plane aim (smoke: 0° error on four NPCs) |
+| 3 Building visibility | **Tested, seen.** Roofed by default; open on entering (0.2 s, hysteresis); dithered see-through hole when the focus is behind; tags and bubbles of hidden NPCs suppressed; all 318 maps render without error |
+| 4 People and props | **Not started.** People use the four existing facings chosen by screen direction; multi-tile props are upright sprites (classification in `RENDERING_PROPS.md`); every roof is flat |
+| 5 Vehicles, combat, Wrath | **Tested, seen** (driven car, Wrath). `isoVehicles.js` stacked sprites with per-pixel heights, cached; heavy weapons, muzzle streak, aim facing; all ten Wrath themes in iso through projected actor positions, mechanics untouched (`WRATH.md`). Smoke steps: drive and get out, fire along the aim, a Wrath runs and play resumes |
+| 6 Battles | **Tested, seen** (city battle). `BattleView` iso mapping; picking, screen-rectangle selection, orders, menu, pings and strikes under the cursor; shared building painter; open and locally faded buildings; units, vehicles and aircraft with real heights. Battle determinism tests unchanged and passing |
+| 7 Test and optimise | Full suite and smoke run once after integration. Frame times as measured by the agents in headless (software) Chromium: world, 20 cars in view, 7–8 ms (21–25 ms before vehicle caching); battle, city map centre, 5.9 ms (1.3 ms top-down). Not measured on a real GPU. No final Opus review yet |
+
+### Known defects and limits
+
+World: the lighthouse is a striped box; the Phonograph marquee is a plain sign plate; props' `sortRow` is ignored; prop text is replayed over everything; faint window patches on baked interior floors; map edges show diamond corners over the sea; wall tops are a full tile thick; the see-through hole dithers dark over asphalt; inner walls of an open tower room are tinted glass.
+
+Vehicles: bus sides have no windows; aircraft on the ground at Starling Field are flat (those at Hollowmoor have volume); anything longer than about 256 px stays flat; wheels do not turn; the crawler's tracks are hidden.
+
+Wrath: the world behind a cutscene is scaled 1.4× through the pixel pass, so pixels are slightly uneven.
+
+Battles: smoke and blast particles are not depth-sorted (they draw over buildings); furniture is flat on open floors; open upper floors are drawn at ground level; trench parapets and wire are flat paint; all roofs are flat; a Move order clicked on a roof goes to the ground behind it; opening a battle takes 0.6–1.3 s while building pictures are painted.
+
+Controls: `player.facing` is four-way, so keyboard-only interaction and auto-aim point along a street axis (section 2.5). There is no `view` debug command: switch views with `window.oberverse.ui.renderer.iso = false` in the browser console.

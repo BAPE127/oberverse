@@ -2,6 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## Unreleased — The Isometric View (in progress; version number to be set by the owner)
+
+The world and the battle screen are drawn in a 2:1 isometric view (Canvas 2D, no library; design in `docs/RENDERING.md`). No rules, balance or saves change: the simulation is untouched and the renderer only reads it.
+
+- **The view.** New `src/engine/iso.js` (projection, inverse, ground-box depth sort) and `renderIso()` in the renderer: the ground chunks are baked into iso diamonds, people and props stand upright on them, everything is ordered by a topological sort on ground boxes. The old top-down path remains in the code (`window.oberverse.ui.renderer.iso = false`).
+- **Buildings have volume and never hide you.** `src/engine/isoBuildings.js`: walls, windows lit at night, signs, roofs, towers by their storeys. A building is roofed until you walk in, then opens (no roof, low near walls); when you are behind one, a see-through hole follows you. Name tags and bubbles of people you cannot see are not shown.
+- **Controls follow the screen.** On foot the keys are turned 45° (W is up the screen); driving is unchanged. The mouse aims on the chest plane, so a shot goes where the cursor is.
+- **Vehicles.** `src/engine/isoVehicles.js`: cars, buses, traffic, signature cars, tractors and the parked machines at Hollowmoor are built up from their own sprites to their real heights, at any heading.
+- **Combat and the Wrath.** Bullets, flashes, damage numbers, heavy weapons and blasts are placed with real heights; the player faces the aim. All ten Wrath cutscenes play in the new view; what the Wrath does is unchanged and is now written down in `docs/WRATH.md`.
+- **Battles.** The tactical battle uses the same projection, sort and buildings; clicks, box selection, orders and strikes land under the cursor; buildings open for units inside and fade in front of selected units.
+- **Tests.** `tests/iso.test.mjs`, `tests/iso_battle.test.mjs`; smoke steps for a tower (behind, inside, in front), aim, driving, gunfire, a Wrath, battle picking and orders.
+
+Not done yet: diagonal walking sprites, furniture and fences redrawn for the new angle, pitched roofs, and the defects listed in `docs/RENDERING.md` section 6.
+
 ## [0.103.11] — 2026-11-09 — War: A Cleaner Battle Screen (development build)
 
 The played battle (`src/ui/battle.js`, `styles.css`) only; no rules or saves change.

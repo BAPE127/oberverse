@@ -15,7 +15,7 @@ Status is taken from `ROADMAP.md`, `KNOWN_ISSUES.md` and the passing test suite 
 | Saves and migrations | `src/save/` | `SAVE_FORMAT.md` | `save*`, fixtures in `tests/fixtures/` | Released (schema 1) |
 | Content registry and validator | `src/content/index.js`, `tools/validate-content.mjs` | `CONTENT_FORMAT.md` | `content` | Released |
 | Build | `tools/build.mjs` → `index.html` | `ARCHITECTURE.md` | `build` | Released |
-| Rendering | `src/engine/` | `ARCHITECTURE.md`, `DEVELOPMENT_WORKFLOW.md` (art notes) | `pixelart`, `seamless`, `streets` | Released |
+| Rendering (isometric view) | `src/engine/` — `renderer.js`, `iso.js`, `isoBuildings.js`, `isoVehicles.js` | `RENDERING.md`, `RENDERING_PROPS.md`, `WRATH.md`; older art notes in `DEVELOPMENT_WORKFLOW.md` | `iso`, `iso_battle`, `pixelart`, `seamless`, `streets`; smoke test | Isometric view unreleased, in progress |
 | Audio | `src/audio/`, `src/content/audio.js` | `AUDIO_GUIDE.md` | — | Released |
 | UI shell, HUD, panels | `src/ui/ui.js`, `panels.js`, `hotbar.js`, `dialogueUI.js`, `styles.css` | — | smoke test | Released |
 | OberPad tablet | `src/ui/tablet*.js`, `src/systems/tablet.js`, `todo.js` | `TABLET.md` | `tablet*`, `todo` | Released; untried on touch |

@@ -178,6 +178,17 @@ export function hidesPoint(box, h, wx, wy, z = 0) {
 }
 
 /**
+ * Does a prism (ground box, `h` px tall) cover the screen point (ix, iy)? Returns the greatest height z in [0, h] at which the
+ * point lies on the prism (the surface the eye meets first: the roof when z = h), or -1 when it misses. Exact; the sight line
+ * through a screen point runs up and to the south-east, so the highest z is the nearest to the camera.
+ */
+export function prismHit(box, h, ix, iy) {
+  const lo = Math.max(box.x0 - iy - ix / 2, box.y0 - iy + ix / 2, 0);
+  const hi = Math.min(box.x1 - iy - ix / 2, box.y1 - iy + ix / 2, h);
+  return lo <= hi ? hi : -1;
+}
+
+/**
  * The sprite facing for a person: from the screen direction of motion, or of `facing` when still.
  * (dx, dy) is the world velocity; sx = dx - dy and sy = dx + dy are its screen components.
  */

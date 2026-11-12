@@ -146,6 +146,7 @@ function signPlate(c, text, cx, y, maxW, bg = '#3a2c25', fg = '#f6e7c1', edge = 
 // ------------------------------------------------------------------ sizes
 /** A building's height in px: towers by storeys (capped near 420), the rest one or two storeys. */
 export function buildingHeight(b) {
+  if (b.storeys) return 8 + b.storeys * STOREY; // (a building that says how many floors it has: the battle's)
   if (b.round) return 190;
   if (b.tower) {
     const t = b.tower;
@@ -420,7 +421,8 @@ export function columnPicture(kind, pal) {
 
 // ------------------------------------------------------------------ state
 export class IsoBuildings {
-  constructor() {
+  constructor(maxPictures = MAX_PICTURES) {
+    this.max = maxPictures;
     this.pictures = new Map(); // key → { canvas, ox, oy, h }
     this.states = new WeakMap(); // building → { t (0 roofed … 1 open), wantAt, fade (0 … 1: the local hole) }
     this.scratch = null;
@@ -461,7 +463,7 @@ export class IsoBuildings {
     }
     p = paintPicture(b, v);
     this.pictures.set(key, p);
-    while (this.pictures.size > MAX_PICTURES) this.pictures.delete(this.pictures.keys().next().value);
+    while (this.pictures.size > this.max) this.pictures.delete(this.pictures.keys().next().value);
     return p;
   }
 
@@ -482,6 +484,27 @@ export class IsoBuildings {
     for (const k of [1, 0.66]) { // two pools, so the middle is clear and the rim dithered
       const sp = holeSprite(Math.max(2, Math.round(r * k)));
       g.drawImage(sp, lx - (sp.width >> 1), ly - (sp.height >> 1));
+    }
+    g.globalCompositeOperation = 'source-over';
+    ctx.drawImage(sc, 0, 0, pic.canvas.width, pic.canvas.height, x, y, pic.canvas.width, pic.canvas.height);
+  }
+
+  /** As `drawWithHole`, with several holes ({ x, y, r } in iso px): the battle shows more than one focus at a time. */
+  drawWithHoles(ctx, pic, x, y, holes, holeSprite) {
+    const sc = this.scratch || (this.scratch = mk(64, 64));
+    if (sc.width < pic.canvas.width || sc.height < pic.canvas.height) { sc.width = Math.max(sc.width, pic.canvas.width); sc.height = Math.max(sc.height, pic.canvas.height); }
+    const g = sc.getContext('2d');
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, pic.canvas.width, pic.canvas.height);
+    g.drawImage(pic.canvas, 0, 0);
+    g.globalCompositeOperation = 'destination-out';
+    for (const h of holes) {
+      const lx = Math.round(h.x - x);
+      const ly = Math.round(h.y - y);
+      for (const k of [1, 0.66]) {
+        const sp = holeSprite(Math.max(2, Math.round(h.r * k)));
+        g.drawImage(sp, lx - (sp.width >> 1), ly - (sp.height >> 1));
+      }
     }
     g.globalCompositeOperation = 'source-over';
     ctx.drawImage(sc, 0, 0, pic.canvas.width, pic.canvas.height, x, y, pic.canvas.width, pic.canvas.height);

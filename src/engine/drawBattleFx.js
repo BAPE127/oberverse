@@ -27,33 +27,40 @@ function stamp(kind, ramp, level, r, alpha, ph, pv) {
   STAMPS.set(key, c); return c;
 }
 
+/**
+ * Particles in the isometric view: each sits at a ground point (x, y, world px) and a height z, plus a small screen-space offset
+ * (ox, oy) that its own drift moves: smoke rises on the screen, sparks fall back. Callers pass the ground point and the height.
+ */
 export class FxLayer {
   constructor(seed = 'fx') { this.seed = seed; this.p = []; this.lines = []; this.n = 0; }
   h(k) { return unit(`${this.seed}|${this.n}|${k}`); }
-  add(q) { this.p.push(q); if (this.p.length > CAP) this.p.shift(); }
-  muzzle(x, y, dx, dy) { this.n++; this.add({ k: 'flash', x: x + dx * 10, y: y + dy * 10, vx: 0, vy: 0, age: 0, life: 3, s: 2 }); }
-  tracer(x0, y0, x1, y1, side) { this.lines.push({ x0, y0, x1, y1, side, age: 0, life: 3 }); if (this.lines.length > 80) this.lines.shift(); }
-  hit(x, y) { this.n++; for (let i = 0; i < 4; i++) this.add({ k: 'spark', x, y, vx: (this.h(`a${i}`) - 0.5) * 3, vy: (this.h(`b${i}`) - 0.5) * 3 - 0.6, age: 0, life: 6 + Math.floor(this.h(`c${i}`) * 4), s: 1 }); this.add({ k: 'dust', x, y, vx: 0, vy: -0.2, age: 0, life: 14, s: 2 }); }
-  blast(x, y, big = false) {
+  add(q) { q.z = q.z || 0; q.ox = q.ox || 0; q.oy = q.oy || 0; this.p.push(q); if (this.p.length > CAP) this.p.shift(); }
+  muzzle(x, y, dx, dy, z = 0) { this.n++; this.add({ k: 'flash', x, y, z, ox: (dx - dy) * 10, oy: ((dx + dy) / 2) * 10, vx: 0, vy: 0, age: 0, life: 3, s: 2 }); }
+  tracer(x0, y0, x1, y1, side, z = 0) { this.lines.push({ x0, y0, x1, y1, z, side, age: 0, life: 3 }); if (this.lines.length > 80) this.lines.shift(); }
+  hit(x, y, z = 0) { this.n++; for (let i = 0; i < 4; i++) this.add({ k: 'spark', x, y, z, vx: (this.h(`a${i}`) - 0.5) * 3, vy: (this.h(`b${i}`) - 0.5) * 3 - 0.6, age: 0, life: 6 + Math.floor(this.h(`c${i}`) * 4), s: 1 }); this.add({ k: 'dust', x, y, z, vx: 0, vy: -0.2, age: 0, life: 14, s: 2 }); }
+  blast(x, y, big = false, z = 0) {
     this.n++; const m = big ? 2 : 1;
-    this.add({ k: 'fire', x, y, vx: 0, vy: 0, age: 0, life: 12 * m, s: 5 * m });
-    for (let i = 0; i < 7 * m; i++) this.add({ k: 'fire', x: x + (this.h(`x${i}`) - 0.5) * 12 * m, y: y + (this.h(`y${i}`) - 0.5) * 10 * m, vx: (this.h(`vx${i}`) - 0.5) * 1.2, vy: -0.4 - this.h(`vy${i}`) * 0.8, age: 0, life: 9 + Math.floor(this.h(`l${i}`) * 8), s: 3 * m });
-    for (let i = 0; i < 5 * m; i++) this.add({ k: 'smoke', x: x + (this.h(`sx${i}`) - 0.5) * 10, y: y - 4, vx: (this.h(`svx${i}`) - 0.5) * 0.5, vy: -0.5 - this.h(`svy${i}`) * 0.4, age: 0, life: 40 + Math.floor(this.h(`sl${i}`) * 30), s: 4 * m });
+    this.add({ k: 'fire', x, y, z, vx: 0, vy: 0, age: 0, life: 12 * m, s: 5 * m });
+    for (let i = 0; i < 7 * m; i++) this.add({ k: 'fire', x, y, z, ox: (this.h(`x${i}`) - 0.5) * 12 * m, oy: (this.h(`y${i}`) - 0.5) * 10 * m, vx: (this.h(`vx${i}`) - 0.5) * 1.2, vy: -0.4 - this.h(`vy${i}`) * 0.8, age: 0, life: 9 + Math.floor(this.h(`l${i}`) * 8), s: 3 * m });
+    for (let i = 0; i < 5 * m; i++) this.add({ k: 'smoke', x, y, z, ox: (this.h(`sx${i}`) - 0.5) * 10, oy: -4, vx: (this.h(`svx${i}`) - 0.5) * 0.5, vy: -0.5 - this.h(`svy${i}`) * 0.4, age: 0, life: 40 + Math.floor(this.h(`sl${i}`) * 30), s: 4 * m });
   }
   /** White-grey smoke screen: a long-lived puff that hardly rises. */
-  cloud(x, y) { this.n++; this.add({ k: 'screen', x, y, vx: (this.h('cx') - 0.5) * 0.15, vy: -0.05, age: 0, life: 90, s: 7 }); }
+  cloud(x, y, z = 0) { this.n++; this.add({ k: 'screen', x, y, z, vx: (this.h('cx') - 0.5) * 0.15, vy: -0.05, age: 0, life: 90, s: 7 }); }
   /** A little flame and black smoke from a burning wreck or a burning engine. */
-  flame(x, y) { this.n++; this.add({ k: 'fire', x: x + (this.h('fx') - 0.5) * 8, y, vx: 0, vy: -0.5, age: 0, life: 10, s: 2 }); this.add({ k: 'smoke', x: x + (this.h('fy') - 0.5) * 6, y: y - 6, vx: 0.05, vy: -0.6, age: 0, life: 46, s: 3 }); }
-  smoke(x, y) { this.n++; this.add({ k: 'smoke', x: x + (this.h('sx') - 0.5) * 8, y, vx: (this.h('sv') - 0.3) * 0.6, vy: -0.6, age: 0, life: 50, s: 4 }); }
+  flame(x, y, z = 0) { this.n++; this.add({ k: 'fire', x, y, z, ox: (this.h('fx') - 0.5) * 8, vx: 0, vy: -0.5, age: 0, life: 10, s: 2 }); this.add({ k: 'smoke', x, y, z, ox: (this.h('fy') - 0.5) * 6, oy: -6, vx: 0.05, vy: -0.6, age: 0, life: 46, s: 3 }); }
+  smoke(x, y, z = 0) { this.n++; this.add({ k: 'smoke', x, y, z, ox: (this.h('sx') - 0.5) * 8, vx: (this.h('sv') - 0.3) * 0.6, vy: -0.6, age: 0, life: 50, s: 4 }); }
   step() {
-    for (const q of this.p) { q.age++; q.x += q.vx; q.y += q.vy; if (q.k === 'smoke') { q.vx += 0.01; q.s += 0.05; } if (q.k === 'screen') q.s += 0.03; if (q.k === 'spark') q.vy += 0.25; }
+    for (const q of this.p) { q.age++; q.ox += q.vx; q.oy += q.vy; if (q.k === 'smoke') { q.vx += 0.01; q.s += 0.05; } if (q.k === 'screen') q.s += 0.03; if (q.k === 'spark') q.vy += 0.25; }
     this.p = this.p.filter((q) => q.age < q.life);
     for (const l of this.lines) l.age++;
     this.lines = this.lines.filter((l) => l.age < l.life);
   }
-  /** Draw in world pixels (the caller has applied the camera). */
-  draw(ctx) {
-    for (const l of this.lines) { ctx.fillStyle = l.side === 'p' ? '#e8ffe0' : '#ffd9a0'; const n = 6; for (let i = 0; i < n; i++) { const t = (i + l.age * 0.9) / (n + 3); if (t > 1) continue; ctx.fillRect(Math.round((l.x0 + (l.x1 - l.x0) * t) / PX) * PX, Math.round((l.y0 + (l.y1 - l.y0) * t) / PX) * PX, PX, PX); } }
+  /** Draw in iso pixels (the caller has applied the camera); `pt(x, y, z)` gives the iso point of a world point (iso.project). */
+  draw(ctx, pt) {
+    for (const l of this.lines) {
+      ctx.fillStyle = l.side === 'p' ? '#e8ffe0' : '#ffd9a0'; const n = 6; const a = pt(l.x0, l.y0, l.z); const b = pt(l.x1, l.y1, l.z);
+      for (let i = 0; i < n; i++) { const t = (i + l.age * 0.9) / (n + 3); if (t > 1) continue; ctx.fillRect(Math.round((a.x + (b.x - a.x) * t) / PX) * PX, Math.round((a.y + (b.y - a.y) * t) / PX) * PX, PX, PX); }
+    }
     for (const q of this.p) {
       const f = q.age / q.life; const r = Math.max(1, Math.round(q.s));
       let ramp; let level;
@@ -61,7 +68,8 @@ export class FxLayer {
       else if (q.k === 'screen') { ramp = SCREEN; level = Math.min(3, Math.floor(f * 4)); }
       else if (q.k === 'dust') { ramp = DUST; level = Math.min(4, Math.floor(f * 5)); } else { ramp = SMOKE; level = Math.min(4, Math.floor(0.4 * 5 + f * 2)); }
       const alpha = q.k === 'screen' ? Math.min(0.9, 2.2 * (1 - f)) : q.k === 'smoke' || q.k === 'dust' ? 1 - f : 1;
-      const cx = Math.round(q.x / PX) * PX; const cy = Math.round(q.y / PX) * PX;
+      const p = pt(q.x, q.y, q.z);
+      const cx = Math.round((p.x + q.ox) / PX) * PX; const cy = Math.round((p.y + q.oy) / PX) * PX;
       const st = stamp(q.k, ramp, level, r, Math.round(alpha * 8) / 8, (cx / PX) & 3, (cy / PX) & 3);
       ctx.drawImage(st, cx - r * PX, cy - r * PX);
     }
@@ -69,10 +77,11 @@ export class FxLayer {
 }
 
 /** An aircraft seen from above on the battle's pixel idiom: a fuselage, swept wings, a tail, a canopy, a shadow well below it. `ang` is its heading (east is zero); `bomber` is bigger with four engines. */
-export function drawJet(g, x, y, ang, bomber = false, t = 0) {
+export function drawJet(g, x, y, ang, bomber = false, t = 0, part = 'all') {
   const INK = '#1b1a24'; const L = bomber ? 56 : 38; const Wd = bomber ? 62 : 34; const body = bomber ? '#6c7466' : '#7c8794'; const hi = bomber ? '#8c9486' : '#9eaab8'; const lo = bomber ? '#4c5446' : '#5a6572';
   g.save(); g.imageSmoothingEnabled = false;
-  g.save(); g.translate(Math.round(x + 18), Math.round(y + 30)); g.rotate(ang); g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(-L / 2, -3, L, 6); g.fillRect(-4, -Wd / 2 + 2, 10, Wd - 4); g.restore();
+  if (part !== 'body') { g.save(); g.translate(Math.round(x + (part === 'shadow' ? 0 : 18)), Math.round(y + (part === 'shadow' ? 0 : 30))); g.rotate(ang); g.fillStyle = 'rgba(16,14,36,0.28)'; g.fillRect(-L / 2, -3, L, 6); g.fillRect(-4, -Wd / 2 + 2, 10, Wd - 4); g.restore(); }
+  if (part === 'shadow') { g.restore(); return; }
   g.translate(Math.round(x), Math.round(y)); g.rotate(ang);
   const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(a, b, w, h); };
   R(-L / 2 - 1, -4, L + 2, 8, INK); R(-6, -Wd / 2 - 1, 16, Wd + 2, INK);
