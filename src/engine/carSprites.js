@@ -217,12 +217,9 @@ function make(m, idx, colour, o) {
   return { cv: out, shadow: sh, half: (S + 2) / 2 };
 }
 
-/**
- * Draw a car (or the bus: model { body: 'bus', len, wid }) centred on (x, y), nose along `angle`.
- * opts: color, lit, braking, siren, time. Returns false where sprites can't be made.
- */
-export function drawCarSprite(ctx, model, x, y, angle, opts = {}) {
-  if (!canMake() || !LAYOUT[model.body]) return false;
+/** The sprite for a model at a heading and lamp state (made once, cached): { s: { cv, shadow, half }, idx, key } or null. */
+export function carSpriteFor(model, angle, opts = {}) {
+  if (!canMake() || !LAYOUT[model.body]) return null;
   const idx = ((Math.round((angle / (Math.PI * 2)) * STEPS) % STEPS) + STEPS) % STEPS;
   const colour = opts.color || model.colors?.[0] || '#888888';
   const siren = model.body === 'police' && opts.siren ? (Math.sin((opts.time || 0) * 10) > 0 ? 1 : 2) : 0;
@@ -234,6 +231,17 @@ export function drawCarSprite(ctx, model, x, y, angle, opts = {}) {
     s = make({ ...model, stripes: model.stripes ?? model.body === 'coupe' }, idx, colour, o);
     cache.set(key, s);
   }
+  return { s, idx, key };
+}
+
+/**
+ * Draw a car (or the bus: model { body: 'bus', len, wid }) centred on (x, y), nose along `angle`.
+ * opts: color, lit, braking, siren, time. Returns false where sprites can't be made.
+ */
+export function drawCarSprite(ctx, model, x, y, angle, opts = {}) {
+  const got = carSpriteFor(model, angle, opts);
+  if (!got) return false;
+  const { s } = got;
   const X = Math.round(x) - s.half;
   const Y = Math.round(y) - s.half;
   const ga = ctx.globalAlpha;
@@ -248,6 +256,70 @@ export function drawCarSprite(ctx, model, x, y, angle, opts = {}) {
     ctx.fillRect(bx - 5, by - 5, 10, 10);
   }
   return true;
+}
+
+// ---- heights, for the isometric view's sprite stacking (src/engine/isoVehicles.js)
+/** Heights in px: the tyre, the body (bonnet, boot, flanks) and the cabin (roof, glass). A bus is a tall box. */
+export const CAR_HEIGHTS = { car: { tyre: 4, body: 9, cabin: 16 }, bus: { tyre: 8, body: 26, cabin: 30 } };
+export const carHeights = (model) => (model.body === 'bus' ? CAR_HEIGHTS.bus : CAR_HEIGHTS.car);
+
+/** How high the surface at (u, v) stands, in px (0 where there is no car); the screen and rear glass slope between body and roof. */
+export function heightAt(m, u, v) {
+  const s = surface(m, u, v);
+  if (!s) return 0;
+  const H = carHeights(m);
+  const lay = LAYOUT[m.body] || LAYOUT.saloon;
+  const t = (u + m.len / 2) / m.len;
+  switch (s.mat) {
+    case 'tyre': return H.tyre;
+    case 'mirror': return H.body - 1;
+    case 'roof': return H.cabin;
+    case 'glass':
+      if (m.body === 'bus') return H.cabin;
+      if (t > lay[2]) return Math.round(H.body + ((H.cabin - H.body) * (lay[3] - t)) / (lay[3] - lay[2]));
+      if (t < lay[1]) return Math.round(H.body + ((H.cabin - H.body) * (t - lay[0])) / (lay[1] - lay[0]));
+      return H.cabin;
+    case 'bed': case 'bedrib': return H.body - 2;
+    default: return H.body;
+  }
+}
+
+/**
+ * Per-pixel heights for a cached sprite (same grid as its canvas), made once: `hp[i]` is the height (0 = empty);
+ * `src[i]` is, for a pixel of the dark outline, the index of the body pixel beside it (its side takes that colour), else -1.
+ */
+export function spriteHeights(model, s, idx) {
+  if (s.hp) return s;
+  const S2 = s.cv.width;
+  const S = S2 - 2;
+  const a = (idx / STEPS) * Math.PI * 2;
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const c = S / 2;
+  const alpha = s.cv.getContext('2d').getImageData(0, 0, S2, S2).data;
+  const hp = new Uint8Array(S2 * S2);
+  const src = new Int32Array(S2 * S2).fill(-1);
+  const m = { ...model, stripes: model.stripes ?? model.body === 'coupe' };
+  for (let y = 0; y < S2; y++) for (let x = 0; x < S2; x++) {
+    if (alpha[(y * S2 + x) * 4 + 3] < 128) continue;
+    const dx = x - 1 + 0.5 - c;
+    const dy = y - 1 + 0.5 - c;
+    hp[y * S2 + x] = heightAt(m, dx * ca + dy * sa, -dx * sa + dy * ca);
+  }
+  // the outline (alpha, no surface): the height and side colour of its nearest body pixel
+  const fixed = hp.slice();
+  for (let y = 0; y < S2; y++) for (let x = 0; x < S2; x++) {
+    const i = y * S2 + x;
+    if (fixed[i] || alpha[i * 4 + 3] < 128) continue;
+    let best = 0;
+    let from = -1;
+    for (const j of [i - 1, i + 1, i - S2, i + S2, i - S2 - 1, i - S2 + 1, i + S2 - 1, i + S2 + 1]) if (j >= 0 && j < hp.length && fixed[j] > best) { best = fixed[j]; from = j; }
+    hp[i] = best || 1;
+    src[i] = from;
+  }
+  s.hp = hp;
+  s.src = src;
+  return s;
 }
 
 /** For the tests: what lies at (u, v) on a model. */

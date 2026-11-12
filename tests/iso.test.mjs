@@ -193,3 +193,96 @@ test('rotateInput: screen up is north-west on the ground (and so is the sprite d
   assert.equal(spriteFacing(1, 0), 'down'); // east: screen down-right
   assert.equal(spriteFacing(0, -1), 'up');
 });
+
+// ---- phase 5: vehicles with volume, the Wrath's iso plane
+import { stackBuffer } from '../src/engine/isoVehicles.js';
+import { heightAt, carHeights } from '../src/engine/carSprites.js';
+import { wrathActors, wrathCamera } from '../src/engine/wrath.js';
+
+const px = (r, x, y) => r.out[y * r.w + x];
+const RED = (0xff000000 | 0x0000c0) >>> 0; // ABGR: opaque red
+
+test('stackBuffer: one flat pixel stands as a column; its top keeps the colour, its sides are darker, the foot is where the ground puts it', () => {
+  const W = 8;
+  const flat = new Uint32Array(W * W);
+  const hp = new Uint8Array(W * W);
+  flat[4 * W + 4] = RED;
+  hp[4 * W + 4] = 5;
+  const r = stackBuffer(flat, hp, null, null, W, 5);
+  // flat pixel (4, 4) at ground z = 0: centre (4.5, 4.5) -> ix = 0 + W, iy = 4.5 - 0 + OY where OY = Hmax = 5
+  const col = [];
+  for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) if (px(r, x, y)) col.push([x, y, px(r, x, y)]);
+  assert.ok(col.length >= 5, 'a column, not a dot');
+  const xs = new Set(col.map((c) => c[0]));
+  assert.ok(xs.size <= 2, 'one column wide (2 px: the diamond of a flat pixel)');
+  const top = col.reduce((a, c) => (c[1] < a[1] ? c : a));
+  const foot = col.reduce((a, c) => (c[1] > a[1] ? c : a));
+  assert.equal(top[2], RED, 'the topmost pixel is the real colour');
+  assert.ok((foot[2] & 255) < (RED & 255), 'the foot of a side is darker than the top');
+  assert.ok(foot[1] - top[1] >= 5, 'about as tall as its height');
+  // the base sits where the ground transform puts the pixel: iy of the flat pixel's middle is (u + v) / 2 = 4.5 below OY
+  assert.ok(Math.abs(foot[1] - (4.5 + 5)) <= 2.01);
+  assert.ok(Math.abs(col[0][0] - (r.ox + 0)) <= 2, 'on the ix = u - v axis (here 0 from the centre line)');
+});
+
+test('stackBuffer: a taller column in front hides the lower one behind it, and nothing flat means nothing drawn', () => {
+  const W = 12;
+  const flat = new Uint32Array(W * W);
+  const hp = new Uint8Array(W * W);
+  const BLUE = (0xff000000 | 0xc00000) >>> 0;
+  flat[3 * W + 3] = RED; hp[3 * W + 3] = 4; // behind (smaller u + v)
+  flat[8 * W + 8] = BLUE; hp[8 * W + 8] = 4; // in front
+  const r = stackBuffer(flat, hp, null, null, W, 4);
+  let blue = 0; let red = 0;
+  for (const v of r.out) { if (v === BLUE) blue++; else if (v === RED) red++; }
+  assert.ok(blue > 0 && red > 0);
+  const empty = stackBuffer(new Uint32Array(W * W), new Uint8Array(W * W), null, null, W, 4);
+  assert.ok(empty.out.every((v) => v === 0));
+});
+
+test('stackBuffer: the shadow shows only where no body stands', () => {
+  const W = 8;
+  const flat = new Uint32Array(W * W);
+  const hp = new Uint8Array(W * W);
+  const under = new Uint32Array(W * W).fill((77 << 24) >>> 0);
+  flat[4 * W + 4] = RED; hp[4 * W + 4] = 3;
+  const r = stackBuffer(flat, hp, null, under, W, 3);
+  assert.ok(r.out.includes(RED));
+  assert.ok(r.out.some((v) => v === (77 << 24) >>> 0), 'the ground shadow is drawn');
+});
+
+test('heightAt: tyres low, the body at one height, the cabin higher, the glass a ramp between; a bus is a tall box', () => {
+  const m = { body: 'saloon', len: 64, wid: 30, colors: ['#888888'] };
+  const H = carHeights(m);
+  assert.ok(H.tyre < H.body && H.body < H.cabin);
+  assert.equal(heightAt(m, 100, 0), 0, 'nothing outside the car');
+  assert.equal(heightAt(m, m.len / 2 - 8, 0), H.body, 'the bonnet');
+  // saloon layout (fractions of the length from the tail): rear glass .2, roof .32, windscreen .58, bonnet .7
+  const uAt = (t) => -m.len / 2 + t * m.len;
+  assert.equal(heightAt(m, uAt(0.45), 0), H.cabin, 'the roof');
+  const hs = [0.66, 0.62, 0.59].map((t) => heightAt(m, uAt(t), 0));
+  assert.ok(hs[0] <= hs[1] && hs[1] <= hs[2] && hs[0] >= H.body && hs[2] <= H.cabin, `the windscreen rises toward the roof: ${hs}`);
+  const bus = { body: 'bus', len: 150, wid: 46 };
+  assert.ok(heightAt(bus, 0, 0) >= 26 && carHeights(bus).cabin > carHeights(m).cabin * 1.5);
+});
+
+test('wrathActors: in the iso view the cutscene stands on the iso plane at the projected feet; elsewhere on the world', () => {
+  const player = { x: 300, y: 200, facing: 'down', marker: 'p' };
+  const victim = { x: 340, y: 210, facing: 'left', profile: { name: 'V' } };
+  const g = { player, npcs: new Map([['v', victim]]), realTime: 5 };
+  const w = { npcId: 'v', start: 0 };
+  const flat = wrathActors(g, w, false);
+  assert.equal(flat.p, player);
+  assert.equal(flat.victim, victim);
+  const iso = wrathActors(g, w, true);
+  assert.deepEqual([iso.p.x, iso.p.y], [project(300, 200).x, project(300, 200).y]);
+  assert.deepEqual([iso.victim.x, iso.victim.y], [project(340, 210).x, project(340, 210).y]);
+  assert.equal(iso.p.marker, 'p', 'the rest of the player is still theirs');
+  assert.equal(iso.victim.profile.name, 'V');
+  assert.deepEqual([player.x, player.y], [300, 200], 'the simulation objects are untouched');
+  assert.deepEqual([victim.x, victim.y], [340, 210]);
+  // the camera of the cutscene aims between the two projected figures
+  const c = wrathCamera(g, w, 400, 300, 3, true);
+  const mid = (a, b) => (a + b) / 2;
+  assert.ok(Math.abs(c.x + 400 / 2 * 3 / c.zoom - mid(project(300, 200).x, project(340, 210).x)) < 40);
+});

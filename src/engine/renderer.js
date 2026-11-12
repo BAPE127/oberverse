@@ -8,7 +8,7 @@ import { drawFields } from './drawFarm.js';
 import { setPixelProps, drawBuilding, drawProp, drawWaterShimmer, FLAT_PROPS, towerHeight } from './drawWorld.js';
 import { drawCar, drawBus, setPixelCars } from './drawVehicles.js';
 import { parkedMachines } from './drawParked.js';
-import { drawAircraft } from './drawAero.js';
+import { drawAircraft, rocketCanvas } from './drawAero.js';
 import { drawCrawler, drawBoard, drawPadFx, drawSky, launchLight } from './drawLaunch.js';
 import { shakeAt } from '../aero/launch.js';
 import { windRunway } from '../aero/flight.js';
@@ -19,6 +19,7 @@ import { check } from '../sim/conditions.js';
 import { isDown } from '../systems/combat.js';
 import { drawWrath, wrathCamera, wrathLift, wrathPlayerAlpha } from './wrath.js';
 import { inWindow } from '../world/clock.js';
+import { drawVehicleIso, drawPaintedIso } from './isoVehicles.js';
 import { project, unproject, sortItems, behindBox, hidesPoint, spriteFacing, facingVector, bodyBox, pointBox } from './iso.js';
 import { IsoBuildings, buildingHeight, buildingBox, columnPicture, bakeDiamond } from './isoBuildings.js';
 
@@ -68,6 +69,7 @@ function lightSprite(rad, strength, rgb = '0,0,0', levels = 7) {
 }
 
 const MAX_CHUNKS = 160; // chunks of ground kept (8×8 tiles, a quarter of a megabyte each: about 40 MB)
+const WRATH_TOPDOWN = new Set(); // Wrath themes that cannot be drawn in the iso view without redrawing their art (none yet)
 const MAX_ISO_CHUNKS = 96; // the same ground baked into iso diamonds (half a megabyte each)
 const makeCanvas = (w, h) => {
   const c = document.createElement('canvas');
@@ -343,11 +345,12 @@ export class Renderer {
     }
     const wr = g.combat.wrath;
     if (wr) {
-      this.camIso = false;
-      const c = wrathCamera(g, wr, vw, vh, zoom);
+      this.camIso = iso;
+      const c = wrathCamera(g, wr, vw, vh, zoom, iso);
       this.cam.zoom = c.zoom;
       this.cam.x = c.x;
       this.cam.y = c.y;
+      this.cam.snap = true; // (the camera comes back to the player in one step when it is over)
       this.view = { x: c.x, y: c.y, w: this.canvas.width / c.zoom, h: this.canvas.height / c.zoom };
       return;
     }
@@ -402,8 +405,9 @@ export class Renderer {
   }
 
   render(dt) {
-    // the Wrath cutscene was made for the top-down view: while it plays, the frame is drawn the old way
-    this.isoNow = Boolean(this.iso && this.pixel && !this.game.combat.wrath);
+    // the Wrath cutscene plays in the iso view too (wrath.js is given the iso plane); a theme listed in WRATH_TOPDOWN would fall back to the old pass
+    const wrath = this.game.combat.wrath;
+    this.isoNow = Boolean(this.iso && this.pixel && !(wrath && WRATH_TOPDOWN.has(wrath.theme)));
     if (this.isoNow) return this.renderIso(dt);
     this.time += dt;
     this.prefetchGround(); // (what last frame's view will want next)
@@ -599,9 +603,9 @@ export class Renderer {
   }
 
   /** The ground transform: world pixels laid flat as the 2:1 diamond grid ((1, 0.5, -1, 0.5) on top of the camera). */
-  setGround(ctx) {
+  setGround(ctx, dz = 0) {
     const b = this.base;
-    ctx.setTransform(b.s, b.s * 0.5, -b.s, b.s * 0.5, b.ex, b.ey);
+    ctx.setTransform(b.s, b.s * 0.5, -b.s, b.s * 0.5, b.ex, b.ey - b.s * dz); // (dz: the whole flat drawing lifted straight up the screen)
   }
 
   /**
@@ -688,6 +692,17 @@ export class Renderer {
     if (face !== m.face) m.faceAt = now;
     m.face = face;
     return face;
+  }
+
+  /** The sprite facing for an aim vector (world px): the screen direction, with a little stickiness at the boundaries. */
+  aimFacing(aim, current) {
+    const f = spriteFacing(aim.x, aim.y);
+    if (f === current) return f;
+    // keep the old facing while the aim is within 12% of the boundary (no flicker as the mouse drifts)
+    const sx = aim.x - aim.y;
+    const sy = aim.x + aim.y;
+    const edge = Math.abs(Math.abs(sx) - 1.5 * Math.abs(sy)) < 0.12 * Math.hypot(sx, sy);
+    return edge ? current : f;
   }
 
   /** Is a point (a name tag) hidden by a roofed building drawn in front of it (and not inside the see-through hole)? */
@@ -872,7 +887,12 @@ export class Renderer {
       if (lm.id === 'hollowmoor_lot') {
         for (const pm of parkedMachines(g)) {
           if (!inView(pm.x * TILE - 96, pm.y * TILE - 96, 192, 192)) continue;
-          items.push({ box: { x0: pm.x * TILE - 48 + L.x, y0: pm.y * TILE - 48 + L.y, x1: pm.x * TILE + 48 + L.x, y1: pm.y * TILE + 48 + L.y }, up: 30, draw: flat(() => pm.draw(ctx)) });
+          const standing = flat(() => pm.draw(ctx));
+          // the machines stand still, so each is painted flat once, stood up (isoVehicles.js) and kept; one too big for that lies flat as before
+          items.push({ box: { x0: pm.x * TILE - 48 + L.x, y0: pm.y * TILE - 48 + L.y, x1: pm.x * TILE + 48 + L.x, y1: pm.y * TILE + 48 + L.y }, up: 30, draw: () => {
+            this.setScreen(ctx);
+            if (!drawPaintedIso(ctx, `pm:${pm.id}`, pm.x * TILE + L.x, pm.y * TILE + L.y, (c, x, y) => { c.translate(x - pm.x * TILE, y - pm.y * TILE); pm.draw(c); }, 12)) standing();
+          } });
         }
       }
 
@@ -887,20 +907,32 @@ export class Renderer {
         const nwi = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon] : null;
         const nw = nwi ? lookOf(nwi) : null;
         const app = nw ? { ...npc.profile.appearance, holding: nw } : npc.profile.appearance;
-        const face = this.actorFacing(npc, this.time);
+        const wrathVictim = g.combat.wrath?.npcId === npc.id;
+        const lift = wrathVictim ? wrathLift(g, g.combat.wrath) : 0;
+        if (wrathVictim) { // the Wrath's victim rises off the ground, facing the player the way the cutscene's eyes do
+          const fv = facingVector(npc.facing);
+          const wf = spriteFacing(fv[0], fv[1]);
+          const rect = billRect(npc.x, npc.y, 30, 56 + lift);
+          if (npc.profile.float && !lift) items.push({ box: personBox(npc.x, npc.y), rect: { ...rect, y0: rect.y0 - 20 }, draw: upright(npc.x, npc.y, npc.x, npc.y, () => this.drawFloater(npc, app, wf)) });
+          else items.push({ box: personBox(npc.x, npc.y), rect, draw: () => { ctx.save(); this.setBill(ctx, npc.x + L.x, npc.y + L.y, npc.x + L.x, npc.y + L.y, lift); ctx.translate(L.x, L.y); this.drawActor(app, { ...npc, moving: false }, npc.activity === 'sleep', wf); ctx.restore(); } });
+          continue;
+        }
+        let face = this.actorFacing(npc, this.time);
+        if (nw && npc.hostile?.mode === 'fight' && isGunLook(nw)) face = this.aimFacing({ x: g.player.x - npc.x, y: g.player.y - npc.y }, face); // a shooter faces the way the gun points
         const rect = billRect(npc.x, npc.y, 20, 56);
         if (npc.profile.float) items.push({ box: personBox(npc.x, npc.y), rect: { ...rect, y0: rect.y0 - 20 }, draw: upright(npc.x, npc.y, npc.x, npc.y, () => this.drawFloater(npc, app, face)) });
         else items.push({ box: personBox(npc.x, npc.y), rect, draw: upright(npc.x, npc.y, npc.x, npc.y, () => this.drawActor(app, npc, npc.activity === 'sleep', face)) });
       }
 
-      // ---- cars: for now their top-down drawing lies flat on the ground (phase 5 gives them volume); the box is the rotated body's
+      // ---- cars: the top-down sprite stood up (sprite stacking, isoVehicles.js); the sort box is the rotated body's
       if (g.vehicles) {
         const models = g.content.vehicles.models;
         for (const car of g.vehicles.carsOn(lm.id)) {
           const m = models[car.model];
-          if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len, 64, 30)) continue;
+          if (!inView(car.x - m.len / 2, car.y - m.len / 2, m.len, m.len, 64, 40)) continue;
           const driven = car.id === g.player.driving;
-          items.push({ box: bodyBox(car.x + L.x, car.y + L.y, m.len, m.wid || m.len * 0.45, car.angle), up: 16, draw: flat(() => drawCar(ctx, m, car.x, car.y, car.angle, { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel, ...(m.sig && this.sigOpts(car, lm, driven)) })) });
+          const opts = { color: car.color, id: car.id, braking: driven && car.braking, lit: (driven || Boolean(car.chase)) && night, time: this.time, siren: Boolean(car.chase), wheel: car.wheel, ...(m.sig && this.sigOpts(car, lm, driven)) };
+          items.push({ box: bodyBox(car.x + L.x, car.y + L.y, m.len, m.wid || m.len * 0.45, car.angle), up: 22, draw: () => { this.setScreen(ctx); drawVehicleIso(ctx, m, car.x + L.x, car.y + L.y, car.angle, opts); } });
         }
       }
       const shiftNew = (n0) => {
@@ -912,11 +944,12 @@ export class Renderer {
         }
       };
       if (lm.id === 'starling_flats') {
+        this.curL = L;
         let n0 = items.length;
         this.drawField(items, flat, inView, night);
         shiftNew(n0);
         n0 = items.length;
-        this.drawLaunches(items, flat, inView, night);
+        this.drawLaunches(items, flat, inView, night, upright);
         shiftNew(n0);
         n0 = items.length;
         this.drawConvoys(items, flat, inView, night);
@@ -928,8 +961,8 @@ export class Renderer {
           if (!inView(f.x - f.len / 2, f.y - f.len / 2, f.len, f.len, 64, 30)) continue;
           const braking = f.speed < f.max * 0.3;
           const box = bodyBox(f.x + L.x, f.y + L.y, f.len, f.wid || f.len * 0.4, f.angle);
-          if (f.kind === 'bus') items.push({ box, up: 30, draw: flat(() => drawBus(ctx, f.x, f.y, f.angle, { len: f.len, wid: f.wid, color: f.color, lit: night, braking, number: f.line === 'r1' ? '1' : f.line.replace('r', '') })) });
-          else items.push({ box, up: 16, draw: flat(() => drawCar(ctx, models[f.model], f.x, f.y, f.angle, { color: f.color, id: f.id, lit: night, braking })) });
+          if (f.kind === 'bus') items.push({ box, up: 34, draw: () => { this.setScreen(ctx); drawVehicleIso(ctx, { body: 'bus', len: f.len || 150, wid: f.wid || 46, colors: [f.color || '#2f6b4f'] }, f.x + L.x, f.y + L.y, f.angle, { color: f.color, lit: night, braking, number: f.line === 'r1' ? '1' : f.line.replace('r', '') }); } });
+          else items.push({ box, up: 22, draw: () => { this.setScreen(ctx); drawVehicleIso(ctx, models[f.model], f.x + L.x, f.y + L.y, f.angle, { color: f.color, id: f.id, lit: night, braking }); } });
         }
       }
     }
@@ -938,11 +971,14 @@ export class Renderer {
     const held = lookOf(g.combat.equipped());
     const playerLook = held ? { ...g.player.appearance, holding: held } : g.player.appearance;
     const aboard = g.player.driving || (g.player.riding !== null && g.player.riding !== undefined);
-    if (!this.hidePlayer && !aboard) {
+    const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
+    if (!this.hidePlayer && !aboard && pAlpha > 0) {
       const p = g.player;
-      const face = this.actorFacing(p, this.time);
+      let face = this.actorFacing(p, this.time);
+      // mouse aiming with a gun in hand (or mid-swing): the sprite faces the screen direction of the aim
+      if (p.aim && (g.combat.equipped().weapon.kind === 'gun' || g.combat.cooldown > 0)) face = this.aimFacing(p.aim, face);
       const pp = project(p.x, p.y);
-      items.push({ box: pointBox(p.x, p.y), rect: { x0: pp.x - 20, x1: pp.x + 20, y0: pp.y - 56, y1: pp.y + 6 }, draw: () => { ctx.save(); this.setBill(ctx, p.x, p.y, p.x, p.y); this.drawActor(playerLook, p, false, face); ctx.restore(); } });
+      items.push({ box: pointBox(p.x, p.y), rect: { x0: pp.x - 20, x1: pp.x + 20, y0: pp.y - 56, y1: pp.y + 6 }, draw: () => { ctx.save(); this.setBill(ctx, p.x, p.y, p.x, p.y); ctx.globalAlpha = pAlpha; this.drawActor(playerLook, p, false, face); ctx.restore(); } });
     }
 
     for (const it of sortItems(items)) it.draw();
@@ -952,9 +988,9 @@ export class Renderer {
     if (this.buildCursor) { ctx.save(); this.setGround(ctx); this.drawBuildCursor(ctx, this.buildCursor); ctx.restore(); }
     this.setScreen(ctx);
     this.drawCombatFxIso(ctx);
-    if (g.heavy) { ctx.save(); this.setGround(ctx); this.drawHeavy(ctx); ctx.restore(); } // (phase 5: rockets and drones get their height)
+    if (g.heavy) this.drawHeavyIso(ctx);
     this.setScreen(ctx);
-    this.drawHighlight(ctx);
+    if (!g.combat.wrath) this.drawHighlight(ctx);
 
     this.ctx = main;
     main.setTransform(1, 0, 0, 1, 0, 0);
@@ -964,6 +1000,7 @@ export class Renderer {
     this.capturingText = false;
     this.replayWorldText(main);
     this.drawLighting(map);
+    if (g.combat.wrath) { drawWrath(this, g, g.combat.wrath); return; } // the cutscene, over the lit world (as in the top-down pass: no overlays)
     this.drawOverlays(map);
     this.drawCrosshair();
   }
@@ -1015,6 +1052,14 @@ export class Renderer {
         ctx.fillRect(x - r, y - 2, r * 2, 4); ctx.fillRect(x - 2, y - r, 4, r * 2);
         ctx.fillStyle = '#fff8e0';
         ctx.fillRect(x - 4, y - 4, 8, 8);
+        if (f.dir) { // a streak along the aim as it shows on screen
+          const sx = f.dir.x - f.dir.y;
+          const sy = (f.dir.x + f.dir.y) / 2;
+          const sl = Math.hypot(sx, sy) || 1;
+          ctx.strokeStyle = '#ffd060';
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (sx / sl) * (r + 6), y + (sy / sl) * (r + 6)); ctx.stroke();
+        }
       } else if (f.type === 'swing') {
         const a = Math.atan2(f.dir.y, f.dir.x);
         const R = f.range * 0.85;
@@ -1050,6 +1095,92 @@ export class Renderer {
     }
   }
 
+  /** Rockets, missiles, drones and strike reticles in the isometric view: projectiles fly at chest height, reticles lie on the ground, drones hover above their shadows. */
+  drawHeavyIso(ctx) {
+    const g = this.game;
+    const H = g.heavy;
+    const t = g.realTime;
+    ctx.save();
+    this.setScreen(ctx);
+    for (const pr of H.projectiles) {
+      const a = Math.atan2((pr.vx + pr.vy) / 2, pr.vx - pr.vy); // the flight's direction on screen
+      const wa = Math.atan2(pr.vy, pr.vx);
+      const head = project(pr.x, pr.y, 18);
+      const gp = project(pr.x, pr.y);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(Math.round(gp.x) - 3, Math.round(gp.y), 6, 2);
+      for (let i = 1; i <= 6; i++) { // the smoke trail, behind it in the world
+        const q = project(pr.x - Math.cos(wa) * i * 7, pr.y - Math.sin(wa) * i * 7, 18);
+        ctx.fillStyle = `rgba(210,210,210,${0.35 - i * 0.05})`;
+        ctx.beginPath(); ctx.arc(q.x, q.y, 2 + i, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(Math.round(head.x), Math.round(head.y));
+      ctx.rotate(a);
+      ctx.fillStyle = pr.kind === 'missile' ? '#d8dce0' : '#5a6a3a';
+      ctx.fillRect(-8, -2.5, 14, 5);
+      ctx.fillStyle = '#c0302a';
+      ctx.beginPath(); ctx.moveTo(6, -2.5); ctx.lineTo(11, 0); ctx.lineTo(6, 2.5); ctx.fill();
+      ctx.fillStyle = Math.floor(t * 30) % 2 ? '#ffd27a' : '#ff8a3a';
+      ctx.beginPath(); ctx.arc(-10, 0, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    for (const s of H.strikes) {
+      const left = Math.max(0, s.at - t);
+      const R = s.blast * TILE;
+      ctx.save();
+      this.setGround(ctx); // the reticle is a ring on the floor
+      ctx.strokeStyle = `rgba(255,58,42,${0.5 + 0.5 * Math.sin(t * 12)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s.x - R, s.y); ctx.lineTo(s.x + R, s.y); ctx.moveTo(s.x, s.y - R); ctx.lineTo(s.x, s.y + R); ctx.stroke();
+      ctx.restore();
+      const c = project(s.x, s.y);
+      ctx.fillStyle = '#ff3a2a';
+      ctx.font = 'bold 10px "Trebuchet MS", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`INBOUND ${left.toFixed(1)}s`, c.x, c.y - R / 2 - 6);
+      ctx.textAlign = 'left';
+      if (left < 0.6) {
+        // the missile comes down from the sky
+        const k = 1 - left / 0.6;
+        const mx = c.x + 200 * (1 - k);
+        const my = c.y - 400 * (1 - k);
+        ctx.strokeStyle = 'rgba(230,230,230,0.6)';
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(c.x + 200, c.y - 400); ctx.lineTo(mx, my); ctx.stroke();
+        ctx.fillStyle = '#d8dce0';
+        ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    for (const d of H.drones) {
+      const bob = Math.sin(t * 6 + d.born) * 2;
+      const gp = project(d.x, d.y + 26); // (a drone's y is its height-line: the shadow lies 26 px below it, the body 40 above the shadow)
+      const hp = project(d.x, d.y + 26, 40 + bob);
+      ctx.fillStyle = 'rgba(20,20,35,0.25)';
+      ctx.beginPath(); ctx.ellipse(gp.x, gp.y, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(Math.round(hp.x), Math.round(hp.y));
+      if (d.kind === 'kestrel') {
+        ctx.fillStyle = '#3a3e46';
+        ctx.beginPath(); ctx.moveTo(-14, 2); ctx.lineTo(0, -4); ctx.lineTo(14, 2); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+        ctx.fillRect(-2, -8, 4, 14);
+      } else {
+        ctx.strokeStyle = '#1e1e22';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(7, 7); ctx.moveTo(7, -7); ctx.lineTo(-7, 7); ctx.stroke();
+        ctx.fillStyle = 'rgba(200,200,210,0.55)';
+        for (const [dx, dy] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) { ctx.beginPath(); ctx.ellipse(dx, dy, 5, 1.4, t * 40, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = '#2a2a2e';
+        ctx.fillRect(-3.5, -2.5, 7, 5);
+      }
+      ctx.fillStyle = Math.floor(t * 4) % 2 ? '#ff3a2a' : '#3aff6a';
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   /** v0.58.0: how hard the ground shakes under the player from a launch (px; the pad's ignition and ascent). */
   launchShake(map) {
     if (map.id !== 'starling_flats') return 0;
@@ -1065,24 +1196,45 @@ export class Renderer {
   }
 
   /** v0.58.0: the launch complex in motion — the crawler, the countdown board, the fire and smoke, the rocket in the sky. */
-  drawLaunches(items, at, inView, night) {
+  drawLaunches(items, at, inView, night, upright = null) {
     const ctx = this.ctx;
     const g = this.game;
     const L = g.content.aerospace.flight.launch;
     const time = g.realTime;
+    // isometric view (`upright` given): the crawler's deck lies flat but the rocket stands, the fire, board and sky are
+    // upright pictures standing on their ground point (their old offsets are screen offsets)
+    const stand = (gx, gy, fn) => upright(gx, gy, gx, gy, fn);
     for (const l of g.aero.launches()) {
       const bx = l.base.x * TILE;
       const by = l.base.y * TILE;
       if (l.kind === 'rollout') {
         if (!inView(l.x * TILE - 140, l.y * TILE - 420, 280, 520)) continue;
-        items.push({ y: (l.y + 1.7) * TILE, box: { x0: l.x * TILE - 70, y0: l.y * TILE - 40, x1: l.x * TILE + 70, y1: l.y * TILE + 60 }, draw: at(() => drawCrawler(ctx, l, this.time)) });
+        const box = { x0: l.x * TILE - 70, y0: l.y * TILE - 40, x1: l.x * TILE + 70, y1: l.y * TILE + 60 };
+        if (upright) {
+          const cx = Math.round(l.x * TILE);
+          const cy = Math.round(l.y * TILE);
+          const img = rocketCanvas(l.look, { stages: 1 });
+          const rock = Math.sin(this.time * 9) * (l.moving ? 0.5 : 0);
+          const noRocket = new Proxy(ctx, { get: (t, k) => (k === 'drawImage' ? () => {} : typeof t[k] === 'function' ? t[k].bind(t) : t[k]), set: (t, k, v) => { t[k] = v; return true; } });
+          const deck = at(() => drawCrawler(noRocket, l, this.time));
+          const rocket = stand(cx, cy, () => { if (img) ctx.drawImage(img, Math.round(cx - img.width / 2 + rock), Math.round(cy - 6 - img.height)); });
+          items.push({ y: (l.y + 1.7) * TILE, box, up: (img?.height || 0) + 12, draw: () => { deck(); rocket(); } });
+          continue;
+        }
+        items.push({ y: (l.y + 1.7) * TILE, box, draw: at(() => drawCrawler(ctx, l, this.time)) });
         continue;
       }
       const reach = (l.ph.h + 14) * TILE;
       if (inView(bx - 260, by - 120, 520, 420)) {
-        items.push({ y: by + 6 * TILE, box: { x0: bx - 100, y0: by - 40, x1: bx + 100, y1: by + 6 * TILE }, draw: at(() => { drawPadFx(ctx, l, L, time); drawBoard(ctx, l, L); }) });
+        const fx = () => { drawPadFx(ctx, l, L, time); drawBoard(ctx, l, L); };
+        const pbox = { x0: bx - 100, y0: by - 40, x1: bx + 100, y1: by + 6 * TILE };
+        if (upright) {
+          const fire = stand(bx, by, () => drawPadFx(ctx, l, L, time));
+          const board = stand(bx + 3.4 * TILE, by + 2.7 * TILE, () => drawBoard(ctx, l, L));
+          items.push({ y: by + 6 * TILE, box: pbox, up: 60, draw: () => { fire(); board(); } });
+        } else items.push({ y: by + 6 * TILE, box: pbox, draw: at(fx) });
       }
-      if (l.ph.t >= 0 && inView(bx - 300, by - reach - 300, 600, reach + 500)) items.push({ y: 1e7, top: true, box: pointBox(bx, by, 4), draw: at(() => drawSky(ctx, l, L, time, night)) });
+      if (l.ph.t >= 0 && inView(bx - 300, by - reach - 300, 600, reach + 500)) items.push({ y: 1e7, top: true, box: pointBox(bx, by, 4), draw: upright ? stand(bx, by, () => drawSky(ctx, l, L, time, night)) : at(() => drawSky(ctx, l, L, time, night)) });
     }
   }
 
@@ -1134,7 +1286,7 @@ export class Renderer {
       const x = v.x * TILE;
       const y = v.y * TILE;
       if (!inView(x - m.len / 2, y - m.len / 2, m.len, m.len)) continue;
-      items.push({ y: y + Math.abs(Math.sin(v.angle)) * m.len * 0.4 + 4, box: bodyBox(x, y, m.len, m.wid || m.len * 0.45, v.angle), draw: at(() => drawCar(ctx, m, x, y, v.angle, { color: v.color, id: v.id, lit: night, braking: false })) });
+      items.push({ y: y + Math.abs(Math.sin(v.angle)) * m.len * 0.4 + 4, box: bodyBox(x, y, m.len, m.wid || m.len * 0.45, v.angle), up: 22, draw: this.isoNow ? () => { this.setScreen(ctx); drawVehicleIso(ctx, m, x + (this.curL?.x || 0), y + (this.curL?.y || 0), v.angle, { color: v.color, id: v.id, lit: night, braking: false }); } : at(() => drawCar(ctx, m, x, y, v.angle, { color: v.color, id: v.id, lit: night, braking: false })) });
     }
   }
 
@@ -1148,7 +1300,17 @@ export class Renderer {
       const lift = m.alt * TILE;
       if (!inView(px - r - lift, py - r - lift, r * 2 + lift * 2, r * 2 + lift * 2)) continue;
       const air = m.alt > 0.05;
-      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, top: air, box: bodyBox(px, py, m.look.len * TILE, m.look.span * TILE, m.a - Math.PI / 2), draw: at(() => { drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 }); if (night) this.drawNavLights(ctx, m, px, py - lift, 1 + m.alt * 0.035); }) });
+      const box = bodyBox(px, py, m.look.len * TILE, m.look.span * TILE, m.a - Math.PI / 2);
+      if (this.isoNow && air) {
+        // in the air: the shadow stays on the ground (drawAircraft offsets it by the altitude), the body is lifted straight up the screen
+        items.push({ y: 1e7, top: true, box, draw: () => { ctx.save(); this.setGround(ctx, 0); ctx.translate(this.curL?.x || 0, this.curL?.y || 0); const k = 1 + m.alt * 0.035;
+          ctx.globalAlpha = 0.28 * Math.max(0.25, 1 - lift / 300); ctx.filter = 'brightness(0)'; // the shadow: the silhouette on the ground, straight under
+          drawAircraft(ctx, m.look, px + 5, py + 5, m.a, { livery: m.livery, altitude: 0, scale: k, shadow: false });
+          ctx.filter = 'none'; ctx.globalAlpha = 1;
+          ctx.translate(-lift, 0); drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: k, shadow: false }); if (night) this.drawNavLights(ctx, m, px - lift, py - lift, k); ctx.restore(); } });
+        continue;
+      }
+      items.push({ y: air ? 1e7 : py + m.look.len * TILE * 0.5, top: air, box, draw: at(() => { drawAircraft(ctx, m.look, px, py, m.a, { livery: m.livery, altitude: lift, scale: 1 + m.alt * 0.035 }); if (night) this.drawNavLights(ctx, m, px, py - lift, 1 + m.alt * 0.035); }) });
     }
   }
 
@@ -1633,7 +1795,7 @@ export class Renderer {
     const outdoor = this.layers.some((L) => L.map.kind !== 'interior');
     const dark = outdoor ? g.clock.darkness * 0.78 : 0.12 + g.clock.darkness * 0.2;
     if (dark < 0.02) return;
-    const pix = this.pixel && !g.combat.wrath;
+    const pix = this.pixel && (this.isoNow || !g.combat.wrath);
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
     if (pix) {
       const lw = this.low.width;

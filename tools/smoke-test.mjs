@@ -726,6 +726,90 @@ try {
   record('iso: a shot aimed at an NPC\'s chest on screen goes to that NPC (within 3 degrees)', aim.length === 4 && aim.every((d) => d < 3), JSON.stringify(aim));
   await closeAll();
 
+  // v0.104.0 phase 5: the isometric view's gameplay — a car with volume that is driven, a shot that goes where it was aimed, a Wrath in the iso plane
+  const isoStage = () => page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    while (ui.panelStack.length) ui.closePanel();
+    const m = g.maps.get('halvermouth');
+    g.changeMap('halvermouth', Object.keys(m.spots)[0]);
+    await T(300);
+    let spot = null; // an open block of street, 16 x 12 tiles, clear of buildings and walls
+    for (let ty = 4; ty < m.height - 14 && !spot; ty += 2) for (let tx = 4; tx < m.width - 18 && !spot; tx += 2) {
+      let ok = true;
+      for (let y = ty; y < ty + 12 && ok; y++) for (let x = tx; x < tx + 16; x++) if (m.blockedTile(x, y) || m.buildings.some((b) => x >= b.x - 3 && x <= b.x + b.w + 3 && y >= b.y - 3 && y <= b.y + b.h + 3)) { ok = false; break; }
+      if (ok) spot = [tx, ty];
+    }
+    if (!spot) return null;
+    const cx = (spot[0] + 8) * 32; const cy = (spot[1] + 6) * 32;
+    for (const n of g.npcs.values()) if (n.map === 'halvermouth' && Math.hypot(n.x - cx, n.y - cy) < 900) { n.x = 64; n.y = 64; }
+    for (const c of g.vehicles.carsOn('halvermouth')) if (Math.hypot(c.x - cx, c.y - cy) < 500) { c.x = 96; c.y = 96; }
+    g.player.x = cx; g.player.y = cy; g.player.driving = null;
+    R.snapCamera();
+    await T(300);
+    return { cx, cy, iso: R.isoNow };
+  });
+  // (1) a car: get in with E, drive, the car moves and the camera stays on it; get out
+  const st1 = await isoStage();
+  const drive0 = await page.evaluate(async (st) => {
+    const ui = window.oberverse.ui; const g = ui.game; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    const car = g.vehicles.carsOn('halvermouth')[0];
+    Object.assign(car, { owner: 'player', x: st.cx + 70, y: st.cy + 30, angle: 0.4, speed: 0, map: 'halvermouth' });
+    g.player.x = car.x - 20; g.player.y = car.y + 34;
+    await T(300);
+    return { id: car.id, x: car.x, y: car.y, prompt: document.getElementById('hud-prompt').textContent };
+  }, st1);
+  await page.keyboard.press('KeyE'); await wait(400);
+  const driving = await page.evaluate(() => window.oberverse.ui.game.player.driving);
+  record('iso: E gets into an owned car', driving === drive0.id, JSON.stringify({ prompt: drive0.prompt, driving }));
+  await page.keyboard.down('KeyW'); await wait(2200);
+  await shot('iso-car-driving');
+  const drive1 = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const car = g.vehicles.car(g.player.driving); const c = R.toScreen(car.x, car.y, 8); return { x: car.x, y: car.y, sx: c.x, sy: c.y, w: R.canvas.width, h: R.canvas.height, py: [g.player.x, g.player.y] }; });
+  await page.keyboard.up('KeyW');
+  const moved = Math.hypot(drive1.x - drive0.x, drive1.y - drive0.y);
+  record('iso: driving moves the car, the player rides with it and the camera follows (the car is near the middle of the screen)', moved > 30 && Math.hypot(drive1.py[0] - drive1.x, drive1.py[1] - drive1.y) < 1 && Math.abs(drive1.sx - drive1.w / 2) < drive1.w * 0.12 && Math.abs(drive1.sy - drive1.h / 2) < drive1.h * 0.15, JSON.stringify({ moved: Math.round(moved), ...drive1 }));
+  await wait(900); // (let it roll to a stop)
+  await page.keyboard.down('KeyS'); await wait(1200); await page.keyboard.up('KeyS'); await wait(300);
+  await page.keyboard.press('KeyE'); await wait(400);
+  const out = await page.evaluate(() => { const g = window.oberverse.ui.game; return { driving: g.player.driving }; });
+  record('iso: E gets out of the car, on foot again', !out.driving, JSON.stringify(out));
+  await closeAll();
+
+  // (2) a gun: the mouse aims on screen, the bullet leaves along the aim (projected), and the player faces it
+  const st2 = await isoStage();
+  await page.evaluate(() => { const g = window.oberverse.ui.game; g.inventory.add('item_revolver', 1, { silent: true }); g.inventory.add('item_ammo_38', 30, { silent: true }); g.combat.equip('item_revolver'); g.player.mags = g.player.mags || {}; g.player.mags.item_revolver = 6; });
+  const shots = [];
+  for (const [dx, dy] of [[140, -60], [-90, -110]]) {
+    const tgt = await page.evaluate(({ dx, dy }) => { const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const c = R.toScreen(g.player.x + dx, g.player.y + dy, 18); const r = R.canvas.getBoundingClientRect(); return { x: r.left + c.x * (r.width / R.canvas.width), y: r.top + c.y * (r.height / R.canvas.height) }; }, { dx, dy });
+    await page.mouse.move(tgt.x, tgt.y); await wait(250);
+    await page.mouse.down(); await wait(70);
+    shots.push(await page.evaluate(({ dx, dy }) => { const g = window.oberverse.ui.game; const b = g.combat.bullets[g.combat.bullets.length - 1]; const R = window.oberverse.ui.renderer; if (!b) return null; let d = Math.abs(Math.atan2(b.dy, b.dx) - Math.atan2(dy, dx)) * 180 / Math.PI; if (d > 180) d = 360 - d; return { deg: Math.round(d * 100) / 100, n: g.combat.bullets.length, face: R.motion.get(g.player)?.face }; }, { dx, dy }));
+    if (shots.length === 1) await shot('iso-gunfire');
+    await page.mouse.up(); await wait(600);
+  }
+  record('iso: a shot fired at the mouse spawns a bullet whose direction is the aim (within 6 degrees)', shots.length === 2 && shots.every((q) => q && q.deg < 6 && q.n >= 1), JSON.stringify(shots));
+  await page.evaluate(() => { const ui = window.oberverse.ui; ui.mouse.movedAt = -1e9; ui.game.combat.equip(null); });
+  await closeAll();
+
+  // (3) the Wrath in the iso view: Sir Moneybucks is attacked; the cutscene plays on the iso world, and afterwards the game goes on as it always did
+  const st3 = await isoStage();
+  const wrathBefore = await page.evaluate((st) => {
+    const ui = window.oberverse.ui; const g = ui.game; const n = g.npcs.get('npc_moneybucks');
+    n.map = 'halvermouth'; n.x = st.cx + 36; n.y = st.cy + 4; n.moving = false; g.player.money = 1000;
+    g.combat.smite(n, null);
+    return { money: g.player.money, day: g.clock.day };
+  }, st3);
+  await wait(4300);
+  const mid = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: Boolean(g.combat.wrath), iso: ui.renderer.isoNow, theme: g.combat.wrath?.theme, struck: g.combat.wrath?.struck }; });
+  await shot('iso-wrath-oil');
+  record('iso: during the Wrath the world is drawn by the iso renderer and the cutscene is running', mid.wrath && mid.iso && mid.theme === 'oil' && mid.struck >= 3, JSON.stringify(mid));
+  await wait(6000);
+  record('iso: the Wrath ends with the struck-down card', (await page.evaluate(() => window.oberverse.ui.game.combat.wrath?.over === true)) && (await page.isVisible('#modal:not(.hidden)')));
+  await page.click('#modal-body button.primary'); await wait(600);
+  const wrathAfter = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: g.combat.wrath, map: g.player.map, money: g.player.money, health: g.player.health, time: g.clock.timeString, day: g.clock.day, iso: ui.renderer.isoNow, state: ui.state }; });
+  record('iso: after the Wrath you rise at home next morning having lost at least half your money (the morning bills come after), and the iso view is back', wrathAfter.wrath === null && wrathAfter.map === 'player_flat' && wrathAfter.money <= wrathBefore.money / 2 && wrathAfter.health === 100 && /^08:0\d$/.test(wrathAfter.time) && wrathAfter.day === wrathBefore.day + 1 && wrathAfter.iso && wrathAfter.state === 'playing', JSON.stringify(wrathAfter));
+  await shot('iso-wrath-after');
+  await closeAll();
+
   // Saves survive closing and reopening the page
   await closeAll();
   await page.keyboard.press('F5');

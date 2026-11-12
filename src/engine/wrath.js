@@ -35,6 +35,7 @@ import { hash2 } from '../core/rng.js';
 import { WRATH } from '../systems/combat.js';
 import { drawCard, magicCircle } from './cardMagic.js';
 import { drawPerson } from './drawPeople.js';
+import { project } from './iso.js';
 
 const ease = (x) => { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); };
 const since = (g, w) => g.realTime - w.start;
@@ -145,11 +146,23 @@ export function wrathPlayerAlpha(g, w) {
   return clamp(1 - (e - WRATH.ascend) / 1.2, 0, 1);
 }
 
-/** Camera: push in on the victim and the player, shake with the thunder. */
-export function wrathCamera(g, w, vw, vh, baseZoom) {
-  const e = since(g, w);
-  const victim = g.npcs.get(w.npcId);
+/**
+ * Where the player and the victim stand in the cutscene's own plane. In the top-down view that is the world; in the
+ * isometric view (docs/RENDERING.md 2.5) it is the iso screen plane (iso.project), where "up" is still -y, so the
+ * art below is drawn exactly as it always was around those two points. Only x and y are replaced; the rest is theirs.
+ */
+export function wrathActors(g, w, iso) {
   const p = g.player;
+  const victim = g.npcs.get(w.npcId);
+  if (!iso) return { p, victim };
+  const flat = (o) => { if (!o) return o; const q = Object.create(o); const s = project(o.x, o.y); q.x = s.x; q.y = s.y; return q; };
+  return { p: flat(p), victim: flat(victim) };
+}
+
+/** Camera: push in on the victim and the player, shake with the thunder (`iso`: in the isometric plane). */
+export function wrathCamera(g, w, vw, vh, baseZoom, iso = false) {
+  const e = since(g, w);
+  const { p, victim } = wrathActors(g, w, iso);
   const cx = lerp(p.x, victim?.x ?? p.x, e < WRATH.converge ? 0.55 : lerp(0.55, 0.1, ease((e - WRATH.converge) / 0.6)));
   const cy = lerp(p.y, victim?.y ?? p.y, 0.5) - 26;
   const push = 1 + 0.4 * ease(e / 1.2) + 0.15 * ease((e - WRATH.lightning) / 0.4) - 0.2 * ease((e - WRATH.ascend) / 1.2);
@@ -2037,15 +2050,15 @@ export function drawWrath(renderer, g, w) {
   const H = renderer.canvas.height;
   const dpr = renderer.dpr;
   const { zoom } = renderer.cam;
-  const victim = g.npcs.get(w.npcId);
-  const p = g.player;
+  const { p, victim } = wrathActors(g, w, renderer.isoNow);
   const col = w.color;
+  const toS = (x, y) => ({ x: (x - renderer.cam.x) * zoom, y: (y - renderer.cam.y) * zoom }); // (the cutscene's plane to the canvas)
 
   // 1. the sky darkens toward the theme's colour
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const dark = 0.8 * ease(e / 1.2);
   const [r1, g1, b1, r2, g2, b2] = theme.sky;
-  const vs = victim ? renderer.toScreen(victim.x, victim.y - 30) : { x: W / 2, y: H / 2 };
+  const vs = victim ? toS(victim.x, victim.y - 30) : { x: W / 2, y: H / 2 };
   const grad = ctx.createRadialGradient(vs.x, vs.y, 30 * dpr, vs.x, vs.y, Math.max(W, H));
   grad.addColorStop(0, `rgba(${r1},${g1},${b1},${dark * 0.3})`);
   grad.addColorStop(1, `rgba(${r2},${g2},${b2},${dark})`);
