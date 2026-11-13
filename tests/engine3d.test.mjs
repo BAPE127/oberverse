@@ -63,7 +63,7 @@ test('the bundled three.js has the classes the renderer uses', () => {
 // ---- the registries (the contract other files code against) ---------------------------------------------------
 import { PROPS, VEHICLES, registerProp, registerVehicle } from '../src/engine3d/registry3d.js';
 import { fallbackProp, fallbackVehicle, propSize, vehicleSize, PROP_HEIGHT, FLAT_HEIGHT } from '../src/engine3d/fallbacks3d.js';
-import { height3d, buildingKind, wallRuns, wallClass, STOREY } from '../src/engine3d/buildings3d.js';
+import { height3d, buildingKind, wallRuns, wallClass, wallPieces, KERB, STOREY } from '../src/engine3d/buildings3d.js';
 import { personKey, yawOf, angleDiff, stepFacing, newMotion } from '../src/engine3d/people3d.js';
 import { presetFor, lampFactor, PRESETS } from '../src/engine3d/light3d.js';
 import { facingVector } from '../src/engine/iso.js';
@@ -216,11 +216,49 @@ test('buildings: an open room has its walls, a doorway and the sign post, and is
     assert.equal(o.position.x, 3);
     assert.equal(o.position.z, 4);
     const walls = o.userData.room;
-    assert.ok(walls.userData.windows.length === 1 && walls.children.length >= 4);
+    assert.ok(walls.children.length >= 3, 'merged into a mesh per material');
     const room = buildRoom(I, { wall: '#cfc4ae', trim: '#5a4a3e' }, { H: 2.3 }, shared);
     const tallest = new THREE.Box3().setFromObject(room).max.y;
     assert.ok(tallest > 2 && tallest < 2.5, `north and west walls stand one storey (${tallest})`);
     const roofedRoom = buildRoom(I, { wall: '#cfc4ae', trim: '#5a4a3e' }, { H: 2.3, roofed: true }, shared);
     assert.ok(new THREE.Box3().setFromObject(roofedRoom).max.y < 2, 'a roofed floor: every wall a kerb (and the window frames)');
   });
+});
+
+// ---- open-room walls: every junction solid, every blocked tile drawn as wall -------------------------------------------------------
+import { newGame as newGameForWalls } from './helpers.mjs';
+
+test('room walls: one whole-tile box per W tile on every real room (the whole blocked tile is wall), none overlap, faces between equal heights are not drawn', () => {
+  const g = newGameForWalls(1);
+  let rooms = 0; const bad = [];
+  for (const [id, map] of g.maps) {
+    if (map.kind !== 'interior') continue;
+    const pieces = wallPieces(map, STOREY, false); if (!pieces.length) continue; rooms++;
+    let tiles = 0; for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (map.tileAt(x, y) === 'W') tiles++;
+    if (pieces.length !== tiles) bad.push(`${id}: ${pieces.length} boxes for ${tiles} wall tiles`);
+    const key = new Set(pieces.map((p) => p.z0 * 4096 + p.x0));
+    if (key.size !== pieces.length) bad.push(`${id}: two boxes on one tile`);
+    for (const p of pieces) {
+      if (p.x1 - p.x0 !== 1 || p.z1 - p.z0 !== 1) bad.push(`${id}: a wall box is not a whole tile`);
+      if (p.y1 !== STOREY && p.y1 !== KERB) bad.push(`${id}: odd height ${p.y1}`);
+      const e = pieces.find((q) => q.x0 === p.x1 && q.z0 === p.z0);
+      if (e && e.y1 === p.y1 && p.px) bad.push(`${id}: a face inside a wall run is drawn`);
+    }
+  }
+  assert.ok(rooms > 100, `${rooms} rooms checked`);
+  assert.deepEqual(bad.slice(0, 10), []);
+});
+
+test('room walls: tall north and west walls meet their kerbs with no gap; the south wall runs to both sides of a door tile', () => {
+  const rows = ['WWWWWWW', 'W.....W', 'W.....W', 'WWW.WWW'].map((r) => [...r]);
+  const map = { width: 7, height: 4, tileAt: (x, y) => rows[y]?.[x] || 'x' };
+  const P = wallPieces(map, 2.3, false);
+  const at = (x, y) => P.find((p) => p.x0 === x && p.z0 === y);
+  assert.equal(at(0, 0).y1, 2.3, 'north-west corner is tall');
+  assert.equal(at(6, 0).y1, 2.3, 'the north wall runs to the north-east corner');
+  assert.equal(at(6, 1).y1, KERB, 'the east wall below it is a kerb');
+  assert.equal(at(6, 3).y1, KERB, 'south-east corner is a kerb');
+  assert.ok(at(2, 3) && at(4, 3) && !at(3, 3), 'the door tile is the only gap in the south wall');
+  assert.equal(at(0, 3).y1, 2.3, 'the west wall stands to its south end');
+  assert.equal(at(0, 1).innerX, true, 'a tall west wall shows its inner face');
 });

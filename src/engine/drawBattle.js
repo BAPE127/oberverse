@@ -406,9 +406,10 @@ export class BattleView {
     for (const u of B.units) {
       if (!u.alive || u.fled || u.hidden) continue;
       const inOpen = u.side === 'p' && u.kind === 'inf' && this.opened[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]]; // (a room that is open is never left hidden behind its neighbour)
-      if (ui.selected?.has(u.id) || (u.side === 'e' && seen.has(u.id)) || inOpen) out.push({ x: u.x * TP, y: u.y * TP, z: u.kind === 'inf' ? (this.r3 ? 22 : 14) : this.r3 ? 14 : 8 });
+      // v0.104.x (3D): every unit of yours, selected or not, and the enemy in sight, is seen through whatever stands in front of it
+      if (ui.selected?.has(u.id) || (this.r3 && u.side === 'p') || (u.side === 'e' && seen.has(u.id)) || inOpen) out.push({ id: u.id, kind: u.kind === 'inf' ? 'inf' : 'veh', x: u.x * TP, y: u.y * TP, z: u.kind === 'inf' ? (this.r3 ? 22 : 14) : this.r3 ? 14 : 8 });
     }
-    if (ui.cursor) out.push({ x: ui.cursor.x * TP, y: ui.cursor.y * TP, z: 0 });
+    if (ui.cursor) out.push({ id: 'cursor', kind: 'ground', x: ui.cursor.x * TP, y: ui.cursor.y * TP, z: 0 });
     return out;
   }
 

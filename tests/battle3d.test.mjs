@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { THREE } from '../src/engine3d/three.js';
 import { cameraFrame, applyFrame } from '../src/engine3d/camera3d.js';
 import { Battle3D, viewTiles, hides } from '../src/engine3d/battle3d.js';
-import { makeHoles, seeThroughN, HOLES, height3d } from '../src/engine3d/buildings3d.js';
+import { makeHoles, seeThroughN, HOLES, setHole, endHoles, height3d } from '../src/engine3d/buildings3d.js';
 import { personKey, personGeometry } from '../src/engine3d/people3d.js';
 import { BattleView, TP, needsFade } from '../src/engine/drawBattle.js';
 import { unproject } from '../src/engine/iso.js';
@@ -72,21 +72,29 @@ test('the 3D hole rule is the 2D battle\'s needsFade: a building hides a focus b
   assert.equal(hides(box, 120, { x: 12 * TP, y: 9 * TP, z: 14 }), true); // (just behind the north face, under the roof's shadow on screen)
 });
 
-test('the hole shader takes several holes at once and skips the loop when none is active', () => {
+test('the hole shader takes many holes at once (each with its own depth), skips the loop when none is active, and keeps the shadow rule', () => {
   const u = makeHoles();
-  assert.equal(u.value.length, HOLES); assert.ok(HOLES >= 6);
+  assert.equal(u.value.length, HOLES); assert.ok(HOLES >= 24, 'every friendly unit of a company can have a hole');
+  assert.equal(u.depth.value.length, HOLES);
   assert.equal(u.on.value, 0);
   const m = new THREE.MeshLambertMaterial();
   seeThroughN(m, u); seeThroughN(m, u); // (twice: patched once)
   const shader = { uniforms: {}, fragmentShader: 'void main() {\n  gl_FragColor = vec4(1.0);\n}' };
   m.onBeforeCompile(shader);
-  assert.equal(shader.uniforms.uHoles, u); assert.equal(shader.uniforms.uHoleOn, u.on);
-  assert.match(shader.fragmentShader, /uniform vec4 uHoles\[6\]/);
-  assert.match(shader.fragmentShader, /if \(uHoleOn > 0\.5\) for \(int i = 0; i < 6; i\+\+\)/);
+  assert.equal(shader.uniforms.uHoles, u); assert.equal(shader.uniforms.uHoleOn, u.on); assert.equal(shader.uniforms.uHoleZ, u.depth);
+  assert.match(shader.fragmentShader, new RegExp(`uniform vec4 uHoles\\[${HOLES}\\]`));
+  assert.match(shader.fragmentShader, /if \(uHoleOn > 0\.5\) \{/);
+  assert.match(shader.fragmentShader, /gl_FragCoord\.z < uHoleZ\[i\] - uHoleEps/, 'only what is nearer than the focus is cut');
   assert.match(shader.fragmentShader, /discard/);
+  assert.match(THREE.ShaderChunk.lights_fragment_begin, /receiveShadow && !oberFree/, 'nothing inside a hole receives a shadow');
   assert.equal(m.userData.seeThrough, true);
-  // one hole's uniform is { x, y, r, on } in gl_FragCoord pixels
-  u.value[3].set(400, 300, 90, 1); assert.equal(u.value[3].w, 1);
+  // setHole puts a world point on its gl_FragCoord pixel with its depth; endHoles turns the rest off and `on` follows
+  const cam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 100); cam.position.set(10, 10, 10); cam.lookAt(0, 0, 0); cam.updateMatrixWorld();
+  setHole(u, 0, cam, 800, 600, 0, 0, 0, 40, 60); setHole(u, 1, cam, 800, 600, 2, 0, 2, 40, 60);
+  assert.ok(Math.abs(u.value[0].x - 400) < 1e-6 && Math.abs(u.value[0].y - 300) < 1e-6, 'the origin is the middle of the canvas');
+  assert.ok(u.depth.value[1] < u.depth.value[0], 'a point nearer the camera has the smaller depth');
+  endHoles(u, 1); assert.equal(u.on.value, 1); assert.equal(u.value[1].z, 0);
+  endHoles(u, 0); assert.equal(u.on.value, 0);
 });
 
 test('soldiers take the battle\'s side colours; the world\'s soldier kit is unchanged without them', () => {

@@ -1,58 +1,22 @@
 // Starling Flats Aerospace Park: tower, radar, runway kit, aircraft, rockets, halls and the pads.
+import { buildAircraft } from '../vehicles/aircraft.js';
+import { buildRocket } from '../vehicles/rocket.js';
 import { THREE, bx, cy, cn, bl, cyx, cyz, flat, panel, dome, sphere, prism, glass, glow, M, mat, shade, mix, mute, group, done, noBake, plate, size, rnd, pick, night, clockOf, hash, strHash, run, arms, oriented, WOOD, DWOOD, LWOOD, STEEL, IRON, CONC, RED, BRASS } from './kit.js';
 
 const view = (ctx, p) => { try { return ctx?.game?.aero?.propView?.(p) || null; } catch { return null; } };
-const LIV = { roost: ['#efe6d0', '#c8402a', '#e2d8c0'], meridian: ['#f4f4f2', '#2e3a4e', '#d8dce2'], test: ['#f4f2ee', '#e86a20', '#e8e6e0'], military: ['#8a929a', '#5a626a', '#7e868e'], stealth: ['#3e444c', '#2a3038', '#383e46'] };
-const KIND = { highwing: [0.12, 0.3, 0.2, 0.18, 0, 0.86, 0.36, 'nose', 'cabin'], twinprop: [0.12, 0.36, 0.16, 0.11, 0.02, 0.87, 0.34, 'wing2', 'cabin'], bizjet: [0.13, 0.48, 0.18, 0.08, 0.12, 0.9, 0.3, 'tail2', 'airliner'], bizjet_long: [0.11, 0.46, 0.18, 0.06, 0.16, 0.9, 0.3, 'tail2', 'airliner'], futuristic: [0.2, 0.55, 0.36, 0.1, 0.3, 0.92, 0, 'none', 'bubble'], turboprop_liner: [0.1, 0.38, 0.13, 0.08, 0.01, 0.88, 0.3, 'wing2', 'airliner'], narrowbody: [0.1, 0.44, 0.18, 0.05, 0.16, 0.9, 0.32, 'wing2j', 'airliner'], widebody: [0.11, 0.44, 0.2, 0.05, 0.18, 0.9, 0.34, 'wing2j', 'airliner'], blended: [0.3, 0.5, 0.3, 0.06, 0.2, 0.92, 0, 'wing4j', 'airliner'], trainer: [0.14, 0.5, 0.2, 0.1, 0.04, 0.88, 0.38, 'none', 'tandem'], fighter: [0.15, 0.56, 0.26, 0.06, 0.2, 0.92, 0.42, 'none', 'bubble'], twinfighter: [0.2, 0.55, 0.3, 0.07, 0.22, 0.92, 0.44, 'none', 'bubble'], stealthfighter: [0.22, 0.56, 0.32, 0.06, 0.24, 0.9, 0.4, 'none', 'bubble'], futurefighter: [0.22, 0.6, 0.4, 0.04, 0.32, 0.94, 0, 'none', 'bubble'], tacbomber: [0.14, 0.48, 0.22, 0.08, 0.18, 0.9, 0.36, 'none', 'tandem'], stratbomber: [0.08, 0.46, 0.2, 0.06, 0.24, 0.92, 0.3, 'wing4j', 'airliner'], flyingwing: [0.3, 0.5, 0.4, 0.06, 0.3, 0.9, 0, 'none', 'slit'], futurebomber: [0.3, 0.5, 0.4, 0.06, 0.3, 0.9, 0, 'none', 'slit'] };
+/** The meshes of a vehicle carry vertex colours: keep them out of the prop baker (which merges by material and would lose them). */
+const keepVC = (o) => { o.traverse((c) => { if (c.isMesh) c.userData.noBake = true; }); return o; };
 
-/** An aircraft pointing north (-z), centred on the origin, len tiles long, span wide. `build` shows it part-built. */
-export function planeModel(look, len, span, livery, build) {
-  const k = KIND[look.kind] || KIND.bizjet;
-  const [fw, wingY, chord, tip, sweep, tail, stab, pods, canopy] = k;
-  const pal = LIV[livery];
-  const body = pal ? pal[0] : look.color || '#e8e2d0'; const trim = pal ? pal[1] : look.trim || '#c8402a'; const wing = pal ? pal[2] : shade(body, -10);
-  const stealth = livery === 'stealth' || /stealth|future|flying/.test(look.kind);
-  const g = group();
-  const R = Math.max(0.11, len * fw * 0.5); const z0 = -len / 2;
-  const b = build || { fuselage: 1, wings: 1, engines: true, painted: true };
-  const fl = len * 0.97 * (b.fuselage ?? 1);
-  const flyingWing = canopy === 'slit';
-  const yc = 0.28 + R;
-  if (!flyingWing) {
-    g.add(cyz(R, fl * 0.84, b.painted === false ? '#8a8e92' : body, 0, yc, z0 + fl * 0.5 + len * 0.02, { seg: 10 }));
-    g.add(cn(R, fl * 0.2, b.painted === false ? '#8a8e92' : body, 0, yc, z0 + len * 0.02 - 0.0, { seg: 10, rx: -Math.PI / 2 }));
-    g.children[g.children.length - 1].position.set(0, yc, z0 + fl * 0.1 + len * 0.0);
-    g.add(bx(R * 2.1, 0.05, fl * 0.5, trim, 0, yc - R * 0.35, z0 + fl * 0.5, { cast: false }));
-  } else {
-    g.add(bx(len * 0.7, 0.14, len * 0.32, body, 0, 0.3, 0), cn(len * 0.2, len * 0.16, body, 0, 0.3, -len * 0.3, { seg: 4, rx: -Math.PI / 2 }));
-  }
-  // canopy
-  if (canopy === 'bubble' || canopy === 'tandem') g.add(sphere(R * 0.55, '#2a4a6a', 0, yc + R * 0.7, z0 + fl * 0.22, { seg: 8 }));
-  else if (canopy === 'airliner' || canopy === 'cabin') g.add(bx(R * 1.2, 0.06, 0.1, '#2a4a6a', 0, yc + R * 0.5, z0 + len * 0.1, { cast: false }));
-  if (b.wings > 0.45) {
-    const wz = z0 + len * wingY; const half = (span / 2) * (b.wings >= 1 ? 1 : 0.6);
-    const ang = Math.atan2(sweep * len, half);
-    const wl = Math.hypot(half, sweep * len); const wc = Math.max(0.16, len * chord * 0.7);
-    for (const s of [-1, 1]) g.add(bx(wl, 0.05, wc, wing, s * half / 2, yc - R * 0.25, wz + sweep * len * 0.5, { ry: -s * ang }));
-  }
-  // tail
-  if (!flyingWing && tail) {
-    const tz = z0 + len * tail;
-    g.add(bx(0.05, len * 0.2, len * 0.16, trim, 0, yc + R * 0.4, tz - len * 0.04));
-    if (stab > 0) g.add(bx(span * stab, 0.04, len * 0.1, wing, 0, yc + R * 0.4 + (look.kind.includes('bizjet') ? len * 0.17 : 0), tz));
-    if (/stealth|twinf|^fighter/.test(look.kind)) g.add(bx(0.05, len * 0.14, len * 0.12, trim, R * 1.1, yc + R * 0.3, tz - len * 0.02, { rz: 0.3 }), bx(0.05, len * 0.14, len * 0.12, trim, -R * 1.1, yc + R * 0.3, tz - len * 0.02, { rz: -0.3 }));
-  }
-  // engines
-  const ec = stealth ? '#2a2e34' : '#8d9297';
-  const pod = (x, z, r2) => g.add(cyz(r2, len * 0.14, ec, x, yc - R * 0.5, z, { seg: 8 }), cyz(r2 * 0.6, 0.03, '#1a1a1e', x, yc - R * 0.5, z - len * 0.07, { seg: 8 }));
-  if (b.engines !== false) {
-    if (pods === 'tail2') { pod(R * 1.5, z0 + len * 0.78, R * 0.45); pod(-R * 1.5, z0 + len * 0.78, R * 0.45); }
-    else if (pods === 'wing2' || pods === 'wing2j') { const wz = z0 + len * wingY - 0.1; const x = span * 0.22; if (pods === 'wing2') g.add(cyz(0.07, 0.4, '#3a3e44', x, yc - R * 0.3, wz - 0.15, { seg: 6 }), cyz(0.07, 0.4, '#3a3e44', -x, yc - R * 0.3, wz - 0.15, { seg: 6 }), bx(0.03, 0.4, 0.04, '#c8ccd0', x, yc - R * 0.3 - 0.2, wz - 0.4, { cast: false }), bx(0.03, 0.4, 0.04, '#c8ccd0', -x, yc - R * 0.3 - 0.2, wz - 0.4, { cast: false })); else { pod(x, wz, R * 0.5); pod(-x, wz, R * 0.5); } }
-    else if (pods === 'wing4j') { for (const x of [span * 0.14, span * 0.28]) { pod(x, z0 + len * wingY, R * 0.35); pod(-x, z0 + len * wingY, R * 0.35); } }
-    else if (pods === 'nose') g.add(bx(0.03, R * 1.6, 0.04, '#3a3e44', 0, yc, z0 - 0.02, { cast: false }));
-  }
-  // wheels
-  g.add(cyx(0.08, 0.06, '#1c1c20', 0, 0.1, z0 + len * 0.2, { seg: 8 }), cyx(0.08, 0.06, '#1c1c20', R * 0.9, 0.1, z0 + len * 0.55, { seg: 8 }), cyx(0.08, 0.06, '#1c1c20', -R * 0.9, 0.1, z0 + len * 0.55, { seg: 8 }));
+/** An aircraft pointing north (-z), centred on the origin, standing on its wheels. It is the same model the flying aircraft use (vehicles/aircraft.js), scaled down to
+ *  fit len x span if it must; `build` shows it part-built ({ fuselage, wings, engines, painted }). */
+export function planeModel(look, len, span, livery, build, night = false) {
+  const inner = buildAircraft(look, livery || null, build || null);
+  keepVC(inner);
+  if (night && inner.userData.subs.nav) inner.userData.subs.nav.visible = true;
+  inner.rotation.y = Math.PI / 2; // the model's +x is its nose; north is -z
+  const g = group(0, 0, 0, inner);
+  const sc = Math.min(1, len / Math.max(0.5, look.len || len), span / Math.max(0.5, look.span || span));
+  if (sc < 1) g.scale.setScalar(sc);
   return g;
 }
 
@@ -61,19 +25,35 @@ export function aircraft(p, ctx) {
   const v = view(ctx, p);
   const look = v?.look || { kind: 'bizjet', len: Math.max(2, h - 0.3), span: Math.max(2, w - 0.3) };
   const len = Math.min(look.len || h, h - 0.1); const span = Math.min(look.span || w, w - 0.1);
-  const m = planeModel(look, len, span, v?.livery || p.livery, null);
+  const m = planeModel(look, len, span, v?.livery || p.livery, null, night(ctx));
   if (p.wreck || v?.wreck) { m.rotation.z = 0.12; m.rotation.x = 0.05; m.position.y = 0.0; m.add(bl(0.3, '#2a2420', 0, 0.8, 0.0, { opacity: 0.6, cast: false })); }
   const heading = v?.heading || p.heading || 0;
-  // keep the whole machine over its footprint however it is built: scale a too-big model down, centre it, stand it on the ground
-  const box = new THREE.Box3().setFromObject(m);
+  // keep the whole machine over its footprint however it is built and turned: scale a too-big model down, centre it, stand it on the ground
+  // (the box of the visible parts: the gear is in it, the hidden burner flame is not)
+  const rot = group(0, 0, 0, m);
+  if (heading) rot.rotation.y = -heading;
+  let box = visibleBox(rot);
   const fit = Math.min(1, (w - 0.1) / Math.max(0.01, box.max.x - box.min.x), (h - 0.1) / Math.max(0.01, box.max.z - box.min.z));
-  if (fit < 1) { m.scale.setScalar(fit); box.setFromObject(m); }
-  m.position.set(-(box.max.x + box.min.x) / 2, 0.02 - box.min.y, -(box.max.z + box.min.z) / 2);
-  const g = group(w / 2, 0, h / 2, m);
-  if (heading) g.rotation.y = -heading;
+  if (fit < 1) { rot.scale.setScalar(fit); box = visibleBox(rot); }
+  const g = group(w / 2 - (box.max.x + box.min.x) / 2, 0.02 - box.min.y, h / 2 - (box.max.z + box.min.z) / 2, rot);
   const out = done(g);
   out.userData.key = v?.key || '';
   return out;
+}
+
+/** The world box of what can be seen: hidden parts (the burner, the lights by day) do not count. */
+function visibleBox(o) {
+  o.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  const tmp = new THREE.Box3();
+  o.traverse((c) => {
+    if (!c.isMesh || !c.geometry) return;
+    for (let q = c; q && q !== o.parent; q = q.parent) if (q.visible === false) return;
+    if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+    tmp.copy(c.geometry.boundingBox).applyMatrix4(c.matrixWorld);
+    box.union(tmp);
+  });
+  return box;
 }
 
 export function windsock(p) {
@@ -223,13 +203,16 @@ export function helipad(p) {
 
 // ---- the pads, halls and bays (state from the aerospace system) ------------------------------------------
 function rocketModel(look, stages, hmax) {
-  const H = Math.min(hmax, (look.h || 8) * 0.9); const r = Math.max(0.22, (look.w || 2) * 0.22);
-  const g = group(); const built = Math.max(0.1, stages ?? 1); const bh = H * built; const c = look.color || '#f2f2ee';
-  g.add(cy(r, bh, c, 0, 0, 0, { seg: 12 }), cy(r + 0.01, 0.1, look.band || '#1a1a24', 0, H * 0.3, 0, { seg: 12 }), cy(r * 0.7, 0.3, '#2a2c32', 0, -0.1, 0, { seg: 10 }));
-  if (built >= 0.99) { if (look.capsule) g.add(cn(r, H * 0.1, '#e8e8e4', 0, bh, 0, { seg: 12 })); else g.add(cn(r, H * 0.18, c, 0, bh, 0, { seg: 12 })); }
-  if (look.boosters && built > 0.5) for (const s of [-1, 1]) g.add(cy(r * 0.5, H * 0.55, shade(c, -12), s * (r + r * 0.5), 0, 0, { seg: 8 }), cn(r * 0.5, H * 0.08, shade(c, -12), s * (r * 1.5), H * 0.55, 0, { seg: 8 }));
-  if (look.legs) for (const s of [-1, 1]) g.add(bx(0.06, 0.8, 0.06, '#3a3c42', s * (r + 0.15), 0, 0, { rz: -s * 0.25 }));
-  return g;
+  // the same rocket the launch complex flies (vehicles/rocket.js), scaled to the space, with the upper stage only once the stack is far enough on
+  const r = buildRocket({ ...look });
+  keepVC(r);
+  const built = Math.max(0.1, stages ?? 1);
+  r.userData.subs.upper.visible = built >= 0.55;
+  const sc = Math.min(1, hmax / Math.max(1, look.h || 8)) * (built >= 0.55 ? 1 : Math.max(0.45, built / 0.55));
+  r.scale.setScalar(Math.min(1, hmax / Math.max(1, look.h || 8)));
+  if (built < 0.55) r.scale.y = sc;
+  r.userData.height = (look.h || 8) * r.scale.y;
+  return r;
 }
 
 export function launch_pad(p, ctx) {
@@ -260,10 +243,30 @@ export function bay_slot(p, ctx) {
   for (let z = 0.4; z < h - 0.3; z += 0.8) g.add(flat(0.07, 0.4, y, 0.2, z + 0.2, 0.02), flat(0.07, 0.4, y, w - 0.2, z + 0.2, 0.02));
   if (v.closed) { g.add(bx(w - 0.6, 0.06, h - 0.6, '#4a4e56', w / 2, 0, h / 2)); if (v.key === 'building') g.add(bx(0.6, 1.2, 0.6, '#c8a060', w / 2, 0, h / 2)); }
   else if (v.look && v.kind === 'stack') { const r = rocketModel(v.look, v.stagesTotal ? (v.stageIndex || 1) / v.stagesTotal : 1, Math.min(7, h * 0.9)); r.position.set(w / 2, 0.2, h / 2); g.add(r); }
-  else if (v.look) {
+  else if (v.look && v.kind === 'satellite') { // a satellite on its cradle: the bus, its panels once fitted, a dish
+    const sat = group(w / 2, 0.35, h / 2);
+    const pl = Math.max(0.6, Math.min(2.2, (w - 1.4) / 2 - 0.1));
+    const gold = v.bare ? '#9a9ea2' : '#c9a24a';
+    sat.add(bx(1.0, 0.9, 1.1, gold, 0, 0.1, 0), bx(1.04, 0.08, 1.14, '#3a3e46', 0, 0.55, 0), bx(0.3, 0.3, 0.3, '#d8dce0', 0, 1.0, 0), cy(0.28, 0.06, '#e8ecf0', 0.3, 1.0, 0.3, { seg: 8 }), cy(0.02, 0.4, '#5a5e66', -0.3, 1.0, -0.3, { seg: 4 }));
+    for (const s of [-1, 1]) {
+      sat.add(bx(0.08, 0.06, 0.08, '#8a8e92', s * 0.7, 0.5, 0), bx(pl, 0.04, 0.9, v.panels ? '#2a3f6a' : '#aeb2b6', s * (0.7 + pl / 2), 0.48, 0, { cast: false }));
+      if (v.panels) for (let x = 0.7 + pl / 4; x < 0.7 + pl; x += pl / 4) sat.add(bx(0.03, 0.05, 0.9, '#8aa0c0', s * x, 0.5, 0, { cast: false }));
+    }
+    g.add(bx(1.6, 0.22, 1.6, '#4a4e56', w / 2, 0, h / 2), sat);
+  } else if (v.look) {
     const k = v.look; const len = Math.min(k.len || h - 1, h - 0.8); const span = Math.min(k.span || w - 1, w - 0.8);
-    if (k.h && !k.kind) { const r = rocketModel(k, v.stages ?? 1, 6); r.rotation.z = Math.PI / 2; r.position.set(w / 2 - 1.5, 0.9, h / 2); g.add(r); }
-    else { const pm = planeModel(k, len, span, v.livery, v.build); pm.position.set(w / 2, 0, h / 2); g.add(pm); }
+    if (k.h && !k.kind) { const r = rocketModel(k, v.stages ?? 1, Math.min(w - 1, 8)); r.rotation.z = Math.PI / 2; r.position.set(w / 2 + r.userData.height / 2, 0.55, h / 2); g.add(r); }
+    else {
+      const pm = planeModel(k, len, span, v.livery, v.build, night(ctx)); pm.position.set(w / 2, 0, h / 2); g.add(pm);
+      const b = v.build;
+      if (b && (b.fuselage < 1 || b.wings < 1 || b.painted === false)) { // a work platform either side of the airframe, while it is being built
+        for (const s of [-1, 1]) {
+          const px = w / 2 + s * Math.min(w / 2 - 0.9, span * 0.2 + 0.9); const pz = h / 2 + len * 0.08;
+          g.add(bx(0.7, 0.55, 0.7, '#6a6e72', px, 0, pz), bx(0.9, 0.06, 0.9, '#d8a02a', px, 0.55, pz), bx(0.9, 0.3, 0.04, '#d8a02a', px, 0.61, pz - 0.43, { cast: false }), bx(0.9, 0.3, 0.04, '#d8a02a', px, 0.61, pz + 0.43, { cast: false }), bx(0.04, 0.3, 0.9, '#d8a02a', px + s * 0.43, 0.61, pz, { cast: false }));
+          g.add(bx(0.3, 0.06, 0.6, '#8a8e92', px - s * 0.6, 0.18, pz), bx(0.3, 0.06, 0.6, '#8a8e92', px - s * 0.85, 0.0, pz)); // the steps up to the deck
+        }
+      }
+    }
   }
   const out = done(g);
   out.userData.key = v.key || 'none';

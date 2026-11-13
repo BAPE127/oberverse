@@ -9,7 +9,7 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
-import { buildRoofed, buildOpen, buildRoom, buildStreetWalls, makeHole, seeThrough, height3d } from './buildings3d.js';
+import { buildRoofed, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
 import { LightRig, presetFor, lampFactor } from './light3d.js';
 import { PROPS, VEHICLES } from './registry3d.js';
@@ -172,6 +172,7 @@ export class World3D {
     this.deadline = t0 + (this.freshFrames > 0 ? 120 : BUDGET_MS);
     if (this.freshFrames > 0) this.freshFrames--;
     this.occluders = [];
+    this.foci = this.buildFoci();
     this.cands.length = 0;
     this.count = { buildings: 0, props: 0, figures: 0, vehicles: 0 };
     const darkness = g.clock.darkness;
@@ -192,6 +193,7 @@ export class World3D {
       this.updateMap(ms, L, { x0: (wv.x - L.x) / TILE, y0: (wv.y - L.y) / TILE, x1: (wv.x + wv.w - L.x) / TILE, y1: (wv.y + wv.h - L.y) / TILE }, lamp);
     }
     this.updateActors(shown, lamp);
+    this.updateHoles();
     syncMachines(this, g, this.propCtx || {}, Math.min(host.lastDt || 0.016, 0.1));
     this.ground.endFrame();
     // the world's background: the sea beyond a street's edge, a sky behind a room alone
@@ -251,7 +253,7 @@ export class World3D {
         if (b.hall && !g.aero.hallBuilt(b.hall)) continue;
         if (b.x + b.w < r.x0 - 2 || b.x > r.x1 + 2 || b.y + b.h < r.y0 - 2 || b.y > r.y1 + 2) { const e0 = ms.buildings.get(b); if (e0) { if (e0.roofed) e0.roofed.group.visible = false; if (e0.open) e0.open.visible = false; } continue; }
         let e = ms.buildings.get(b);
-        if (!e) { e = { b, roofed: null, open: null, hole: makeHole(), last: 0, lit: 0, litAt: -9 }; ms.buildings.set(b, e); }
+        if (!e) { e = { b, roofed: null, open: null, last: 0, lit: 0, litAt: -9 }; ms.buildings.set(b, e); }
         e.last = this.frameNo;
         this.count.buildings++;
         const orec = b.interior ? host.overlaid.get(b.interior) : null;
@@ -259,7 +261,7 @@ export class World3D {
         const H3 = height3d(b);
         if (t < 1 && !e.roofed && performance.now() < this.deadline) {
           e.roofed = buildRoofed(b, this.shared);
-          for (const m of e.roofed.mats) seeThrough(m, e.hole);
+          for (const m of e.roofed.mats) seeThroughN(m);
           ms.bldGroup.add(e.roofed.group);
         }
         if (t > 0 && !e.open) {
@@ -278,16 +280,16 @@ export class World3D {
             const k = lamp * e.lit;
             for (const m of e.roofed.emissive) m.emissiveIntensity = (m.userData.emissiveBase || 0.8) * k;
           }
-          // the see-through hole: the focus is behind this roofed building and the building covers it on screen
-          const box = buildingBox(b, L);
-          const behind = t < 0.01 && behindBox(focus, box) && hidesPoint(box, H3 * TILE, focus.x, focus.y, 20);
-          const fade = host.bld.stepFade(b, behind, Math.min(host.lastDt || 0.016, 0.1));
-          if (t < 0.01) {
-            const fp = host.toScreen(focus.x, focus.y, 20);
-            const u = e.hole.value;
-            if (fade > 0.01) u.set(fp.x, host.canvas.height - fp.y, 110 * fade * host.cam.zoom, 1); else u.w = 0;
-            this.occluders.push({ box, h: H3 * TILE, fade, hx: focus.x - focus.y, hy: (focus.x + focus.y) / 2 - 20, r: 110 });
-          } else e.hole.value.w = 0;
+          // the see-through hole (shader, shared): does this roofed building stand between the camera and a focus? (the hole itself is set in `updateHoles`)
+          if (t < 0.01 && this.foci.length) {
+            const box = buildingBox(b, L); const top = Math.max(H3, e.roofed.top - 0.5) * TILE;
+            for (let k = 0; k < this.foci.length; k++) {
+              const f = this.foci[k];
+              if (!behindBox(f, box) || !hidesPoint(box, top, f.x, f.y, f.z)) continue;
+              f.covered = true;
+              if (k === 0) this.occluders.push({ box, h: top, fade: 0, hx: f.x - f.y, hy: (f.x + f.y) / 2 - f.z, r: f.rx, f });
+            }
+          }
           if (night && e.roofed.lights.length && t < 0.5) for (const l of e.roofed.lights) { if (l.door && !e.lit && !l.tower) continue; this.cands.push({ x: l.x + ox, y: l.y, z: l.z + oz, color: l.color, intensity: l.intensity, distance: l.distance, prio: l.prio }); }
         }
         if (e.open) {
@@ -310,6 +312,52 @@ export class World3D {
     }
     // ---- props
     this.updateProps(ms, L, r, night, lamp, ox, oz);
+  }
+
+  /**
+   * What must not stay hidden: the player (or the car being driven, with room for its length), and the person the player is
+   * talking to or about to (the highlighted one). Positions are map-frame px, as the simulation has them; `rx`, `ry` the hole's
+   * half sizes in iso px (an upright ellipse, scaled by the camera zoom when drawn).
+   */
+  buildFoci() {
+    const host = this.host; const g = host.game; const p = g.player; const out = [];
+    const mk = (key, x, y, z, rx, ry) => ({ key, x, y, z, rx, ry, covered: false, fade: 0 });
+    const car = p.driving ? (g.vehicles?.carsOn(p.map) || []).find((c) => c.id === p.driving) : null;
+    if (car) { const m = g.content.vehicles.models[car.model]; out.push(mk('car', car.x, car.y, 14, 56 + (m?.len || 73) * 0.9, 92)); }
+    else if (!host.hidePlayer && p.riding == null) out.push(mk('player', p.x, p.y, 26, 64, 96));
+    const h = host.highlight;
+    if (h?.kind === 'npc' && out.length) { const n = g.npcs.get(h.id); if (n && n.map === p.map && n.riding == null && Math.hypot(n.x - p.x, n.y - p.y) < 8 * TILE) out.push(mk('npc', n.x, n.y, 26, 52, 84)); }
+    return out;
+  }
+
+  /** The shared hole uniforms (smoke test and tools read them). */
+  get holeUniforms() { return HOLES_SHARED; }
+
+  /** Does a tall prop stand between the camera and a focus (the sight line runs up and to the south-east)? */
+  propCovers(e, L) {
+    const vb = e.vb;
+    const box = { x0: L.x + vb.min.x * TILE, y0: L.y + vb.min.z * TILE, x1: L.x + vb.max.x * TILE, y1: L.y + vb.max.z * TILE };
+    for (const f of this.foci) if (!f.covered && behindBox(f, box) && hidesPoint(box, vb.max.y * TILE, f.x, f.y, f.z)) f.covered = true;
+  }
+
+  /** Ease each focus's hole in and out over real time and hand the active ones to the shader. */
+  updateHoles() {
+    const host = this.host;
+    const dt = Math.min(host.lastDt || 0.016, 0.1);
+    const fades = this.fades || (this.fades = new Map());
+    this.camera.updateMatrixWorld();
+    const W = host.canvas.width; const H = host.canvas.height; const z = host.cam.zoom;
+    let n = 0;
+    for (const f of this.foci) {
+      const s = fades.get(f.key) || { v: 0 }; fades.set(f.key, s);
+      s.v = f.covered ? Math.min(1, s.v + dt / 0.2) : Math.max(0, s.v - dt / 0.3);
+      f.fade = s.v;
+      if (s.v > 0.01 && n < HOLES && !this.noHoles) { const k = s.v * s.v * (3 - 2 * s.v); setHole(HOLES_SHARED, n++, this.camera, W, H, f.x / TILE, f.z / TILE, f.y / TILE, f.rx * z * k, f.ry * z * k); }
+    }
+    for (const k of fades.keys()) if (!this.foci.some((f) => f.key === k)) fades.delete(k);
+    endHoles(HOLES_SHARED, n);
+    HOLES_SHARED.eps.value = 0.04 / (this.camera.far - this.camera.near);
+    for (const o of this.occluders) o.fade = o.f ? o.f.fade : o.fade;
   }
 
   /** Lamps for an open room: more of them in a long room. */
@@ -337,13 +385,14 @@ export class World3D {
       e.last = this.frameNo;
       e.obj.visible = true;
       this.count.props++;
+      if (e.vb && this.foci.length) this.propCovers(e, L);
       const u = e.obj.userData;
       if (u.update) {
         u.update(p, ctx, Math.min(host.lastDt || 0.016, 0.1));
         if (u.key !== undefined && u.key !== e.key) { e.obj.removeFromParent(); disposeTree(e.obj); e = this.makeProp(ms, p, ctx); ms.props.set(p, e); e.last = this.frameNo; }
       }
       if (night && lamp > 0.02) {
-        for (const l of e.lights) this.cands.push({ x: p.x + l.x + ox, y: l.y, z: p.y + l.z + oz, color: l.color, intensity: l.intensity, distance: l.distance || l.dist || 8, prio: 0 });
+        for (const l of e.lights) this.cands.push({ x: e.obj.position.x + l.x + ox, y: l.y, z: e.obj.position.z + l.z + oz, color: l.color, intensity: l.intensity, distance: l.distance || l.dist || 8, prio: 0 });
       }
     }
   }
@@ -354,14 +403,18 @@ export class World3D {
     if (build) { try { obj = build(p, ctx); } catch (err) { console.warn(`[oberverse] prop builder ${p.type} failed`, err); } }
     const flat = FLAT_PROPS.has(p.type);
     if (!obj) obj = fallbackProp(p, flat);
-    obj.position.set(p.x, 0, p.y);
+    lib.placeProp(obj, p);
+    obj.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) seeThroughN(m); });
     const animated = Boolean(obj.userData.update);
     if (!animated) obj.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); });
     else { obj.updateMatrix(); }
     ms.propGroup.add(obj);
     const lights = [].concat(obj.userData.lights || []);
     if (obj.userData.fallback && LAMP_RE.test(p.type)) lights.push({ x: (p.w || 1) / 2, y: 2.6, z: (p.h || 1) / 2, color: '#ffd9a0', intensity: 7, distance: 7 });
-    return { obj, key: obj.userData.key, last: this.frameNo, lights };
+    // the model's whole box (canopies and arms included), for the see-through test: only things taller than a knee can hide anyone
+    obj.updateMatrixWorld(true);
+    const vb = new THREE.Box3().setFromObject(obj);
+    return { obj, key: obj.userData.key, last: this.frameNo, lights, vb: vb.max.y > 0.9 ? vb : null };
   }
 
   // ------------------------------------------------------------------ people and vehicles

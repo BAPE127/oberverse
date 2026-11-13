@@ -11,7 +11,7 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
-import { buildRoofed, height3d, STOREY, KERB, makeHoles, seeThroughN, HOLES } from './buildings3d.js';
+import { buildRoofed, height3d, STOREY, KERB, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles } from './buildings3d.js';
 import { Figure, personKey, yawOf, angleDiff } from './people3d.js';
 import { LightRig, presetFor, lampFactor } from './light3d.js';
 import { PROPS, VEHICLES } from './registry3d.js';
@@ -27,7 +27,8 @@ import { TICK, TILE as BT, SUPPORT } from '../content/battle.js';
 const TP = 32;
 const CHUNK = 8; // ground chunk, tiles (ground3d.js)
 const PROP_CELL = 12; // props are baked into one mesh per material per 12 x 12 tiles
-const HOLE_R = 90; // the see-through window, iso px (the 2D battle's)
+// The see-through window of a focus (a unit, the pointer), half sizes in iso px: an upright ellipse, drawn through every building in front.
+const HOLE_SIZE = { inf: [34, 54], veh: [58, 62], ground: [40, 40] };
 const BUDGET_MS = 14;
 const JETS = { fighter: { kind: 'fighter', len: 5, span: 4, color: '#8a929a', trim: '#5a626a' }, bomber: { kind: 'tacbomber', len: 7, span: 7, color: '#6a7064', trim: '#3a4034' } };
 const CAR_BODY = { sedan: 'saloon', hatch: 'hatch', taxi: 'saloon', police: 'police', van: 'estate', ambulance: 'estate', pickup: 'pickup', jeep: 'pickup', truck: 'pickup', bus: 'bus' };
@@ -126,8 +127,9 @@ export class Battle3D {
       const pp = it.pp; const build = PROPS.get(pp.type); let obj = null;
       if (build) { try { obj = build(pp, ctx); } catch (err) { obj = null; } }
       if (!obj) obj = fallbackProp(pp, false);
-      obj.position.set(pp.x, 0, pp.y);
-      for (const l of obj.userData.lights || []) this.lamps.push({ x: pp.x + l.x, y: l.y, z: pp.y + l.z, color: l.color, intensity: l.intensity, distance: l.distance || l.dist || 8, prio: 0 });
+      lib.placeProp(obj, pp);
+      obj.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) seeThroughN(m); });
+      for (const l of obj.userData.lights || []) this.lamps.push({ x: obj.position.x + l.x, y: l.y, z: obj.position.z + l.z, color: l.color, intensity: l.intensity, distance: l.distance || l.dist || 8, prio: 0 });
       const key = `${Math.floor(pp.x / PROP_CELL)},${Math.floor(pp.y / PROP_CELL)}`;
       let g = cells.get(key); if (!g) { g = new THREE.Group(); cells.set(key, g); }
       g.add(obj);
@@ -207,34 +209,19 @@ export class Battle3D {
       let e = this.buildings.get(b.id);
       const rec = V.scene.recs.get(b.id); const r3 = this.rec3(rec);
       if (b.x + b.w < vt.x0 - 2 || b.x > vt.x1 + 2 || b.y + b.h < vt.y0 - 6 || b.y > vt.y1 + 2) { if (e) { if (e.roofed) e.roofed.group.visible = false; if (e.open) e.open.visible = false; } continue; }
-      if (!e) { e = { b, rec, r3, roofed: null, open: null, openKey: '', hole: makeHoles() }; this.buildings.set(b.id, e); }
+      if (!e) { e = { b, rec, r3, roofed: null, open: null, openKey: '' }; this.buildings.set(b.id, e); }
       const openV = f.open[b.id]; const st = V.bld.step(rec, Boolean(openV), V.t, dt); const t = st.t;
       const box = { x0: b.x * TP, y0: b.y * TP, x1: (b.x + b.w) * TP, y1: (b.y + b.h) * TP };
       if (t < 1 && !e.roofed && performance.now() < this.deadline) {
         const r = buildRoofed(r3, this.shared);
-        for (const m of r.mats) seeThroughN(m, e.hole);
+        for (const m of r.mats) seeThroughN(m);
         e.roofed = r; e.litFor = -1; this.bldGroup.add(r.group);
       }
       if (e.roofed) {
         if (e.litFor !== this.darkness) { e.litFor = this.darkness; const k = lampFactor(this.darkness); for (const m of e.roofed.emissive) m.emissiveIntensity = (m.userData.emissiveBase || 0.8) * k; } // (windows glow by night)
         e.roofed.group.visible = t < 1;
         e.roofed.group.scale.y = t > 0 ? Math.max(0.02, 1 - t) : 1;
-        let want = false; const hs = [];
-        if (t < 0.01) {
-          const Hp = this.heightPx(rec);
-          for (const fo of holesNeeded) {
-            if (!hides(box, Hp, fo)) continue;
-            const p = V.toCanvas(fo.x, fo.y, fo.z); const q = { x: p.x, y: p.y };
-            if (hs.length < HOLES && !hs.some((h) => Math.hypot(h.x - q.x, h.y - q.y) < HOLE_R * hz * 0.6)) hs.push(q);
-          }
-          want = hs.length > 0;
-        }
-        const fade = V.bld.stepFade(rec, want, dt);
-        const u = e.hole.value;
-        if (want) { e.holes = hs; }
-        const use = e.holes || [];
-        let any = 0; for (let i = 0; i < HOLES; i++) { if (i < use.length && fade > 0.01 && t < 0.01) { u[i].set(use[i].x, H - use[i].y, HOLE_R * fade * hz, 1); any = 1; } else u[i].w = 0; }
-        e.hole.on.value = any;
+        if (t < 0.01) { const Hp = this.heightPx(rec); for (const fo of holesNeeded) if (!fo.covered && hides(box, Hp, fo)) fo.covered = true; }
       }
       if (t > 0) {
         const key = `${openV ? openV.floor : -1}|${B.rubble.length}|${(B.collapsed || []).length}`;
@@ -245,6 +232,43 @@ export class Battle3D {
         if (e.open) { e.open.visible = true; e.open.scale.y = Math.max(0.02, t); }
       } else if (e.open) e.open.visible = false;
     }
+    this.updateHoles(V, holesNeeded);
+  }
+
+  /**
+   * One see-through hole per focus that a roofed building stands in front of (every friendly unit, the enemy in sight, the pointer),
+   * eased over real time (not frames). The shader keeps one set of up to HOLES ellipses; the ones nearest the middle of the screen
+   * win, and a focus that sits inside another's ellipse at the same depth shares it (a squad standing together is one hole).
+   */
+  updateHoles(V, foci) {
+    const now = performance.now(); const dt = Math.min(0.1, (now - (this.holeAt || now)) / 1000); this.holeAt = now;
+    const fades = this.holeFades || (this.holeFades = new Map());
+    const W = V.cv.width; const H = V.cv.height; const hz = V.cam.zoom;
+    this.camera.updateMatrixWorld();
+    const list = [];
+    for (const fo of foci) {
+      const key = fo.id ?? 'cursor'; const s = fades.get(key) || { v: 0 }; fades.set(key, s);
+      s.v = fo.covered ? Math.min(1, s.v + dt / 0.2) : Math.max(0, s.v - dt / 0.3); s.seen = this.frame;
+      if (s.v < 0.01) continue;
+      const [rx, ry] = HOLE_SIZE[fo.kind || 'inf']; const k = s.v * s.v * (3 - 2 * s.v);
+      list.push({ fo, rx: rx * hz * k, ry: ry * hz * k, d: 0 });
+    }
+    for (const [key, s] of fades) if (s.seen !== this.frame && s.v <= 0.01) fades.delete(key);
+    const U = HOLES_SHARED; let n = 0;
+    const cx = V.cam.x + W / (2 * hz); const cy = V.cam.y + H / (2 * hz); // (the middle of the screen, iso px)
+    for (const h of list) { const p = project(h.fo.x, h.fo.y, 0); h.d = Math.hypot(p.x - cx, p.y - cy); }
+    list.sort((a, b) => a.d - b.d);
+    const placed = [];
+    for (const h of list) {
+      if (n >= HOLES) break;
+      const fx = h.fo.x / TP; const fy = (h.fo.z || 0) / TP; const fz = h.fo.y / TP;
+      const u = setHole(U, n, this.camera, W, H, fx, fy, fz, h.rx, h.ry);
+      const depth = U.depth.value[n];
+      if (placed.some((q) => Math.abs(q.depth - depth) < 0.01 && Math.hypot((q.x - u.x) / q.rx, (q.y - u.y) / q.ry) < 0.45 && q.rx >= h.rx * 0.9)) { u.z = 0; continue; }
+      placed.push({ x: u.x, y: u.y, rx: u.z, ry: u.w, depth }); n++;
+    }
+    endHoles(U, n);
+    U.eps.value = 0.04 / (this.camera.far - this.camera.near);
   }
 
   /** A building opened to one floor's plan: the plan on the ground, wall tiles standing (a storey at the back, a kerb elsewhere). */

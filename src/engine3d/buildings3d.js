@@ -11,7 +11,6 @@ import { buildingHeight } from '../engine/isoBuildings.js';
 const FP = 32; // facade texture pixels per tile
 export const STOREY = 2.3; // tiles of wall to a storey of an ordinary building
 export const KERB = 0.34; // height of a cut-down wall of an open room
-const TH = 0.22; // wall thickness
 
 // ------------------------------------------------------------------ sizes and kinds (pure)
 export function buildingKind(b) {
@@ -50,66 +49,96 @@ export function height3d(b) {
 
 // ------------------------------------------------------------------ the see-through shader patch
 /**
- * Patch a material so a dithered disc around a screen point is discarded. `u` is a shared uniform object
- * `{ value: Vector4(x, y, r, on) }`, x and y in gl_FragCoord pixels (origin bottom-left) and r in the same; one per building,
- * shared by all of its materials, so only that building gets a hole.
+ * The see-through hole (docs/RENDERING.md 2.4, 7.2). Building and prop materials are patched so that, inside an upright ellipse
+ * around a focus (the player, the car, a talk target, a battle unit), every fragment NEARER to the camera than the focus is
+ * dissolved: a fine per-pixel noise (interleaved gradient noise, one device pixel) against a soft ramp, so the rim reads as a
+ * smooth fade, the inside is fully clear (the street and the figure show at their own brightness), and nothing needs sorting.
+ * Fragments farther than the focus are untouched: only what is in front of the focus opens, the rest of a building stays whole.
+ * The camera is orthographic, so gl_FragCoord.z is linear in distance along the view and a hole's depth is one number.
+ *
+ * `u` = makeHoles(n): `value[i]` = (x, y, rx, ry) in gl_FragCoord pixels (origin bottom-left; rx 0 = off), `depth[i]` the focus's
+ * gl_FragCoord.z, `on.value` 1 when any hole is active (the loop is skipped otherwise: it matters on a software rasteriser),
+ * `eps.value` the depth margin. One shared set (`HOLES_SHARED`) serves the world and the battle: only one is drawn at a time.
  */
-export function seeThrough(material, u) {
-  if (material.userData.seeThrough) return material;
-  material.userData.seeThrough = true;
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uHole = u;
-    shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', `uniform vec4 uHole;
-float oberBayer2(vec2 p) { vec2 q = floor(mod(p, 2.0)); return mod(2.0 * q.x + 3.0 * q.y, 4.0); }
-void main() {
-  if (uHole.w > 0.5) {
-    vec2 hp = gl_FragCoord.xy - uHole.xy;
-    float t = length(hp) / max(uHole.z, 1.0);
-    if (t < 1.0) {
-      float cover = t < 0.55 ? 1.0 - 0.38 * (t / 0.55) : 0.62 * (1.0 - (t - 0.55) / 0.45);
-      float thr = (4.0 * oberBayer2(gl_FragCoord.xy) + oberBayer2(floor(gl_FragCoord.xy / 2.0)) + 0.5) / 16.0;
-      if (floor(cover * 5.0 + thr) > 0.5) discard;
-    }
-  }`);
-  };
-  material.customProgramCacheKey = () => 'oberHole1';
-  material.needsUpdate = true;
-  return material;
+export const HOLES = 24; // battle: units that may be seen through buildings at once
+export const makeHoles = (n = HOLES) => ({ value: Array.from({ length: n }, () => new THREE.Vector4(0, 0, 0, 0)), depth: { value: new Float32Array(n) }, on: { value: 0 }, eps: { value: 0.0005 } });
+export const makeHole = () => makeHoles(1); // (one hole: kept for tests and tools)
+export const HOLES_SHARED = makeHoles(HOLES);
+
+// `oberFree` (true for a fragment inside a hole) is declared in a three.js chunk that every lit material includes, because lit
+// materials need it for the shadow rule below; the uniforms and the test itself come with each patched material.
+const CHUNK_TAG = '// oberverse holes';
+if (!THREE.ShaderChunk.lights_pars_begin.includes(CHUNK_TAG)) {
+  THREE.ShaderChunk.lights_pars_begin += `
+${CHUNK_TAG}
+bool oberFree = false;
+#define OBER_FREE_DECLARED
+`;
+  // a building's shadow must not darken what the hole shows: inside a hole nothing receives the directional, spot or point shadows
+  THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.split('directLight.visible && receiveShadow').join('directLight.visible && receiveShadow && !oberFree');
 }
 
-export const makeHole = () => ({ value: new THREE.Vector4(0, 0, 1, 0) });
-
-export const HOLES = 6;
-/** The same shader patch for several holes at once (the battle: every selected unit, enemy in sight and the cursor). `u.value` is an array of HOLES Vector4s, each as in `seeThrough`. */
-export const makeHoles = () => ({ value: Array.from({ length: HOLES }, () => new THREE.Vector4(0, 0, 1, 0)), on: { value: 0 } }); // (`on.value` 1 when any hole is active: the loop is skipped otherwise, which matters on a software rasteriser)
-export function seeThroughN(material, u) {
+/**
+ * Patch a material for the holes. `cut` true (buildings and props, the things that stand in front): dissolve what is nearer than a
+ * focus inside its ellipse. Always: nothing inside a hole receives a shadow (ground, figures, props, buildings), so the street and
+ * the person show at full brightness.
+ */
+export function seeThroughN(material, u = HOLES_SHARED, cut = true) {
   if (material.userData.seeThrough) return material;
   material.userData.seeThrough = true;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uHoles = u;
+    shader.uniforms.uHoleZ = u.depth;
     shader.uniforms.uHoleOn = u.on;
+    shader.uniforms.uHoleEps = u.eps;
     shader.fragmentShader = shader.fragmentShader
       .replace('void main() {', `uniform vec4 uHoles[${HOLES}];
+uniform float uHoleZ[${HOLES}];
 uniform float uHoleOn;
-float oberBayer2(vec2 p) { vec2 q = floor(mod(p, 2.0)); return mod(2.0 * q.x + 3.0 * q.y, 4.0); }
+uniform float uHoleEps;
+bool oberInHole() {
+  if (uHoleOn < 0.5) return false;
+  for (int i = 0; i < ${HOLES}; i++) { vec4 h = uHoles[i]; if (h.z > 0.5) { vec2 q = (gl_FragCoord.xy - h.xy) / h.zw; if (dot(q, q) < 1.0) return true; } }
+  return false;
+}
+float oberIGN(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 void main() {
-  if (uHoleOn > 0.5) for (int i = 0; i < ${HOLES}; i++) {
-    vec4 uHole = uHoles[i];
-    if (uHole.w > 0.5) {
-      vec2 hp = gl_FragCoord.xy - uHole.xy;
-      float t = length(hp) / max(uHole.z, 1.0);
-      if (t < 1.0) {
-        float cover = t < 0.55 ? 1.0 - 0.38 * (t / 0.55) : 0.62 * (1.0 - (t - 0.55) / 0.45);
-        float thr = (4.0 * oberBayer2(gl_FragCoord.xy) + oberBayer2(floor(gl_FragCoord.xy / 2.0)) + 0.5) / 16.0;
-        if (floor(cover * 5.0 + thr) > 0.5) discard;
+#ifdef OBER_FREE_DECLARED
+  oberFree = oberInHole();
+#endif
+  ${cut ? `if (uHoleOn > 0.5) {
+    float cut = 0.0;
+    for (int i = 0; i < ${HOLES}; i++) {
+      vec4 h = uHoles[i];
+      if (h.z > 0.5 && gl_FragCoord.z < uHoleZ[i] - uHoleEps) {
+        vec2 q = (gl_FragCoord.xy - h.xy) / h.zw;
+        cut = max(cut, 1.0 - smoothstep(0.55, 1.0, length(q)));
       }
     }
-  }`);
+    if (cut > oberIGN(gl_FragCoord.xy)) discard;
+  }` : ''}`);
   };
-  material.customProgramCacheKey = () => 'oberHoleN6b';
+  material.customProgramCacheKey = () => (cut ? 'oberHoleCut24' : 'oberHoleLit24');
   material.needsUpdate = true;
   return material;
+}
+export const seeThrough = seeThroughN;
+/** The shadow rule only (ground and figures: nothing to dissolve). */
+export const holeLit = (material) => seeThroughN(material, HOLES_SHARED, false);
+
+const _v = new THREE.Vector3();
+/** Set hole `i` of `u` at a world point (scene units: x east, y up, z south) for `camera`; `rx`, `ry` in device pixels. Returns the screen position. */
+export function setHole(u, i, camera, W, H, x, y, z, rx, ry) {
+  _v.set(x, y, z).project(camera);
+  u.value[i].set((_v.x + 1) / 2 * W, (_v.y + 1) / 2 * H, rx, ry);
+  u.depth.value[i] = (_v.z + 1) / 2;
+  return u.value[i];
+}
+/** Switch holes `from`.. off; `on` follows whether any hole is left active. */
+export function endHoles(u, from = 0) {
+  let any = 0;
+  for (let i = 0; i < u.value.length; i++) { if (i >= from) u.value[i].z = 0; if (u.value[i].z > 0.5) any = 1; }
+  u.on.value = any;
 }
 
 // ------------------------------------------------------------------ painted facades
@@ -540,9 +569,35 @@ export function wallRuns(map) {
 }
 
 /**
+ * The wall tiles of a room as boxes { x0, x1, z0, z1, y1, tall, pz, nz, px, nx } (pz = the south face shows, ...): one box per `W`
+ * tile, filling the whole tile, because the simulation blocks the whole tile: a wall drawn thinner than that leaves a strip of
+ * floor the player cannot step on. Boxes butt exactly, so corners, tees, crosses and door jambs are solid by construction, with
+ * no overlap (no z-fighting); a face between two wall tiles is not emitted unless the neighbour is lower (tall wall beside a
+ * kerb). Heights come from `wallClass` of the run the tile belongs to. Pure: tested without WebGL.
+ */
+export function wallPieces(map, H, roofed) {
+  const w = map.width; const h = map.height;
+  const isW = (x, y) => x >= 0 && y >= 0 && x < w && y < h && map.tileAt(x, y) === 'W';
+  const hgt = new Map();
+  for (const r of wallRuns(map)) {
+    const tall = wallClass(r.x, r.y, w, h, r.horizontal, roofed) === 'tall';
+    for (let k = 0; k < r.len; k++) hgt.set(r.horizontal ? r.y * 4096 + r.x + k : (r.y + k) * 4096 + r.x, tall ? H : KERB);
+  }
+  const hOf = (x, y) => (isW(x, y) ? hgt.get(y * 4096 + x) : -1);
+  const out = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!isW(x, y)) continue;
+    const y1 = hOf(x, y);
+    out.push({ x0: x, x1: x + 1, z0: y, z1: y + 1, y1, tall: y1 === H, pz: hOf(x, y + 1) < y1, nz: hOf(x, y - 1) < y1, px: hOf(x + 1, y) < y1, nx: hOf(x - 1, y) < y1, innerZ: y1 === H && y + 1 < h && !isW(x, y + 1), innerX: y1 === H && x + 1 < w && !isW(x + 1, y) });
+  }
+  return out;
+}
+
+/**
  * The walls of a room (an interior map): north and west walls stand to `H`, south and east walls and vertical partitions are
  * a kerb; with `roofed` (a roofed upper floor) everything is a kerb. `pal` { wall, trim, glass? }. Returns a Group in the map's
- * own tile frame, baked into a few meshes, with `userData.windows` the glass positions.
+ * own tile frame (the tiles of `wallPieces` merged into one mesh per material). Wall items (windows, paintings) are props and
+ * hang on the tile's open face themselves.
  */
 export function buildRoom(map, pal, opts, shared) {
   const g = new THREE.Group();
@@ -553,31 +608,35 @@ export function buildRoom(map, pal, opts, shared) {
   const stubM = mat(shade(pal.wall || '#d8cdb8', -8));
   const capM = mat('#2c2824');
   const glassWall = pal.glass ? mat(mix(pal.wall || '#3a3e48', pal.glass, 0.5), { opacity: 0.55 }) : null;
-  const winRows = new Set((map.props || []).filter((p) => p.type === 'window' && (p.y === 0)).map((p) => p.x));
-  for (const r of wallRuns(map)) {
-    const cls = wallClass(r.x, r.y, w, h, r.horizontal, opts.roofed);
-    const hh = cls === 'tall' ? H : KERB;
-    const geo = wallGeometry(r.len, hh, TH, r.horizontal);
-    const faces = r.horizontal ? [stubM, stubM, capM, capM, cls === 'tall' ? (glassWall || inner) : stubM, stubM] : [cls === 'tall' ? (glassWall || inner) : stubM, stubM, capM, capM, stubM, stubM];
-    const m = new THREE.Mesh(geo, faces);
-    // a north wall sits on its tile's north edge, a south wall on its tile's south edge, partitions down the tile's middle
-    let cx = r.horizontal ? r.x + r.len / 2 : r.x + 0.5;
-    let cz = r.horizontal ? r.y + 0.5 : r.y + r.len / 2;
-    if (r.horizontal && r.y === 0) cz = TH / 2;
-    else if (r.horizontal && r.y === h - 1) cz = h - TH / 2;
-    if (!r.horizontal && r.x === 0) cx = TH / 2;
-    else if (!r.horizontal && r.x === w - 1) cx = w - TH / 2;
-    m.position.set(cx, hh / 2, cz);
-    m.castShadow = true; m.receiveShadow = true;
-    m.userData.noBake = true;
-    g.add(m);
+  const buckets = new Map();
+  const bucket = (m) => { let b = buckets.get(m); if (!b) { b = { p: [], n: [], uv: [], i: [] }; buckets.set(m, b); } return b; };
+  const quad = (m, a, b, c, d, nx, ny, nz, uvs) => {
+    const k = bucket(m); const base = k.p.length / 3;
+    for (const v of [a, b, c, d]) { k.p.push(v[0], v[1], v[2]); k.n.push(nx, ny, nz); }
+    for (const t of uvs) k.uv.push(t[0], t[1]);
+    k.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  const open = glassWall || inner;
+  for (const q of wallPieces(map, H, opts.roofed)) {
+    const { x0, x1, z0, z1, y1 } = q; const y0 = 0;
+    const v = (y) => y / H;
+    if (q.pz) quad(q.innerZ ? open : stubM, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], 0, 0, 1, [[x0, v(y0)], [x1, v(y0)], [x1, v(y1)], [x0, v(y1)]]);
+    if (q.nz) quad(stubM, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], 0, 0, -1, [[x1, v(y0)], [x0, v(y0)], [x0, v(y1)], [x1, v(y1)]]);
+    if (q.px) quad(q.innerX ? open : stubM, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], 1, 0, 0, [[z1, v(y0)], [z0, v(y0)], [z0, v(y1)], [z1, v(y1)]]);
+    if (q.nx) quad(stubM, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], -1, 0, 0, [[z0, v(y0)], [z1, v(y0)], [z1, v(y1)], [z0, v(y1)]]);
+    quad(capM, [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], 0, 1, 0, [[0, 0], [1, 0], [1, 1], [0, 1]]);
   }
-  const windows = [];
-  for (const x of winRows) {
-    windows.push({ x: x + 0.5, y: 1.35, z: TH + 0.02 });
-    g.add(box(0.95, 1.05, 0.05, mat(shade(pal.trim || '#5a4a3a', -10)), { x: x + 0.5, y: 0.85, z: TH + 0.02, cast: false }), box(0.78, 0.88, 0.06, mat('#bfe0ee', { emissive: '#5a7884', ei: 0.5 }), { x: x + 0.5, y: 0.94, z: TH + 0.03, cast: false }));
+  for (const [m, k] of buckets) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(k.p, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(k.n, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(k.uv, 2));
+    geo.setIndex(k.i);
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.castShadow = m !== glassWall; mesh.receiveShadow = true;
+    mesh.userData.noBake = true;
+    g.add(mesh);
   }
-  g.userData.windows = windows;
   g.userData.H = H;
   return g;
 }
@@ -613,10 +672,10 @@ export function buildOpen(b, I, shared) {
   const extras = new THREE.Group();
   g.add(extras);
   if (door) {
-    for (const dx of [door.x - 0.02, door.x + 1.02]) extras.add(box(0.1, 1.95, TH + 0.04, mat(trim), { x: dx, z: h - TH / 2 }));
-    extras.add(box(1.14, 0.1, TH + 0.04, mat(trim), { x: door.x + 0.5, z: h - TH / 2, y: 1.95 }), box(1.5, 0.08, 0.5, mat('#9a958c'), { x: door.x + 0.5, z: h + 0.25, y: -0.04 }));
+    for (const dx of [door.x - 0.02, door.x + 1.02]) extras.add(box(0.1, 1.95, 1.04, mat(trim), { x: dx, z: h - 0.5 }));
+    extras.add(box(1.14, 0.1, 1.04, mat(trim), { x: door.x + 0.5, z: h - 0.5, y: 1.95 }), box(1.5, 0.08, 0.5, mat('#9a958c'), { x: door.x + 0.5, z: h + 0.25, y: -0.04 }));
     const leaf = box(0.92, 1.9, 0.07, mat(mix(trim, '#7a5536', 0.6)), { x: 0.46, z: 0 });
-    const hinge = group(door.x + 0.03, 0, h - TH / 2, leaf);
+    const hinge = group(door.x + 0.03, 0, h - 0.5, leaf);
     hinge.rotation.y = 1.25;
     extras.add(hinge);
   }

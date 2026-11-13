@@ -4,6 +4,9 @@
 // way it moves (or the way a held gun is aimed), lies flat when down, and a held weapon is a simple part keyed by the
 // same `look` the 2D code uses.
 import { THREE, Mesher, vertexMat, hash, strHash, shade, mix, mute } from './lib3d.js';
+import { holeLit } from './buildings3d.js';
+
+holeLit(vertexMat()); // (nothing in a see-through hole receives a shadow: the figure there shows at full brightness)
 
 export const GUN_SHORT = new Set(['revolver', 'pistol', 'goldenhandshake', 'nailgun', 'goldphone', 'phone']);
 const WEAPONS = { // look -> [shape, colour]

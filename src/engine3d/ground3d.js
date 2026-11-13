@@ -2,6 +2,7 @@
 // quads, one per 8 x 8 tile chunk, created when a chunk comes into view and disposed with the same kind of LRU the
 // 2D chunk cache uses. Keeps every special ground painter and the game's pixel look; neighbours share exact edges.
 import { THREE, sharedGeometry } from './lib3d.js';
+import { holeLit } from './buildings3d.js';
 
 const CHUNK = 8; // tiles (drawPixelGround.CHUNK)
 const MAX_QUADS = 150;
@@ -38,7 +39,7 @@ export class Ground3D {
         tex.generateMipmaps = false;
         const tw = canvas.width / 32;
         const th = canvas.height / 32;
-        const m = new THREE.MeshLambertMaterial({ map: tex });
+        const m = holeLit(new THREE.MeshLambertMaterial({ map: tex }));
         const mesh = new THREE.Mesh(planeFor(tw, th), m);
         mesh.rotation.x = -Math.PI / 2;
         mesh.position.set(cx * CHUNK + tw / 2, y, cy * CHUNK + th / 2);

@@ -92,6 +92,35 @@ export function textMat(text, { fg = '#f4ecd8', bg = '#2a2630', font = 'bold 44p
   return { material: m, aspect: w / h };
 }
 
+/**
+ * Put a built prop on its tile. A builder's object may sit at an offset inside the footprint frame (most are `group(w/2, 0, h/2, ...)`
+ * with the parts centred on it), so the tile's corner is ADDED to the object's own position; setting the position would drop
+ * half the footprint (the old bug: every such model stood up to half its size north-west of the tiles the simulation blocks).
+ */
+export function placeProp(obj, p) {
+  obj.position.x += p.x;
+  obj.position.z += p.y;
+  return obj;
+}
+
+// ---- ground footprint ------------------------------------------------------------------------------
+/**
+ * The ground footprint of a model: the box of the parts whose bottom is within `reach` tiles of the ground (a canopy, a sign
+ * board or an arm high above the ground does not count: overhang upward is fine). { x0, x1, z0, z1 } in world units (an object
+ * not yet placed has its origin at 0), or null when nothing touches the ground.
+ */
+export function baseBox(obj, reach = 0.4) {
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3(); const t = new THREE.Box3(); let any = false;
+  obj.traverse((c) => {
+    if (!c.isMesh || !c.geometry?.attributes?.position) return;
+    t.setFromObject(c);
+    if (t.isEmpty() || t.min.y > reach) return;
+    b.union(t); any = true;
+  });
+  return any ? { x0: b.min.x, x1: b.max.x, z0: b.min.z, z1: b.max.z } : null;
+}
+
 // ---- merging ---------------------------------------------------------------------------------------
 /**
  * Merge the single-material meshes under `root` into one mesh per (material, cast, receive), so a building

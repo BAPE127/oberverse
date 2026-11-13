@@ -665,6 +665,15 @@ try {
         const seenThrough = a.pts.filter((p, i) => diff(p, c.pts[i]) > 30).length; const wallOnly = d.pts.filter((p, i) => diff(p, e.pts[i]) > 8).length;
         out.battle_city_behindVisible = seenThrough >= 2 && wallOnly === 0 && diff(a.far, c.far) < 6;
         out.battle_city_behindDetail = JSON.stringify({ seenThrough, wallOnly, far: Math.round(diff(a.far, c.far)), floors: b.floors });
+        // the same for a friendly unit that is NOT selected (v0.104.x: every friendly unit is seen through the buildings in front of it), and a second, unselected one beside it
+        const u2 = B.units.find((q) => q.side === 'p' && q.kind === 'inf' && q.id !== u.id);
+        H.S.sel = new Set(); if (u2) { u2.x = b.x + b.w / 2 + 2.4; u2.y = b.y - 1.2; u2.path = []; u2.order = { type: 'hold' }; }
+        const pts2 = [32, 22, 12].map((z) => V.toCanvas(u.x * 32, u.y * 32, z));
+        const sample2 = async (hidden, n) => { R3.hidden = hidden ? new Set([u.id, u2?.id]) : null; await frames(n); const g2 = grab(); return pts2.map((p) => px(g2, p.x, p.y)); };
+        const un0 = await sample2(false, 16); const un1 = await sample2(true, 4); R3.hidden = null;
+        const seenUnselected = un0.filter((p, i) => diff(p, un1[i]) > 30).length;
+        out.battle_city_unselectedBehindVisible = seenUnselected >= 2 && !H.S.sel.has(u.id);
+        out.battle_city_unselectedDetail = JSON.stringify({ seenUnselected, unitsInFoci: H.view.foci(B, ui, new Set()).filter((q) => q.kind === 'inf').length });
       }
       H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
       H.step(40); await new Promise((r) => setTimeout(r, 250)); (window.__battleShots = window.__battleShots || {})[recipe] = (() => { const gl = document.querySelector('.bt-gl'); const c2 = document.querySelector('.bt-canvas'); const o = document.createElement('canvas'); o.width = c2.width; o.height = c2.height; const g2 = o.getContext('2d'); if (gl) g2.drawImage(gl, 0, 0, o.width, o.height); g2.drawImage(c2, 0, 0); return o.toDataURL('image/png'); })(); // the picture mid-fight, written to tools/out/ after the checks
@@ -818,34 +827,33 @@ try {
     await T(2200); // (3D: a frame takes longer on a software GL; the state is eased per frame)
     const st = R.bld.stateOf(b);
     const e = R.world3d && [...(R.world3d.mapScenes.get('halvermouth')?.buildings.values() || [])].find((q) => q.b === b);
-    const g3 = e ? { roofed: Boolean(e.roofed?.group.visible), open: Boolean(e.open?.visible), hole: e.hole.value.w, holeR: Math.round(e.hole.value.z) } : null;
+    const g3 = e ? { roofed: Boolean(e.roofed?.group.visible), open: Boolean(e.open?.visible), hole: R.world3d.holeUniforms.on.value, holeR: Math.round(R.world3d.holeUniforms.value[0].z) } : null; // (v0.104.x: one shared set of holes; the depth rule leaves everything behind the player whole)
     // what is really on screen: render one frame and read pixels back (same task, so the drawing buffer is still there)
     const W3 = R.world3d; const gl = W3.gl.getContext(); const H = R.canvas3d.height;
     const px = (x, y) => { const o = new Uint8Array(4); gl.readPixels(Math.round(x), H - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o); return [o[0], o[1], o[2]]; };
     const dist = (a, c) => Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]);
-    const holesBefore = [...(W3.mapScenes.get('halvermouth')?.buildings.values() || [])].filter((q) => q.hole.value.w > 0).map((q) => q.b.id);
+    const holesBefore = W3.foci.filter((f) => f.fade > 0.01).map((f) => f.key);
     const fig = W3.figures.get(g.player)?.fig;
     const spots = [[0, 18], [0, 6], [0, 30]].map(([dx, z]) => R.toScreen(g.player.x, g.player.y, z));
     const far = R.toScreen(g.player.x, g.player.y, 18); far.x += 330; far.y += 40;
     W3.render(0.016); const withFig = spots.map((q) => px(q.x, q.y)); const farOn = px(far.x, far.y);
-    if (fig) fig.root.visible = false; const saved = [...W3.mapScenes.get('halvermouth')?.buildings.values() || []].map((q) => [q, q.hole.value.w]);
+    if (fig) fig.root.visible = false;
     // (the figure is switched off for one frame: where the figure stood must change)
     const vis0 = fig?.root.visible; fig && (fig.root.visible = false);
     const orig = W3.updateActors; W3.updateActors = function (...a) { orig.apply(this, a); const f2 = this.figures.get(g.player); if (f2) f2.fig.root.visible = false; };
     W3.render(0.016); const noFig = spots.map((q) => px(q.x, q.y));
     W3.updateActors = orig;
-    for (const [q] of saved) q.hole.value.w = 0; // and with every hole forced off, a pixel well away from the disc must not change
-    const origU = W3.updateMap; W3.updateMap = function (...a) { origU.apply(this, a); for (const ms of this.mapScenes.values()) for (const q of ms.buildings.values()) q.hole.value.w = 0; };
-    W3.render(0.016); const farOff = px(far.x, far.y); W3.updateMap = origU;
+    W3.noHoles = true; // and with every hole forced off, a pixel well away from the ellipse must not change
+    W3.render(0.016); const farOff = px(far.x, far.y); W3.noHoles = false;
     const figureSeen = spots.some((q, i) => dist(withFig[i], noFig[i]) > 25);
     const farSolid = dist(farOn, farOff) < 12;
-    const holes = [...(W3.mapScenes.get('halvermouth')?.buildings.values() || [])].filter((q) => q.hole.value.w > 0 || q.roofed?.group.visible).map((q) => [q.b.id, q.hole.value.w, q.roofed?.group.visible, Math.round(q.roofed?.group.scale.y * 100)]).slice(0, 40);
+    const holes = W3.foci.map((f) => [f.key, f.covered, Math.round(f.fade * 100)]);
     const inBox = m.buildings.filter((q) => g.player.x >= q.x * 32 && g.player.x < (q.x + q.w) * 32 && g.player.y >= q.y * 32 && g.player.y < (q.y + q.h) * 32).map((q) => q.id);
     const open3 = [...W3.mapScenes.entries()].filter(([, v]) => v.group.visible).map(([k]) => k);
     return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior), g3, figureSeen, farSolid, holesBefore, withFig, noFig, farOn, farOff, inBox, holes, open3 };
   }, mode);
   let iv = await isoStep('behind');
-  record('iso: behind a tower the player is seen through a see-through hole (3D: the building\'s dithered disc)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50 && iv.figureSeen && iv.farSolid, JSON.stringify(iv));
+  record('iso: behind a tower the player is seen through a see-through hole (3D: a soft ellipse through everything in front of the player)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50 && iv.figureSeen && iv.farSolid, JSON.stringify(iv));
   await shot('3d-tower-behind');
   iv = await isoStep('inside');
   record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden && iv.g3 && !iv.g3.roofed && iv.g3.open && iv.holesBefore.length === 0, JSON.stringify(iv));
@@ -853,6 +861,24 @@ try {
   iv = await isoStep('front');
   record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && !iv.g3.open && iv.g3.hole === 0, JSON.stringify(iv));
   await shot('3d-tower-front');
+  // v0.104.x: a tree in front of the player opens the same hole: the canopy pixels change with the hole off, the figure shows through, a pixel well away does not change
+  const tree = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    while (ui.panelStack.length) ui.closePanel();
+    const m = g.maps.get('lanternside'); g.changeMap('lanternside', Object.keys(m.spots)[0]);
+    const t = m.props.find((q) => q.type === 'tree' && q.x > 12 && q.x < 60 && q.y > 4 && !m.blockedTile(q.x - 1, q.y - 1) && !m.blockedTile(q.x - 2, q.y - 2) && !m.buildings.some((b) => q.x > b.x - 6 && q.x < b.x + b.w + 3 && q.y > b.y - 6 && q.y < b.y + b.h + 3));
+    g.player.x = (t.x - 0.35) * 32; g.player.y = (t.y - 0.35) * 32; R.snapCamera(); await T(2200);
+    const W3 = R.world3d; const gl = W3.gl.getContext(); const H = R.canvas3d.height;
+    const px = (x, y) => { const o = new Uint8Array(4); gl.readPixels(Math.round(x), H - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o); return [o[0], o[1], o[2]]; };
+    const dist = (a, c) => Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]);
+    const canopy = [30, 44, 58].map((z) => R.toScreen((t.x + 0.5) * 32, (t.y + 0.5) * 32, z)); const far = R.toScreen(g.player.x, g.player.y, 18); far.x += 330; far.y += 40;
+    const body = [6, 18, 30].map((z) => R.toScreen(g.player.x, g.player.y, z));
+    W3.render(0.016); const on = canopy.map((q) => px(q.x, q.y)); const farOn = px(far.x, far.y); const bodyOn = body.map((q) => px(q.x, q.y)); const covered = W3.foci.map((f) => [f.key, f.covered, Math.round(f.fade * 100)]);
+    W3.noHoles = true; W3.render(0.016); const off = canopy.map((q) => px(q.x, q.y)); const farOff = px(far.x, far.y); const bodyOff = body.map((q) => px(q.x, q.y)); W3.noHoles = false;
+    return { canopyCut: on.filter((p, i) => dist(p, off[i]) > 20).length, farSame: dist(farOn, farOff) < 12, bodyHidden: bodyOff.filter((p, i) => dist(p, bodyOn[i]) > 20).length, covered, tile: [t.x, t.y] };
+  });
+  record('3d: a tree in front of the player is cut by the see-through hole (canopy pixels change with the hole off, the pixels far away do not)', tree.canopyCut >= 1 && tree.farSame && tree.covered.some(([k, c]) => k === 'player' && c), JSON.stringify(tree));
+  await shot('3d-tree-front');
   // aim: with the mouse on an NPC's chest on screen, the aim vector points at that NPC
   const aim = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -23,6 +23,8 @@ import { drawVehicleIso, drawPaintedIso } from './isoVehicles.js';
 import { project, unproject, sortItems, behindBox, hidesPoint, spriteFacing, facingVector, bodyBox, pointBox } from './iso.js';
 import { IsoBuildings, buildingHeight, buildingBox, columnPicture, bakeDiamond } from './isoBuildings.js';
 import { World3D } from '../engine3d/world3d.js';
+import { baseBox, THREE } from '../engine3d/lib3d.js';
+import { PLAYER_BOX } from '../game/game.js';
 
 /** v0.55.0: props whose look comes from the aerospace simulation (Aerospace.propView). */
 const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad', 'hall_site', 'aero_facility']);
@@ -133,6 +135,7 @@ export class Renderer {
     this.motion = new WeakMap(); // actor → { x, y, dx, dy, movedAt, face, faceAt }: what the sprite's facing is chosen from
     this.hiddenMaps = new Set(); // interiors under a roof this frame: nothing of theirs is drawn, tagged or lit
     this.occluders = [];
+    this.debugCollision = false; // dev: window.oberverse.ui.renderer.debugCollision = true draws what the simulation blocks over the 3D models
     this.base = { s: 1, ex: 0, ey: 0 };
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -814,9 +817,63 @@ export class Renderer {
     if (!g.combat.wrath) this.drawHighlight(main);
     main.setTransform(1, 0, 0, 1, 0, 0);
     if (g.combat.wrath) { drawWrath(this, g, g.combat.wrath); return true; }
+    if (this.debugCollision) this.drawCollisionDebug(main);
     this.drawOverlays(map);
     this.drawCrosshair();
     return true;
+  }
+
+  /**
+   * Dev view (console: `ui.renderer.debugCollision = true`): the simulation's collision drawn over the 3D models, through `toScreen`.
+   * Red tiles: blocked by a solid prop. Orange: blocked for cars only (a prop on the pavement people walk through). Blue: solid ground
+   * or wall tiles. Yellow outline: a prop's blocked rectangle; cyan outline: where its model's base stands. Green: the player's feet
+   * box (with a cross at the feet); grey: other people's; magenta: a car's footprint (length x width, turned by its angle).
+   */
+  drawCollisionDebug(main) {
+    const g = this.game;
+    main.save();
+    main.setTransform(1, 0, 0, 1, 0, 0);
+    main.lineWidth = 1.5;
+    const quad = (L, x0, y0, x1, y1, stroke, fill) => {
+      const pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => this.toScreen(L.x + x, L.y + y, 0));
+      main.beginPath(); pts.forEach((q, i) => (i ? main.lineTo(q.x, q.y) : main.moveTo(q.x, q.y))); main.closePath();
+      if (fill) { main.fillStyle = fill; main.fill(); }
+      if (stroke) { main.strokeStyle = stroke; main.stroke(); }
+    };
+    const p = g.player;
+    for (const L of this.layers) {
+      const m = L.map;
+      if (this.hiddenMaps.has(m.id)) continue;
+      const cx = Math.floor((p.x - L.x) / TILE); const cy = Math.floor((p.y - L.y) / TILE);
+      const R = 16;
+      for (let ty = Math.max(0, cy - R); ty <= Math.min(m.height - 1, cy + R); ty++) for (let tx = Math.max(0, cx - R); tx <= Math.min(m.width - 1, cx + R); tx++) {
+        const i = ty * m.width + tx;
+        if (m.propBlock.has(i)) quad(L, tx * TILE, ty * TILE, (tx + 1) * TILE, (ty + 1) * TILE, 'rgba(255,60,60,0.9)', 'rgba(255,60,60,0.22)');
+        else if (m.carBlock.has(i)) quad(L, tx * TILE, ty * TILE, (tx + 1) * TILE, (ty + 1) * TILE, 'rgba(255,160,40,0.9)', 'rgba(255,160,40,0.18)');
+        else if (m.blockedTile(tx, ty)) quad(L, tx * TILE, ty * TILE, (tx + 1) * TILE, (ty + 1) * TILE, 'rgba(70,130,255,0.55)', 'rgba(70,130,255,0.10)');
+      }
+      const ms = this.world3d?.mapScenes.get(m.id);
+      for (const pr of m.props) {
+        if (!pr.solid || Math.abs(pr.x - cx) > R || Math.abs(pr.y - cy) > R) continue;
+        quad(L, pr.x * TILE, pr.y * TILE, (pr.x + (pr.w || 1)) * TILE, (pr.y + (pr.h || 1)) * TILE, 'rgba(255,235,60,1)');
+        const e = ms?.props.get(pr);
+        const bb = e && e.obj.visible ? baseBox(e.obj) : null;
+        if (bb) { const o = e.obj.getWorldPosition(new THREE.Vector3()); const gx = ms.group.position.x; const gz = ms.group.position.z; quad(L, (bb.x0 - gx) * TILE, (bb.z0 - gz) * TILE, (bb.x1 - gx) * TILE, (bb.z1 - gz) * TILE, 'rgba(60,240,255,1)'); void o; }
+      }
+      if (m.id === p.map) {
+        for (const n of g.npcs.values()) if (n.map === m.id && Math.abs(n.x - p.x) < R * TILE && Math.abs(n.y - p.y) < R * TILE) quad(L, n.x - PLAYER_BOX.w / 2, n.y - PLAYER_BOX.h + 2, n.x + PLAYER_BOX.w / 2, n.y + 2, 'rgba(200,200,200,0.8)');
+        quad(L, p.x - PLAYER_BOX.w / 2, p.y - PLAYER_BOX.h + 2, p.x + PLAYER_BOX.w / 2, p.y + 2, 'rgba(60,255,90,1)', 'rgba(60,255,90,0.25)');
+        const a = this.toScreen(L.x + p.x, L.y + p.y, 0); const b = this.toScreen(L.x + p.x, L.y + p.y, 40);
+        main.strokeStyle = 'rgba(60,255,90,1)'; main.beginPath(); main.moveTo(a.x - 6, a.y); main.lineTo(a.x + 6, a.y); main.moveTo(a.x, a.y - 6); main.lineTo(a.x, a.y + 6); main.moveTo(a.x, a.y); main.lineTo(b.x, b.y); main.stroke();
+      }
+      for (const car of g.vehicles?.carsOn(m.id) || []) {
+        const md = g.content.vehicles.models[car.model]; if (!md || Math.abs(car.x - p.x) > R * TILE || Math.abs(car.y - p.y) > R * TILE) continue;
+        const c = Math.cos(car.angle); const s = Math.sin(car.angle); const hl = md.len / 2; const hw = (md.wid || md.len * 0.45) / 2;
+        const pts = [[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]].map(([u, v]) => this.toScreen(L.x + car.x + u * c - v * s, L.y + car.y + u * s + v * c, 0));
+        main.beginPath(); pts.forEach((q, i) => (i ? main.lineTo(q.x, q.y) : main.moveTo(q.x, q.y))); main.closePath(); main.strokeStyle = 'rgba(255,60,255,1)'; main.stroke();
+      }
+    }
+    main.restore();
   }
 
   /** One frame of the world in the isometric view. Same pipeline as `render`: low-resolution pass, upscale, text, lights, overlays. */
