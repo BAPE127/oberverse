@@ -25,13 +25,12 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Things a new session must know
 
-- The live game on GitHub Pages is built from the branch `claude/funny-mayer-52dll8`, which was at v0.103.5-era commit `a48d4d7` on 2026-11-12: eleven commits behind this work. Publishing is the owner's call.
+- The live game on GitHub Pages is built from the branch `claude/funny-mayer-52dll8`. The owner had it fast-forwarded to v0.104.0 on 2026-11-13. (The audit's claim that it was eleven commits behind came from a stale local ref: it was already at v0.103.11.) Publishing is always the owner's call.
 - The local clone is shallow (50 commits) and there are no git tags, although the release procedure calls for one per release.
 - `README.md` ("What's in this build", project layout) and `PROJECT_OVERVIEW.md` (scope, stage table) describe the game as of about v0.20; `oberverse-manifest.json`'s system map likewise. Use `SYSTEM_REGISTRY.md`.
 - The "Current state" log in `DEVELOPMENT_WORKFLOW.md` ends at v0.51.0. It is kept as art-pipeline notes; this file replaces it as the handoff.
 
 ## Recommended next assignment
 
-1. The owner decides whether the live site (branch `claude/funny-mayer-52dll8`) is updated to v0.104.0.
-2. The 3D defect list (`RENDERING.md` 7.6) by the owner's priority: decals and skid marks, the city below tower floors, sleepers on beds, battle effects sorted in 3D.
-3. v0.105.0, War: destruction (walls blown open are now a 3D geometry job as well as a battle-rules one).
+1. The 3D defect list (`RENDERING.md` 7.6) by the owner's priority: decals and skid marks, the city below tower floors, sleepers on beds, battle effects sorted in 3D.
+2. v0.105.0, War: destruction (walls blown open are now a 3D geometry job as well as a battle-rules one).

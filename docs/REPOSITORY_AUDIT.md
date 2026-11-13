@@ -39,7 +39,7 @@ Duplicated or outdated code: none found at the level of this audit (directory an
 | 3 | `README.md` describes the game as of about v0.20 and contradicts itself (lists Combat, then says "Combat is not in this build"); its layout omits six source folders | Task R-1 |
 | 4 | `KNOWN_ISSUES.md` is titled v0.80.0 but holds later entries; `PROJECT_OVERVIEW.md` scope and stage table are from v0.1.0 | Task R-2 |
 | 5 | `oberverse-manifest.json` system map stops at about v0.20; `releaseDate` is 2026-10-13 | Task R-3 |
-| 6 | The live site's branch is eleven commits behind (v0.103.5-era) | Owner's decision (O-2) |
+| 6 | ~~The live site's branch is eleven commits behind~~ **Wrong:** read from a stale local ref; the remote branch was at v0.103.11 | Corrected 2026-11-13 |
 | 7 | No git tags although the release procedure requires one per release | Task R-6 |
 | 8 | Two validator warnings: doors `door_b_vane_house` and `door_b_collective` in Lanternside name key items that do not exist | Noted; may be intended as locked-for-now. Not changed |
 | 9 | `docs/mockups/` is 114 MB of the repository | Left alone; they are the approved references |

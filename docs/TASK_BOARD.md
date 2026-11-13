@@ -14,7 +14,6 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| O-2 | Should the live site (Pages, branch `claude/funny-mayer-52dll8`, at v0.103.5-era) be brought up to v0.103.11? | Players see a build eleven commits old |
 | O-3 | War: destruction and coup is now v0.105.0 (the Graphics Update took v0.104.0) | — |
 | O-6 | Add a world facing vector so keyboard interaction and auto-aim follow the walking direction (a small simulation change; `RENDERING.md` 2.5) | Owner's approval required by the brief |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
