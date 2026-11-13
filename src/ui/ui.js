@@ -767,7 +767,8 @@ export class UI {
       g.player.y = (20 + Math.cos(this.time * 0.04) * 8) * TILE;
       this.renderer.highlight = null;
     }
-    this.renderer.render(dt);
+    // the battle screen covers the whole view and draws its own 3D scene: the world is not drawn behind it
+    if (!this.panelStack.some((q) => q.name === 'battle')) this.renderer.render(dt);
     this.audio.update(g);
   }
 

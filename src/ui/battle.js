@@ -7,6 +7,7 @@ import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
+import { Battle3D } from '../engine3d/battle3d.js';
 import { TICK, SUPPORT, UAV, RAID } from '../content/battle.js';
 
 const SPEEDS = [[0, '⏸'], [1, '▶'], [4, '⏩'], [16, '⏭']];
@@ -31,7 +32,7 @@ export function battlePanel(ui, body, opts = {}) {
   const save = () => { if (B && !S.filed) W.saveBattle(id, B.tick, B.log); };
 
   if (B) {
-    view.fx = new FxLayer(bt.key); view.attach(B, squadLooks);
+    view.fx = new FxLayer(bt.key); view.r3 = Battle3D.create(view); view.attach(B, squadLooks); // (the WebGL layer under the canvas; null where there is no WebGL: the 2D isometric battle draws everything)
     const mine = B.units.filter((u) => u.side === 'p');
     const cx = mine.reduce((a, u) => a + u.x, 0) / (mine.length || 1); const cy = mine.reduce((a, u) => a + u.y, 0) / (mine.length || 1);
     view.cam.zoom = 1;
@@ -236,10 +237,11 @@ export function battlePanel(ui, body, opts = {}) {
   function close() {
     if (closed) return; closed = true; cancelAnimationFrame(raf); save();
     window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true);
+    view.dropR3();
     ui.closePanel();
   }
   // the smoke test and the debug commands drive the same battle
   ui.battleHandle = { B, S, view, give, step: (n = 1) => { for (let i = 0; i < n && !B.over; i++) { step(B); view.fx.step(); } if (B.over && !S.filed) finish(); }, finish, close, save };
-  return { title: '', className: 'battlecmd', onClose: () => { if (!closed) { closed = true; cancelAnimationFrame(raf); save(); window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); } ui.battleHandle = null; } };
+  return { title: '', className: 'battlecmd', onClose: () => { if (!closed) { closed = true; cancelAnimationFrame(raf); save(); window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); } view.dropR3(); ui.battleHandle = null; } };
 }
 export { isVeh };

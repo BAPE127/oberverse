@@ -189,14 +189,14 @@ After seeing the Canvas 2D isometric view, the owner chose the direction of the 
 
 ### 7.4 What is built in 3D
 
-Verified by Fable on 2026-11-13 at the integrated build: `npm run check` 1,386 of 1,386 (after scoping one test, below); `npm run smoke` 89 of 89 on the built `index.html` in 3D mode; screenshots looked at for the rows marked "seen". All rendering was checked in headless Chromium with **software WebGL** only; it has not been run on a real GPU.
+Verified by Fable on 2026-11-13 at the integrated build: `npm run check` 1,394 of 1,394 (after scoping one test, below); `npm run smoke` 89 of 89 on the built `index.html` in 3D mode (one run in three failed a check in the war-terminal block and passed on rerun: an intermittent step, cause not found); screenshots looked at for the rows marked "seen". All rendering was checked in headless Chromium with **software WebGL** only; it has not been run on a real GPU.
 
 | Phase | State |
 | --- | --- |
 | 3D-1 Foundation | **Tested, seen.** three.js r160 vendored (`src/vendor/`) and inlined by the bundler; `src/engine3d/` (`world3d` scene manager, `camera3d`, `ground3d`, `buildings3d`, `people3d`, `light3d`, `registry3d`, `fallbacks3d`); `renderer.mode` = `'3d'` (default), `'iso2d'` (automatic fallback, also on context loss), `'flat'`. The camera matches `toScreen` to 0 px (tested without WebGL). Buildings roofed / open / see-through (dithered shader hole on every building in front of the focus). Box-figure people with walk swing, 8+ facings, held weapon. Sun with shadows, sky ambient, up to 24 point lights, lit windows. 2D canvas on top for overlays, effects and the Wrath |
 | 3D-2 Props | **Tested; samples seen.** All 159 types have a builder (`src/engine3d/props/`), fit their footprints on every map (tested), linear runs join, 13 types animate, traffic lights follow the light programme, lamps light at night |
 | 3D-3 Vehicles and machines | **Tested; the driven car seen.** 8 car bodies, bus, 3 tractors, 9 signature cars with their gimmicks, 18 aircraft looks, rocket, crawler and countdown board, 33 war machines at Hollowmoor (`src/engine3d/vehicles/`, `machines3d.js`). Wheels roll and steer, brake and head lamps, siren, body lean. 20 cars: 188 draw calls, 20k triangles |
-| 3D-4 Battles | **Not started.** The battle screen is the Canvas 2D isometric one (section 6) |
+| 3D-4 Battles | **Tested, seen** (city battle), 2026-11-13. `src/engine3d/battle3d.js`: a WebGL canvas under the battle's 2D canvas, the same camera maths (picking, box selection, orders, strikes unchanged), the baked battle ground, the world's building builder with up to six see-through holes, box-figure soldiers in side colours, the war machine and car models, jets, drones and shells as meshes, the world's props and light rig. Rings, bars, order lines, smoke, fire and tracers stay on the 2D overlay. Falls back to the Canvas 2D isometric battle without WebGL. The world is not drawn behind an open battle. City at command zoom: 294 draw calls, 14k triangles; opens in about 1.3 s |
 | 3D-5 Test, optimise, review | Full suite and smoke run after integration. Software-GL frame about 90–100 ms (JS part 1–3 ms; shadows are switched off automatically on software GL). `index.html` 5.96 → 6.87 MB. First 3D frame 1.3–1.65 s after Begin. No real-GPU measurement, no Opus review yet |
 
 Pixel-level smoke checks: behind a tower, the pixels at the player's head, chest and waist must change when the figure is switched off for a frame (the figure is really visible through the hole), and a building pixel 330 px away must be identical with holes on and off.
@@ -211,6 +211,7 @@ Bundler note: `tools/build.mjs` handles `import * as`, side-effect imports and `
 - Sleepers lie on the floor, not on the bed. Animals do not animate.
 - The Hollowmoor factory interior showed bare ground in one agent's shot (not investigated).
 - Possible doubling: the launch pad prop and `machines3d` may both draw a rocket and a countdown board during a launch (not checked in the browser). The secure convoy was not looked at.
+- Battles: smoke, fire, blasts, tracers, bars and rings are on the 2D overlay and draw over buildings; the battle has no time of day, so night is never shown; suppressed soldiers crouch, not lie prone; trenches, wire and sandbags are paint; a breached wall shows rubble but is not cut; furniture is flat on open floors and upper floors are drawn at ground level; 3D buildings are about 1.5× taller than the 2D pictures were.
 - Weak models, by their authors' own account: generic aircraft props, flying wings, GT vs coupe too alike, the Last Trick, traffic-light head, poker table, chain fence (a translucent panel), boat.
 - The see-through hole is dithered and reads dark over asphalt. `toWorld` ignores camera shake.
 - Light values (lamp intensity and reach) are guesses and need a look on a real GPU with shadows on.

@@ -80,6 +80,38 @@ void main() {
 
 export const makeHole = () => ({ value: new THREE.Vector4(0, 0, 1, 0) });
 
+export const HOLES = 6;
+/** The same shader patch for several holes at once (the battle: every selected unit, enemy in sight and the cursor). `u.value` is an array of HOLES Vector4s, each as in `seeThrough`. */
+export const makeHoles = () => ({ value: Array.from({ length: HOLES }, () => new THREE.Vector4(0, 0, 1, 0)), on: { value: 0 } }); // (`on.value` 1 when any hole is active: the loop is skipped otherwise, which matters on a software rasteriser)
+export function seeThroughN(material, u) {
+  if (material.userData.seeThrough) return material;
+  material.userData.seeThrough = true;
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uHoles = u;
+    shader.uniforms.uHoleOn = u.on;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', `uniform vec4 uHoles[${HOLES}];
+uniform float uHoleOn;
+float oberBayer2(vec2 p) { vec2 q = floor(mod(p, 2.0)); return mod(2.0 * q.x + 3.0 * q.y, 4.0); }
+void main() {
+  if (uHoleOn > 0.5) for (int i = 0; i < ${HOLES}; i++) {
+    vec4 uHole = uHoles[i];
+    if (uHole.w > 0.5) {
+      vec2 hp = gl_FragCoord.xy - uHole.xy;
+      float t = length(hp) / max(uHole.z, 1.0);
+      if (t < 1.0) {
+        float cover = t < 0.55 ? 1.0 - 0.38 * (t / 0.55) : 0.62 * (1.0 - (t - 0.55) / 0.45);
+        float thr = (4.0 * oberBayer2(gl_FragCoord.xy) + oberBayer2(floor(gl_FragCoord.xy / 2.0)) + 0.5) / 16.0;
+        if (floor(cover * 5.0 + thr) > 0.5) discard;
+      }
+    }
+  }`);
+  };
+  material.customProgramCacheKey = () => 'oberHoleN6b';
+  material.needsUpdate = true;
+  return material;
+}
+
 // ------------------------------------------------------------------ painted facades
 function roofTexture(col, kind, cache) {
   const key = `${col}|${kind}`;

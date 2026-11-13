@@ -23,9 +23,10 @@ export const angleDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Ma
 
 const BUILD = { thin: 0.86, wiry: 0.9, average: 1, broad: 1.16, round: 1.22 };
 
+const a2key = (u) => (u ? `${u.top}~${u.legs}~${u.helm}` : '');
 /** A string that changes when anything that decides a figure's geometry changes. */
 export function personKey(app = {}, holding = null, kit = null) {
-  return [app.species, app.skin, app.hair, app.hairStyle, app.outfit, app.accent, app.accessory, (app.accessories || []).join('+'), app.build, app.apron, app.legs, app.shoes, app.sleeves, app.overalls, app.undershirt, app.tie, app.hat, app.hatColor, app.beard, app.coat, app.robe, app.vestColor, app.seed, holding, kit].join('|');
+  return [app.species, app.skin, app.hair, app.hairStyle, app.outfit, app.accent, app.accessory, (app.accessories || []).join('+'), app.build, app.apron, app.legs, app.shoes, app.sleeves, app.overalls, app.undershirt, app.tie, app.hat, app.hatColor, app.beard, app.coat, app.robe, app.vestColor, app.seed, holding, kit, a2key(app.uniform)].join('|');
 }
 
 function weaponGeometry(look, hold) {
@@ -59,8 +60,9 @@ export function personGeometry(app = {}, holdingLook = null, kit = null) {
   const outfit = mute(a.outfit || '#5a6a7a', 0.1);
   const accent = a.accent || '#d9c07a';
   const wide = BUILD[a.build] || 1;
-  const trousers = a.overalls || a.legs || (kit === 'soldier' ? '#4a5238' : kit === 'police' ? '#1f2a44' : shade(mix(outfit, '#2a2c38', 0.72), 0));
-  const top = kit === 'soldier' ? '#59633f' : kit === 'police' ? '#27375c' : a.coat || a.robe || outfit;
+  const un = kit === 'soldier' ? a.uniform || null : null; // (the battle's side colours: an optional { top, legs, helm } for the soldier kit)
+  const trousers = a.overalls || a.legs || (kit === 'soldier' ? un?.legs || '#4a5238' : kit === 'police' ? '#1f2a44' : shade(mix(outfit, '#2a2c38', 0.72), 0));
+  const top = kit === 'soldier' ? un?.top || '#59633f' : kit === 'police' ? '#27375c' : a.coat || a.robe || outfit;
   const sleeves = a.sleeves || top;
   const body = new Mesher();
   const long = Boolean(a.coat || a.robe);
@@ -73,7 +75,7 @@ export function personGeometry(app = {}, holdingLook = null, kit = null) {
   if (a.accessory === 'apron' || a.apron) body.box(0.34 * wide, 0.5, 0.03, a.apron || '#f1ece0', 0, 0.26, 0.15);
   if (a.accessory === 'scarf') body.box(0.36 * wide, 0.1, 0.32, accent, 0, 0.82, 0).box(0.1, 0.26, 0.04, accent, 0.1, 0.58, 0.15);
   if (a.vestColor) body.box(0.4 * wide, 0.34, 0.285, a.vestColor, 0, 0.45, 0);
-  if (kit === 'soldier') body.box(0.46 * wide, 0.34, 0.31, '#3d4530', 0, 0.5, 0).box(0.12, 0.1, 0.06, '#2e3424', -0.1, 0.56, 0.17).box(0.12, 0.1, 0.06, '#2e3424', 0.08, 0.56, 0.17).box(0.3, 0.36, 0.14, '#454d34', 0, 0.48, -0.2);
+  if (kit === 'soldier') { const vest = un?.top ? shade(un.top, -26) : '#3d4530'; const pouch = un?.top ? shade(un.top, -44) : '#2e3424'; body.box(0.46 * wide, 0.34, 0.31, vest, 0, 0.5, 0).box(0.12, 0.1, 0.06, pouch, -0.1, 0.56, 0.17).box(0.12, 0.1, 0.06, pouch, 0.08, 0.56, 0.17).box(0.3, 0.36, 0.14, un?.top ? shade(un.top, -18) : '#454d34', 0, 0.48, -0.2); }
   if (kit === 'police') body.box(0.07, 0.07, 0.02, '#e8d76a', -0.1, 0.72, 0.14);
   if (a.tie) body.box(0.07, 0.34, 0.02, a.tie, 0, 0.5, 0.135);
   else if (!kit && !a.undershirt && hash(s, 3) > 0.5) body.box(0.06, 0.38, 0.02, accent, 0, 0.48, 0.135);
@@ -86,7 +88,7 @@ export function personGeometry(app = {}, holdingLook = null, kit = null) {
   const hatKind = kit === 'soldier' ? 'helmet' : kit === 'police' ? 'cap' : a.hat || a.hairStyle || 'short';
   const st = typeof hatKind === 'string' ? hatKind : 'hat';
   if (st === 'bald') H(0.42, 0.04, 0.38, shade(skin, -8), 0, 0.36, 0);
-  else if (st === 'helmet') { H(0.48, 0.2, 0.46, '#4d5638', 0, 0.3, 0); H(0.5, 0.05, 0.5, '#434b30', 0, 0.27, 0); }
+  else if (st === 'helmet') { H(0.48, 0.2, 0.46, un?.helm || '#4d5638', 0, 0.3, 0); H(0.5, 0.05, 0.5, un?.helm ? shade(un.helm, -12) : '#434b30', 0, 0.27, 0); }
   else if (st === 'hardhat') { H(0.46, 0.16, 0.42, '#f0c23a', 0, 0.32, 0); H(0.5, 0.04, 0.54, '#e0b22a', 0, 0.3, 0.04); }
   else if (st === 'cap' || st === 'captain') { const cc = kit === 'police' ? '#1f2a44' : st === 'captain' ? '#f1ece0' : (a.hatColor || accent); H(0.44, 0.13, 0.4, cc, 0, 0.34, 0); H(0.4, 0.035, 0.2, shade(cc, -30), 0, 0.33, 0.26); H(0.44, 0.1, 0.38, hair, 0, 0.26, -0.03); }
   else if (st === 'hat' || st === 'tophat' || st === 'wizard') {

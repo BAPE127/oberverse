@@ -12,8 +12,8 @@ The world is drawn in 3D with three.js: blocky low-poly buildings, people, props
 - **Every prop modelled**: all 159 types, fences and pipes joining in runs, pumpjacks, windsocks, traffic lights and fires alive.
 - **Vehicles and machines**: eight car bodies, the bus, tractors, the nine signature cars, eighteen aircraft, the rocket and crawler, and the mercenary company's thirty-three machines, with rolling and steering wheels, lamps and sirens.
 - **What carried over from the isometric work**: the camera angle, so keys still follow the screen and the mouse still aims true; all ten Wrath cutscenes over the 3D scene; the Canvas 2D isometric view as the automatic fallback where WebGL is missing (`renderer.mode = 'iso2d'`).
-- **The battle screen** is still the Canvas 2D isometric one (ground-box sort, shared buildings, picking and orders under the cursor); its 3D version is next.
-- **Tests.** `tests/engine3d.test.mjs`, `props3d.test.mjs`, `vehicles3d.test.mjs`, `iso.test.mjs`, `iso_battle.test.mjs`; the "no network" test now exempts the vendored file and forbids its loaders in game code.
+- **Battles in 3D** (`src/engine3d/battle3d.js`): the tactical battle uses the same buildings, figures, vehicles, props and light as the world, with see-through holes for selected units, enemies in sight and the cursor; clicks, box selection, orders and strikes land under the cursor as before; the rules and the determinism tests are untouched. Without WebGL it is the Canvas 2D isometric battle.
+- **Tests.** `tests/engine3d.test.mjs`, `props3d.test.mjs`, `vehicles3d.test.mjs`, `battle3d.test.mjs`, `iso.test.mjs`, `iso_battle.test.mjs`; the "no network" test now exempts the vendored file and forbids its loaders in game code.
 
 Checked only in headless Chromium with software WebGL; not yet on a real graphics card. Defects: `docs/RENDERING.md` section 7.5.
 

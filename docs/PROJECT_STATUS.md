@@ -9,16 +9,16 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 - **Version:** v0.103.11, development channel, save schema 1.
 - **Size:** about 84,000 lines of source in `src/` (18 folders), 163 test files, 48 system and design documents.
 - **Released:** the home coast and Halvermouth, the living-world simulation, combat, quests and emergent events, the corporate empire (companies, group, bank, bonds, exchange, managers, headquarters), shipping, arms works, aerospace, farming, casino, the World Atlas, the complete Politics update (v0.93–v0.97), and the War update through Strategic Command (v0.98–v0.103.11).
-- **In progress:** the **3D view** (three.js; owner's decision of 2026-11-12, replacing the Canvas 2D isometric view built earlier that day, which is now the fallback). Foundation, all props, vehicles and machines are built and tested (`RENDERING.md` 7.4); battles in 3D and the final optimise/review remain. Unreleased: no version number set.
+- **In progress:** the **3D view** (three.js; owner's decision of 2026-11-12, replacing the Canvas 2D isometric view built earlier that day, which is now the fallback). Foundation, all props, vehicles, machines and the battle screen are built and tested (`RENDERING.md` 7.4); the defect list (7.5), a real-GPU check and the final review remain. Unreleased: no version number set.
 - **Next on the roadmap:** v0.104.0 *War: Destruction, Government Response and Coup*, then v0.105.0 *War: Migration and Release*, then the Post-War Expansion (v0.106.0–v0.114.0). See `ROADMAP.md` section 0.
 
 ## Last work
 
-2026-11-13 — **3D view**, phases 3D-1 to 3D-3 (see `CHANGELOG.md` Unreleased). 2026-11-12: the Canvas 2D isometric view; repository initialisation.
+2026-11-13 — **3D view**, phases 3D-1 to 3D-4 (see `CHANGELOG.md` Unreleased). 2026-11-12: the Canvas 2D isometric view; repository initialisation.
 
 ## Health
 
-- `npm run check` on 2026-11-13: validator 0 errors (2 warnings), 1,386 of 1,386 tests. The full suite takes about 8 minutes.
+- `npm run check` on 2026-11-13: validator 0 errors (2 warnings), 1,394 of 1,394 tests. The full suite takes about 8 minutes.
 - Smoke test (`npm run smoke`): 89 of 89 on the built `index.html` in 3D mode, 2026-11-13. Headless Chromium uses software WebGL (about 10 frames a second); nothing has been seen on a real GPU.
 - Claude usage: the subscription's 5-hour limit stopped agents twice during the 3D work. Save a WIP commit before and after each agent; resume a stopped agent with SendMessage.
 - Known issues: `KNOWN_ISSUES.md`. Its title still says v0.80.0 although it has later entries.
@@ -33,5 +33,4 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 ## Recommended next assignment
 
 1. The owner plays the build on a real machine and says what looks wrong (nothing has been seen on a real GPU).
-2. 3D-4: the battle screen in 3D on the shared `engine3d` modules.
-3. 3D-5: the defects in `RENDERING.md` 7.5, real-GPU frame time, Opus review; then the owner sets the version and the release is cut.
+2. 3D-5: the defects in `RENDERING.md` 7.5, real-GPU frame time, Opus review; then the owner sets the version and the release is cut.

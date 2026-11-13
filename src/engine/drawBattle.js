@@ -192,10 +192,11 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /** The view: owns a canvas, a camera (in iso space: `cam` is the iso point at the canvas's top left) and the effects; `draw(B, ui)` paints a frame. */
 export class BattleView {
-  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.face = new Map(); this.air = []; this.labels = []; this.rings = []; this.evi = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); this.bld = new IsoBuildings(200); this.fade = new Map(); this.floors = new Map(); this.opened = {}; this.ex = 0; this.ey = 0; }
+  constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.face = new Map(); this.air = []; this.labels = []; this.rings = []; this.evi = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); this.bld = new IsoBuildings(200); this.fade = new Map(); this.floors = new Map(); this.opened = {}; this.ex = 0; this.ey = 0; this.r3 = null; }
   attach(B, looks = {}) {
     this.B = B; this.map = B.map; this.scene = bakeScene(B.map); this.looks = looks; this.evi = B.events.length; this.air = []; this.labels = []; this.rings = []; this.lastShots.clear(); this.lastHp.clear(); this.seenAt.clear(); this.fade.clear(); this.floors.clear(); this.bld = new IsoBuildings(200);
-    if (typeof document !== 'undefined') for (const r of this.scene.recs.values()) this.bld.picture(r, { lit: false, night: false, locked: false }); // (all painted now, not one by one in the middle of a fight)
+    if (this.r3) this.r3.attach(B, this); // (the 3D layer builds its own buildings: no pictures to paint)
+    else if (typeof document !== 'undefined') for (const r of this.scene.recs.values()) this.bld.picture(r, { lit: false, night: false, locked: false }); // (all painted now, not one by one in the middle of a fight)
   }
   tier() { return this.cam.zoom < 0.55 ? 'far' : this.cam.zoom > 1.8 ? 'close' : 'command'; }
 
@@ -226,7 +227,7 @@ export class BattleView {
   /** The standing (roofed) building under a client position, if the pointer is on its picture: what the player means by "that building". */
   buildingAt(sx, sy) {
     if (!this.scene) return null; const w = this.toWorld(sx, sy); const ip = project(w.x, w.y); let best = null; let bd = -Infinity;
-    for (const b of this.map.buildings) { if (this.opened[b.id]) continue; const rec = this.scene.recs.get(b.id); const box = boxOf(b); if (prismHit(box, buildingHeight(rec), ip.x, ip.y) < 0) continue; const d = box.x0 + box.x1 + box.y0 + box.y1; if (d > bd) { bd = d; best = b; } }
+    for (const b of this.map.buildings) { if (this.opened[b.id]) continue; const rec = this.scene.recs.get(b.id); const box = boxOf(b); if (prismHit(box, this.heightPx(rec), ip.x, ip.y) < 0) continue; const d = box.x0 + box.x1 + box.y0 + box.y1; if (d > bd) { bd = d; best = b; } }
     return best;
   }
 
@@ -293,7 +294,36 @@ export class BattleView {
     d = { img: bakeDiamond(src), ix: x0 - y0 - h, iy: (x0 + y0) / 2 }; this.scene.chunks.set(key, d); return d;
   }
 
+  /** The units to draw: yours and the enemy in sight, not those inside a roofed building or on another floor than the one shown. */
+  visibleUnits(B, open, seen) {
+    return B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled && !u.hidden).filter((u) => {
+      const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
+      const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
+      if (inside && !v) return false; // inside a roofed building: not seen
+      if (inside && v && v.floor !== u.z && !(v.ground && u.z === 0)) return false; // on a floor that is not the one shown
+      return true;
+    });
+  }
+
+  // ---- what the 3D layer (src/engine3d/battle3d.js) asks of the view
+  specKey(u) { return specOf(u); }
+  /** A building's height in px in whichever view is drawn (the 3D storeys are taller than the pictures'). */
+  heightPx(rec) { return this.r3 ? this.r3.heightPx(rec) : buildingHeight(rec); }
+  /** The 3D layer is lost or broken: the Canvas 2D isometric battle takes over (nothing else changes). */
+  dropR3() { const r = this.r3; this.r3 = null; try { r?.dispose(); } catch { /* already gone */ } this.floors.clear(); }
+  /** The side colours and skin of a soldier (the same the 2D sprite is painted with). */
+  soldierLook(u) {
+    const look = { ...DEFAULT_LOOK, ...(this.looks?.[u.id] || {}) }; const mine = u.side === 'p'; const cloth = mine ? (LOOKS.primary[look.primary] || '#5e7a46') : ENEMY.cloth;
+    return { cloth, helm: mine ? shade(cloth, -18) : ENEMY.helm, legs: mine ? shade(cloth, -34) : ENEMY.legs, skin: ['#f2d6c0', '#e2b896', '#c48a62', '#8a5a3a', '#6a4430'][Math.floor(unit(`${u.id}|skin`) * 5)], gun: WLOOK[u.weapon] || null, mine };
+  }
+  /** One floor of a building as a plan (no walls, no label) on its own canvas, for the 3D open building's floor. */
+  floorCanvas(b, floor, B) { const src = mkCanvas(b.w * TP, b.h * TP); const sg = src.getContext('2d'); sg.imageSmoothingEnabled = false; sg.translate(-b.x * TP, -b.y * TP); plan(sg, B.map, b, floor, this.scene.gm, { walls: false, label: false }); return src; }
+  /** The flat props and the changes the fight made to the ground, painted into a piece of the baked ground (world px; the context is already shifted). */
+  paintFlat(g, x0, y0, w, h) { for (const f of this.scene.flat) { const p = f.pp; if ((p.x + (p.w || 1) + 1) * TP < x0 || (p.x - 1) * TP > x0 + w || (p.y + (p.h || 1) + 1) * TP < y0 || (p.y - 1) * TP > y0 + h) continue; drawProp(g, p, f.ctx); } }
+  paintDecals(g, B) { for (const c of B.collapsed || []) fallenEarth(g, c.x, c.y); for (const r of B.rubble) if (B.map.bid[r.y * B.map.w + r.x] < 0) rubble(g, r.x, r.y); }
+
   draw(B, ui = {}) {
+    if (this.r3) { if (this.draw3d(B, ui)) return; this.dropR3(); }
     const g = this.ctx; const cam = this.cam; this.t += 1 / 60; const tier = this.tier(); const Z = cam.zoom; this.opened = ui.open || {};
     this.ex = Math.round(-cam.x * Z); this.ey = Math.round(-cam.y * Z);
     const view = { x0: cam.x, y0: cam.y, x1: cam.x + this.cv.width / Z, y1: cam.y + this.cv.height / Z }; this.vw = view;
@@ -320,19 +350,46 @@ export class BattleView {
     const items = []; const sdt = 1 / 60;
     for (const b of B.map.buildings) this.buildingItems(g, items, b, open[b.id], B, ui, seen, hit, sdt);
     if (tier === 'far') { this.collect(items, [], hit); this.paint(g, items, B, ui); this.banners(g, B, seen, ui); this.screen(g); this.fx.draw(g, project); g.setTransform(1, 0, 0, 1, 0, 0); return; }
-    const list = B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.fled && !u.hidden).filter((u) => {
-      const v = open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]];
-      const inside = B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)] >= 0 && u.kind === 'inf';
-      if (inside && !v) return false; // inside a roofed building: not seen
-      if (inside && v && v.floor !== u.z && !(v.ground && u.z === 0)) return false; // on a floor that is not the one shown
-      return true;
-    });
+    const list = this.visibleUnits(B, open, seen);
     this.collect(items, list, hit, B, ui);
     this.paint(g, items, B, ui);
     this.screen(g); this.fx.draw(g, project);
     this.overlay(g, B);
     for (const b of B.map.buildings) if (open[b.id] && this.stateOf(b).t > 0.5) this.plate(g, b, open[b.id].floor);
     g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** The 3D frame: the WebGL layer draws ground, buildings, props and units; this canvas (transparent, over it) draws only what is not solid: rings, bars, order lines, fire and smoke, text. Returns false when the GL layer is gone. */
+  draw3d(B, ui = {}) {
+    const g = this.ctx; const cam = this.cam; this.t += 1 / 60; const tier = this.tier(); const Z = cam.zoom; this.opened = ui.open || {};
+    this.ex = Math.round(-cam.x * Z); this.ey = Math.round(-cam.y * Z);
+    this.vw = { x0: cam.x, y0: cam.y, x1: cam.x + this.cv.width / Z, y1: cam.y + this.cv.height / Z };
+    const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id)); const open = this.opened;
+    const list = tier === 'far' ? [] : this.visibleUnits(B, open, seen);
+    if (!this.r3.render(B, ui, this, { units: list, foci: this.foci(B, ui, seen), tier, dt: 1 / 60, open })) return false;
+    g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, this.cv.width, this.cv.height);
+    this.ground(g);
+    const o = B.map.objective; this.ring(g, o.x * TP + 16, o.y * TP + 16, 4 * TP); g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.stroke(); g.setLineDash([]);
+    if (B.goal === 'extract' || B.goal === 'rescue') { const h0 = B.map.spawns.p; this.ring(g, h0.x * TP + 16, h0.y * TP + 16, 4 * TP); g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.setLineDash([6, 5]); g.stroke(); g.setLineDash([]); }
+    if (B.goal === 'logistics') { this.ground(g); g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
+    this.screen(g);
+    if (tier === 'far') { this.banners(g, B, seen, ui); this.screen(g); this.fx.draw(g, project); g.setTransform(1, 0, 0, 1, 0, 0); return true; }
+    for (const u of list) this.marks(g, u, ui);
+    this.screen(g); this.fx.draw(g, project);
+    this.overlay(g, B);
+    for (const b of B.map.buildings) if (open[b.id] && this.stateOf(b).t > 0.5) this.plate(g, b, open[b.id].floor);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    return true;
+  }
+
+  /** A unit's ring (selected), its state pip and health bar on the overlay, above the 3D body (which is taller than the sprite was). */
+  marks(g, u, ui) {
+    const wx = u.x * TP; const wy = u.y * TP; const inf = u.kind === 'inf'; const sel = ui.selected?.has(u.id);
+    if (sel) { this.bill(g, wx, wy, 0); g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 2, inf ? 11 : 26, inf ? 5.5 : 13, 0, 0, Math.PI * 2); g.stroke(); }
+    if (!u.alive) return;
+    const top = inf ? 46 : u.kind === 'helicopter' ? 112 : 46;
+    if (inf && u.state !== 'steady') { this.bill(g, wx, wy, 0); g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(-3, -top - 8, 6, 3); }
+    if (u.hp < u.hpMax || sel) { this.bill(g, wx, wy, 0); const w = inf ? 16 : 30; const y = -top; g.fillStyle = INK; g.fillRect(-w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(-w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(-w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
   }
 
   stateOf(b) { return this.bld.stateOf(this.scene.recs.get(b.id)); }
@@ -349,7 +406,7 @@ export class BattleView {
     for (const u of B.units) {
       if (!u.alive || u.fled || u.hidden) continue;
       const inOpen = u.side === 'p' && u.kind === 'inf' && this.opened[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]]; // (a room that is open is never left hidden behind its neighbour)
-      if (ui.selected?.has(u.id) || (u.side === 'e' && seen.has(u.id)) || inOpen) out.push({ x: u.x * TP, y: u.y * TP, z: u.kind === 'inf' ? 14 : 8 });
+      if (ui.selected?.has(u.id) || (u.side === 'e' && seen.has(u.id)) || inOpen) out.push({ x: u.x * TP, y: u.y * TP, z: u.kind === 'inf' ? (this.r3 ? 22 : 14) : this.r3 ? 14 : 8 });
     }
     if (ui.cursor) out.push({ x: ui.cursor.x * TP, y: ui.cursor.y * TP, z: 0 });
     return out;
@@ -436,7 +493,7 @@ export class BattleView {
     for (const p of B.pend) if (p.kind === 'charge') { const wx = p.x * T; const wy = p.y * T; this.bill(g, wx, wy, 0, 8, 6); const x = 0; const y = 0; g.fillStyle = INK; g.fillRect(x - 1, y - 1, 18, 14); g.fillStyle = '#b8382a'; g.fillRect(x, y, 16, 12); g.fillStyle = '#e8e0c8'; g.fillRect(x + 2, y + 2, 5, 3); g.fillStyle = (B.tick % 6 < 3) ? '#ff5a3a' : '#4a1a12'; g.fillRect(x + 11, y + 3, 3, 3); }
     for (const d of B.drones) { this.ring(g, d.x * T, d.y * T, UAV.r * T); g.strokeStyle = 'rgba(120,230,255,0.45)'; g.lineWidth = 2; g.setLineDash([6, 6]); g.stroke(); g.setLineDash([]); }
     this.air = this.air.filter((a) => B.tick - a.t0 <= a.dur + 30);
-    for (const a of this.air) {
+    if (!this.r3) for (const a of this.air) { // (in 3D the jets are models)
       const f = (B.tick - a.t0) / a.dur; const x = a.x0 + (a.x1 - a.x0) * f; const bomber = a.kind === 'bomber';
       if (f >= -0.1 && f <= 1.4) {
         this.lay(g, x, a.y, 0); drawJet(g, 0, 0, 0, bomber, this.t, 'shadow');

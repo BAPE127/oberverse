@@ -8,8 +8,7 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| G-7 | 3D-4: the battle screen in 3D (`RENDERING.md` 7.3) | sonnet-ui | Next |
-| G-8 | 3D-5: defects in `RENDERING.md` 7.5 (decals, skids, aloft city, sleepers on beds, launch doubling, Hollowmoor factory floor), real-GPU check, Opus review | sonnet-technical, opus-reviewer | After G-7 |
+| G-8 | 3D-5: defects in `RENDERING.md` 7.5 (decals, skids, aloft city, sleepers on beds, launch doubling, Hollowmoor factory floor), real-GPU check, Opus review | sonnet-technical, opus-reviewer | Next, after the owner has played the build (O-7) |
 
 ## Waiting on the owner
 
@@ -41,6 +40,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 - Corporate gaps (`CORPORATE_ACCEPTANCE.md`); NPC driving; Halvermouth residents; tablet on touch devices.
 
 - `workbench` is declared twice in `src/content/props.js` (the later, w:3, wins); delete one after checking maps.
+
+- Smoke test: the war-terminal block failed once in three runs on 2026-11-13 and passed on rerun; find the timing dependency.
 
 ## Blocked
 

@@ -634,6 +634,9 @@ try {
       const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
       const H = ui.battleHandle; const f0 = ui.battleFrames || 0; await new Promise((r) => setTimeout(r, 300));
       out[`battle_${recipe}`] = Boolean(H) && (ui.battleFrames || 0) > f0 && document.querySelector('.bt-canvas')?.width > 300;
+      // docs/RENDERING.md 7 (3D-4): the battle runs in three.js, a WebGL canvas under the 2D one that draws the ground, buildings, props and units; the 2D canvas is a transparent overlay
+      { const gl = document.querySelector('.bt-gl'); const st = H.view.r3?.stats || {}; const c2 = document.querySelector('.bt-canvas');
+        out[`battle_${recipe}_3d`] = Boolean(H.view.r3) && Boolean(gl) && gl.width === c2.width && gl.height === c2.height && getComputedStyle(gl).display === 'block' && gl.nextElementSibling === c2 && st.calls > 5 && st.triangles > 500 && st.units >= 8 && !H.view.r3.lost; }
       const ids = H.B.units.filter((u) => u.side === 'p').map((u) => u.id); H.S.sel = new Set(ids); H.give({ type: 'amove', x: H.B.map.objective.x, y: H.B.map.objective.y }, 'attack-move');
       // v0.103.11: a right click opens the order menu at the cursor; its Move here item gives the order (a ping is drawn) and closes the menu
       { const cv = document.querySelector('.bt-canvas'); const rc = cv.getBoundingClientRect(); H.S.sel = new Set(ids); H.S.pings.length = 0;
@@ -648,11 +651,27 @@ try {
         const rc = cv.getBoundingClientRect(); const tx = rc.left + rc.width * 0.6; const ty = rc.top + rc.height * 0.6; const want = H.view.toTile(tx, ty);
         H.S.mode = 'move'; pe('pointerdown', tx, ty); const o = H.B.byId.get(u0.id).order;
         out[`battle_${recipe}_orderAtCursor`] = Boolean(o) && Math.hypot(o.x - want.x, o.y - want.y) < 1; }
+      // a selected unit behind a roofed building is visible through the hole: its pixels in the WebGL canvas change when the figure is switched off for a few frames, and with the holes off the building hides it
+      if (recipe === 'city') {
+        const V = H.view; const B = H.B; const R3 = V.r3; const gl = document.querySelector('.bt-gl'); const frames = async (n) => { const f = ui.battleFrames; while (ui.battleFrames < f + n) await new Promise((r) => setTimeout(r, 20)); };
+        const b = [...B.map.buildings].sort((a, c) => c.floors - a.floors || Math.abs(a.x - B.map.w / 2) - Math.abs(c.x - B.map.w / 2))[0]; const u = B.units.find((q) => q.side === 'p' && q.kind === 'inf');
+        H.S.speed = 0; u.x = b.x + b.w / 2; u.y = b.y - 1.2; u.path = []; u.order = { type: 'hold' }; H.S.sel = new Set([u.id]); V.cam.zoom = 1.5; V.center(u.x, u.y); await frames(8);
+        const grab = () => { const o = document.createElement('canvas'); o.width = gl.width; o.height = gl.height; const g2 = o.getContext('2d'); g2.drawImage(gl, 0, 0); return g2; };
+        const px = (g2, x, y) => { const d = g2.getImageData(Math.round(x) - 2, Math.round(y) - 2, 5, 5).data; let r = 0; let g = 0; let bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return [r / n, g / n, bl / n]; };
+        const diff = (p, q) => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]);
+        const pts = [32, 22, 12].map((z) => V.toCanvas(u.x * 32, u.y * 32, z)); const far = V.toCanvas((u.x + 9) * 32, u.y * 32, 0);
+        const sample = async (noHoles, hidden, n) => { R3.noHoles = noHoles; R3.hidden = hidden ? new Set([u.id]) : null; await frames(n); const g2 = grab(); return { pts: pts.map((p) => px(g2, p.x, p.y)), far: px(g2, far.x, far.y) }; };
+        const a = await sample(false, false, 14); const c = await sample(false, true, 4); const d = await sample(true, false, 16); const e = await sample(true, true, 4); // (the hole eases in and out over about ten frames) R3.noHoles = false; R3.hidden = null; await frames(3);
+        const seenThrough = a.pts.filter((p, i) => diff(p, c.pts[i]) > 30).length; const wallOnly = d.pts.filter((p, i) => diff(p, e.pts[i]) > 8).length;
+        out.battle_city_behindVisible = seenThrough >= 2 && wallOnly === 0 && diff(a.far, c.far) < 6;
+        out.battle_city_behindDetail = JSON.stringify({ seenThrough, wallOnly, far: Math.round(diff(a.far, c.far)), floors: b.floors });
+      }
       H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
-      H.step(40); await new Promise((r) => setTimeout(r, 250)); (window.__battleShots = window.__battleShots || {})[recipe] = document.querySelector('.bt-canvas').toDataURL('image/png'); // the picture mid-fight, written to tools/out/ after the checks
+      H.step(40); await new Promise((r) => setTimeout(r, 250)); (window.__battleShots = window.__battleShots || {})[recipe] = (() => { const gl = document.querySelector('.bt-gl'); const c2 = document.querySelector('.bt-canvas'); const o = document.createElement('canvas'); o.width = c2.width; o.height = c2.height; const g2 = o.getContext('2d'); if (gl) g2.drawImage(gl, 0, 0, o.width, o.height); g2.drawImage(c2, 0, 0); return o.toDataURL('image/png'); })(); // the picture mid-fight, written to tools/out/ after the checks
       H.step(6000); await new Promise((r) => setTimeout(r, 200));
       out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');
-      ui.closePanel();
+      ui.closePanel(); await new Promise((r) => setTimeout(r, 100));
+      out[`battle_${recipe}_glClosed`] = !document.querySelector('.bt-gl') && !ui.battleHandle; out.battle_worldIntact = Boolean(ui.renderer.world3d) && !ui.renderer.world3d.lost && !ui.renderer.world3d.gl.getContext().isContextLost();
     }
     // v0.103.0: the strategic map opens with no theatre, lists the order of battle, and its enlist and raise screens open
     while (ui.panelStack.length) ui.closePanel(); ui.openPanel('strategic'); await new Promise((r) => setTimeout(r, 300));
