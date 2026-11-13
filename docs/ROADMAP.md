@@ -1,6 +1,6 @@
 # Roadmap: the Atlas, the Presidency and the War, stage by stage
 
-Status: **the code is at v0.103.11** (the World Atlas, v0.92.0, Politics: Foundations, v0.93.0, and Politics: The Capital, v0.93.1, and Politics: People and Government, v0.94.0, and Politics: The Mansions, v0.94.1, and Politics: Elections and Influence, v0.95.0, and Politics: The Economy and Diplomacy, v0.96.0, and Politics: Unrest, Your Party and What Turns Up, v0.97.0, are released — **the Politics update is complete** — and War: Base and Company, v0.98.0, and War: Supplies, Factories and Contracts, v0.99.0, and War: People, Base Life and Generals, v0.100.0, and War: The New Look and Battles, v0.101.0, are the first four releases of the War update; 1,275 tests pass); the rest of the War update and the Post-War update below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
+Status: **the code is at v0.104.0, the Graphics Update (2026-11-13)**; before it, v0.103.11 (the World Atlas, v0.92.0, Politics: Foundations, v0.93.0, and Politics: The Capital, v0.93.1, and Politics: People and Government, v0.94.0, and Politics: The Mansions, v0.94.1, and Politics: Elections and Influence, v0.95.0, and Politics: The Economy and Diplomacy, v0.96.0, and Politics: Unrest, Your Party and What Turns Up, v0.97.0, are released — **the Politics update is complete** — and War: Base and Company, v0.98.0, and War: Supplies, Factories and Contracts, v0.99.0, and War: People, Base Life and Generals, v0.100.0, and War: The New Look and Battles, v0.101.0, are the first four releases of the War update; 1,275 tests pass); the rest of the War update and the Post-War update below are **planned only**. This file is the **single master list of releases**. Where an older plan document gives a different release number for the same thing, **this file wins** (the older rows were reconciled on 2026-11-01, see section 5).
 
 Rules for every release (from the standing instructions): ask before guessing; accuracy over speed; `node tools/build.mjs`, `npm run check` and `npm run smoke` before each code release; every edited existing test is listed; commits end with the two attribution lines; push to `claude/funny-mayer-52dll8`; no money from nothing; the casino tasks (#33, #35) stay paused.
 
@@ -38,17 +38,18 @@ Order (yours): Atlas, then Politics, then War, then the Post-War Expansion. Betw
 | **v0.103.8** ✅ | War: Research and the Future Tiers | **Released 2026-11-08.** Eight research projects to tier 4 (about 63M obols, at the Command HQ); pulse, plasma, rail and ion weapons for every class, the Phalanx hardsuit and Bastion power armour, ten hover and stealth vehicles (the mock-ups' era 3 and new heavier era 4 designs). Not done: Arms works recipes for the future weapons; the vehicles' perks as rules. |
 | **v0.103.9** ✅ | War: Air Power on the Strategic Map | **Released 2026-11-08.** Air wings (reconnaissance, close air support, interdiction, missile strikes; permanent losses), satellites and recon over the fog, helicopter lifts. Not done: air superiority, bombing of structures. |
 | **v0.103.10** ✅ | War: Fleets, Landings and International Contracts | **Released 2026-11-08.** Fleets of ships lent by the shipping company (bombardment, blockade; permanent losses), passages and landings with escorts, international contracts from the embassies (replace the retainer, completion bonus at the victory-point rate). Not done: sea zones and enemy navies, supply convoys. |
-| **v0.104.0** | War: Destruction, Government Response and Coup | 12a Destruction, 12b Government response and the coup (needs Politics, done by here) |
-| **v0.105.0** | War: Migration and Release | 13 Migration and regression, 14 Polish |
-| **v0.106.0** | Post-War: Audit and the Atlas Layer | PW-1 Audit document, PW-2 city layer (unless folded into v0.92.0) |
-| **v0.107.0** | Post-War: Living Sund I | PW-3 populated buildings, named NPCs with stories and schedules |
-| **v0.108.0** | Post-War: Quests and Events | PW-4 quest framework and journal, PW-5 dynamic events |
-| **v0.109.0** | Post-War: The Agency and Mission Instances | PW-6 agency and contracts, PW-7 template and instance architecture |
-| **v0.110.0** | Post-War: Neumina City | PW-8 part 1: the class-divided map (skyline terraces, Glass Mile, under-levels), people, factions, implants |
-| **v0.111.0** | Post-War: Neumina Operations | PW-8 part 2: hacking with limits, the intelligence contracts |
-| **v0.112.0** | Post-War: Saint Halloran City | PW-9 part 1: the map, the three mobs, disguises, recognition |
-| **v0.113.0** | Post-War: Mob War and Contracts | PW-9 part 2: the five escalation stages, the contracts |
-| **v0.114.0** | Post-War: Content, Polish and Release | PW-10 content, PW-11 test and polish, PW-12 documentation and release |
+| **v0.104.0** ✅ | The Graphics Update | **Released 2026-11-13** (owner's priority, placed ahead of the rest of the War update). The world and the battles in 3D with three.js; design and state in `RENDERING.md`. **Every release below moves up one number from the older sections of this document.** |
+| **v0.105.0** | War: Destruction, Government Response and Coup | 12a Destruction, 12b Government response and the coup (needs Politics, done by here) |
+| **v0.106.0** | War: Migration and Release | 13 Migration and regression, 14 Polish |
+| **v0.107.0** | Post-War: Audit and the Atlas Layer | PW-1 Audit document, PW-2 city layer (unless folded into v0.92.0) |
+| **v0.108.0** | Post-War: Living Sund I | PW-3 populated buildings, named NPCs with stories and schedules |
+| **v0.109.0** | Post-War: Quests and Events | PW-4 quest framework and journal, PW-5 dynamic events |
+| **v0.110.0** | Post-War: The Agency and Mission Instances | PW-6 agency and contracts, PW-7 template and instance architecture |
+| **v0.111.0** | Post-War: Neumina City | PW-8 part 1: the class-divided map (skyline terraces, Glass Mile, under-levels), people, factions, implants |
+| **v0.112.0** | Post-War: Neumina Operations | PW-8 part 2: hacking with limits, the intelligence contracts |
+| **v0.113.0** | Post-War: Saint Halloran City | PW-9 part 1: the map, the three mobs, disguises, recognition |
+| **v0.114.0** | Post-War: Mob War and Contracts | PW-9 part 2: the five escalation stages, the contracts |
+| **v0.115.0** | Post-War: Content, Polish and Release | PW-10 content, PW-11 test and polish, PW-12 documentation and release |
 
 **Rough size (tokens processed, an estimate to within 2x):** Atlas 2 to 4M; Politics 5 releases at 2 to 4M (10 to 20M); War 8 at 3 to 6M (24 to 48M); Post-War 9 at 3 to 6M (27 to 54M). About **63 to 126M** in all, 15 to 20% under the unbatched schedule, mainly from fewer full-suite runs and fewer release rounds.
 

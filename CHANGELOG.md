@@ -2,20 +2,22 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
-## Unreleased — The 3D View (in progress; version number to be set by the owner)
+## [0.104.0] — 2026-11-13 — The Graphics Update (development build)
 
 The world is drawn in 3D with three.js: blocky low-poly buildings, people, props and vehicles under a fixed isometric camera, with real light and shadow (design and state in `docs/RENDERING.md`, sections 7.1 to 7.5). No rules, balance or saves change: the simulation is untouched and the renderer only reads it.
 
 - **The library.** three.js r160 (MIT) is vendored as one file in `src/vendor/` and inlined into `index.html` by the bundler: still one file, still no network, still opens by double-click (decision TD-19, the one exception to "no dependencies"). `index.html` grows from 5.96 to 6.87 MB.
 - **The 3D world** (`src/engine3d/`). The existing pixel ground as textures; buildings with walls, windows, doors, signs, awnings, columns and roofs, towers by their storeys; box-figure people from each character's appearance, walking, turning and holding their weapon; a sun with shadows, night, street lamps, lit windows and headlights.
-- **Buildings never hide you.** A building is roofed until you walk in, then opens; when you are behind one, a see-through hole follows you. The smoke test reads the pixels to prove the figure is really visible.
+- **Buildings never hide you.** A building is roofed until you walk in, then opens, its walls whole tiles that meet at every corner. When you, your car or the person you are talking to is behind anything (a tower, a roof, an awning, a tree), what stands in front dissolves in a soft upright window around you and the rest stays whole. The smoke test reads the pixels to prove the figure is really visible.
 - **Every prop modelled**: all 159 types, fences and pipes joining in runs, pumpjacks, windsocks, traffic lights and fires alive.
 - **Vehicles and machines**: eight car bodies, the bus, tractors, the nine signature cars, eighteen aircraft, the rocket and crawler, and the mercenary company's thirty-three machines, with rolling and steering wheels, lamps and sirens.
 - **What carried over from the isometric work**: the camera angle, so keys still follow the screen and the mouse still aims true; all ten Wrath cutscenes over the 3D scene; the Canvas 2D isometric view as the automatic fallback where WebGL is missing (`renderer.mode = 'iso2d'`).
-- **Battles in 3D** (`src/engine3d/battle3d.js`): the tactical battle uses the same buildings, figures, vehicles, props and light as the world, with see-through holes for selected units, enemies in sight and the cursor; clicks, box selection, orders and strikes land under the cursor as before; the rules and the determinism tests are untouched. Without WebGL it is the Canvas 2D isometric battle.
-- **Tests.** `tests/engine3d.test.mjs`, `props3d.test.mjs`, `vehicles3d.test.mjs`, `battle3d.test.mjs`, `iso.test.mjs`, `iso_battle.test.mjs`; the "no network" test now exempts the vendored file and forbids its loaders in game code.
+- **Props stand where they block.** Every model is placed on the tiles the game blocks (they had been drawn half their size to the north-west); `tests/collision3d.test.mjs` compares every solid prop on every map with its model, and `window.oberverse.ui.renderer.debugCollision = true` draws the blocked tiles over the view.
+- **Aircraft redrawn**: all eighteen types with lofted fuselages, proper wings, tails, engines, gear that retracts and liveries; parked and part-built aircraft, rockets and satellites in the bays use the same models.
+- **Battles in 3D** (`src/engine3d/battle3d.js`): the tactical battle uses the same buildings, figures, vehicles, props and light as the world, with the same see-through window for every friendly unit and every enemy in sight (up to 24 at once); clicks, box selection, orders and strikes land under the cursor as before; the rules and the determinism tests are untouched. Without WebGL it is the Canvas 2D isometric battle.
+- **Tests.** `tests/engine3d.test.mjs`, `props3d.test.mjs`, `vehicles3d.test.mjs`, `battle3d.test.mjs`, `collision3d.test.mjs`, `iso.test.mjs`, `iso_battle.test.mjs`; the "no network" test now exempts the vendored file and forbids its loaders in game code.
 
-Checked only in headless Chromium with software WebGL; not yet on a real graphics card. Defects: `docs/RENDERING.md` section 7.5.
+Checked only in headless Chromium with software WebGL; not yet on a real graphics card. Defects: `docs/RENDERING.md` section 7.5. The roadmap's later releases each move up one number (War: Destruction is now v0.105.0).
 
 ## [0.103.11] — 2026-11-09 — War: A Cleaner Battle Screen (development build)
 

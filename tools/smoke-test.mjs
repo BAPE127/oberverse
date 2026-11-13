@@ -667,7 +667,7 @@ try {
         out.battle_city_behindDetail = JSON.stringify({ seenThrough, wallOnly, far: Math.round(diff(a.far, c.far)), floors: b.floors });
         // the same for a friendly unit that is NOT selected (v0.104.x: every friendly unit is seen through the buildings in front of it), and a second, unselected one beside it
         const u2 = B.units.find((q) => q.side === 'p' && q.kind === 'inf' && q.id !== u.id);
-        H.S.sel = new Set(); if (u2) { u2.x = b.x + b.w / 2 + 2.4; u2.y = b.y - 1.2; u2.path = []; u2.order = { type: 'hold' }; }
+        R3.noHoles = false; R3.hidden = null; H.S.sel = new Set(); if (u2) { u2.x = b.x + b.w / 2 + 2.4; u2.y = b.y - 1.2; u2.path = []; u2.order = { type: 'hold' }; }
         const pts2 = [32, 22, 12].map((z) => V.toCanvas(u.x * 32, u.y * 32, z));
         const sample2 = async (hidden, n) => { R3.hidden = hidden ? new Set([u.id, u2?.id]) : null; await frames(n); const g2 = grab(); return pts2.map((p) => px(g2, p.x, p.y)); };
         const un0 = await sample2(false, 16); const un1 = await sample2(true, 4); R3.hidden = null;
@@ -853,7 +853,7 @@ try {
     return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior), g3, figureSeen, farSolid, holesBefore, withFig, noFig, farOn, farOff, inBox, holes, open3 };
   }, mode);
   let iv = await isoStep('behind');
-  record('iso: behind a tower the player is seen through a see-through hole (3D: a soft ellipse through everything in front of the player)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50 && iv.figureSeen && iv.farSolid, JSON.stringify(iv));
+  record('iso: behind a tower the player is seen through a see-through hole (3D: a soft ellipse through everything in front of the player)', iv.iso && iv.map === 'halvermouth' && iv.holes.some(([k, c, f]) => k === 'player' && c && f >= 95) && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50 && iv.figureSeen && iv.farSolid, JSON.stringify(iv));
   await shot('3d-tower-behind');
   iv = await isoStep('inside');
   record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden && iv.g3 && !iv.g3.roofed && iv.g3.open && iv.holesBefore.length === 0, JSON.stringify(iv));

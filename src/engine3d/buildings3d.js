@@ -61,7 +61,7 @@ export function height3d(b) {
  * `eps.value` the depth margin. One shared set (`HOLES_SHARED`) serves the world and the battle: only one is drawn at a time.
  */
 export const HOLES = 24; // battle: units that may be seen through buildings at once
-export const makeHoles = (n = HOLES) => ({ value: Array.from({ length: n }, () => new THREE.Vector4(0, 0, 0, 0)), depth: { value: new Float32Array(n) }, on: { value: 0 }, eps: { value: 0.0005 } });
+export const makeHoles = (n = HOLES) => ({ value: Array.from({ length: n }, () => new THREE.Vector4(0, 0, 0, 0)), depth: { value: new Float32Array(n) }, on: { value: 0 }, n: { value: 0 }, eps: { value: 0.0005 } });
 export const makeHole = () => makeHoles(1); // (one hole: kept for tests and tools)
 export const HOLES_SHARED = makeHoles(HOLES);
 
@@ -90,15 +90,17 @@ export function seeThroughN(material, u = HOLES_SHARED, cut = true) {
     shader.uniforms.uHoles = u;
     shader.uniforms.uHoleZ = u.depth;
     shader.uniforms.uHoleOn = u.on;
+    shader.uniforms.uHoleN = u.n;
     shader.uniforms.uHoleEps = u.eps;
     shader.fragmentShader = shader.fragmentShader
       .replace('void main() {', `uniform vec4 uHoles[${HOLES}];
 uniform float uHoleZ[${HOLES}];
 uniform float uHoleOn;
+uniform float uHoleN;
 uniform float uHoleEps;
 bool oberInHole() {
   if (uHoleOn < 0.5) return false;
-  for (int i = 0; i < ${HOLES}; i++) { vec4 h = uHoles[i]; if (h.z > 0.5) { vec2 q = (gl_FragCoord.xy - h.xy) / h.zw; if (dot(q, q) < 1.0) return true; } }
+  for (int i = 0; i < ${HOLES}; i++) { if (float(i) >= uHoleN) break; vec4 h = uHoles[i]; if (h.z > 0.5) { vec2 q = (gl_FragCoord.xy - h.xy) / h.zw; if (dot(q, q) < 1.0) return true; } }
   return false;
 }
 float oberIGN(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
@@ -109,6 +111,7 @@ void main() {
   ${cut ? `if (uHoleOn > 0.5) {
     float cut = 0.0;
     for (int i = 0; i < ${HOLES}; i++) {
+      if (float(i) >= uHoleN) break;
       vec4 h = uHoles[i];
       if (h.z > 0.5 && gl_FragCoord.z < uHoleZ[i] - uHoleEps) {
         vec2 q = (gl_FragCoord.xy - h.xy) / h.zw;
@@ -118,7 +121,7 @@ void main() {
     if (cut > oberIGN(gl_FragCoord.xy)) discard;
   }` : ''}`);
   };
-  material.customProgramCacheKey = () => (cut ? 'oberHoleCut24' : 'oberHoleLit24');
+  material.customProgramCacheKey = () => (cut ? 'oberHoleCut24n' : 'oberHoleLit24n');
   material.needsUpdate = true;
   return material;
 }
@@ -139,6 +142,7 @@ export function endHoles(u, from = 0) {
   let any = 0;
   for (let i = 0; i < u.value.length; i++) { if (i >= from) u.value[i].z = 0; if (u.value[i].z > 0.5) any = 1; }
   u.on.value = any;
+  u.n.value = any ? from : 0; // (the shader loops over the first `n` holes only: a hole or two is cheap even on a software rasteriser)
 }
 
 // ------------------------------------------------------------------ painted facades

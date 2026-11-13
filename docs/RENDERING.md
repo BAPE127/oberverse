@@ -197,6 +197,7 @@ Verified by Fable on 2026-11-13 at the integrated build: `npm run check` 1,394 o
 | 3D-2 Props | **Tested; samples seen.** All 159 types have a builder (`src/engine3d/props/`), fit their footprints on every map (tested), linear runs join, 13 types animate, traffic lights follow the light programme, lamps light at night |
 | 3D-3 Vehicles and machines | **Tested; the driven car seen.** 8 car bodies, bus, 3 tractors, 9 signature cars with their gimmicks, 18 aircraft looks, rocket, crawler and countdown board, 33 war machines at Hollowmoor (`src/engine3d/vehicles/`, `machines3d.js`). Wheels roll and steer, brake and head lamps, siren, body lean. 20 cars: 188 draw calls, 20k triangles |
 | 3D-4 Battles | **Tested, seen** (city battle), 2026-11-13. `src/engine3d/battle3d.js`: a WebGL canvas under the battle's 2D canvas, the same camera maths (picking, box selection, orders, strikes unchanged), the baked battle ground, the world's building builder with up to six see-through holes, box-figure soldiers in side colours, the war machine and car models, jets, drones and shells as meshes, the world's props and light rig. Rings, bars, order lines, smoke, fire and tracers stay on the 2D overlay. Falls back to the Canvas 2D isometric battle without WebGL. The world is not drawn behind an open battle. City at command zoom: 294 draw calls, 14k triangles; opens in about 1.3 s |
+| Owner's fixes and release | **Tested, seen**; see 7.5 |
 | 3D-5 Test, optimise, review | Full suite and smoke run after integration. Software-GL frame about 90–100 ms (JS part 1–3 ms; shadows are switched off automatically on software GL). `index.html` 5.96 → 6.87 MB. First 3D frame 1.3–1.65 s after Begin. No real-GPU measurement, no Opus review yet |
 
 Pixel-level smoke checks: behind a tower, the pixels at the player's head, chest and waist must change when the figure is switched off for a frame (the figure is really visible through the hole), and a building pixel 330 px away must be identical with holes on and off.
@@ -205,13 +206,26 @@ One existing test was changed: `tests/content.test.mjs` "no network or external 
 
 Bundler note: `tools/build.mjs` handles `import * as`, side-effect imports and `export { a as b }`; an `export` must still start its own line (several `export const` on one line break the bundle).
 
-### 7.5 Known defects and limits in 3D
+### 7.5 Released as v0.104.0, The Graphics Update (2026-11-13)
 
+After the owner played the build on a real machine, four things were fixed and the aircraft redrawn before release. Verified by Fable at the release build: `npm run check` 1,404 of 1,404; `npm run smoke` 90 of 90 on the built `index.html`; screenshots of the collision overlay in the flat and on Starling Field.
+
+- **Open-room walls**: one whole-tile box per `W` tile (the simulation blocks the whole tile; thin edge walls had left an unreachable floor strip and notched corners). Corners, tees and door jambs butt exactly; a test covers every interior.
+- **Props stand where they block**: builders return a group centred on the footprint, and the scene manager had overwritten that offset, so models stood about half their size to the north-west of the tiles they block. `lib.placeProp` now adds the tile corner. `tests/collision3d.test.mjs` compares every solid prop on every map with its model; `window.oberverse.ui.renderer.debugCollision = true` draws blocked tiles (red/orange), walls (blue), prop blocks (yellow), model bases (cyan), the player's box (green) and cars (magenta).
+- **Seeing behind things**: one shared shader. Inside an upright ellipse around each focus, everything nearer the camera than the focus dissolves through fine per-pixel noise with a soft rim: building faces and roofs, awnings, and props such as trees and lamps. Foci: the player or the driven car (sized to it) and the highlighted NPC; eased on real time. Nothing inside a window receives shadow.
+- **Battles**: the same window for every friendly unit and every enemy in sight, up to 24 at once, nearest the screen centre first, neighbours merged.
+- **Aircraft**: all 18 looks rebuilt (lofted fuselages, wing and tail planforms, engines, retracting gear, liveries); parked and part-built aircraft, rockets and satellites in bays use the same builders.
+
+### 7.6 Known defects and limits in 3D
+
+- Only the owner has seen it on a real GPU; agents test in software WebGL (about 85–100 ms a frame, shadows off automatically). The noise grain of the see-behind window, lamp brightness and shadow quality may want tuning by eye.
 - Not drawn in 3D yet: skid marks, blood and scorch decals, water shimmer, Morganius's card effects, hit flinch/flash and stun stars on figures, the city below an aloft tower floor (plain sky), weather. Signature cars' ground trails are left to the 2D overlay and were not checked.
 - Sleepers lie on the floor, not on the bed. Animals do not animate.
-- The Hollowmoor factory interior showed bare ground in one agent's shot (not investigated).
-- Possible doubling: the launch pad prop and `machines3d` may both draw a rocket and a countdown board during a launch (not checked in the browser). The secure convoy was not looked at.
-- Battles: smoke, fire, blasts, tracers, bars and rings are on the 2D overlay and draw over buildings; the battle has no time of day, so night is never shown; suppressed soldiers crouch, not lie prone; trenches, wire and sandbags are paint; a breached wall shows rubble but is not cut; furniture is flat on open floors and upper floors are drawn at ground level; 3D buildings are about 1.5× taller than the 2D pictures were.
-- Weak models, by their authors' own account: generic aircraft props, flying wings, GT vs coupe too alike, the Last Trick, traffic-light head, poker table, chain fence (a translucent panel), boat.
-- The see-through hole is dithered and reads dark over asphalt. `toWorld` ignores camera shake.
-- Light values (lamp intensity and reach) are guesses and need a look on a real GPU with shadows on.
+- `moored_ship` blocks a 4×9 berth but its model is a 3.2-tile tug at the north end (exempt in the collision test). Thin things (tree trunks, lamps, bollards) block a whole tile, as the simulation says. Aircraft turned on their apron (`heading`) are not covered by the collision test.
+- Interior partitions are full height and a tile thick; a kerb height might read better.
+- A prop cut by the see-behind window vanishes inside it rather than fading. The Canvas 2D fallback battle still opens holes only for selected units.
+- Possible doubling: the launch pad prop and `machines3d` may both draw a rocket and a countdown board during a launch (not checked). The secure convoy was not looked at. The Hollowmoor factory interior showed bare ground in one shot (not investigated).
+- Battles: smoke, fire, blasts, tracers, bars and rings are on the 2D overlay and draw over buildings; there is no time of day; suppressed soldiers crouch; trenches, wire and sandbags are paint; a breached wall shows rubble but is not cut; furniture is flat on open floors and upper floors are drawn at ground level.
+- Weak models, by their authors' account: the two flying-wing bombers (dark on dark tarmac), the futuristic airliner, GT vs coupe, the Last Trick, traffic-light head, poker table, chain fence, boat.
+- Smoke test: timing-sensitive on software GL (Wrath, war-terminal and dialogue steps have each failed once and passed on rerun); run it alone.
+- `toWorld` ignores camera shake.

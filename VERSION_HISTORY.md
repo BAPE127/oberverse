@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.104.0 | 2026-11-13 | development | 1 | The Graphics Update: the world and the battles drawn in 3D with three.js (vendored, inlined; the one library), blocky low-poly buildings, people, all 159 props, vehicles and aircraft; buildings open when entered and dissolve in front of you; keys follow the screen. Canvas 2D isometric fallback without WebGL. No rules or save changes. |
 | 0.103.11 | 2026-11-09 | development | 1 | War, the battle screen: a right-click order menu, one slim bar, order pings. No save changes. |
 | 0.103.10 | 2026-11-08 | development | 1 | War, sea power: fleets of ships lent by the shipping company (bombardment, blockade), passages and landings with escorts, international contracts from the embassies. Saves gain optional `war.fleets`, `war.navy`, `war.intl`, `contract` on a battalion and a war marker on a lent vessel. |
 | 0.103.9 | 2026-11-08 | development | 1 | War, air power: wings with reconnaissance, close air support, interdiction and missile strikes; satellites and recon over the fog; helicopter lifts. Saves gain optional `war.wings` and `war.air`, and `wing` on an aircraft. |

@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.104.0',
+    date: '2026-11-13',
+    channel: 'development',
+    title: 'The Graphics Update',
+    notes: [
+      'The world is now drawn in 3D: buildings with walls, windows, roofs and real height, towers by their storeys, light and shadow by day and lamps by night. People, all the props, cars, buses, tractors, the signature cars, aircraft and the rocket are solid models.',
+      'A building keeps its roof until you walk in, then opens so you can see the room. When you are behind a tower, a roof or a tree, whatever stands in front of you dissolves around you, so you never lose sight of yourself, your car or the person you are talking to.',
+      'The view is turned: the keys now follow the screen (W walks up the screen) and the mouse aims exactly where it points. Driving is as before.',
+      'Battles are drawn the same way, and every one of your troops, and any enemy you can see, shows through the buildings in front of them.',
+      'Nothing about the rules, the money or your saves has changed. On a machine without WebGL the game falls back to a flat isometric picture.',
+    ],
+  },
+  {
     version: '0.103.11',
     date: '2026-11-09',
     channel: 'development',
