@@ -177,6 +177,7 @@ export class World3D {
     const outdoor = host.layers.some((L) => L.map.kind !== 'interior');
     const wv = host.worldBox(host.view, 80, 480); // (a tall building's foot is below the view)
     this.viewTiles = { x0: wv.x / TILE, y0: wv.y / TILE, x1: (wv.x + wv.w) / TILE, y1: (wv.y + wv.h) / TILE };
+    for (const ms0 of this.mapScenes.values()) ms0.group.visible = false; // (a map that left the layers must not stay on screen at its old offset)
     const shown = new Set();
     for (const L of host.layers) {
       const lm = L.map;

@@ -73625,19 +73625,762 @@ void registerProp; // (nothing registered yet)
 return {  };
 })();
 
+// ---- src/engine3d/vehicles/geo.js
+__m["src/engine3d/vehicles/geo.js"] = (function () {
+// Geometry kit for the 3D vehicles and machines (phase 3D-3). A vehicle is a handful of merged, flat-shaded meshes (one per
+// material "bucket": the body paint, the dark trim with vertex colours, the lamps, ...) plus wheels that turn. The builders write
+// triangles into a `Geo` (axis-aligned boxes, extruded side profiles, lofts between rings, cylinders, blobs), the result is
+// cached per model, and every car of the model shares the geometry (nothing here is ever disposed per car).
+//
+// Units: tiles (1 = 32 world px). A car's frame: +x forward (nose), +y up, +z its right side. Pure: no DOM at import.
+const { THREE, mat, vertexMat } = __m["src/engine3d/lib3d.js"];
+
+const tmpC = new THREE.Color();
+
+/** Is a polygon (x, y) counter-clockwise? */
+const area2 = (p) => { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; a += p[i][0] * q[1] - q[0] * p[i][1]; } return a; };
+
+class Geo {
+  constructor() { this.b = new Map(); }
+
+  bucket(name) {
+    let b = this.b.get(name);
+    if (!b) this.b.set(name, (b = { pos: [], nor: [], col: [] }));
+    return b;
+  }
+
+  /** One triangle, flat normal from its winding (counter-clockwise seen from outside). */
+  tri(name, a, b, c, color = '#ffffff') {
+    const B = this.bucket(name);
+    const ux = b[0] - a[0]; const uy = b[1] - a[1]; const uz = b[2] - a[2];
+    const vx = c[0] - a[0]; const vy = c[1] - a[1]; const vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy; let ny = uz * vx - ux * vz; let nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    tmpC.set(color);
+    for (const p of [a, b, c]) { B.pos.push(p[0], p[1], p[2]); B.nor.push(nx, ny, nz); B.col.push(tmpC.r, tmpC.g, tmpC.b); }
+    return this;
+  }
+
+  quad(name, a, b, c, d, color) { return this.tri(name, a, b, c, color).tri(name, a, c, d, color); }
+
+  /** An axis-aligned box from min to max corners. */
+  box(name, x0, x1, y0, y1, z0, z1, color) {
+    this.quad(name, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], color); // +x
+    this.quad(name, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], color); // -x
+    this.quad(name, [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], color); // +y
+    this.quad(name, [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], color); // -y
+    this.quad(name, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], color); // +z
+    this.quad(name, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], color); // -z
+    return this;
+  }
+
+  /** A box by centre and size. */
+  cube(name, cx, cy, cz, w, h, d, color) { return this.box(name, cx - w / 2, cx + w / 2, cy, cy + h, cz - d / 2, cz + d / 2, color); }
+
+  /** A box by centre and size, turned by Euler angles (x, y, z): slanted pillars, spokes, lugs, horns. */
+  tbox(name, cx, cy, cz, w, h, d, color, rx = 0, ry = 0, rz = 0) {
+    const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz));
+    m.setPosition(cx, cy, cz);
+    const v = new THREE.Vector3();
+    const P = (x, y, z) => { v.set(x * w / 2, y * h / 2, z * d / 2).applyMatrix4(m); return [v.x, v.y, v.z]; };
+    this.quad(name, P(1, -1, 1), P(1, -1, -1), P(1, 1, -1), P(1, 1, 1), color);
+    this.quad(name, P(-1, -1, -1), P(-1, -1, 1), P(-1, 1, 1), P(-1, 1, -1), color);
+    this.quad(name, P(-1, 1, 1), P(1, 1, 1), P(1, 1, -1), P(-1, 1, -1), color);
+    this.quad(name, P(-1, -1, -1), P(1, -1, -1), P(1, -1, 1), P(-1, -1, 1), color);
+    this.quad(name, P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1), color);
+    this.quad(name, P(1, -1, -1), P(-1, -1, -1), P(-1, 1, -1), P(1, 1, -1), color);
+    return this;
+  }
+
+  /** A side profile (x, y points) extruded across z0..z1: the body of a car, a wing section, a fin. */
+  prism(name, pts, z0, z1, color) {
+    const p = area2(pts) < 0 ? pts.slice().reverse() : pts;
+    const n = p.length;
+    for (let i = 0; i < n; i++) {
+      const a = p[i]; const b = p[(i + 1) % n];
+      this.quad(name, [a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1], color);
+    }
+    const tris = THREE.ShapeUtils.triangulateShape(p.map((q) => new THREE.Vector2(q[0], q[1])), []);
+    for (const [i, j, k] of tris) {
+      this.tri(name, [p[i][0], p[i][1], z1], [p[j][0], p[j][1], z1], [p[k][0], p[k][1], z1], color);
+      this.tri(name, [p[i][0], p[i][1], z0], [p[k][0], p[k][1], z0], [p[j][0], p[j][1], z0], color);
+    }
+    return this;
+  }
+
+  /** A plan outline (x, z points) extruded up between y0 and y1: the cheese, a flat deck. */
+  plan(name, pts, y0, y1, color) {
+    const p = area2(pts) > 0 ? pts.slice().reverse() : pts; // (x, z) with z south: clockwise on the page = counter-clockwise from above
+    const n = p.length;
+    for (let i = 0; i < n; i++) {
+      const a = p[i]; const b = p[(i + 1) % n];
+      this.quad(name, [a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], color);
+    }
+    const tris = THREE.ShapeUtils.triangulateShape(p.map((q) => new THREE.Vector2(q[0], q[1])), []);
+    for (const [i, j, k] of tris) {
+      this.tri(name, [p[i][0], y1, p[i][1]], [p[k][0], y1, p[k][1]], [p[j][0], y1, p[j][1]], color);
+      this.tri(name, [p[i][0], y0, p[i][1]], [p[j][0], y0, p[j][1]], [p[k][0], y0, p[k][1]], color);
+    }
+    return this;
+  }
+
+  /** Join two rings of 3D points (the same count, each going round counter-clockwise seen from the `b` end). */
+  loft(name, A, B, color, capA = true, capB = true) {
+    const n = A.length;
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; this.quad(name, A[i], A[j], B[j], B[i], color); }
+    const cen = (R) => R.reduce((s, q) => [s[0] + q[0] / n, s[1] + q[1] / n, s[2] + q[2] / n], [0, 0, 0]);
+    if (capB) { const c = cen(B); for (let i = 0; i < n; i++) this.tri(name, c, B[i], B[(i + 1) % n], color); }
+    if (capA) { const c = cen(A); for (let i = 0; i < n; i++) this.tri(name, c, A[(i + 1) % n], A[i], color); }
+    return this;
+  }
+
+  /** A cylinder (or cone: r1 at the start, r0 at the end) along an axis ('x' | 'y' | 'z'), starting at (x, y, z) and running `len`. */
+  cyl(name, axis, x, y, z, r0, len, color, { r1 = r0, seg = 10, caps = true, ex = 1, ey = 1 } = {}) {
+    const ring = (r, t) => {
+      const out = [];
+      for (let i = 0; i < seg; i++) {
+        const a = (i / seg) * Math.PI * 2; const c = Math.cos(a) * r; const s = Math.sin(a) * r;
+        if (axis === 'y') out.push([x + c * ex, y + t, z + s * ey]);
+        else if (axis === 'x') out.push([x + t, y + c * ex, z + s * ey]);
+        else out.push([x + c * ex, y + s * ey, z + t]);
+      }
+      return out;
+    };
+    // the winding turns with the axis: build the ring so that it runs counter-clockwise from the far end
+    let A = ring(r0, 0); let B = ring(r1, len);
+    if (axis === 'y') { A = A.reverse(); B = B.reverse(); }
+    return this.loft(name, A, B, color, caps, caps);
+  }
+
+  /** A lumpy ball / ellipsoid (icosahedron, detail 0 or 1), flat shaded. */
+  blob(name, cx, cy, cz, rx, ry, rz, color, detail = 1) {
+    const g = new THREE.IcosahedronGeometry(1, detail);
+    const p = g.attributes.position;
+    const P = (i) => [cx + p.getX(i) * rx, cy + p.getY(i) * ry, cz + p.getZ(i) * rz];
+    for (let i = 0; i < p.count; i += 3) this.tri(name, P(i), P(i + 1), P(i + 2), color);
+    g.dispose();
+    return this;
+  }
+
+  /** A donut standing in the plane given by `axis` (the axis through its hole): big radius R, tube radius r. */
+  torus(name, axis, cx, cy, cz, R, r, color, nu = 14, nv = 6) {
+    const pt = (u, v) => {
+      const a = (u / nu) * Math.PI * 2; const b = (v / nv) * Math.PI * 2;
+      const rr = R + r * Math.cos(b);
+      const x = rr * Math.cos(a); const y = rr * Math.sin(a); const z = r * Math.sin(b);
+      if (axis === 'z') return [cx + x, cy + y, cz + z];
+      if (axis === 'y') return [cx + x, cy + z, cz + y];
+      return [cx + z, cy + x, cz + y];
+    };
+    for (let u = 0; u < nu; u++) for (let v = 0; v < nv; v++) {
+      const a = pt(u, v); const b = pt(u + 1, v); const c = pt(u + 1, v + 1); const d = pt(u, v + 1);
+      if (axis === 'y') this.quad(name, a, d, c, b, color); else this.quad(name, a, b, c, d, color);
+    }
+    return this;
+  }
+
+  /** Every bucket as a BufferGeometry (flagged shared). */
+  build() {
+    const out = {};
+    for (const [name, b] of this.b) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(b.col, 3));
+      g.computeBoundingBox(); g.computeBoundingSphere();
+      g.userData.keep = true;
+      out[name] = g;
+    }
+    return out;
+  }
+}
+
+// ---- materials: shared and cached, swapped by name (never cloned per car) -------------------------------------------------
+const paintMat = (hex) => mat(hex, { tag: 'paint' });
+const M = {};
+const E = (key, color, emissive, ei) => (M[key] ||= mat(color, { emissive, ei, tag: key }));
+const lampMats = {
+  headOff: () => E('headOff', '#d8d2b8', '#fff2c0', 0.25),
+  headOn: () => E('headOn', '#fff6d8', '#ffeeb0', 3.2),
+  tailOff: () => E('tailOff', '#7a1a14', '#ff2a1a', 0.1),
+  tailDim: () => E('tailDim', '#9a1c14', '#ff2a1a', 0.9),
+  tailBrake: () => E('tailBrake', '#ff3a2a', '#ff3020', 3.2),
+  sirenRedOff: () => E('sirenRedOff', '#5a1612', '#ff2a1a', 0.15),
+  sirenRedOn: () => E('sirenRedOn', '#ff3a2a', '#ff2a1a', 3.4),
+  sirenBlueOff: () => E('sirenBlueOff', '#182a5a', '#2a4aff', 0.15),
+  sirenBlueOn: () => E('sirenBlueOn', '#4a70ff', '#3a5aff', 3.4),
+};
+const glowMat = (hex, ei = 1.6) => mat(hex, { emissive: hex, ei, tag: 'glow' });
+const dark = () => vertexMat();
+
+/** Resolve a bucket name to its material: 'dark' vertex colours, 'glow:#hex', or one of the lamp / siren sets (swapped later). */
+function materialFor(name, paint) {
+  if (name === 'paint') return paintMat(paint);
+  if (name === 'dark') return dark();
+  if (name === 'lampF') return lampMats.headOff();
+  if (name === 'lampR') return lampMats.tailOff();
+  if (name === 'barR') return lampMats.sirenRedOff();
+  if (name === 'barB') return lampMats.sirenBlueOff();
+  if (name.startsWith('glow:')) return glowMat(name.slice(5));
+  return dark();
+}
+
+// ---- wheels --------------------------------------------------------------------------------------------------------
+const wheelCache = new Map();
+/** A wheel geometry, axle along z, centred on the origin: a tyre, a hub with a bar across it (so a spin shows), optional lugs. */
+function wheelGeo(r, w, { hub = '#aeb4ba', tyre = '#1c1c20', lugs = 0, bar = '#4a4e54', seg = 12 } = {}) {
+  const key = `${r}|${w}|${hub}|${tyre}|${lugs}|${bar}|${seg}`;
+  let g = wheelCache.get(key);
+  if (!g) {
+    const G = new Geo();
+    G.cyl('w', 'z', 0, 0, -w / 2, r, w, tyre, { seg });
+    G.cyl('w', 'z', 0, 0, -w / 2 - 0.004, r * 0.56, w + 0.008, hub, { seg: 10 });
+    G.box('w', -r * 0.5, r * 0.5, -r * 0.07, r * 0.07, -w / 2 - 0.007, w / 2 + 0.007, bar);
+    G.box('w', -r * 0.07, r * 0.07, -r * 0.5, r * 0.5, -w / 2 - 0.007, w / 2 + 0.007, bar);
+    for (let i = 0; i < lugs; i++) {
+      const a = (i / lugs) * Math.PI * 2;
+      G.tbox('w', Math.cos(a) * (r + 0.012), Math.sin(a) * (r + 0.012), 0, 0.06, ((Math.PI * 2 * r) / lugs) * 0.8, w, i % 2 ? tyre : '#2e2e34', 0, 0, a);
+    }
+    g = G.build().w;
+    wheelCache.set(key, g);
+  }
+  return g;
+}
+
+// ---- the assembled vehicle ------------------------------------------------------------------------------------------------
+const rigCache = new Map();
+
+/**
+ * Build (once per key) and instance a vehicle. `spec` = { key, build(G) -> void, wheels: [{ x, z, r, w, steer, opts }] }. Returns a Group:
+ *   userData.parts   { name → Mesh } for the merged buckets          userData.wheels  [{ mesh, steer, r }]
+ *   userData.body    the group the merged meshes sit in (it rolls and pitches on its springs; the wheels stay on the ground)
+ *   userData.setColor(hex)                                           userData.set* (see drive.js for the standard update)
+ */
+function assemble(spec, paintHex) {
+  let c = rigCache.get(spec.key);
+  if (!c) {
+    const G = new Geo();
+    spec.build(G);
+    c = { geos: G.build(), wheelGeos: (spec.wheels || []).map((w) => wheelGeo(w.r, w.w, w.opts)) };
+    rigCache.set(spec.key, c);
+  }
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const parts = {};
+  for (const [name, geo] of Object.entries(c.geos)) {
+    const m = new THREE.Mesh(geo, materialFor(name, paintHex));
+    m.castShadow = true; m.receiveShadow = true;
+    if (name.startsWith('glow:') || name === 'lampF' || name === 'lampR' || name === 'barR' || name === 'barB') m.castShadow = false;
+    body.add(m);
+    parts[name] = m;
+  }
+  const wheels = [];
+  (spec.wheels || []).forEach((w, i) => {
+    const m = new THREE.Mesh(c.wheelGeos[i], vertexMat());
+    m.castShadow = true;
+    const pivot = new THREE.Group();
+    pivot.position.set(w.x, w.r, w.z);
+    pivot.add(m);
+    root.add(pivot);
+    wheels.push({ mesh: m, pivot, steer: Boolean(w.steer), r: w.r, hide: w.hide });
+  });
+  root.userData.parts = parts;
+  root.userData.body = body;
+  root.userData.wheels = wheels;
+  root.userData.paint = paintHex;
+  root.userData.setColor = (hex) => { root.userData.paint = hex; if (parts.paint) parts.paint.material = paintMat(hex); };
+  return root;
+}
+
+return { Geo, paintMat, lampMats, glowMat, dark, materialFor, wheelGeo, assemble };
+})();
+
+// ---- src/engine3d/vehicles/drive.js
+__m["src/engine3d/vehicles/drive.js"] = (function () {
+// The common life of a vehicle (phase 3D-3): wheels that roll with the speed and steer with `wheel`, brake lamps, headlamps at night, the
+// police bar, and a little body roll and pitch on its springs. Purely visual: it reads the live vehicle (angle, wheel, speed, braking,
+// chase ...) and never writes to it.
+const { lampMats } = __m["src/engine3d/vehicles/geo.js"];
+
+const TILE = 32;
+const k = (dt, rate) => Math.min(1, dt * rate);
+
+/** Is this vehicle's driver out and about with the lamps on? Traffic, buses, the driven car and a car on a chase; parked cars are dark. */
+function lampsOn(v, ctx) {
+  if (!ctx || !ctx.night) return false;
+  if (v.kind || v.chase) return true;
+  const p = ctx.game?.player;
+  return Boolean(p && v.id !== undefined && p.driving === v.id);
+}
+
+/**
+ * Give `root` (from geo.assemble) its standard update. `extra(v, ctx, dt, st)` runs after, for a signature car's own tricks.
+ * opts: { roll: 0..1 (how much it leans), steerK: wheel angle factor }.
+ */
+function bindDrive(root, extra = null, opts = {}) {
+  const u = root.userData;
+  const st = { pitch: 0, roll: 0, t: 0, lit: null, tail: null, siren: null, spin: 0 };
+  const lean = opts.roll ?? 1;
+  u.state = st;
+  u.update = (v, ctx, dt) => {
+    v = v || {};
+    ctx = ctx || {};
+    dt = dt > 0 ? Math.min(dt, 0.1) : 0;
+    st.t += dt;
+    const speed = Number.isFinite(v.speed) ? v.speed : 0; // px/s, signed
+    const steer = Math.max(-1, Math.min(1, v.wheel || 0));
+    st.spin += (speed / TILE) * dt;
+    for (const w of u.wheels) {
+      w.spin = (w.spin || 0) - ((speed / TILE) / w.r) * dt;
+      w.mesh.rotation.z = w.spin;
+      if (w.steer) w.pivot.rotation.y = -steer * (opts.steerK ?? 0.5);
+    }
+    // the springs: the nose dips under braking, lifts under power; the body leans out of a turn
+    const sp = Math.min(1, Math.abs(speed) / 250);
+    const pitchT = v.braking ? -0.035 * Math.max(0.4, sp) : 0;
+    const rollT = steer * sp * 0.045 * lean;
+    st.pitch += (pitchT - st.pitch) * k(dt, 8);
+    st.roll += (rollT - st.roll) * k(dt, 6);
+    u.body.rotation.z = st.pitch;
+    u.body.rotation.x = st.roll;
+    const P = u.parts;
+    const on = lampsOn(v, ctx);
+    if (P.lampF && st.lit !== on) { P.lampF.material = on ? lampMats.headOn() : lampMats.headOff(); st.lit = on; }
+    if (P.lampR) {
+      const tail = v.braking ? 2 : on ? 1 : 0;
+      if (st.tail !== tail) { P.lampR.material = tail === 2 ? lampMats.tailBrake() : tail === 1 ? lampMats.tailDim() : lampMats.tailOff(); st.tail = tail; }
+    }
+    if (P.barR && P.barB) {
+      const ph = v.chase || v.siren ? (Math.floor(((ctx.time || st.t) * 6)) % 2) + 1 : 0;
+      if (st.siren !== ph) {
+        P.barR.material = ph === 1 ? lampMats.sirenRedOn() : lampMats.sirenRedOff();
+        P.barB.material = ph === 2 ? lampMats.sirenBlueOn() : lampMats.sirenBlueOff();
+        st.siren = ph;
+      }
+    }
+    if (extra) extra(v, ctx, dt, st);
+  };
+  return root;
+}
+
+/** Seconds since the horn sounded (99 when it never has), the way the 2D sigOpts reads it. */
+function hornAge(v, ctx) {
+  const now = ctx?.game?.realTime;
+  return v.hornAt == null || now == null ? 99 : now - v.hornAt;
+}
+
+return { lampsOn, bindDrive, hornAge };
+})();
+
+// ---- src/engine3d/vehicles/cars.js
+__m["src/engine3d/vehicles/cars.js"] = (function () {
+// The road cars (phase 3D-3): hatch, estate, saloon, police, gt, coupe, limo, pickup. One generator, a table of proportions per body type
+// (the cabin layouts are the 2D carSprites' own, as shares of the length from the tail) and the details that tell the types apart:
+// an extruded side profile for the body, a glass house on top with pillars and a roof, wheel arches, sills, bumpers, grille, lamps,
+// mirrors; a police bar, an estate's roof rails, a pickup's open bed, a GT's wing, the coupe's stripes, the limo's long cabin.
+//
+// Car frame: +x forward, +y up, +z the right side. Everything static is merged into: paint (swappable colour), dark (vertex colours),
+// lampF, lampR (emissive, swapped by drive.js), barR / barB (the siren); plus four wheels. Eight or nine draw calls a car.
+const { THREE, mute, shade } = __m["src/engine3d/lib3d.js"];
+const { registerVehicle } = __m["src/engine3d/registry3d.js"];
+const { assemble } = __m["src/engine3d/vehicles/geo.js"];
+const { bindDrive } = __m["src/engine3d/vehicles/drive.js"];
+
+const TILE = 32;
+
+const SIZE = (m) => ({ L: (m.len || 73) / TILE, W: (m.wid || (m.len || 73) * 0.5) / TILE });
+
+const GLASS = '#2a3b4a';
+const TRIM = '#1f2125';
+const BUMP = '#2b2d33';
+const CHROME = '#b9bec5';
+
+/** Proportions by body type: lay = cabin layout [rear glass, roof start, roof end, bonnet start]; heights in tiles for a ~2.3 long car. */
+const TYPES = {
+  hatch: { lay: [0.07, 0.17, 0.56, 0.69], hood: 0.60, nose: 0.50, tail: 0.56, roof: 1.0, r: 0.22, c: 0.15 },
+  estate: { lay: [0.05, 0.11, 0.60, 0.71], hood: 0.60, nose: 0.50, tail: 0.58, roof: 1.04, r: 0.22, c: 0.15 },
+  saloon: { lay: [0.20, 0.32, 0.58, 0.70], hood: 0.62, nose: 0.50, tail: 0.66, roof: 0.98, r: 0.22, c: 0.15 },
+  police: { lay: [0.20, 0.32, 0.58, 0.70], hood: 0.62, nose: 0.50, tail: 0.66, roof: 0.98, r: 0.22, c: 0.15 },
+  gt: { lay: [0.20, 0.31, 0.50, 0.64], hood: 0.50, nose: 0.38, tail: 0.56, roof: 0.88, r: 0.22, c: 0.13 },
+  coupe: { lay: [0.22, 0.33, 0.52, 0.66], hood: 0.48, nose: 0.36, tail: 0.50, roof: 0.84, r: 0.22, c: 0.12 },
+  limo: { lay: [0.12, 0.20, 0.67, 0.76], hood: 0.62, nose: 0.50, tail: 0.64, roof: 1.0, r: 0.22, c: 0.15 },
+  pickup: { lay: [0.43, 0.48, 0.63, 0.73], hood: 0.74, nose: 0.62, tail: 0.74, roof: 1.22, r: 0.28, c: 0.22, bed: true },
+};
+
+/** A D-shaped wheel arch plate (a half disc on a stem), in the x-y plane, centred on the wheel. */
+function archPoly(wx, r, c) {
+  const ra = r + 0.045;
+  const pts = [[wx - ra, c]];
+  const n = 7;
+  for (let i = 0; i <= n; i++) { const a = Math.PI - (i / n) * Math.PI; pts.push([wx + Math.cos(a) * ra, r + Math.sin(a) * ra]); }
+  pts.push([wx + ra, c]);
+  return pts;
+}
+
+/**
+ * Write a road car into G. o: { paintBody: bucket for painted parts (default 'paint'), rack, rust }.
+ * Returns the layout numbers other builders want: { x0, x1, xa, xd, hood, roof, wheels }.
+ */
+function carShell(G, m, T, o = {}) {
+  const { L, W } = SIZE(m);
+  const sy = 1 + (L / 2.3 - 1) * 0.35; // the taller cars do not simply scale with their length
+  const hood = T.hood * sy; const nose = T.nose * sy; const tail = T.tail * sy; const roof = T.roof * sy;
+  const c = T.c; const r = T.r;
+  const x0 = -L / 2; const x1 = L / 2;
+  const X = (t) => x0 + t * L;
+  const [l0, l1, l2, l3] = T.lay;
+  const xa = X(l0); const xd = X(l3);
+  const hw = W / 2;
+  const wg = W * 0.82; // the glass house is narrower than the body: the shoulders show
+  const P = 'paint';
+
+  // --- the lower body: an extruded side profile
+  const xb = T.bed ? xa - 0.05 : x0;
+  const prof = T.bed
+    ? [[xb, c + 0.05], [x1, c + 0.05], [x1, nose], [xd, hood], [xb, hood]]
+    : [[x0, c + 0.05], [x1, c + 0.05], [x1, nose], [xd, hood], [xa, hood], [x0, tail]];
+  G.prism(P, prof, -hw, hw);
+  // a lower sill band, darker, between the wheels; and the underbody
+  const fx = x1 - 0.2 * L; const rx = x0 + 0.2 * L;
+  G.box('dark', rx + r + 0.05, fx - r - 0.05, c + 0.03, c + 0.13, -hw - 0.007, hw + 0.007, TRIM);
+  G.box('dark', x0 + 0.2, x1 - 0.2, c, c + 0.08, -hw + 0.08, hw - 0.08, '#14151a');
+
+  // --- the glass house: tinted glass prism, paint roof, pillars
+  const gh = [[xa, hood - 0.01], [xd, hood - 0.01], [X(l2), roof], [X(l1), roof]];
+  G.prism('dark', gh, -wg / 2, wg / 2, GLASS);
+  G.box(P, X(l1) - 0.02, X(l2) + 0.02, roof - 0.01, roof + 0.05, -wg / 2 - 0.012, wg / 2 + 0.012);
+  const pillar = (ax, ay, bx, by, w = 0.065) => {
+    const ang = Math.atan2(by - ay, bx - ax);
+    for (const s of [-1, 1]) G.tbox(P, (ax + bx) / 2, (ay + by) / 2, s * (wg / 2 + 0.004), Math.hypot(bx - ax, by - ay) + 0.03, w, 0.05, undefined, 0, 0, ang);
+  };
+  pillar(xd, hood - 0.01, X(l2), roof); // A
+  pillar(xa, hood - 0.01, X(l1), roof); // C
+  const nPill = T.bed ? 0 : m.body === 'limo' ? 3 : 1;
+  for (let i = 1; i <= nPill; i++) {
+    const px = X(l1) + ((X(l2) - X(l1)) * i) / (nPill + 1);
+    for (const s of [-1, 1]) G.box(P, px - 0.03, px + 0.03, hood - 0.01, roof, s * (wg / 2) - 0.03, s * (wg / 2) + 0.03);
+  }
+  // a door seam and handle on each side
+  const seamX = (X(l1) + X(l2)) / 2 - 0.05;
+  for (const s of [-1, 1]) {
+    G.box('dark', seamX - 0.008, seamX + 0.008, c + 0.1, hood - 0.02, s * (hw + 0.004) - 0.004, s * (hw + 0.004) + 0.004, TRIM);
+    G.box('dark', seamX + 0.1, seamX + 0.26, hood - 0.11, hood - 0.085, s * (hw + 0.006) - 0.008, s * (hw + 0.006) + 0.008, CHROME);
+  }
+  // mirrors
+  for (const s of [-1, 1]) G.box(P, xd - 0.16, xd - 0.06, hood + 0.03, hood + 0.12, s * (wg / 2 + 0.03) - (s > 0 ? 0.0 : 0.1), s * (wg / 2 + 0.03) + (s > 0 ? 0.1 : 0.0));
+
+  // --- nose: grille, headlamps, bumper, plate
+  G.box('dark', x1 - 0.03, x1 + 0.012, nose - 0.24, nose - 0.05, -W * 0.3, W * 0.3, '#17181c');
+  G.box('dark', x1 - 0.02, x1 + 0.016, nose - 0.17, nose - 0.14, -W * 0.28, W * 0.28, CHROME);
+  for (const s of [-1, 1]) G.box('lampF', x1 - 0.045, x1 + 0.022, nose - 0.2, nose - 0.06, s > 0 ? hw - 0.3 : -hw + 0.06, s > 0 ? hw - 0.06 : -hw + 0.3);
+  G.box('dark', x1 - 0.06, x1 + 0.045, c + 0.02, c + 0.17, -hw + 0.04, hw - 0.04, BUMP);
+  // --- tail: lamps, bumper, plate, exhaust
+  for (const s of [-1, 1]) G.box('lampR', x0 - 0.022, x0 + 0.045, Math.min(tail, hood) - 0.22, Math.min(tail, hood) - 0.07, s > 0 ? hw - 0.34 : -hw + 0.06, s > 0 ? hw - 0.06 : -hw + 0.34);
+  G.box('dark', x0 - 0.045, x0 + 0.06, c + 0.02, c + 0.17, -hw + 0.04, hw - 0.04, BUMP);
+  G.box('dark', x0 - 0.052, x0 - 0.03, c + 0.2, c + 0.31, -0.16, 0.16, '#e6e2d4');
+
+  // --- wheel arches (dark half discs) on both sides, behind each wheel
+  for (const wx of [fx, rx]) for (const s of [-1, 1]) {
+    const z = s * (hw + 0.002);
+    G.prism('dark', archPoly(wx, r, c + 0.02), z - 0.008, z + 0.008, '#101114');
+  }
+
+  return { x0, x1, xa, xd, hood, roof, nose, tail, c, r, hw, wg, L, W, sy, fx, rx, X, lay: T.lay };
+}
+
+function pickupBed(G, S, m) {
+  const { x0, xa, hood, hw, c } = S;
+  const P = 'paint';
+  const floor = c + 0.28;
+  const xb = xa - 0.05;
+  G.box('dark', x0, xb, c + 0.04, floor, -hw + 0.06, hw - 0.06, '#2a2b30'); // the chassis under the bed
+  G.box('dark', x0 + 0.04, xb, floor, floor + 0.012, -hw + 0.08, hw - 0.08, '#3b3a38'); // the bed floor
+  for (const s of [-1, 1]) {
+    G.box(P, x0, xb, floor - 0.08, hood - 0.02, s > 0 ? hw - 0.075 : -hw, s > 0 ? hw : -hw + 0.075); // the sides
+    G.box('dark', x0 + 0.04, xb - 0.04, hood - 0.02, hood + 0.01, s > 0 ? hw - 0.075 : -hw, s > 0 ? hw : -hw + 0.075, '#2b2d33'); // cap rail
+  }
+  G.box(P, x0, x0 + 0.06, floor - 0.08, hood - 0.04, -hw, hw); // tailgate
+  G.box(P, xb - 0.07, xb, floor, hood + 0.1, -hw + 0.08, hw - 0.08); // the bulkhead
+  if (m.id === 'mule') { // the rusty workhorse: a couple of crates and a tarp roll
+    G.cube('dark', x0 + 0.34, floor + 0.012, 0.18, 0.4, 0.3, 0.36, '#8a6a40');
+    G.cube('dark', x0 + 0.34, floor + 0.312, 0.18, 0.4, 0.02, 0.36, '#6f5430');
+    G.tbox('dark', x0 + 0.62, floor + 0.12, -0.26, 0.5, 0.2, 0.2, '#3f6a5a', 0, 0, 0);
+  }
+}
+
+function rust(G, S, id) {
+  // a few brown patches on the bonnet and sides
+  const hw = S.hw;
+  const rnd = (i) => { const x = Math.sin((i + 1) * 12.9898 + id.length * 78.233) * 43758.5453; return x - Math.floor(x); };
+  for (let i = 0; i < 7; i++) {
+    const s = i % 2 ? 1 : -1;
+    const x = S.x0 + 0.1 + rnd(i) * (S.L - 0.2);
+    const y = S.c + 0.14 + rnd(i + 9) * 0.22;
+    G.box('dark', x, x + 0.14 + rnd(i + 3) * 0.14, y, y + 0.07 + rnd(i + 5) * 0.08, s > 0 ? hw : -hw - 0.01, s > 0 ? hw + 0.01 : -hw, i % 3 ? '#8a4a22' : '#6a3c1e');
+  }
+}
+
+/** The cabin-side details by type. */
+function details(G, S, m, T) {
+  const { x0, x1, hood, roof, hw, wg, c, X, L, W, nose, tail } = S;
+  const P = 'paint';
+  const body = m.body;
+  if (body === 'police') {
+    // the light bar, a blue band down the flanks, a push bar
+    G.box('dark', S.X(T.lay[1]) + 0.12, S.X(T.lay[2]) - 0.35, roof + 0.05, roof + 0.1, -wg * 0.42, wg * 0.42, '#1a1b20');
+    const bx = (S.X(T.lay[1]) + S.X(T.lay[2])) / 2 - 0.1;
+    G.box('barR', bx - 0.17, bx + 0.17, roof + 0.1, roof + 0.2, -wg * 0.4, -0.02);
+    G.box('barB', bx - 0.17, bx + 0.17, roof + 0.1, roof + 0.2, 0.02, wg * 0.4);
+    G.box('dark', bx - 0.19, bx + 0.19, roof + 0.2, roof + 0.23, -wg * 0.42, wg * 0.42, '#1a1b20');
+    for (const s of [-1, 1]) {
+      G.box('dark', x0 + 0.5, x1 - 0.45, hood - 0.3, hood - 0.17, s * (hw + 0.005) - 0.004, s * (hw + 0.005) + 0.004, '#2a4a8a');
+      G.box('dark', x0 + 0.5, x1 - 0.45, hood - 0.15, hood - 0.13, s * (hw + 0.005) - 0.004, s * (hw + 0.005) + 0.004, '#f2f2ec');
+    }
+    G.box('dark', x1 + 0.0, x1 + 0.07, S.c + 0.12, nose - 0.1, -hw * 0.55, hw * 0.55, '#16171a');
+    G.box('glow:#ff8a2a', x1 - 0.01, x1 + 0.0, nose - 0.04, nose + 0.0, -hw * 0.35, hw * 0.35);
+  } else if (body === 'estate') {
+    for (const s of [-1, 1]) G.box('dark', S.X(T.lay[0]) + 0.06, S.X(T.lay[2]), roof + 0.05, roof + 0.095, s * wg * 0.36 - 0.02, s * wg * 0.36 + 0.02, '#26282c');
+    for (const t of [0.22, 0.4, 0.55]) G.box('dark', S.X(t) - 0.025, S.X(t) + 0.025, roof + 0.075, roof + 0.115, -wg * 0.38, wg * 0.38, '#26282c');
+  } else if (body === 'gt') {
+    // a tail wing on posts, twin exhausts, vents in the front wings
+    G.box(P, x0 + 0.02, x0 + 0.3, tail + 0.14, tail + 0.19, -hw * 0.9, hw * 0.9);
+    for (const s of [-1, 1]) G.box('dark', x0 + 0.1, x0 + 0.14, tail, tail + 0.14, s * hw * 0.7 - 0.02, s * hw * 0.7 + 0.02, '#2b2d33');
+    for (const s of [-0.3, 0.3]) G.cyl('dark', 'x', x0 - 0.05, S.c + 0.12, s * W, 0.04, 0.08, CHROME, { seg: 8 });
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) G.box('dark', x1 - 0.7 - i * 0.07, x1 - 0.67 - i * 0.07, hood - 0.2, hood - 0.08, s * (hw + 0.006) - 0.006, s * (hw + 0.006) + 0.006, '#111');
+  } else if (body === 'coupe') {
+    const stripe = '#f2f0e6';
+    const dx = [-0.1, 0.1];
+    for (const z of dx) {
+      G.quad('dark', [S.xd, hood + 0.004, z - 0.045], [x1, nose + 0.004, z - 0.045], [x1, nose + 0.004, z + 0.045], [S.xd, hood + 0.004, z + 0.045], stripe);
+      G.box('dark', S.X(T.lay[1]), S.X(T.lay[2]) + 0.02, roof + 0.05, roof + 0.054, z - 0.045, z + 0.045, stripe);
+      G.quad('dark', [x0, tail + 0.004, z - 0.045], [S.xa, hood + 0.004, z - 0.045], [S.xa, hood + 0.004, z + 0.045], [x0, tail + 0.004, z + 0.045], stripe);
+    }
+    G.box(P, x0 + 0.0, x0 + 0.22, tail + 0.1, tail + 0.14, -hw * 0.85, hw * 0.85); // a low wing
+    for (const s of [-1, 1]) { G.box('dark', x0 + 0.06, x0 + 0.1, tail, tail + 0.1, s * hw * 0.6 - 0.02, s * hw * 0.6 + 0.02, '#2b2d33'); G.box('dark', S.X(0.44), S.X(0.5), S.c + 0.12, hood - 0.12, s * (hw + 0.006) - 0.006, s * (hw + 0.006) + 0.006, '#111'); }
+    for (const s of [-0.3, 0.3]) G.cyl('dark', 'x', x0 - 0.05, S.c + 0.12, s * W, 0.04, 0.08, CHROME, { seg: 8 });
+  } else if (body === 'limo') {
+    for (const s of [-1, 1]) G.box('dark', x0 + 0.1, x1 - 0.1, hood - 0.1, hood - 0.085, s * (hw + 0.005) - 0.004, s * (hw + 0.005) + 0.004, '#d9b24a');
+    G.cube('dark', x1 - 0.1, nose + 0.02, 0, 0.08, 0.12, 0.08, '#d9b24a'); // the bonnet mascot
+    G.box('dark', x0 + 0.0, x0 + 0.05, tail - 0.3, tail - 0.28, -hw * 0.8, hw * 0.8, '#d9b24a');
+  } else if (body === 'hatch') {
+    G.box('dark', x0 - 0.01, x0 + 0.03, hood - 0.05, hood - 0.0, -0.1, 0.1, '#1a1b1f'); // a wiper hint at the tailgate
+    for (const s of [-1, 1]) G.box(P, x0 + 0.08, x0 + 0.34, roof - 0.01, roof + 0.07, s * wg * 0.44 - 0.02, s * wg * 0.44 + 0.02); // the roof spoiler lip
+  }
+}
+
+const cache = new Map();
+function spec(m) {
+  const key = `car|${m.body}|${m.id || ''}|${m.len}|${m.wid}`;
+  let s = cache.get(key);
+  if (s) return s;
+  const T = TYPES[m.body] || TYPES.saloon;
+  const { L, W } = SIZE(m);
+  const r = T.r; const ww = 0.2;
+  const fx = L / 2 - 0.2 * L; const rx = -L / 2 + 0.2 * L;
+  const z = W / 2 - ww / 2 + 0.03;
+  const hubs = m.body === 'gt' || m.body === 'coupe' ? { hub: '#d4d8dc' } : m.body === 'pickup' ? { hub: '#8a8e94', lugs: 0 } : {};
+  s = {
+    key,
+    build(G) {
+      const S = carShell(G, m, T);
+      if (T.bed) pickupBed(G, S, m);
+      details(G, S, m, T);
+      if (m.id === 'mule') rust(G, S, 'mule');
+    },
+    wheels: [{ x: fx, z, r, w: ww, steer: true, opts: hubs }, { x: fx, z: -z, r, w: ww, steer: true, opts: hubs }, { x: rx, z, r, w: ww, opts: hubs }, { x: rx, z: -z, r, w: ww, opts: hubs }],
+  };
+  cache.set(key, s);
+  return s;
+}
+
+/** A road car for a model record (content.vehicles.models[id] plus its id). */
+function buildCar(m) {
+  const root = assemble(spec(m), mute(m.colors?.[0] || '#8a8f94', 0.0));
+  bindDrive(root);
+  return root;
+}
+
+for (const body of Object.keys(TYPES)) registerVehicle(body, (model) => buildCar({ ...model, body }));
+
+void THREE; void shade;
+
+return { SIZE, TYPES, carShell, buildCar };
+})();
+
+// ---- src/engine3d/vehicles/service.js
+__m["src/engine3d/vehicles/service.js"] = (function () {
+// Service vehicles (phase 3D-3): the No. 1 bus and the other lines' buses (a single-decker with a window band, a lit destination board, a door
+// behind the cab, roof units) and the tractors of the Red Dirt dealership (an open seat under a roll bar, a cab and a front loader, a big
+// cab with dual rear wheels and a GPS dome). Same kit as the cars: merged buckets and four (or more) wheels.
+const { mute } = __m["src/engine3d/lib3d.js"];
+const { registerVehicle } = __m["src/engine3d/registry3d.js"];
+const { assemble } = __m["src/engine3d/vehicles/geo.js"];
+const { bindDrive } = __m["src/engine3d/vehicles/drive.js"];
+const { SIZE } = __m["src/engine3d/vehicles/cars.js"];
+
+const GLASS = '#2a3b4a';
+const TRIM = '#1f2125';
+const CHROME = '#b9bec5';
+const CREAM = '#efe6cc';
+
+// ------------------------------------------------------------------------------------------------ buses
+function busSpec(m) {
+  const { L, W } = SIZE({ len: m.len || 150, wid: m.wid || 46 });
+  const hw = W / 2; const x0 = -L / 2; const x1 = L / 2;
+  const r = 0.3; const ww = 0.26;
+  const fx = x1 - 0.85; const rx = x0 + 0.95;
+  const z = hw - ww / 2 + 0.03;
+  return {
+    key: `bus|${L}|${W}`,
+    build(G) {
+      const P = 'paint';
+      G.box('dark', x0 + 0.05, x1 - 0.05, 0.22, 0.5, -hw + 0.04, hw - 0.04, '#15161a'); // the skirt and underbody
+      G.box(P, x0, x1, 0.46, 0.84, -hw, hw); // lower panels
+      G.box(P, x0, x1, 1.46, 1.74, -hw, hw); // above the windows
+      G.box('dark', x0 + 0.02, x1 - 0.02, 0.84, 0.9, -hw - 0.004, hw + 0.004, CREAM); // the cream waist stripe
+      // the window band: dark glass set between pillars
+      G.box('dark', x0 + 0.04, x1 - 0.04, 0.9, 1.46, -hw + 0.02, hw - 0.02, GLASS);
+      const n = 9;
+      for (let i = 0; i <= n; i++) {
+        const px = x0 + 0.12 + (i * (L - 0.24)) / n;
+        for (const s of [-1, 1]) G.box(P, px - 0.03, px + 0.03, 0.9, 1.46, s > 0 ? hw - 0.02 : -hw - 0.012, s > 0 ? hw + 0.012 : -hw + 0.02);
+      }
+      // the roof: a cream slab, two air-con units
+      G.box('dark', x0 + 0.1, x1 - 0.1, 1.74, 1.8, -hw + 0.1, hw - 0.1, CREAM);
+      for (const t of [-0.22, 0.15]) G.box('dark', t * L - 0.4, t * L + 0.4, 1.8, 1.96, -0.3, 0.3, '#c8c6bc');
+      // the nose: a big windscreen, a lit destination board, lamps, grille panel, bumper, mirrors
+      G.box('dark', x1 - 0.01, x1 + 0.014, 0.88, 1.46, -hw + 0.08, hw - 0.08, GLASS);
+      G.box(P, x1 - 0.015, x1 + 0.02, 0.88, 1.46, -0.03, 0.03);
+      G.box('glow:#ffb02a', x1 - 0.01, x1 + 0.02, 1.5, 1.68, -hw * 0.62, hw * 0.62);
+      G.box('dark', x1 - 0.01, x1 + 0.03, 0.5, 0.62, -hw + 0.3, hw - 0.3, '#15161a');
+      for (const s of [-1, 1]) G.box('lampF', x1 - 0.02, x1 + 0.03, 0.56, 0.72, s > 0 ? hw - 0.3 : -hw + 0.08, s > 0 ? hw - 0.08 : -hw + 0.3);
+      G.box('dark', x1 - 0.05, x1 + 0.07, 0.24, 0.42, -hw + 0.02, hw - 0.02, '#2b2d33');
+      for (const s of [-1, 1]) { G.box('dark', x1 - 0.2, x1 - 0.14, 1.0, 1.4, s * (hw + 0.12) - 0.02, s * (hw + 0.12) + 0.02, TRIM); G.box('dark', x1 - 0.24, x1 - 0.1, 1.15, 1.35, s * (hw + 0.12) - 0.03, s * (hw + 0.12) + 0.03, TRIM); }
+      // the tail
+      G.box('dark', x0 - 0.012, x0 + 0.02, 0.98, 1.44, -hw + 0.2, hw - 0.2, GLASS);
+      for (const s of [-1, 1]) G.box('lampR', x0 - 0.02, x0 + 0.03, 0.56, 0.9, s > 0 ? hw - 0.2 : -hw + 0.06, s > 0 ? hw - 0.06 : -hw + 0.2);
+      G.box('dark', x0 - 0.05, x0 + 0.07, 0.24, 0.42, -hw + 0.02, hw - 0.02, '#2b2d33');
+      G.box('dark', x0 - 0.02, x0 + 0.01, 0.62, 0.74, -0.2, 0.2, '#e6e2d4');
+      // the door, on the right-hand (z+) side behind the cab: two glass leaves
+      const dx = x1 - 1.3;
+      G.box('dark', dx, dx + 0.7, 0.5, 1.46, hw + 0.002, hw + 0.012, '#27323c');
+      G.box('dark', dx + 0.345, dx + 0.355, 0.5, 1.46, hw + 0.012, hw + 0.02, TRIM);
+      G.box('dark', dx, dx + 0.7, 0.5, 0.56, hw + 0.012, hw + 0.03, '#8a8e94'); // the step
+      // wheel arches
+      for (const wx of [fx, rx]) for (const s of [-1, 1]) {
+        const pts = [[wx - r - 0.06, 0.24]]; for (let i = 0; i <= 8; i++) { const a = Math.PI - (i / 8) * Math.PI; pts.push([wx + Math.cos(a) * (r + 0.06), r + Math.sin(a) * (r + 0.06)]); } pts.push([wx + r + 0.06, 0.24]);
+        G.prism('dark', pts, s * (hw + 0.002) - 0.01, s * (hw + 0.002) + 0.01, '#101114');
+      }
+    },
+    wheels: [{ x: fx, z, r, w: ww, steer: true, opts: { hub: '#9ca0a6' } }, { x: fx, z: -z, r, w: ww, steer: true, opts: { hub: '#9ca0a6' } }, { x: rx, z, r, w: ww, opts: { hub: '#9ca0a6' } }, { x: rx, z: -z, r, w: ww, opts: { hub: '#9ca0a6' } }],
+  };
+}
+
+function buildBus(m) {
+  const root = assemble(busSpec(m), mute(m.colors?.[0] || '#2f6b4f', 0));
+  return bindDrive(root, null, { roll: 1.4 });
+}
+
+// ------------------------------------------------------------------------------------------------ tractors
+function tractorSpec(m) {
+  const { L, W } = SIZE(m);
+  const tier = m.farm?.tier || (L > 2.6 ? 3 : L > 2.2 ? 2 : 1);
+  const x0 = -L / 2; const x1 = L / 2; const hw = W / 2;
+  const rR = Math.min(0.62, 0.2 * L + (tier === 3 ? 0.03 : 0)); const wR = 0.12 + rR * 0.45;
+  const rF = rR * 0.56; const wF = 0.2;
+  const rx = x0 + rR + 0.03;
+  const fx = x1 - rF - (tier === 2 ? 0.34 : 0.12);
+  const zR = hw - wR / 2; const zF = hw - wF / 2 - 0.06;
+  const hood = L * 0.42; const cabTop = L * (tier === 3 ? 0.82 : 0.78);
+  const wheels = [
+    { x: fx, z: zF, r: rF, w: wF, steer: true, opts: { hub: '#d8d4c4', lugs: 10 } }, { x: fx, z: -zF, r: rF, w: wF, steer: true, opts: { hub: '#d8d4c4', lugs: 10 } },
+    { x: rx, z: zR, r: rR, w: wR, opts: { hub: '#d8d4c4', lugs: 14 } }, { x: rx, z: -zR, r: rR, w: wR, opts: { hub: '#d8d4c4', lugs: 14 } },
+  ];
+  if (tier === 3) { wheels.push({ x: rx, z: zR - wR - 0.01, r: rR, w: wR, opts: { hub: '#d8d4c4', lugs: 14 } }, { x: rx, z: -zR + wR + 0.01, r: rR, w: wR, opts: { hub: '#d8d4c4', lugs: 14 } }); }
+  return {
+    key: `tractor|${m.id || ''}|${L}|${W}|${tier}`,
+    build(G) {
+      const P = 'paint';
+      const hx0 = tier === 1 ? x0 + L * 0.34 : x0 + L * 0.42;
+      const hx1 = tier === 2 ? x1 - 0.5 : x1 - 0.05;
+      const bw = Math.min(0.36, W * 0.3); // the bonnet's half width
+      G.box('dark', x0 + rR * 0.6, hx1 - 0.1, rR * 0.8, rR * 0.8 + 0.12, -0.2, 0.2, '#2c2e33'); // the chassis
+      // the bonnet: a side profile that dips at the nose, in paint, with a darker grille
+      G.prism(P, [[hx0, rR * 0.75], [hx1, rR * 0.75], [hx1, hood - 0.12], [hx1 - 0.12, hood], [hx0, hood]], -bw, bw);
+      G.box('dark', hx1 - 0.01, hx1 + 0.02, rR * 0.82, hood - 0.14, -bw + 0.06, bw - 0.06, '#17181c');
+      for (let i = 0; i < 4; i++) G.box('dark', hx1 + 0.0, hx1 + 0.025, rR * 0.86 + i * 0.07, rR * 0.88 + i * 0.07, -bw + 0.07, bw - 0.07, CHROME);
+      for (const s of [-1, 1]) G.box('lampF', hx1 - 0.03, hx1 + 0.03, hood - 0.26, hood - 0.14, s > 0 ? bw - 0.14 : -bw + 0.02, s > 0 ? bw - 0.02 : -bw + 0.14);
+      G.cyl('dark', 'y', hx0 + 0.3, hood, bw * 0.55, 0.035, 0.34, '#2a2a2e', { seg: 7 }); // the exhaust stack
+      G.cyl('dark', 'y', hx0 + 0.3, hood + 0.34, bw * 0.55, 0.05, 0.03, '#2a2a2e', { seg: 7 });
+      // the rear fenders over the big tyres, and the drawbar
+      for (const s of [-1, 1]) {
+        const zc = s * zR; const zz = (w) => [zc - w / 2, zc + w / 2];
+        const [a, b] = zz(wR + 0.04);
+        G.box(P, rx - rR * 0.95, rx + rR * 0.95, rR * 2 + 0.03, rR * 2 + 0.09, a, b);
+        G.box(P, rx - rR * 1.0, rx - rR * 0.86, rR * 1.45, rR * 2 + 0.09, a, b);
+        G.box(P, rx + rR * 0.86, rx + rR * 1.0, rR * 1.45, rR * 2 + 0.09, a, b);
+        G.box('lampR', x0 - 0.02, x0 + 0.04, rR * 1.7, rR * 1.7 + 0.1, s > 0 ? zc - 0.05 : zc - 0.05, s > 0 ? zc + 0.05 : zc + 0.05);
+      }
+      G.box('dark', x0 - 0.02, x0 + 0.12, 0.4, 0.5, -0.1, 0.1, '#2c2e33');
+      G.box('dark', fx - 0.05, fx + 0.05, rF * 0.9, rF * 1.2, -zF, zF, '#2c2e33'); // the front axle
+      if (tier === 1) {
+        G.box('dark', rx - 0.35, rx + 0.12, hood - 0.02, hood + 0.06, -0.24, 0.24, '#26272b'); // the seat pan
+        G.box('dark', rx - 0.38, rx - 0.28, hood + 0.06, hood + 0.4, -0.22, 0.22, '#26272b'); // the seat back
+        for (const s of [-1, 1]) G.box('dark', rx - 0.3, rx - 0.25, hood - 0.02, hood + 0.72, s * 0.3 - 0.025, s * 0.3 + 0.025, '#d8d8d8'); // the roll bar
+        G.box('dark', rx - 0.31, rx - 0.24, hood + 0.7, hood + 0.76, -0.33, 0.33, '#d8d8d8');
+        G.cyl('dark', 'y', hx0 + 0.04, hood - 0.02, 0.18, 0.025, 0.4, '#3a3a3e', { seg: 6 }); // the gear lever
+      } else {
+        // the cab: tinted glass, a roof, pillars, a seat inside
+        const cx0 = x0 + L * 0.06; const cx1 = hx0 + 0.04;
+        const cw = Math.min(W * 0.6, W - wR * 2 - 0.02);
+        G.box('dark', cx0, cx1, hood - 0.1, hood - 0.02, -cw / 2, cw / 2, '#26272b');
+        G.prism('dark', [[cx0, hood - 0.02], [cx1, hood - 0.02], [cx1 - 0.05, cabTop], [cx0 + 0.04, cabTop]], -cw / 2, cw / 2, GLASS);
+        G.box(P, cx0 - 0.03, cx1 + 0.03, cabTop, cabTop + 0.07, -cw / 2 - 0.05, cw / 2 + 0.05);
+        for (const [px, top] of [[cx0 + 0.02, cabTop], [cx1 - 0.03, cabTop]]) for (const s of [-1, 1]) G.box(P, px - 0.035, px + 0.035, hood - 0.02, top, s * cw / 2 - 0.035, s * cw / 2 + 0.035);
+        G.cube('dark', (cx0 + cx1) / 2, hood - 0.02, 0, 0.3, 0.2, 0.3, '#26272b');
+        if (tier === 3) {
+          G.cyl('dark', 'y', cx0 + 0.3, cabTop + 0.07, 0, 0.1, 0.1, '#f0f0ea', { seg: 8 }); // the GPS dome
+          G.blob('dark', cx0 + 0.3, cabTop + 0.17, 0, 0.1, 0.07, 0.1, '#f0f0ea', 0);
+          for (const s of [-1, 1]) G.box('glow:#fff2c0', cx1 - 0.08, cx1 + 0.0, cabTop + 0.01, cabTop + 0.07, s * 0.3 - 0.08, s * 0.3 + 0.08);
+          G.box('dark', x1 - 0.12, x1, 0.45, 0.8, -0.35, 0.35, '#c8c6bc'); // the front weights
+        } else if (tier === 2) {
+          // the front loader: two arms up to a bucket
+          for (const s of [-1, 1]) {
+            G.tbox('dark', hx1 + 0.1, hood * 0.62, s * (bw + 0.08), 0.62, 0.07, 0.07, '#4a4e54', 0, 0, 0.35);
+            G.tbox('dark', hx1 - 0.2, hood * 0.5 + 0.14, s * (bw + 0.08), 0.3, 0.07, 0.07, '#4a4e54', 0, 0, -0.6);
+          }
+          G.prism('dark', [[x1 - 0.02, 0.12], [x1 - 0.02, 0.58], [x1 - 0.42, 0.62], [x1 - 0.5, 0.2]], -W * 0.4, W * 0.4, '#6a6e74');
+        }
+      }
+    },
+    wheels,
+  };
+}
+
+function buildTractor(m) {
+  const root = assemble(tractorSpec(m), mute(m.colors?.[0] || '#c8402a', 0));
+  return bindDrive(root, null, { roll: 0.5 });
+}
+
+registerVehicle('bus', (model) => buildBus(model));
+registerVehicle('tractor', (model) => buildTractor(model));
+
+return { buildBus, buildTractor };
+})();
+
 // ---- src/engine3d/vehicles3d.js
 __m["src/engine3d/vehicles3d.js"] = (function () {
-// Vehicle builders for the 3D renderer: cars, buses, signature cars, tractors, aircraft, ships, tanks, helicopters, the
-// rocket: filled by the vehicles agent (phase 3D-3). It registers nothing yet; world3d.js shows a simple two-box car in the
-// model's colour (fallbacks3d.js) for an unregistered body.
-//
+// Vehicle builders for the 3D renderer (phase 3D-3): this file only imports the files that register them (registry3d.js).
 // The contract (registry3d.js): registerVehicle(key, (model, ctx) => THREE.Object3D), key a model id or a body type. The
 // object is centred on the vehicle's centre at ground level, tile units, +x = forward; world3d turns it by
 // rotation.y = -angle. Optional userData: update(v, ctx, dt), setColor(hex).
-// Do not put builders anywhere but here (and files this one imports).
-const { registerVehicle } = __m["src/engine3d/registry3d.js"];
+//   vehicles/cars.js      hatch, estate, saloon, police, gt, coupe, limo, pickup
+//   vehicles/service.js   bus, tractor (three sizes)
+//   vehicles/signature.js the nine signature cars (by model id)
+// Large machines that are not content/vehicles models (aircraft, rocket, war vehicles) live in machines3d.js.
 
-void registerVehicle; // (nothing registered yet)
+
 
 return {  };
 })();
@@ -73882,6 +74625,7 @@ class World3D {
     const outdoor = host.layers.some((L) => L.map.kind !== 'interior');
     const wv = host.worldBox(host.view, 80, 480); // (a tall building's foot is below the view)
     this.viewTiles = { x0: wv.x / TILE, y0: wv.y / TILE, x1: (wv.x + wv.w) / TILE, y1: (wv.y + wv.h) / TILE };
+    for (const ms0 of this.mapScenes.values()) ms0.group.visible = false; // (a map that left the layers must not stay on screen at its old offset)
     const shown = new Set();
     for (const L of host.layers) {
       const lm = L.map;

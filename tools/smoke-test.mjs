@@ -798,13 +798,36 @@ try {
     const st = R.bld.stateOf(b);
     const e = R.world3d && [...(R.world3d.mapScenes.get('halvermouth')?.buildings.values() || [])].find((q) => q.b === b);
     const g3 = e ? { roofed: Boolean(e.roofed?.group.visible), open: Boolean(e.open?.visible), hole: e.hole.value.w, holeR: Math.round(e.hole.value.z) } : null;
-    return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior), g3 };
+    // what is really on screen: render one frame and read pixels back (same task, so the drawing buffer is still there)
+    const W3 = R.world3d; const gl = W3.gl.getContext(); const H = R.canvas3d.height;
+    const px = (x, y) => { const o = new Uint8Array(4); gl.readPixels(Math.round(x), H - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o); return [o[0], o[1], o[2]]; };
+    const dist = (a, c) => Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]);
+    const holesBefore = [...(W3.mapScenes.get('halvermouth')?.buildings.values() || [])].filter((q) => q.hole.value.w > 0).map((q) => q.b.id);
+    const fig = W3.figures.get(g.player)?.fig;
+    const spots = [[0, 18], [0, 6], [0, 30]].map(([dx, z]) => R.toScreen(g.player.x, g.player.y, z));
+    const far = R.toScreen(g.player.x, g.player.y, 18); far.x += 330; far.y += 40;
+    W3.render(0.016); const withFig = spots.map((q) => px(q.x, q.y)); const farOn = px(far.x, far.y);
+    if (fig) fig.root.visible = false; const saved = [...W3.mapScenes.get('halvermouth')?.buildings.values() || []].map((q) => [q, q.hole.value.w]);
+    // (the figure is switched off for one frame: where the figure stood must change)
+    const vis0 = fig?.root.visible; fig && (fig.root.visible = false);
+    const orig = W3.updateActors; W3.updateActors = function (...a) { orig.apply(this, a); const f2 = this.figures.get(g.player); if (f2) f2.fig.root.visible = false; };
+    W3.render(0.016); const noFig = spots.map((q) => px(q.x, q.y));
+    W3.updateActors = orig;
+    for (const [q] of saved) q.hole.value.w = 0; // and with every hole forced off, a pixel well away from the disc must not change
+    const origU = W3.updateMap; W3.updateMap = function (...a) { origU.apply(this, a); for (const ms of this.mapScenes.values()) for (const q of ms.buildings.values()) q.hole.value.w = 0; };
+    W3.render(0.016); const farOff = px(far.x, far.y); W3.updateMap = origU;
+    const figureSeen = spots.some((q, i) => dist(withFig[i], noFig[i]) > 25);
+    const farSolid = dist(farOn, farOff) < 12;
+    const holes = [...(W3.mapScenes.get('halvermouth')?.buildings.values() || [])].filter((q) => q.hole.value.w > 0 || q.roofed?.group.visible).map((q) => [q.b.id, q.hole.value.w, q.roofed?.group.visible, Math.round(q.roofed?.group.scale.y * 100)]).slice(0, 40);
+    const inBox = m.buildings.filter((q) => g.player.x >= q.x * 32 && g.player.x < (q.x + q.w) * 32 && g.player.y >= q.y * 32 && g.player.y < (q.y + q.h) * 32).map((q) => q.id);
+    const open3 = [...W3.mapScenes.entries()].filter(([, v]) => v.group.visible).map(([k]) => k);
+    return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior), g3, figureSeen, farSolid, holesBefore, withFig, noFig, farOn, farOff, inBox, holes, open3 };
   }, mode);
   let iv = await isoStep('behind');
-  record('iso: behind a tower the player is seen through a see-through hole (3D: the building\'s dithered disc)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50, JSON.stringify(iv));
+  record('iso: behind a tower the player is seen through a see-through hole (3D: the building\'s dithered disc)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50 && iv.figureSeen && iv.farSolid, JSON.stringify(iv));
   await shot('3d-tower-behind');
   iv = await isoStep('inside');
-  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden && iv.g3 && !iv.g3.roofed && iv.g3.open, JSON.stringify(iv));
+  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden && iv.g3 && !iv.g3.roofed && iv.g3.open && iv.holesBefore.length === 0, JSON.stringify(iv));
   await shot('3d-tower-inside');
   iv = await isoStep('front');
   record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && !iv.g3.open && iv.g3.hole === 0, JSON.stringify(iv));
