@@ -44,7 +44,7 @@ export function pipe(p, ctx) {
     if (a.ns) g.add(cyz(0.15, a.z1 - a.z0, c, 0.5, 0.55, (a.z0 + a.z1) / 2, { seg: 10 }));
     if (a.ew && a.ns) g.add(sphere(0.17, c, 0.5, 0.55, 0.5, { seg: 8 }));
     g.add(bx(0.3, 0.42, 0.3, CONC, 0.5, 0, 0.5), cy(0.2, 0.05, '#8a3a2e', 0.5, 0.4, 0.5, { seg: 10 }));
-    if ((p.x + p.y) % 2 === 0) g.add(cy(0.19, 0.08, '#8a3a2e', 0.5, 0.55, 0.5, { seg: 10, rx: a.ew && !a.ns ? 0 : Math.PI / 2, rz: a.ew && !a.ns ? Math.PI / 2 : 0 }).translateY(0));
+    if ((p.x + p.y) % 2 === 0) g.add(a.ew && !a.ns ? cyx(0.19, 0.08, '#8a3a2e', 0.5, 0.55, 0.5, { seg: 10 }) : cyz(0.19, 0.08, '#8a3a2e', 0.5, 0.55, 0.5, { seg: 10 }));
     return g;
   });
 }
@@ -54,7 +54,7 @@ export function valve(p) {
   const g = group(0, 0, h / 2, cyx(0.12, w - 0.1, '#7a7e82', w / 2, 0.5, 0, { seg: 10 }));
   for (let i = 0; i < w; i++) {
     const x = i + 0.5;
-    g.add(bx(0.3, 0.45, 0.3, '#5a6068', x, 0, 0), cy(0.17, 0.3, '#6a7078', x, 0.4, 0, { seg: 10 }), cy(0.04, 0.34, IRON, x, 0.7, 0, { seg: 6 }), cyz(0.16, 0.04, '#c8402e', x, 1.05, 0, { seg: 12 }).rotateX(0), bx(0.34, 0.04, 0.04, '#c8402e', x, 1.03, 0), bx(0.04, 0.04, 0.34, '#c8402e', x, 1.03, 0));
+    g.add(bx(0.3, 0.45, 0.3, '#5a6068', x, 0, 0), cy(0.17, 0.3, '#6a7078', x, 0.4, 0, { seg: 10 }), cy(0.04, 0.34, IRON, x, 0.7, 0, { seg: 6 }), bx(0.34, 0.04, 0.04, '#c8402e', x, 1.03, 0), bx(0.04, 0.04, 0.34, '#c8402e', x, 1.03, 0));
   }
   return done(g);
 }
@@ -107,8 +107,8 @@ export function outbin(p, ctx) {
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const arrowAt = (dir, x, z, c, s = 1) => {
   const [dx, dz] = DIRS[dir % 4];
-  const a = Math.atan2(-dz, dx); // heading in the xz plane (ry rotates +x toward -z)
-  return [bx(0.2 * s, 0.025, 0.05 * s, c, x - dx * 0.04, 0.12, z - dz * 0.04, { ry: a + 0.7, cast: false }), bx(0.2 * s, 0.025, 0.05 * s, c, x - dx * 0.04, 0.12, z - dz * 0.04, { ry: a - 0.7, cast: false })].map((m, i) => { m.position.x += Math.cos(a + (i ? -0.7 : 0.7)) * 0.07 * s * 0 + 0; return m; });
+  const a = Math.atan2(-dz, dx); // heading in the xz plane (ry turns +x toward -z)
+  return [0.7, -0.7].map((k) => bx(0.16 * s, 0.025, 0.045 * s, c, x - dx * 0.03 + Math.cos(a + k) * 0.05 * s, 0.12, z - dz * 0.03 - Math.sin(a + k) * 0.05 * s, { ry: a + k, cast: false }));
 };
 
 export function belt(p) {
@@ -211,20 +211,20 @@ export function scaffold(p) {
     for (const x of [0.08, w - 0.08]) g.add(bx(0.05, 0.05, h - 0.1, STEEL, x, y, h / 2), bx(0.05, 0.05, h - 0.1, STEEL, x, y - 0.9, h / 2));
     if (l >= levels - 1) g.add(bx(w - 0.1, 0.07, Math.min(h - 0.1, 1.2), '#a58a5c', w / 2, y - 0.04, h - Math.min(h - 0.1, 1.2) / 2 - 0.05));
   }
-  for (let i = 0; i < nx; i++) g.add(bx(0.04, LH * 1.2, 0.04, '#7a7e82', xs[i] + (xs[i + 1] - xs[i]) / 2, 0.1, h - 0.08, { rz: 0.75, cast: false }));
-  for (let j = 0; j < nz; j++) g.add(bx(0.04, 0.04, 0.001, '#000', 0, 0, 0, { cast: false }));
+  for (let i = 0; i < nx; i++) { const bw = xs[i + 1] - xs[i]; const len = Math.hypot(bw, LH); g.add(bx(len, 0.04, 0.04, '#7a7e82', (xs[i] + xs[i + 1]) / 2, LH / 2 - 0.02, h - 0.08, { rz: Math.atan2(LH, bw), cast: false })); }
   return done(g);
 }
 
 export function excavator(p) {
   const [w, h] = size(p, 2, 2);
   const y = '#d9a82a';
-  const arm = group(0.6, 0.9, 0, bx(0.9, 0.14, 0.14, y, 0.35, 0, 0, { rz: 0.5 }));
-  arm.add(bx(0.8, 0.12, 0.12, shade(y, -10), 0.95, 0.55, 0, { rz: -0.6 }), bx(0.28, 0.22, 0.3, '#5a5e66', 1.3, 0.25, 0));
-  arm.traverse((o) => { o.userData.noBake = false; });
-  const g = group(w / 2, 0, h / 2, bx(w - 0.3, 0.3, 0.55, '#2a2a2e', 0, 0, -0.35), bx(w - 0.3, 0.3, 0.55, '#2a2a2e', 0, 0, 0.35), bx(w - 0.5, 0.25, 0.9, '#44474c', 0, 0.3, 0), bx(0.8, 0.8, 0.8, y, -0.2, 0.55, 0), bx(0.82, 0.06, 0.82, shade(y, -30), -0.2, 1.35, 0), bx(0.5, 0.55, 0.04, glass('#9fc0d0', 0.5), -0.1, 0.7, 0.42, { cast: false }), bx(0.5, 0.3, 0.7, '#44474c', -0.5, 0.55, 0), bx(0.04, 0.55, 0.04, y, 0.15, 0.8, 0.35), bx(0.04, 0.55, 0.04, y, 0.15, 0.8, -0.35), bx(0.34, 0.1, 0.1, '#3a3e44', -0.2, 0.9, 0.5), arm);
+  const arm = group(0.0, 0.75, 0, bx(0.55, 0.14, 0.14, y, 0.22, 0, 0, { rz: 0.6 }), bx(0.5, 0.12, 0.12, shade(y, -10), 0.62, 0.3, 0, { rz: -0.8 }), bx(0.24, 0.2, 0.28, '#5a5e66', 0.95, 0.12, 0, { rz: -0.4 }));
+  arm.children.forEach((c) => { c.userData.noBake = true; });
+  const g = group(w / 2, 0, h / 2, bx(w - 0.3, 0.3, 0.5, '#2a2a2e', 0, 0, -0.38), bx(w - 0.3, 0.3, 0.5, '#2a2a2e', 0, 0, 0.38), bx(w - 0.5, 0.22, 0.9, '#44474c', 0, 0.3, 0), bx(0.7, 0.75, 0.75, y, -0.3, 0.52, 0), bx(0.72, 0.06, 0.77, shade(y, -30), -0.3, 1.27, 0), bx(0.4, 0.5, 0.04, glass('#9fc0d0', 0.5), -0.2, 0.68, 0.39, { cast: false }), bx(0.4, 0.3, 0.6, '#44474c', -0.62, 0.52, 0));
+  done(g);
+  g.add(arm);
   void h;
-  return done(g);
+  return g;
 }
 
 export const BUILDERS = { derrick, pumpjack, tank, pipe, valve, gauge, barrelline, column, loadingbay, outbin, belt, sorter, inserter, machine, generator, storage, scaffold, excavator };

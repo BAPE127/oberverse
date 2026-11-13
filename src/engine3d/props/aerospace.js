@@ -1,5 +1,5 @@
 // Starling Flats Aerospace Park: tower, radar, runway kit, aircraft, rockets, halls and the pads.
-import { bx, cy, cn, bl, cyx, cyz, flat, panel, dome, sphere, prism, glass, glow, M, mat, shade, mix, mute, group, done, noBake, plate, size, rnd, pick, night, clockOf, hash, strHash, run, arms, oriented, WOOD, DWOOD, LWOOD, STEEL, IRON, CONC, RED, BRASS } from './kit.js';
+import { THREE, bx, cy, cn, bl, cyx, cyz, flat, panel, dome, sphere, prism, glass, glow, M, mat, shade, mix, mute, group, done, noBake, plate, size, rnd, pick, night, clockOf, hash, strHash, run, arms, oriented, WOOD, DWOOD, LWOOD, STEEL, IRON, CONC, RED, BRASS } from './kit.js';
 
 const view = (ctx, p) => { try { return ctx?.game?.aero?.propView?.(p) || null; } catch { return null; } };
 const LIV = { roost: ['#efe6d0', '#c8402a', '#e2d8c0'], meridian: ['#f4f4f2', '#2e3a4e', '#d8dce2'], test: ['#f4f2ee', '#e86a20', '#e8e6e0'], military: ['#8a929a', '#5a626a', '#7e868e'], stealth: ['#3e444c', '#2a3038', '#383e46'] };
@@ -22,7 +22,7 @@ export function planeModel(look, len, span, livery, build) {
     g.add(cyz(R, fl * 0.84, b.painted === false ? '#8a8e92' : body, 0, yc, z0 + fl * 0.5 + len * 0.02, { seg: 10 }));
     g.add(cn(R, fl * 0.2, b.painted === false ? '#8a8e92' : body, 0, yc, z0 + len * 0.02 - 0.0, { seg: 10, rx: -Math.PI / 2 }));
     g.children[g.children.length - 1].position.set(0, yc, z0 + fl * 0.1 + len * 0.0);
-    g.add(bx(R * 2.2, 0.05, fl * 0.5, trim, 0, yc - R * 0.2, z0 + fl * 0.5, { cast: false }).translateY(0));
+    g.add(bx(R * 2.1, 0.05, fl * 0.5, trim, 0, yc - R * 0.35, z0 + fl * 0.5, { cast: false }));
   } else {
     g.add(bx(len * 0.7, 0.14, len * 0.32, body, 0, 0.3, 0), cn(len * 0.2, len * 0.16, body, 0, 0.3, -len * 0.3, { seg: 4, rx: -Math.PI / 2 }));
   }
@@ -30,10 +30,10 @@ export function planeModel(look, len, span, livery, build) {
   if (canopy === 'bubble' || canopy === 'tandem') g.add(sphere(R * 0.55, '#2a4a6a', 0, yc + R * 0.7, z0 + fl * 0.22, { seg: 8 }));
   else if (canopy === 'airliner' || canopy === 'cabin') g.add(bx(R * 1.2, 0.06, 0.1, '#2a4a6a', 0, yc + R * 0.5, z0 + len * 0.1, { cast: false }));
   if (b.wings > 0.45) {
-    const wz = z0 + len * wingY; const ws = span * (b.wings >= 1 ? 1 : 0.6);
-    const ang = Math.atan2(sweep * len, span / 2);
-    for (const s of [-1, 1]) g.add(bx(Math.hypot(span / 2, sweep * len), 0.05, Math.max(0.2, len * chord) * (1 - tip * 2) + 0.12, wing, s * ws * 0.25, yc - R * 0.25, wz + sweep * len * 0.5, { ry: -s * ang * 0.0 }).translateX(0));
-    for (const s of [-1, 1]) { const w = g.children[g.children.length - 1]; void w; }
+    const wz = z0 + len * wingY; const half = (span / 2) * (b.wings >= 1 ? 1 : 0.6);
+    const ang = Math.atan2(sweep * len, half);
+    const wl = Math.hypot(half, sweep * len); const wc = Math.max(0.16, len * chord * 0.7);
+    for (const s of [-1, 1]) g.add(bx(wl, 0.05, wc, wing, s * half / 2, yc - R * 0.25, wz + sweep * len * 0.5, { ry: -s * ang }));
   }
   // tail
   if (!flyingWing && tail) {
@@ -63,8 +63,14 @@ export function aircraft(p, ctx) {
   const len = Math.min(look.len || h, h - 0.1); const span = Math.min(look.span || w, w - 0.1);
   const m = planeModel(look, len, span, v?.livery || p.livery, null);
   if (p.wreck || v?.wreck) { m.rotation.z = 0.12; m.rotation.x = 0.05; m.position.y = 0.0; m.add(bl(0.3, '#2a2420', 0, 0.8, 0.0, { opacity: 0.6, cast: false })); }
+  const heading = v?.heading || p.heading || 0;
+  // keep the whole machine over its footprint however it is built: scale a too-big model down, centre it, stand it on the ground
+  const box = new THREE.Box3().setFromObject(m);
+  const fit = Math.min(1, (w - 0.1) / Math.max(0.01, box.max.x - box.min.x), (h - 0.1) / Math.max(0.01, box.max.z - box.min.z));
+  if (fit < 1) { m.scale.setScalar(fit); box.setFromObject(m); }
+  m.position.set(-(box.max.x + box.min.x) / 2, 0.02 - box.min.y, -(box.max.z + box.min.z) / 2);
   const g = group(w / 2, 0, h / 2, m);
-  if (p.heading || v?.heading) { g.rotation.y = -(v?.heading || p.heading); }
+  if (heading) g.rotation.y = -heading;
   const out = done(g);
   out.userData.key = v?.key || '';
   return out;
@@ -72,8 +78,8 @@ export function aircraft(p, ctx) {
 
 export function windsock(p) {
   const sock = group(0, 2.95, 0);
-  const seg = [['#e8703a', 0.28], ['#f4f1e4', 0.24], ['#e8703a', 0.2], ['#f4f1e4', 0.16]];
-  let x = 0; for (const [c, r] of seg) { sock.add(cyx(r, 0.22, c, x + 0.11, 0, 0, { seg: 8, rt: r * 0.85 })); x += 0.22; }
+  const seg = [['#e8703a', 0.17], ['#f4f1e4', 0.14], ['#e8703a', 0.11], ['#f4f1e4', 0.08]];
+  let x = 0; for (const [c, r] of seg) { sock.add(cyx(r, 0.12, c, x + 0.06, 0, 0, { seg: 8, rt: r * 0.8 })); x += 0.12; }
   sock.children.forEach((c) => { c.userData.noBake = true; });
   const g = group(0.5, 0, 0.5, cy(0.12, 0.1, '#5a5e66', 0, 0, 0, { seg: 8 }), cy(0.04, 3.0, '#c8ccd2', 0, 0, 0, { seg: 6 }), cy(0.1, 0.06, RED, 0, 2.95, 0, { seg: 8 }));
   done(g);
@@ -131,7 +137,7 @@ export function gantry(p) {
   const g = group(0, 0, h / 2);
   const n = Math.max(1, Math.round(w / 8));
   for (let i = 0; i <= n; i++) { const x = 0.3 + i * (w - 0.6) / n; g.add(bx(0.25, 6.2, 0.25, '#c8402a', x, 0, -0.35), bx(0.25, 6.2, 0.25, '#c8402a', x, 0, 0.35), bx(0.1, 0.1, 0.8, '#a83a2a', x, 3.0, 0)); }
-  g.add(bx(w, 0.4, 0.22, '#c8402a', w / 2, 6.1, -0.35), bx(w, 0.4, 0.22, '#c8402a', w / 2, 6.1, 0.35), bx(w, 0.1, 0.6, '#8a8e92', w / 2, 6.5, 0), bx(1.2, 0.5, 0.9, '#3a3a40', w * 0.3, 6.5, 0), bx(0.04, 3.0, 0.04, IRON, w * 0.3, 3.2, 0, { cast: false }), bx(0.5, 0.3, 0.4, '#c9a24a', w * 0.3, 2.9, 0));
+  g.add(bx(w, 0.4, 0.22, '#c8402a', w / 2, 6.1, -0.35), bx(w, 0.4, 0.22, '#c8402a', w / 2, 6.1, 0.35), bx(w, 0.1, 0.6, '#8a8e92', w / 2, 6.5, 0), bx(Math.min(1.2, w * 0.4), 0.5, 0.9, '#3a3a40', w * 0.3, 6.5, 0), bx(0.04, 3.0, 0.04, IRON, w * 0.3, 3.2, 0, { cast: false }), bx(Math.min(0.5, w * 0.3), 0.3, 0.4, '#c9a24a', w * 0.3, 2.9, 0));
   return done(g);
 }
 
@@ -154,11 +160,12 @@ export function boom_barrier(p) {
 
 export function dish(p) {
   const [w, h] = size(p, 2, 2);
-  const d = group(0, 0, 0);
-  d.add(dome(0.85, '#d6d8d4', 0, 0, 0, { seg: 14 }).rotateX(Math.PI), cyz(0.04, 0.6, STEEL, 0, 0.0, 0.3, { seg: 4 }).translateZ(0), sphere(0.07, '#c8402a', 0, 0.0, 0.62, { seg: 6 }));
+  const d = group(0, 1.95, 0);
+  const bowl = dome(0.78, '#d6d8d4', 0, 0, 0, { seg: 14, double: true }); bowl.rotation.x = Math.PI;
+  d.add(bowl, cy(0.025, 0.55, STEEL, 0, 0, 0, { seg: 4 }), sphere(0.07, '#c8402a', 0, 0.55, 0, { seg: 6 }), cy(0.1, 0.25, '#5a5e66', 0, -0.25, 0, { seg: 8 }));
   d.children.forEach((c) => { c.userData.noBake = true; });
-  d.rotation.x = -1.0; d.position.set(0, 1.9, 0);
-  const g = group(w / 2, 0, h / 2, bx(1.0, 0.3, 1.0, CONC), cy(0.12, 1.6, STEEL, 0, 0.3, 0, { seg: 8 }), bx(0.5, 0.2, 0.5, '#5a5e66', 0, 1.7, 0));
+  d.rotation.x = -0.9;
+  const g = group(w / 2, 0, h / 2, bx(0.9, 0.3, 0.9, CONC), cy(0.12, 1.6, STEEL, 0, 0.3, 0, { seg: 8 }), bx(0.4, 0.15, 0.4, '#5a5e66', 0, 1.8, 0));
   done(g);
   const yaw = group(0, 0, 0, d); g.add(yaw);
   const ph = rnd(p) * 6;
@@ -201,7 +208,7 @@ export function launch_tower(p) {
   const hw = w / 2 - 0.2; const hd = h / 2 - 0.3;
   for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.add(bx(0.14, 9.0, 0.14, '#a83a2a', sx * hw, 0, sz * hd));
   for (let y = 0.8; y < 9; y += 1.0) { g.add(bx(2 * hw, 0.07, 0.07, '#8a2a20', 0, y, -hd), bx(2 * hw, 0.07, 0.07, '#8a2a20', 0, y, hd), bx(0.07, 0.07, 2 * hd, '#8a2a20', -hw, y, 0), bx(0.07, 0.07, 2 * hd, '#8a2a20', hw, y, 0)); g.add(bx(0.05, 1.2, 0.05, '#8a2a20', 0, y - 0.9, hd, { rz: 0.9, cast: false }), bx(0.05, 1.2, 0.05, '#8a2a20', 0, y - 0.9, -hd, { rz: -0.9, cast: false })); }
-  g.add(bx(2 * hw + 0.3, 0.1, 2 * hd + 0.3, '#6a6e72', 0, 9.0, 0), bx(0.1, 0.1, 1.0, '#c84a34', hw + 0.4, 6.5, 0), cy(0.04, 1.6, '#8a8e96', 0, 9.1, 0, { seg: 4 }), bx(0.8, 0.1, 0.1, '#c8ccd0', hw + 0.5, 6.5, 0.6));
+  g.add(bx(2 * hw + 0.3, 0.1, 2 * hd + 0.3, '#6a6e72', 0, 9.0, 0), bx(0.3, 0.1, 0.8, '#c84a34', hw + 0.1, 6.5, 0), cy(0.04, 1.6, '#8a8e96', 0, 9.1, 0, { seg: 4 }));
   return done(g, { lights: [{ x: w / 2, y: 9.5, z: h / 2, color: '#ff5a3a', intensity: 2, distance: 5 }] });
 }
 

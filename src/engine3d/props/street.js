@@ -35,14 +35,15 @@ export function hydrant() {
 }
 
 export function mailbox() {
-  return done(group(0.5, 0, 0.5, cy(0.05, 0.85, IRON, 0, 0, 0, { seg: 6 }), bx(0.34, 0.3, 0.3, '#2f4a8a', 0, 0.8, 0), cy(0.17, 0.3, '#2f4a8a', 0, 0.95, 0, { seg: 8, rx: Math.PI / 2 }).translateY(0), bx(0.2, 0.03, 0.04, '#111', 0, 1.0, 0.16, { cast: false }), bx(0.04, 0.2, 0.04, RED, 0.2, 1.05, 0.05)));
+  const red = '#c8352a';
+  return done(group(0.5, 0, 0.5, bx(0.5, 0.08, 0.5, '#3a3a42'), cy(0.2, 0.85, red, 0, 0.08, 0, { seg: 12 }), cy(0.22, 0.07, shade(red, -30), 0, 0.93, 0, { seg: 12 }), cy(0.19, 0.06, shade(red, 25), 0, 1.0, 0, { seg: 12, rt: 0.12 }), bx(0.22, 0.04, 0.02, '#16161a', 0, 0.82, 0.2, { cast: false }), bx(0.16, 0.14, 0.02, '#f2e6c8', 0, 0.52, 0.2, { cast: false }), bx(0.4, 0.03, 0.03, shade(red, -30), 0, 0.4, 0.19, { cast: false })));
 }
 
 export function trash(p) {
   const k = rnd(p);
   const g = group(0.5, 0, 0.5,
-    bl(0.28, '#2c3a30', -0.15, 0.2, 0.0, { sy: 0.8, seed: 1 }), bl(0.24, '#3a3a3e', 0.18, 0.18, 0.1, { sy: 0.8, seed: 2 }), bl(0.2, '#4a5a4a', 0.0, 0.18, -0.25, { sy: 0.8, seed: 3 }),
-    bl(0.18, '#2c3a30', 0.2, 0.15, -0.2, { sy: 0.8, seed: 0 }), bx(0.3, 0.05, 0.22, '#d8d2c0', -0.25, 0.0, 0.3, { ry: 0.5, cast: false }), bx(0.3, 0.14, 0.24, '#9a7a52', 0.1, 0.0, 0.3, { ry: k * 0.5 }));
+    bl(0.28, '#2c3a30', -0.15, 0.26, 0.0, { sy: 0.8, seed: 1 }), bl(0.24, '#3a3a3e', 0.18, 0.23, 0.1, { sy: 0.8, seed: 2 }), bl(0.2, '#4a5a4a', 0.0, 0.2, -0.25, { sy: 0.8, seed: 3 }),
+    bl(0.18, '#2c3a30', 0.2, 0.18, -0.2, { sy: 0.8, seed: 0 }), bx(0.3, 0.05, 0.22, '#d8d2c0', -0.25, 0.0, 0.3, { ry: 0.5, cast: false }), bx(0.3, 0.14, 0.24, '#9a7a52', 0.1, 0.0, 0.3, { ry: k * 0.5 }));
   return done(g);
 }
 
@@ -131,12 +132,12 @@ export function noticeboard(p) {
 }
 
 export function busstop(p, ctx) {
-  const g = group(0.5, 0, 0.5, bx(1.2, 0.08, 0.9, '#3f5a4a', 0, 2.1, 0), bx(1.24, 0.05, 0.94, shade('#3f5a4a', 12), 0, 2.18, 0, { cast: false }),
-    cy(0.04, 2.1, IRON, -0.55, 0, -0.38, { seg: 5 }), cy(0.04, 2.1, IRON, 0.55, 0, -0.38, { seg: 5 }), cy(0.04, 2.1, IRON, -0.55, 0, 0.38, { seg: 5 }), cy(0.04, 2.1, IRON, 0.55, 0, 0.38, { seg: 5 }),
-    panel(1.06, 1.5, glass(), 0, 0.4, -0.38, { cast: false }), panel(1.06, 1.5, glass(), 0, 0.4, -0.38, { cast: false, ry: Math.PI }),
-    bx(0.9, 0.07, 0.3, WOOD, 0, 0.46, -0.2), bx(0.07, 0.46, 0.07, IRON, -0.38, 0, -0.2), bx(0.07, 0.46, 0.07, IRON, 0.38, 0, -0.2));
+  const g = group(0.5, 0, 0.5, bx(1.08, 0.08, 0.9, '#3f5a4a', 0, 2.1, 0), bx(1.1, 0.05, 0.94, shade('#3f5a4a', 12), 0, 2.18, 0, { cast: false }),
+    cy(0.04, 2.1, IRON, -0.5, 0, -0.38, { seg: 5 }), cy(0.04, 2.1, IRON, 0.5, 0, -0.38, { seg: 5 }), cy(0.04, 2.1, IRON, -0.5, 0, 0.38, { seg: 5 }), cy(0.04, 2.1, IRON, 0.5, 0, 0.38, { seg: 5 }),
+    panel(0.96, 1.5, glass(), 0, 0.4, -0.38, { cast: false }), panel(0.96, 1.5, glass(), 0, 0.4, -0.38, { cast: false, ry: Math.PI }),
+    bx(0.8, 0.07, 0.3, WOOD, 0, 0.46, -0.2), bx(0.07, 0.46, 0.07, IRON, -0.34, 0, -0.2), bx(0.07, 0.46, 0.07, IRON, 0.34, 0, -0.2));
   const t = plate(ctx, String(p.lines || '1'), { bg: '#2f6b4f', fg: '#fff', font: 'bold 54px sans-serif', pad: 22 });
-  g.add(bx(0.4, 0.4, 0.05, '#2f6b4f', 0.55, 1.5, 0.4), panel(0.34, 0.34, t.material, 0.55, 1.53, 0.43, { cast: false }));
+  g.add(bx(0.34, 0.34, 0.05, '#2f6b4f', 0.36, 1.5, 0.43), panel(0.3, 0.3, t.material, 0.36, 1.52, 0.46, { cast: false }));
   return done(g, { lights: [{ x: 0, y: 1.9, z: 0, color: '#dfeaff', intensity: 3, distance: 5 }] });
 }
 
@@ -167,7 +168,7 @@ const WAIT = mat('#ff6a3a', { emissive: '#ff6a3a', ei: 2 }); const WALK = mat('#
 export function flagpole(p) {
   const col = typeof p.color === 'string' ? mute(p.color, 0.3) : pick(['#2f4a8a', '#8a2f3a', '#2f6b4f', '#c9a43a'], rnd(p));
   return done(group(0.5, 0, 0.5, cy(0.15, 0.2, CONC, 0, 0, 0, { seg: 8 }), cy(0.045, 5.0, '#c9ccd0', 0, 0, 0, { seg: 6 }), sphere(0.07, BRASS, 0, 5.0, 0, { seg: 6 }),
-    bx(0.7, 0.45, 0.03, col, 0.38, 4.4, 0, { double: true }), bx(0.7, 0.12, 0.035, '#f0ead8', 0.38, 4.62, 0, { double: true })));
+    bx(0.55, 0.4, 0.03, col, 0.3, 4.45, 0, { double: true }), bx(0.55, 0.1, 0.035, '#f0ead8', 0.3, 4.65, 0, { double: true })));
 }
 
 export function gatepost() {
@@ -261,7 +262,7 @@ export function fence(p, ctx) {
 }
 
 export function chainfence(p, ctx) {
-  const mesh = mat('#c4c8d0', { opacity: 0.32, double: true });
+  const mesh = mat('#cfd4dc', { opacity: 0.5, double: true });
   return run(p, ctx, (m, cx, cz, t) => {
     const a = arms(m, p);
     const g = group();

@@ -171,12 +171,13 @@ export function tilesOfTypes(map, types) {
 export function onWall(p, ctx, build) {
   const w = p.w || 1; const h = p.h || 1;
   const map = ctx?.map;
+  const px = Math.floor(p.x); const py = Math.floor(p.y);
   const isW = (x, y) => map && map.inBounds?.(x, y) && map.tileAt(x, y) === 'W';
   const open = (x, y) => map && map.inBounds?.(x, y) && map.tileAt(x, y) !== 'W';
   let face = 'S';
   if (map) {
-    if (isW(p.x, p.y)) face = open(p.x, p.y + 1) ? 'S' : open(p.x + 1, p.y) ? 'E' : open(p.x - 1, p.y) ? 'W' : open(p.x, p.y - 1) ? 'N' : 'S';
-    else face = isW(p.x, p.y - 1) ? 'N0' : isW(p.x - 1, p.y) ? 'W0' : isW(p.x + 1, p.y) ? 'E0' : 'N0';
+    if (isW(px, py)) face = open(px, py + 1) ? 'S' : open(px + 1, py) ? 'E' : open(px - 1, py) ? 'W' : open(px, py - 1) ? 'N' : 'S';
+    else face = isW(px, py - 1) ? 'N0' : isW(px - 1, py) ? 'W0' : isW(px + 1, py) ? 'E0' : 'N0';
   }
   const inner = group(0, 0, 0, ...[].concat(build(face === 'E' || face === 'W' || face === 'E0' || face === 'W0' ? h : w)));
   const g = group(0, 0, 0, inner);

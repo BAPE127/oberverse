@@ -11,6 +11,8 @@ import { linkMask } from '../src/engine3d/props/kit.js';
 
 // Flat things (decals and slabs) may be a single piece.
 const FLAT = new Set(['flowerbed', 'crops', 'gangway', 'companionway', 'rug', 'helipad', 'trash', 'crosswalk', 'loadingbay', 'vent', 'trench', 'board', 'magic_circle', 'runway_light', 'bay_slot', 'item', 'window', 'painting', 'wallcrack', 'loosebrick', 'launch_pad', 'hall_site', 'aero_facility', 'hatch', 'belt', 'sorter', 'slipway', 'shipberth', 'floating_cards']);
+// Wall items hang at wall height; the cards float.
+const HUNG = new Set(['window', 'painting', 'wallcrack', 'loosebrick', 'board', 'floating_cards']);
 const ctxOf = (o = {}) => ({ THREE, lib, map: null, game: null, night: false, state: null, time: 0, headless: true, ...o });
 const recordOf = (type, i = 0) => { const d = PROP_TYPES[type].defaults || {}; return { id: `t_${type}_${i}`, type, x: 10, y: 20, w: d.w || 1, h: d.h || 1, ...d }; };
 const meshes = (o) => { let n = 0; o.traverse((c) => { if (c.isMesh) n++; }); return n; };
@@ -33,7 +35,7 @@ test('each builder, on a record of its default footprint, gives an object that f
     const tol = 0.15;
     const out = box.min.x < -tol || box.min.z < -tol || box.max.x > p.w + tol || box.max.z > p.h + tol;
     if (out) bad.push(`${type}: box x ${box.min.x.toFixed(2)}..${box.max.x.toFixed(2)} z ${box.min.z.toFixed(2)}..${box.max.z.toFixed(2)} for ${p.w}x${p.h}`);
-    if (box.min.y < -0.02 || box.min.y > 0.12) bad.push(`${type}: bottom at y ${box.min.y.toFixed(3)}`);
+    if (box.min.y < -0.02 || (box.min.y > 0.12 && !HUNG.has(type))) bad.push(`${type}: bottom at y ${box.min.y.toFixed(3)}`);
     if (!FLAT.has(type) && meshes(obj) < 2) bad.push(`${type}: only ${meshes(obj)} mesh`);
     assert.ok(box.max.y < 12, `${type} is absurdly tall`);
   }
@@ -101,4 +103,30 @@ test('signs carry their text from the record: with a DOM-free context they still
   const b = new THREE.Box3().setFromObject(win);
   assert.ok(b.min.z > 0.8 && b.max.z < 1.2, `window on the south face of the north wall: z ${b.min.z}..${b.max.z}`);
   assert.ok(b.min.y > 0.5, 'a window hangs at wall height');
+});
+
+// ---- the real records: every prop placed on every map, as placed (footprints, links, wall items, state) ------------------------------
+import { newGame } from './helpers.mjs';
+
+test('every prop record on every map builds and sits over its own footprint (links and walls read from the real map)', () => {
+  const g = newGame(1);
+  const bad = new Map(); const seen = new Set(); let n = 0;
+  for (const [id, map] of g.maps) {
+    const ctx = ctxOf({ map, game: g });
+    for (const p of map.props) {
+      const key = `${p.type}|${p.w}|${p.h}|${p.variant}|${p.vertical}|${p.kind}|${p.look?.hull}|${p.heading || 0}`;
+      if (seen.has(key)) continue;
+      seen.add(key); n++;
+      const w = p.w || 1; const h = p.h || 1;
+      let o;
+      try { o = PROPS.get(p.type)(p, ctx); } catch (e) { bad.set(key, `threw ${e.message} (${id})`); continue; }
+      const b = new THREE.Box3().setFromObject(o);
+      const tol = 0.2;
+      if (p.heading) continue; // a turned aircraft may overhang
+      if (b.min.x < -tol || b.min.z < -tol || b.max.x > w + tol || b.max.z > h + tol) bad.set(key, `box x ${b.min.x.toFixed(2)}..${b.max.x.toFixed(2)} z ${b.min.z.toFixed(2)}..${b.max.z.toFixed(2)} (${id})`);
+      if (b.min.y < -0.03) bad.set(`${key}|y`, `bottom y ${b.min.y.toFixed(2)} (${id})`);
+    }
+  }
+  assert.ok(n > 200, `only ${n} distinct records`);
+  assert.deepEqual([...bad], []);
 });

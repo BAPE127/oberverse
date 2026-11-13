@@ -9,14 +9,14 @@ export function tree(p) {
   const g = group(0.5, 0, 0.5);
   const lights = [shade(c, 14), c, shade(c, -16)];
   if (v === 0) { // tall and round
-    g.add(cy(0.13, 1.5, '#5e4633', 0, 0, 0, { rt: 0.09, seg: 7 }), cy(0.2, 0.2, '#4e3a2a', 0, 0, 0, { rt: 0.13, seg: 7 }));
-    g.add(bl(0.5, lights[1], 0, 1.75, 0, { seed: 1, sy: 0.9 }), bl(0.38, lights[2], 0.17, 1.55, 0.14, { seed: 2, sy: 0.9 }), bl(0.38, lights[2], -0.17, 1.6, -0.1, { seed: 3, sy: 0.9 }), bl(0.36, lights[0], 0, 2.2, 0, { seed: 0, sy: 0.9 }), bl(0.28, lights[0], 0.12, 2.5, 0.05, { seed: 1, sy: 0.9 }));
+    g.add(cy(0.13, 1.1, '#5e4633', 0, 0, 0, { rt: 0.09, seg: 7 }), cy(0.2, 0.2, '#4e3a2a', 0, 0, 0, { rt: 0.13, seg: 7 }));
+    g.add(bl(0.52, lights[1], 0, 1.4, 0, { seed: 1, sy: 1.0 }), bl(0.42, lights[2], 0.14, 1.15, 0.12, { seed: 2, sy: 1.0 }), bl(0.42, lights[2], -0.14, 1.2, -0.1, { seed: 3, sy: 1.0 }), bl(0.44, lights[0], 0.02, 1.9, 0, { seed: 0, sy: 1.0 }), bl(0.32, lights[0], 0.1, 2.35, 0.04, { seed: 1, sy: 1.0 }));
   } else if (v === 1) { // broad
-    g.add(cy(0.14, 1.2, '#6b4a32', 0, 0, 0, { rt: 0.1, seg: 7 }), bx(0.06, 0.4, 0.06, '#6b4a32', 0.12, 1.0, 0, { rz: -0.7 }));
-    g.add(bl(0.46, lights[2], 0, 1.4, 0, { seed: 2, sy: 0.8 }), bl(0.4, lights[1], 0.22, 1.65, 0.1, { seed: 1, sy: 0.8 }), bl(0.4, lights[1], -0.22, 1.6, -0.1, { seed: 3, sy: 0.8 }), bl(0.34, lights[0], 0.05, 1.95, -0.05, { seed: 0, sy: 0.8 }), bl(0.28, lights[0], -0.2, 1.9, 0.2, { seed: 2, sy: 0.8 }));
+    g.add(cy(0.14, 1.0, '#6b4a32', 0, 0, 0, { rt: 0.1, seg: 7 }), bx(0.06, 0.4, 0.06, '#6b4a32', 0.12, 0.8, 0, { rz: -0.7 }));
+    g.add(bl(0.5, lights[2], 0, 1.2, 0, { seed: 2, sy: 0.85 }), bl(0.44, lights[1], 0.14, 1.5, 0.12, { seed: 1, sy: 0.9 }), bl(0.44, lights[1], -0.14, 1.45, -0.12, { seed: 3, sy: 0.9 }), bl(0.38, lights[0], 0.04, 1.85, -0.04, { seed: 0, sy: 0.9 }), bl(0.3, lights[0], -0.16, 1.8, 0.16, { seed: 2, sy: 0.9 }));
   } else { // poplar
-    g.add(cy(0.1, 1.2, '#7a6a54', 0, 0, 0, { rt: 0.08, seg: 6 }));
-    g.add(bl(0.4, lights[2], 0, 1.3, 0, { seed: 1, sy: 1.3 }), bl(0.36, lights[1], 0.04, 1.9, 0.03, { seed: 2, sy: 1.3 }), bl(0.3, lights[0], -0.03, 2.5, 0, { seed: 3, sy: 1.3 }), bl(0.2, lights[0], 0, 3.0, 0, { seed: 0, sy: 1.2 }));
+    g.add(cy(0.1, 1.0, '#7a6a54', 0, 0, 0, { rt: 0.08, seg: 6 }));
+    g.add(bl(0.46, lights[2], 0, 1.15, 0, { seed: 1, sy: 1.25 }), bl(0.42, lights[1], 0.04, 1.8, 0.03, { seed: 2, sy: 1.25 }), bl(0.34, lights[0], -0.03, 2.4, 0, { seed: 3, sy: 1.25 }), bl(0.22, lights[0], 0, 2.9, 0, { seed: 0, sy: 1.2 }));
   }
   void k2;
   return done(g);
@@ -58,7 +58,7 @@ export function flowerbed(p) {
 
 export function rock(p) {
   const k = rnd(p);
-  return done(group(0.5, 0, 0.5, bl(0.42, '#84868b', 0, 0.16, 0, { sy: 0.7, seed: Math.floor(k * 4) }), bl(0.28, '#74767b', 0.28, 0.1, 0.12, { sy: 0.7, seed: 2 }), bl(0.2, '#92949a', -0.25, 0.1, -0.15, { sy: 0.7, seed: 1 })));
+  return done(group(0.5, 0, 0.5, bl(0.4, '#84868b', 0, 0.34, 0, { sy: 0.7, seed: Math.floor(k * 4) }), bl(0.26, '#74767b', 0.28, 0.24, 0.12, { sy: 0.7, seed: 2 }), bl(0.18, '#92949a', -0.25, 0.18, -0.15, { sy: 0.7, seed: 1 })));
 }
 
 export function plant(p) {
@@ -93,6 +93,7 @@ export function cow(p) {
   for (const [x, z] of [[-0.16, 0.34], [0.16, 0.34], [-0.16, -0.34], [0.16, -0.34]]) body.add(bx(0.12, 0.45, 0.12, shade(coat, -16), x, 0, z));
   for (let i = 0; i < 3; i++) body.add(bx(0.2 + hash(seed, i) * 0.12, 0.04, 0.22, spot, (hash(seed, i, 5) - 0.5) * 0.22, 0.9, -0.25 + i * 0.28, { cast: false }), bx(0.02, 0.2, 0.2, spot, i % 2 ? 0.255 : -0.255, 0.5, -0.2 + i * 0.2, { cast: false }));
   const g = group(0.5, 0, 0.5, body);
+  body.scale.setScalar(0.7);
   body.rotation.y = Math.floor(hash(seed, 9) * 4) * Math.PI / 2;
   return done(g);
 }

@@ -15,6 +15,7 @@ import { LightRig, presetFor, lampFactor } from './light3d.js';
 import { PROPS, VEHICLES } from './registry3d.js';
 import './props3d.js';
 import './vehicles3d.js';
+import { syncMachines, disposeMachines } from './machines3d.js';
 import { fallbackProp, fallbackVehicle } from './fallbacks3d.js';
 import { behindBox, hidesPoint, facingVector } from '../engine/iso.js';
 import { buildingBox } from '../engine/isoBuildings.js';
@@ -116,6 +117,7 @@ export class World3D {
     this.figures.clear();
     for (const e of this.vehicles.values()) { e.obj.removeFromParent(); disposeTree(e.obj); }
     this.vehicles.clear();
+    disposeMachines(this);
     if (this.ground) this.ground.dispose();
     this.ground = new Ground3D(host);
     this.freshFrames = 3;
@@ -190,6 +192,7 @@ export class World3D {
       this.updateMap(ms, L, { x0: (wv.x - L.x) / TILE, y0: (wv.y - L.y) / TILE, x1: (wv.x + wv.w - L.x) / TILE, y1: (wv.y + wv.h - L.y) / TILE }, lamp);
     }
     this.updateActors(shown, lamp);
+    syncMachines(this, g, this.propCtx || {}, Math.min(host.lastDt || 0.016, 0.1));
     this.ground.endFrame();
     // the world's background: the sea beyond a street's edge, a sky behind a room alone
     const P = presetFor(darkness, outdoor);

@@ -115,10 +115,8 @@ export function logbook(p) {
   return done(group(0.5, 0, 0.5, bx(0.12, 0.8, 0.12, '#5a3e28'), bx(0.4, 0.06, 0.32, '#4a3220', 0, 0.8, 0, { rx: -0.35 }), bx(0.17, 0.02, 0.24, '#f4efe2', -0.09, 0.86, 0.0, { rx: -0.35, cast: false }), bx(0.17, 0.02, 0.24, '#f0ead8', 0.09, 0.86, 0.0, { rx: -0.35, cast: false }), bx(0.3, 0.1, 0.1, '#3a2a1c', 0, 0.0, 0.0)));
 }
 export function hatch(p) {
-  const open = null;
   const g = group(0.5, 0, 0.5, bx(0.88, 0.16, 0.88, '#5b5f66'), bx(0.7, 0.04, 0.7, '#8a5b3c', 0, 0.16, 0));
   for (const z of [-0.15, 0.1]) g.add(bx(0.66, 0.02, 0.05, '#a5754e', 0, 0.2, z, { cast: false }));
-  void open;
   return done(g);
 }
 
@@ -141,13 +139,13 @@ export function deckpart(p) {
   else if (/^(navmast|radar|antenna|command|crowsnest)$/.test(key)) { g.add(bx(0.6, 0.4, 0.6, shade(color, 14)), cy(0.05, 1.8, '#8a8e96', 0, 0.4, 0, { seg: 6 })); if (key === 'radar') g.add(bx(0.9, 0.08, 0.2, '#c8ccd0', 0, 2.2, 0)); else if (key === 'antenna') g.add(bx(0.5, 0.04, 0.04, STEEL, 0, 1.9, 0), bx(0.04, 0.04, 0.5, STEEL, 0, 1.6, 0)); else g.add(cy(0.3, 0.3, '#5a626a', 0, 1.8, 0, { seg: 8 })); }
   else if (/^(qsensor|aegis)$/.test(key)) { base(0.5, '#6a7078'); g.add(sphere(0.3, '#c8ccd0', 0, 0.8, 0, { seg: 10 }), bx(0.5, 0.5, 0.05, '#2a3a4a', 0, 0.5, h / 2 - 0.1)); }
   else if (/^(turret|railgun)$/.test(key)) { g.add(cy(Math.min(w, h) * 0.4, 0.3, '#6a737b', 0, 0, 0, { seg: 12 }), bx(0.4, 0.28, 0.5, '#7a828a', 0, 0.3, 0)); const n = key === 'railgun' ? 2 : 1; for (let i = 0; i < n; i++) g.add(cyz(0.05, 1.2, '#3a4048', (i - (n - 1) / 2) * 0.2, 0.45, 0.8, { seg: 6 })); }
-  else if (key === 'missile') { base(0.3, '#5a626a'); for (let i = 0; i < 3; i++) g.add(cyz(0.1, 0.8, '#d8d8d0', -0.25 + i * 0.25, 0.5, 0, { seg: 8 }), cn(0.1, 0.18, '#c8402e', -0.25 + i * 0.25, 0.4, 0.4, { seg: 8, rx: Math.PI / 2 }).translateZ(0)); }
+  else if (key === 'missile') { base(0.3, '#5a626a'); for (let i = 0; i < 3; i++) g.add(cyz(0.1, 0.8, '#d8d8d0', -0.25 + i * 0.25, 0.5, 0, { seg: 8 }), cn(0.1, 0.18, '#c8402e', -0.25 + i * 0.25, 0.4, 0.4, { seg: 8, rx: Math.PI / 2 })); }
   else if (key === 'decoy') { g.add(cy(0.3, 0.1, '#6a7078', 0, 0, 0, { seg: 10 }), cn(0.28, 0.6, '#d9a42a', 0, 0.1, 0, { seg: 6 })); }
   else if (key === 'sandbags') { for (let i = 0; i < 5; i++) g.add(bx(0.4, 0.18, 0.24, '#b8a47a', -w / 2 + 0.3 + (i % 3) * 0.3, (i > 2 ? 0.18 : 0), -0.15 + (i > 2 ? 0 : 0.0), { ry: hash(i, 1, 1) * 0.3 })); }
-  else if (key === 'cannon') { g.add(bx(0.4, 0.18, 0.5, '#5a3e28'), cyz(0.09, 0.6, '#2a2c30', 0, 0.32, 0.25, { seg: 8 }), cyz(0.16, 0.04, '#5a3e28', -0.15, 0.16, 0, { seg: 8 }).translateY(0), cyz(0.16, 0.04, '#5a3e28', 0.15, 0.16, 0, { seg: 8 })); }
+  else if (key === 'cannon') { g.add(bx(0.4, 0.18, 0.5, '#5a3e28'), cyz(0.09, 0.6, '#2a2c30', 0, 0.32, 0.25, { seg: 8 }), cyz(0.16, 0.04, '#5a3e28', -0.15, 0.16, 0, { seg: 8 }), cyz(0.16, 0.04, '#5a3e28', 0.15, 0.16, 0, { seg: 8 })); }
   else if (/^(mast|topsail)$/.test(key)) { g.add(cy(0.07, 3.0, DWOOD, 0, 0, 0, { seg: 6 }), bx(w * 0.9, 1.0, 0.04, '#ece2c8', 0, 1.4, 0.08, { double: true }), bx(w * 0.95, 0.05, 0.05, DWOOD, 0, 1.35, 0)); }
   else if (/^(sonar|plating|armour|coating)$/.test(key)) { g.add(bx(w - 0.2, 0.05, h - 0.2, '#6a7078', 0, 0, 0), bx(w - 0.4, 0.03, h - 0.4, '#8a9098', 0, 0.05, 0, { cast: false })); }
-  else base(0.5, shade(color, 10));
+  else { base(0.5, shade(color, 10)); g.add(bx(w * 0.5, 0.2, h * 0.5, trim, 0, 0.5, 0), cy(0.08, 0.4, '#5a626a', 0, 0.7, 0, { seg: 6 })); }
   return done(g);
 }
 

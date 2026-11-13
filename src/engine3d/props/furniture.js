@@ -72,22 +72,23 @@ export function counter(p) {
 }
 
 export function stove(p) {
-  const g = group(0.5, 0, 0.5, bx(0.9, 0.9, 0.72, '#2e3034'), bx(0.92, 0.04, 0.74, '#1c1e22', 0, 0.9, 0), bx(0.6, 0.4, 0.02, '#3c4046', 0, 0.3, 0.37, { cast: false }), bx(0.5, 0.04, 0.03, '#b8bcc0', 0, 0.74, 0.38, { cast: false }));
-  for (const [x, z] of [[-0.2, -0.15], [0.2, -0.15], [-0.2, 0.17], [0.2, 0.17]]) g.add(cy(0.11, 0.02, '#55585e', x, 0.94, z, { seg: 10, cast: false }));
-  g.add(cy(0.12, 0.2, '#b8bcc0', 0.2, 0.96, -0.15, { seg: 10 }), bx(0.4, 0.1, 0.1, '#1c1e22', 0, 0.94, -0.3));
-  if ((p.w || 1) > 1) { g.position.x = (p.w || 1) / 2; g.scale.x = 1; }
+  const g = group();
+  for (let i = 0; i < (p.w || 1); i++) {
+    const c = i + 0.5;
+    g.add(bx(0.9, 0.9, 0.72, '#2e3034', c, 0, 0.5), bx(0.92, 0.04, 0.74, '#1c1e22', c, 0.9, 0.5), bx(0.6, 0.4, 0.02, '#3c4046', c, 0.3, 0.87, { cast: false }), bx(0.5, 0.04, 0.03, '#b8bcc0', c, 0.74, 0.88, { cast: false }));
+    for (const [x, z] of [[-0.2, -0.15], [0.2, -0.15], [-0.2, 0.17], [0.2, 0.17]]) g.add(cy(0.11, 0.02, '#55585e', c + x, 0.94, 0.5 + z, { seg: 10, cast: false }));
+    g.add(cy(0.12, 0.2, '#b8bcc0', c + 0.2, 0.96, 0.35, { seg: 10 }), bx(0.4, 0.1, 0.1, '#1c1e22', c, 0.94, 0.2));
+  }
   return done(g);
 }
 export function oven(p, ctx) {
-  const on = night(ctx) || true;
-  const g = group(0.5, 0, 0.5, bx(0.9, 1.1, 0.82, '#8a5a48'), bx(0.5, 0.36, 0.04, '#1c1a1a', 0, 0.3, 0.42, { cast: false }), bx(0.4, 0.26, 0.02, '#ff9a4a', 0, 0.35, 0.435, { emissive: '#ff7a2a', ei: on ? 1.2 : 0, cast: false }), bx(0.5, 0.05, 0.05, BRASS, 0, 0.76, 0.43, { cast: false }), bx(0.3, 1.0, 0.3, '#7a4a3a', 0, 1.1, -0.2), bx(0.2, 0.7, 0.2, '#6a3a2a', 0, 2.1, -0.2));
+  const g = group(0.5, 0, 0.5, bx(0.9, 1.1, 0.82, '#8a5a48'), bx(0.5, 0.36, 0.04, '#1c1a1a', 0, 0.3, 0.42, { cast: false }), bx(0.4, 0.26, 0.02, '#ff9a4a', 0, 0.35, 0.435, { emissive: '#ff7a2a', ei: 1.2, cast: false }), bx(0.5, 0.05, 0.05, BRASS, 0, 0.76, 0.43, { cast: false }), bx(0.3, 1.0, 0.3, '#7a4a3a', 0, 1.1, -0.2), bx(0.2, 0.7, 0.2, '#6a3a2a', 0, 2.1, -0.2));
   return done(g, { lights: [{ x: 0.5, y: 0.7, z: 1.2, color: '#ff8a3a', intensity: 2.5, distance: 3.5 }] });
 }
 
 export function shelf(p) {
   const w = p.w || 1; const h = p.h || 1;
   const kind = /cafe|diner|kitchen|shop/.test(String(p.id || '')) ? 'jars' : 'books';
-  const L = Math.max(w, h) >= w ? w : h;
   const along = w >= h;
   const len = along ? w : h;
   const inner = group(0, 0, 0, bx(len - 0.08, 1.9, 0.42, '#4a3424', 0, 0, 0), bx(len - 0.04, 0.05, 0.46, '#5a4030', 0, 1.9, 0));
@@ -95,7 +96,6 @@ export function shelf(p) {
   inner.add(vmesh((m) => {
     for (let r = 0; r < 4; r++) { let x = -len / 2 + 0.1; let i = 0; while (x < len / 2 - 0.12) { const bw = kind === 'jars' ? 0.12 : 0.04 + hash(p.x, r, i) * 0.06; const bh = kind === 'jars' ? 0.2 : 0.24 + hash(p.y, i, r) * 0.1; const c = kind === 'jars' ? pick(['#d9c48a', '#c98a4a', '#e8e0cf', '#a8603a'], hash(i, r, 7)) : pick(['#a8483a', '#3f6a8a', '#c9a43a', '#4f7f4f', '#7a4a7a', '#d9d2c0', '#5a4a3a'], hash(i, r, 9)); m.box(bw, bh, 0.28, c, x + bw / 2, 0.36 + r * 0.42, 0.07); x += bw + (kind === 'jars' ? 0.05 : 0.005); i++; } }
   }));
-  void L;
   if (!along) inner.rotation.y = Math.PI / 2;
   return done(group(w / 2, 0, h / 2, inner));
 }
@@ -206,7 +206,7 @@ export function vault(p) {
 }
 
 export function lift(p, ctx) {
-  const g = group(0.5, 0, 0.5, bx(1.0, 2.2, 0.16, '#6a7078', 0, 0, -0.38), bx(0.46, 1.9, 0.04, '#a8aeb4', -0.24, 0.05, -0.28, { cast: false }), bx(0.46, 1.9, 0.04, '#9aa0a8', 0.24, 0.05, -0.28, { cast: false }), bx(0.03, 1.9, 0.05, '#3a3e44', 0, 0.05, -0.285, { cast: false }), bx(0.9, 0.2, 0.08, '#2a2c30', 0, 2.0, -0.28, { cast: false }), bx(0.12, 0.06, 0.02, '#ffb02e', 0, 2.07, -0.235, { emissive: '#ffb02e', ei: 1.6, cast: false }), bx(0.1, 0.3, 0.04, '#44484e', 0.62, 1.0, -0.3), bx(0.05, 0.05, 0.02, '#ffb02e', 0.62, 1.1, -0.27, { emissive: '#ffb02e', ei: 1.2, cast: false }));
+  const g = group(0.5, 0, 0.5, bx(1.0, 2.2, 0.16, '#6a7078', 0, 0, -0.38), bx(0.4, 1.9, 0.04, '#a8aeb4', -0.2, 0.05, -0.28, { cast: false }), bx(0.4, 1.9, 0.04, '#9aa0a8', 0.15, 0.05, -0.28, { cast: false }), bx(0.03, 1.9, 0.05, '#3a3e44', -0.025, 0.05, -0.285, { cast: false }), bx(0.8, 0.2, 0.08, '#2a2c30', 0, 2.0, -0.28, { cast: false }), bx(0.12, 0.06, 0.02, '#ffb02e', 0, 2.07, -0.235, { emissive: '#ffb02e', ei: 1.6, cast: false }), bx(0.1, 0.3, 0.04, '#44484e', 0.4, 1.0, -0.3), bx(0.05, 0.05, 0.02, '#ffb02e', 0.4, 1.1, -0.27, { emissive: '#ffb02e', ei: 1.2, cast: false }));
   return done(g);
 }
 
@@ -283,7 +283,7 @@ export function bricks(p) {
   return done(oriented(p, 2, 1, (L, D) => { const o = [bx(L - 0.1, 0.1, D - 0.1, '#7a5a3a', 0, 0, 0)]; for (let r = 0; r < 4; r++) o.push(bx(L - 0.2 - (r % 2) * 0.1, 0.18, D - 0.24, r % 2 ? '#a8603a' : '#b8703f', 0, 0.1 + r * 0.19, 0), bx(L - 0.18, 0.02, 0.02, '#8a8a82', 0, 0.28 + r * 0.19, D / 2 - 0.12, { cast: false })); return o; }));
 }
 export function mixer(p) {
-  const g = group(0.5, 0, 0.5, bx(0.5, 0.12, 0.6, '#4a5a6a', 0, 0.28, 0), bx(0.06, 0.5, 0.06, '#3a4a5a', -0.2, 0.2, 0.2), bx(0.06, 0.5, 0.06, '#3a4a5a', 0.2, 0.2, 0.2), cy(0.1, 0.1, IRON, -0.25, 0.0, 0.3, { rz: Math.PI / 2, seg: 8 }), cy(0.1, 0.1, IRON, 0.25, 0.0, 0.3, { rz: Math.PI / 2, seg: 8 }));
+  const g = group(0.5, 0, 0.5, bx(0.5, 0.12, 0.6, '#4a5a6a', 0, 0.28, 0), bx(0.06, 0.5, 0.06, '#3a4a5a', -0.2, 0.2, 0.2), bx(0.06, 0.5, 0.06, '#3a4a5a', 0.2, 0.2, 0.2), cyx(0.1, 0.1, IRON, -0.25, 0.1, 0.3, { seg: 8 }), cyx(0.1, 0.1, IRON, 0.25, 0.1, 0.3, { seg: 8 }));
   const drum = group(0, 0.75, 0, cy(0.3, 0.38, '#c8a43a', 0, -0.1, 0, { seg: 12, rt: 0.2 }), cy(0.3, 0.3, '#c8a43a', 0, -0.4, 0, { seg: 12, rt: 0.2 }), cy(0.18, 0.12, '#3a3e44', 0, 0.26, 0, { seg: 10 }), cy(0.31, 0.04, '#6a5a2a', 0, -0.1, 0, { seg: 12 }));
   drum.rotation.z = 0.5; drum.position.set(0, 0.75, -0.02);
   g.add(drum, bx(0.2, 0.3, 0.1, '#c8402e', 0.0, 0.2, -0.28));

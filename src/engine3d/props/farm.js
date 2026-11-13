@@ -8,8 +8,7 @@ export function ranchfence(p, ctx) {
     const g = group();
     if (a.ew) for (const y of [0.4, 0.74]) g.add(bx(a.x1 - a.x0, 0.09, 0.05, '#8f7556', (a.x0 + a.x1) / 2, y, 0.5));
     if (a.ns) for (const y of [0.4, 0.74]) g.add(bx(0.05, 0.09, a.z1 - a.z0, '#8f7556', 0.5, y, (a.z0 + a.z1) / 2));
-    if (a.end || (m & 15) === 15 || hash(m, 1, 1) > 2) post(g);
-    else if (((p.x + p.y) % 3) === 0) post(g);
+    if (a.end || ((p.x + p.y) % 3) === 0) post(g);
     return g;
   });
 }
@@ -27,9 +26,7 @@ export function ranchgate(p, ctx) {
 export function haybale(p) {
   const k = rnd(p);
   const g = group(0.5, 0, 0.5, cyx(0.42, 0.8, '#d8b860', 0, 0.44, 0, { seg: 14 }), cyx(0.43, 0.04, '#b89840', -0.2, 0.44, 0, { seg: 14 }), cyx(0.43, 0.04, '#b89840', 0.2, 0.44, 0, { seg: 14 }), cyx(0.435, 0.03, '#8a7a50', 0, 0.44, 0, { seg: 14 }));
-  g.children.forEach((c) => { c.rotation.y = 0; });
   g.rotation.y = Math.floor(k * 2) * Math.PI / 2;
-  g.position.set(0.5, 0, 0.5);
   return done(g);
 }
 
@@ -67,7 +64,6 @@ export function windmill(p) {
   const hub = group(0, 5.6, 0.45);
   for (let i = 0; i < 12; i++) { const b = bx(0.2, 0.9, 0.02, '#c8ccd2', 0, 0.12, 0, { double: true }); const a = group(0, 0, 0, b); a.rotation.z = i / 12 * 6.283; a.children[0].rotation.z = 0.15; hub.add(a); }
   hub.add(cy(0.08, 0.14, '#5a5e66', 0, 0, 0, { seg: 8, rx: Math.PI / 2 }), cy(0.5, 0.03, '#c8ccd2', 0, 0, 0, { seg: 12, rx: Math.PI / 2 }));
-  hub.children.forEach((c) => { c.userData.noBake = true; c.traverse((o) => { o.userData.noBake = true; }); });
   const g = group(w / 2, 0, h / 2);
   for (const [x, z] of [[-0.55, -0.55], [0.55, -0.55], [0.55, 0.55], [-0.55, 0.55]]) { g.add(cy(0.045, 5.7, '#7a7e86', x * 0.75, 0, z * 0.75, { seg: 5, rz: -x * 0.07, rx: z * 0.07 })); }
   for (let k = 0; k < 5; k++) { const s = 1.05 - k * 0.15; g.add(bx(2 * s * 0.75, 0.04, 0.04, '#7a7e86', 0, 0.6 + k * 1.05, s * 0.75), bx(2 * s * 0.75, 0.04, 0.04, '#7a7e86', 0, 0.6 + k * 1.05, -s * 0.75), bx(0.04, 0.04, 2 * s * 0.75, '#7a7e86', s * 0.75, 0.6 + k * 1.05, 0), bx(0.04, 0.04, 2 * s * 0.75, '#7a7e86', -s * 0.75, 0.6 + k * 1.05, 0)); }

@@ -17,8 +17,7 @@ export function roulette_table(p) {
 export function blackjack_table(p) {
   const [w, h] = size(p, 3, 2);
   const felt = col(p, '#1e6a3a');
-  const g = group(w / 2, 0, h / 2, bx(w - 0.2, 0.72, h - 0.4, '#4a2418', 0, 0, -0.05), cy(0.5, 0.72, '#4a2418', 0, 0, 0, { seg: 4 }).translateY(0));
-  g.children.pop();
+  const g = group(w / 2, 0, h / 2, bx(w - 0.2, 0.72, h - 0.4, '#4a2418', 0, 0, -0.05));
   g.add(bx(w - 0.1, 0.08, h - 0.3, '#6a3a28', 0, 0.72, -0.05), bx(w - 0.3, 0.02, h - 0.5, felt, 0, 0.8, -0.05, { cast: false }));
   for (let i = 0; i < 5; i++) g.add(cy(0.17, 0.015, '#e8e2d0', -w * 0.34 + i * (w * 0.17), 0.815, 0.2, { seg: 12, cast: false }));
   g.add(bx(0.3, 0.12, 0.2, '#14101a', w * 0.3, 0.82, -0.4), bx(0.2, 0.02, 0.28, '#f4f1e4', -0.1, 0.82, -0.3, { ry: 0.2, cast: false }));
@@ -39,7 +38,7 @@ export function poker_table(p) {
 export function spade_table(p) {
   const [w, h] = size(p, 4, 2);
   const g = group(w / 2, 0, h / 2, bx(w - 0.1, 0.72, h - 0.3, '#1e1620'), bx(w - 0.04, 0.08, h - 0.22, '#c9a24a', 0, 0.72, 0), bx(w - 0.3, 0.02, h - 0.5, '#4a1e6a', 0, 0.8, 0, { cast: false }));
-  g.add(bl(0.2, '#c9a24a', 0, 0.9, 0.0, { detail: 0, sy: 0.4, emissive: '#c9a24a', ei: 0.6 }), cn(0.12, 0.3, '#c9a24a', 0, 0.8, 0.0, { seg: 3 }).translateY(0.1), bx(0.05, 0.2, 0.05, '#c9a24a', 0, 0.8, 0.18, { cast: false }));
+  g.add(bl(0.2, '#c9a24a', 0, 0.9, 0.0, { detail: 0, sy: 0.4, emissive: '#c9a24a', ei: 0.6 }), cn(0.12, 0.3, '#c9a24a', 0, 0.9, 0.0, { seg: 3 }), bx(0.05, 0.2, 0.05, '#c9a24a', 0, 0.8, 0.18, { cast: false }));
   for (let i = 0; i < 4; i++) g.add(bx(0.2, 0.01, 0.28, '#f4f1e4', -1 + i * 0.5, 0.82, 0.28, { ry: i * 0.3, cast: false }));
   chips(g, 5, 0.6, -0.2, p.x);
   return done(g, { lights: [{ x: w / 2, y: 1.6, z: h / 2, color: '#9a6aff', intensity: 2, distance: 4 }] });
@@ -163,7 +162,7 @@ export function car_display(p) {
   const c = col(p, '#b8402e', 0.05);
   const g = group(w / 2, 0, h / 2, bx(w - 0.2, 0.12, h - 0.2, '#2a2630'), bx(w - 0.4, 0.03, h - 0.4, '#d9d2c0', 0, 0.12, 0, { cast: false }));
   const car2 = oriented({ ...p, w: w - 0.6, h: h - 0.6 }, 2, 1, (L, D) => carBody(L, D, c, { sport: true }));
-  car2.position.y = 0.15;
+  car2.position.set(0, 0.15, 0);
   g.add(car2);
   return done(g, { lights: [{ x: w / 2, y: 2.0, z: h / 2, color: '#fff0d0', intensity: 2, distance: 5 }] });
 }

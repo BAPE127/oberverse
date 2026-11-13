@@ -255,7 +255,6 @@ SIG.paranoia = (m) => {
       for (const s of [-1, 1]) {
         const zc = s * (hw - 0.14);
         G.prism('dark', [[x0 + 0.08, 0.2], [x0 + trackL - 0.08, 0.2], [x0 + trackL, 0.34], [x0 + trackL, 0.52], [x0 + trackL - 0.08, 0.64], [x0 + 0.08, 0.64], [x0, 0.52], [x0, 0.34]], zc - 0.12, zc + 0.12, '#1e1e20');
-        for (let i = 0; i < 4; i++) G.cyl('dark', 'z', x0 + 0.25 + i * (trackL - 0.5) / 3, 0.38, zc + (s > 0 ? 0.125 : -0.135), 0.1, 0.012, '#4a4a4c', { seg: 8 });
       }
       // the foil van: a low hull, a tall box behind a short cab
       G.box('dark', x0 + 0.05, x1 - 0.1, 0.4, 0.78, -hw + 0.12, hw - 0.12, '#a8b0b8');
@@ -281,7 +280,7 @@ SIG.paranoia = (m) => {
       G.cyl('dark', 'y', x0 + L * 0.36, 1.6, 0, 0.18, 0.1, '#4a504a', { seg: 8 });
       for (const [dx, dz] of [[-L * 0.32, -W * 0.16], [-L * 0.08, W * 0.18]]) G.cyl('dark', 'y', dx, 1.6, dz, 0.025, 0.12, '#5a6068', { seg: 5 });
     },
-    wheels: wheelsOf([...axle(fx, fz, fr, fw, true, { hub: '#aeb4ba' })]),
+    wheels: wheelsOf([...axle(fx, fz, fr, fw, true, { hub: '#aeb4ba' }), ...[-1, 1].flatMap((sd) => [x0 + 0.3, x0 + L * 0.55 - 0.3].map((tx) => [tx, sd * (hw - 0.14 + 0.125), 0.16, 0.04, false, { hub: '#6a6a6e', tyre: '#4a4a4c', bar: '#2a2a2c', seg: 8 }]))]),
     subs: [
       { name: 'dishA', pivot: [-L * 0.32, 1.78, -W * 0.16], build(G) { G.cyl('dark', 'x', 0, 0, 0, 0.04, 0.14, '#e8ecef', { r1: 0.32, seg: 10, ey: 1.3, ex: 1.3 }); G.cyl('dark', 'x', -0.05, 0, 0, 0.012, 0.18, '#5a6068', { seg: 4 }); } },
       { name: 'dishB', pivot: [-L * 0.08, 1.78, W * 0.18], build(G) { G.cyl('dark', 'x', 0, 0, 0, 0.04, 0.14, '#e8ecef', { r1: 0.32, seg: 10, ey: 1.3, ex: 1.3 }); G.cyl('dark', 'x', -0.05, 0, 0, 0.012, 0.18, '#5a6068', { seg: 4 }); } },
@@ -510,8 +509,8 @@ SIG.lasttrick = (m) => {
       // the empty driver's box: a seat, and the reins hanging in the air
       G.box('dark', x1 - 0.55, x1 - 0.2, hood, hood + 0.06, -0.3, 0.3, '#0c0a10');
       G.box('dark', x1 - 0.55, x1 - 0.5, hood + 0.06, hood + 0.4, -0.3, 0.3, '#0c0a10');
-      // carriage-wheel arches and a canopy fringe
-      G.box('dark', x0 + 0.2, x1 - 0.6, roof + 0.02, roof + 0.06, -S.wg / 2 - 0.03, S.wg / 2 + 0.03, '#8a8a98');
+      // the canopy's silver rails
+      for (const s of [-1, 1]) G.box('dark', x0 + 0.3, x1 - 0.7, roof - 0.02, roof + 0.02, s * (S.wg / 2 + 0.012) - 0.01, s * (S.wg / 2 + 0.012) + 0.01, '#8a8a98'); // a silver rail along the canopy
     },
     wheels: wheelsOf([...axle(fx, z, r, w, true, silver), ...axle(rx, z, r, w, false, silver)]),
     subs: [
