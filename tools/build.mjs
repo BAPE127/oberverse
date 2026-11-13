@@ -6,7 +6,10 @@
 //
 // The bundler supports exactly the module forms this project uses:
 //   import { a, b as c } from './x.js';   import X from './x.js';
-//   export const|let|function|class NAME   export default <expr>   export { a, b };
+//   export const|let|function|class NAME   export default <expr>   export { a, b as c };
+//   import * as NS from './x.js';   import './x.js';  (for its effects only)
+// plus one minified form, for the vendored three.js (src/vendor/): a closing `;export{a as A,b as B};`
+// that may sit mid-line at the very end of the file.
 // tests/build.test.mjs fails if index.html is out of date with the sources.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, posix } from 'node:path';
@@ -21,6 +24,8 @@ function transform(code, id, resolveDep) {
     const binds = names.split(',').map((s) => s.trim()).filter(Boolean).map((s) => s.replace(/^(\w+)\s+as\s+(\w+)$/, '$1: $2'));
     return `const { ${binds.join(', ')} } = __m[${JSON.stringify(resolveDep(spec))}];`;
   });
+  out = out.replace(/^import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"];?/gm, (_, name, spec) => `const ${name} = __m[${JSON.stringify(resolveDep(spec))}];`);
+  out = out.replace(/^import\s*['"]([^'"]+)['"];?/gm, ''); // (side-effect import: the module is bundled and runs first, nothing is bound)
   out = out.replace(/^import\s+(\w+)\s+from\s*['"]([^'"]+)['"];?/gm, (_, name, spec) => `const ${name} = __m[${JSON.stringify(resolveDep(spec))}].default;`);
   out = out.replace(/^export\s+(const|let|function|class)\s+([A-Za-z_$][\w$]*)/gm, (_, kind, name) => {
     exportsList.push(name);
@@ -30,9 +35,18 @@ function transform(code, id, resolveDep) {
     hasDefault = true;
     return 'const __default = ';
   });
+  const addNames = (names) => exportsList.push(...names.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+    const m = /^([\w$]+)\s+as\s+([\w$]+)$/.exec(s);
+    return m ? `${JSON.stringify(m[2])}: ${m[1]}` : s;
+  }));
   out = out.replace(/^export\s*\{([^}]*)\};?/gm, (_, names) => {
-    exportsList.push(...names.split(',').map((s) => s.trim()).filter(Boolean));
+    addNames(names);
     return '';
+  });
+  // a minified file's single closing export list (not at a line start)
+  out = out.replace(/;export\s*\{([^}]*)\};?\s*$/, (_, names) => {
+    addNames(names);
+    return ';';
   });
   if (/^\s*(import|export)\b/m.test(out)) throw new Error(`${id}: unsupported import/export form remains`);
   const ret = [...exportsList, ...(hasDefault ? ['default: __default'] : [])];

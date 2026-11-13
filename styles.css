@@ -16,6 +16,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1620; font-family: var(--font); color: var(--ink); }
 canvas#game { position: fixed; inset: 0; display: block; }
+/* the WebGL canvas of the 3D view sits under the 2D one, which then draws only overlays (transparent) */
+canvas#game3d { position: fixed; inset: 0; display: none; pointer-events: none; }
 .hidden { display: none !important; }
 button { font: inherit; cursor: pointer; border-radius: 10px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); padding: 8px 14px; transition: transform .06s, background .15s; }
 button:hover:not(:disabled) { background: #fff; transform: translateY(-1px); }

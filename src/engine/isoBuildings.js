@@ -441,7 +441,7 @@ export class IsoBuildings {
     if (want) s.wantAt = now;
     const target = want || now - s.wantAt < 0.35 ? 1 : 0;
     const k = dt / 0.2;
-    s.t = target > s.t ? Math.min(1, s.t + k) : Math.max(0, s.t - k);
+    s.t = target > s.t ? Math.min(1, s.t + k) : target < s.t ? Math.max(0, s.t - k) : s.t; // (at rest it stays: it used to dip by one step every other frame)
     return s;
   }
 

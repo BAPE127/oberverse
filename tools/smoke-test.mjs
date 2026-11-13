@@ -61,10 +61,16 @@ try {
 
   await page.click('text=New game');
   await page.fill('#new-name', 'Smoke');
+  const tNew = await page.evaluate(() => performance.now());
   await page.click('#new-start');
+  // docs/RENDERING.md 7: the world is drawn by three.js (WebGL) when it can be: headless Chromium has a software GL, so it must be in 3D mode
+  await page.waitForFunction(() => (window.oberverse?.ui?.renderer?.world3d?.frameNo || 0) > 0, null, { timeout: 20000 }).catch(() => {});
+  const first3d = (await page.evaluate(() => performance.now())) - tNew;
   await wait(800);
   let s = await state();
   record('new game starts in the flat', s.state === 'playing' && s.map === 'player_flat', JSON.stringify(s));
+  const m3 = await page.evaluate(() => { const R = window.oberverse.ui.renderer; return { mode: R.mode, iso: R.iso, isoNow: R.isoNow, w3d: Boolean(R.world3d), glVisible: getComputedStyle(document.getElementById('game3d')).display, frames: R.world3d?.frameNo || 0, software: R.world3d?.software, quality: R.quality }; });
+  record('3d: the renderer is in 3D mode with a live WebGL canvas under the 2D one', m3.mode === '3d' && m3.iso && m3.isoNow && m3.w3d && m3.glVisible === 'block' && m3.frames > 0, JSON.stringify({ ...m3, firstFrameMs: Math.round(first3d) }));
   await shot('02-flat');
 
   // Read the letter on the desk: walk up to the back wall, the desk is beside us
@@ -102,6 +108,94 @@ try {
   await hold(['KeyS', 'KeyA'], 500);
   await hold(['KeyD', 'KeyS'], 900); // (east)
   await shot('04-outside');
+
+  // ---- the 3D view (docs/RENDERING.md 7): the camera, people facing the way they walk, light, the 2D fallback, numbers. Screenshots: 3d-*.png
+  // (Early in the run on purpose: the world is still the day-one town, with the cafe, its people and an open street; the later steps grow it.)
+  // (A software GL turns the shadow map off by default; the pictures are taken with it on.)
+  const at3d = (code) => page.evaluate(async (code) => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
+    while (ui.panelStack.length) ui.closePanel();
+    const AF = Object.getPrototypeOf(async function () {}).constructor;
+    return new AF('ui', 'g', 'R', 'T', code)(ui, g, R, T);
+  }, code);
+  await closeAll();
+  await at3d(`R.quality = 'high'; R.qualityChosen = true; g.clock.total = 13 * 60; g.changeMap('lanternside', 'cafe_door_out'); R.snapCamera(); await T(2500);`);
+  const cam = await at3d(`
+    // the 3D camera against the 2D mapping, on the live canvas: every point lands on the pixel toScreen gives
+    const W = R.world3d, p = new R.world3d.camera.position.constructor(); let worst = 0;
+    for (const [dx, dy, z] of [[0, 0, 0], [200, 90, 0], [-150, 300, 46], [400, -250, 120], [32, 32, 420]]) {
+      const wx = g.player.x + dx, wy = g.player.y + dy;
+      p.set(wx / 32, z / 32, wy / 32).project(W.camera);
+      const a = R.toScreen(wx, wy, z), bx = (p.x + 1) / 2 * R.canvas.width, by = (1 - p.y) / 2 * R.canvas.height;
+      worst = Math.max(worst, Math.hypot(a.x - bx, a.y - by));
+    }
+    return { worst: Math.round(worst * 1000) / 1000, stats: W.stats, mode: R.mode };`);
+  record('3d: the live WebGL camera lands world points on the pixels toScreen gives (within 0.5 px)', cam.worst < 0.5 && cam.mode === '3d' && cam.stats.calls > 0, JSON.stringify(cam));
+  await shot('3d-street');
+  const inside = await at3d(`g.changeMap('cafe', 'entry'); R.snapCamera(); await T(3500);
+    const b = g.maps.get('lanternside').buildings.find((q) => q.id === 'b_cafe'); const e = [...R.world3d.mapScenes.get('lanternside').buildings.values()].find((q) => q.b === b);
+    return { open: R.bld.stateOf(b).t, roofed: Boolean(e.roofed?.group.visible), openVisible: Boolean(e.open?.visible), figures: R.world3d.stats.figures, props: R.world3d.stats.props };`);
+  record('3d: inside the cafe the room is open (the roof gone, its walls, props and people drawn)', inside.open === 1 && !inside.roofed && inside.openVisible && inside.figures >= 2 && inside.props > 3, JSON.stringify(inside));
+  await shot('3d-interior');
+  const night = await at3d(`g.changeMap('lanternside', 'civic_door_out'); g.clock.total = 22 * 60 + 30; R.snapCamera(); await T(3500); return { lights: R.world3d.stats.lights, darkness: g.clock.darkness, dark2d: R.world3d.host.ctx === R.ctx };`);
+  record('3d: at night the street lamps and lit doors are real lights (and the 2D darkness overlay is off)', night.lights > 0 && night.darkness > 0.45, JSON.stringify(night));
+  await shot('3d-night');
+  // people: eight walkers, one in each direction; each figure turns to face the way it goes
+  const walk = await at3d(`g.clock.total = 13 * 60; g.changeMap('lanternside', 'cafe_door_out'); R.snapCamera(); await T(1500);
+    const ns = [...g.npcs.values()].filter((n) => !n.dead && !n.profile.appearance.species).slice(0, 8);
+    const start = { x: g.player.x, y: g.player.y };
+    const saved = ns.map((n) => ({ n, map: n.map, x: n.x, y: n.y, moving: n.moving, activity: n.activity, hostile: n.hostile }));
+    ns.forEach((n) => { n.map = g.player.map; n.hostile = null; n.moving = true; n.activity = 'idle'; n.riding = null; n.downUntil = 0; });
+    const k = { n: 0 };
+    g.paused = true; // (the simulation's own walking would fight the staged walk)
+    const id = setInterval(() => { k.n++; ns.forEach((n, i) => { const a = i * Math.PI / 4; if (k.n === 1) { n.x = start.x + Math.cos(a) * 44; n.y = start.y + Math.sin(a) * 44; } else { n.x += Math.cos(a) * 0.5; n.y += Math.sin(a) * 0.5; } n.animTime = (n.animTime || 0) + 0.02; }); }, 20);
+    await T(2500);
+    const out = ns.map((n, i) => { const a = i * Math.PI / 4; const m = R.world3d.figures.get(n)?.motion; let d = m ? Math.abs(m.yaw - Math.atan2(Math.cos(a), Math.sin(a))) : 9; d = Math.min(d, Math.PI * 2 - d); return Math.round(d * 100) / 100; });
+    clearInterval(id); g.paused = false; for (const q of saved) Object.assign(q.n, { map: q.map, x: q.x, y: q.y, moving: q.moving, activity: q.activity, hostile: q.hostile }); return out;`);
+  record('3d: eight people walking in eight directions each face the way they go (within 0.35 rad)', walk.length === 8 && walk.every((d) => d < 0.35), JSON.stringify(walk));
+  await shot('3d-people');
+  const aimed = await at3d(`const g2 = g; g.inventory.add('item_revolver', 1, { silent: true }); g.combat.equip('item_revolver'); const c = R.toScreen(g.player.x + 120, g.player.y - 60, 18); ui.mouse.x = c.x; ui.mouse.y = c.y; ui.mouse.movedAt = ui.time; await T(1500);
+    const m = R.world3d.figures.get(g.player)?.motion; let d = m ? Math.abs(m.yaw - Math.atan2(120, -60)) : 9; d = Math.min(d, Math.PI * 2 - d); return { d: Math.round(d * 100) / 100, hold: Boolean(R.world3d.figures.get(g.player)) };`);
+  record('3d: aiming a gun with the mouse turns the player\'s figure to the aim', aimed.hold && aimed.d < 0.2, JSON.stringify(aimed));
+  await shot('3d-aim');
+  await at3d(`ui.mouse.movedAt = -1e9; g.combat.equip(null); g.inventory.remove('item_revolver', 1);`); // (leave the pockets as they were: a giftable item adds a dialogue option later)
+  const car = await at3d(`const m = g.maps.get('halvermouth'); g.changeMap('halvermouth', Object.keys(m.spots)[0]); g.clock.total = 14 * 60; R.snapCamera();
+    const c = g.vehicles.carsOn('halvermouth')[0]; Object.assign(c, { x: g.player.x + 60, y: g.player.y + 90, angle: 0.4, speed: 0 }); await T(2500);
+    const e = R.world3d.vehicles.get(c); return { has: Boolean(e), fallback: Boolean(e?.obj.userData.fallback), rot: e ? Math.round(e.obj.rotation.y * 1000) / 1000 : null, want: -0.4, vehicles: R.world3d.stats.vehicles };`);
+  record('3d: a car on the road is a model turned by -angle (the fallback two-box car until a builder is registered)', car.has && Math.abs(car.rot - car.want) < 0.01 && car.vehicles >= 1, JSON.stringify(car));
+  await shot('3d-car');
+  const aloft = await at3d(`const m = [...g.maps.values()].find((q) => q.def && q.def.aloft && !q.def.aloft.roof); g.changeMap(m.id, Object.keys(m.spots)[0]); R.snapCamera(); await T(3000); return { map: g.player.map, mode: R.mode, calls: R.world3d.stats.calls };`);
+  record('3d: an aloft tower floor is drawn open', aloft.mode === '3d' && aloft.calls > 0, JSON.stringify(aloft));
+  await shot('3d-aloft');
+  await at3d(`g.clock.total = 10 * 60; g.changeMap('fort_gullcrest', 'south_gate'); R.snapCamera(); await T(3000);`);
+  await shot('3d-fort');
+  // memory: the maps just left are dropped (the scenes, ground quads and geometries do not pile up)
+  const mem = await at3d(`const out = []; for (const id of ['lanternside', 'halvermouth', 'fort_gullcrest', 'lanternside', 'halvermouth']) { g.changeMap(id, Object.keys(g.maps.get(id).spots)[0]); R.snapCamera(); await T(1200); out.push([R.world3d.gl.info.memory.geometries, R.world3d.gl.info.memory.textures, R.world3d.ground.size]); } return out;`);
+  record('3d: the ground quads stay under their cap while the player moves between maps', mem.every((r) => r[2] <= 150), JSON.stringify(mem));
+  // numbers: frame time over 200 frames in two views, and what the GPU was asked to draw
+  const numbers = await at3d(`
+    const frames = async (n) => { const t = []; let last = performance.now(); await new Promise((res) => { let i = 0; const f = () => { const now = performance.now(); t.push(now - last); last = now; if (++i < n) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); }); return t; };
+    const out = {};
+    for (const [name, map, spot] of [['halvermouth', 'halvermouth', 'north_gate'], ['lanternside', 'lanternside', 'cafe_door_out']]) {
+      g.clock.total = 12 * 60; g.changeMap(map, spot); R.snapCamera(); await T(2500);
+      for (const q of ['low', 'high']) {
+        R.quality = q; await T(800);
+        const t = await frames(200); const s = R.world3d.stats;
+        out[name + '-' + q] = { avgFrameMs: Math.round(t.reduce((a, b) => a + b, 0) / t.length * 10) / 10, jsMs: Math.round(s.frameMs * 10) / 10, calls: s.calls, triangles: s.triangles, geometries: s.geometries, textures: s.textures, quads: s.quads, buildings: s.buildings, props: s.props, figures: s.figures, software: s.software };
+      }
+    }
+    return out;`);
+  writeFileSync(`${OUT}3d-numbers.json`, JSON.stringify({ firstFrameMs: Math.round(first3d), ...numbers }, null, 2));
+  record('3d: frame numbers measured (software GL in headless Chromium; see tools/out/3d-numbers.json)', Object.values(numbers).every((n) => n.calls > 0 && n.avgFrameMs > 0), JSON.stringify(numbers));
+  await at3d(`R.quality = 'low'; g.changeMap('lanternside', 'cafe_door_out'); R.snapCamera(); await T(1000);`);
+  // the Canvas 2D isometric view as the fallback and for comparison, switched live from the console
+  const two = await at3d(`R.mode = 'iso2d'; await T(1500); return { mode: R.mode, iso: R.iso, isoNow: R.isoNow, gl: getComputedStyle(document.getElementById('game3d')).display };`);
+  record('iso2d: the mode switch works live; the 2D isometric view draws and the WebGL canvas is hidden', two.mode === 'iso2d' && two.iso && two.isoNow && two.gl === 'none', JSON.stringify(two));
+  await shot('3d-iso2d-fallback');
+  const flat = await at3d(`R.mode = 'flat'; await T(600); const f = { mode: R.mode, iso: R.iso, isoNow: R.isoNow }; R.mode = '3d'; await T(1500); return { ...f, back: R.mode, gl: getComputedStyle(document.getElementById('game3d')).display };`);
+  record('3d: the old top-down view is still one setting away and 3D comes back', flat.mode === 'flat' && !flat.iso && !flat.isoNow && flat.back === '3d' && flat.gl === 'block', JSON.stringify(flat));
+  await closeAll();
+
 
   // Inventory, tablet (the old journal), map panels
   for (const [key, name, title] of [['KeyI', 'inventory', 'inventory'], ['KeyJ', 'tablet', 'oberpad'], ['KeyM', 'map', 'map']]) {
@@ -700,19 +794,21 @@ try {
     if (mode === 'inside') g.changeMap(b.interior, 'entry');
     else { g.player.x = (b.x + b.w / 2) * 32; g.player.y = (b.y + (mode === 'behind' ? -1.6 : b.h + 3.2)) * 32; }
     R.snapCamera();
-    await T(1100);
+    await T(2200); // (3D: a frame takes longer on a software GL; the state is eased per frame)
     const st = R.bld.stateOf(b);
-    return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior) };
+    const e = R.world3d && [...(R.world3d.mapScenes.get('halvermouth')?.buildings.values() || [])].find((q) => q.b === b);
+    const g3 = e ? { roofed: Boolean(e.roofed?.group.visible), open: Boolean(e.open?.visible), hole: e.hole.value.w, holeR: Math.round(e.hole.value.z) } : null;
+    return { iso: R.isoNow, map: g.player.map, open: st.t, fade: st.fade, hidden: R.hiddenMaps.has(b.interior), g3 };
   }, mode);
   let iv = await isoStep('behind');
-  record('iso: behind a tower the player is seen through a see-through hole', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden, JSON.stringify(iv));
-  await shot('iso-tower-behind');
+  record('iso: behind a tower the player is seen through a see-through hole (3D: the building\'s dithered disc)', iv.iso && iv.map === 'halvermouth' && iv.fade > 0.95 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && iv.g3.hole === 1 && iv.g3.holeR > 50, JSON.stringify(iv));
+  await shot('3d-tower-behind');
   iv = await isoStep('inside');
-  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden, JSON.stringify(iv));
-  await shot('iso-tower-inside');
+  record('iso: inside the tower the room is open (no roof, its interior drawn)', iv.iso && iv.map === 'ledgerline_hall' && iv.open > 0.8 && !iv.hidden && iv.g3 && !iv.g3.roofed && iv.g3.open, JSON.stringify(iv));
+  await shot('3d-tower-inside');
   iv = await isoStep('front');
-  record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden, JSON.stringify(iv));
-  await shot('iso-tower-front');
+  record('iso: in front of the tower nothing is hidden or faded', iv.iso && iv.fade === 0 && iv.open === 0 && iv.hidden && iv.g3 && iv.g3.roofed && !iv.g3.open && iv.g3.hole === 0, JSON.stringify(iv));
+  await shot('3d-tower-front');
   // aim: with the mouse on an NPC's chest on screen, the aim vector points at that NPC
   const aim = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const T = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -771,7 +867,7 @@ try {
   const driving = await page.evaluate(() => window.oberverse.ui.game.player.driving);
   record('iso: E gets into an owned car', driving === drive0.id, JSON.stringify({ prompt: drive0.prompt, driving }));
   await page.keyboard.down('KeyW'); await wait(2200);
-  await shot('iso-car-driving');
+  await shot('3d-car-driving');
   const drive1 = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; const car = g.vehicles.car(g.player.driving); const c = R.toScreen(car.x, car.y, 8); return { x: car.x, y: car.y, sx: c.x, sy: c.y, w: R.canvas.width, h: R.canvas.height, py: [g.player.x, g.player.y] }; });
   await page.keyboard.up('KeyW');
   const moved = Math.hypot(drive1.x - drive0.x, drive1.y - drive0.y);
@@ -792,7 +888,7 @@ try {
     await page.mouse.move(tgt.x, tgt.y); await wait(250);
     await page.mouse.down(); await wait(70);
     shots.push(await page.evaluate(({ dx, dy }) => { const g = window.oberverse.ui.game; const b = g.combat.bullets[g.combat.bullets.length - 1]; const R = window.oberverse.ui.renderer; if (!b) return null; let d = Math.abs(Math.atan2(b.dy, b.dx) - Math.atan2(dy, dx)) * 180 / Math.PI; if (d > 180) d = 360 - d; return { deg: Math.round(d * 100) / 100, n: g.combat.bullets.length, face: R.motion.get(g.player)?.face }; }, { dx, dy }));
-    if (shots.length === 1) await shot('iso-gunfire');
+    if (shots.length === 1) await shot('3d-gunfire');
     await page.mouse.up(); await wait(600);
   }
   record('iso: a shot fired at the mouse spawns a bullet whose direction is the aim (within 6 degrees)', shots.length === 2 && shots.every((q) => q && q.deg < 6 && q.n >= 1), JSON.stringify(shots));
@@ -809,15 +905,21 @@ try {
   }, st3);
   await wait(4300);
   const mid = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: Boolean(g.combat.wrath), iso: ui.renderer.isoNow, theme: g.combat.wrath?.theme, struck: g.combat.wrath?.struck }; });
-  await shot('iso-wrath-oil');
+  await shot('3d-wrath-oil');
   record('iso: during the Wrath the world is drawn by the iso renderer and the cutscene is running', mid.wrath && mid.iso && mid.theme === 'oil' && mid.struck >= 3, JSON.stringify(mid));
   await wait(6000);
   record('iso: the Wrath ends with the struck-down card', (await page.evaluate(() => window.oberverse.ui.game.combat.wrath?.over === true)) && (await page.isVisible('#modal:not(.hidden)')));
   await page.click('#modal-body button.primary'); await wait(600);
   const wrathAfter = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: g.combat.wrath, map: g.player.map, money: g.player.money, health: g.player.health, time: g.clock.timeString, day: g.clock.day, iso: ui.renderer.isoNow, state: ui.state }; });
   record('iso: after the Wrath you rise at home next morning having lost at least half your money (the morning bills come after), and the iso view is back', wrathAfter.wrath === null && wrathAfter.map === 'player_flat' && wrathAfter.money <= wrathBefore.money / 2 && wrathAfter.health === 100 && /^08:0\d$/.test(wrathAfter.time) && wrathAfter.day === wrathBefore.day + 1 && wrathAfter.iso && wrathAfter.state === 'playing', JSON.stringify(wrathAfter));
-  await shot('iso-wrath-after');
+  await shot('3d-wrath-after');
   await closeAll();
+
+
+  // a lost WebGL context must not throw: the game goes on in the 2D isometric view
+  const lost = await at3d(`const gl = R.world3d.gl.getContext(); const ext = gl.getExtension('WEBGL_lose_context'); if (!ext) return { skipped: true }; ext.loseContext(); await T(1500); return { mode: R.mode, w3d: Boolean(R.world3d), gl: getComputedStyle(document.getElementById('game3d')).display, state: ui.state };`);
+  record('3d: a lost WebGL context drops to the 2D isometric view without an error', lost.skipped || (lost.mode === 'iso2d' && lost.state === 'playing'), JSON.stringify(lost));
+  await shot('3d-context-lost');
 
   // Saves survive closing and reopening the page
   await closeAll();

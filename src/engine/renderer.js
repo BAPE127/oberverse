@@ -22,6 +22,7 @@ import { inWindow } from '../world/clock.js';
 import { drawVehicleIso, drawPaintedIso } from './isoVehicles.js';
 import { project, unproject, sortItems, behindBox, hidesPoint, spriteFacing, facingVector, bodyBox, pointBox } from './iso.js';
 import { IsoBuildings, buildingHeight, buildingBox, columnPicture, bakeDiamond } from './isoBuildings.js';
+import { World3D } from '../engine3d/world3d.js';
 
 /** v0.55.0: props whose look comes from the aerospace simulation (Aerospace.propView). */
 const AERO_VIEW = new Set(['aircraft', 'bay_slot', 'launch_pad', 'hall_site', 'aero_facility']);
@@ -115,6 +116,14 @@ export class Renderer {
     // v0.104.0: the isometric view (docs/RENDERING.md). `iso` is the owner's choice (the old top-down pass stays behind
     // `iso = false`); `isoNow` is what this frame is actually drawn with (the Wrath cutscene still uses the old pass)
     this.iso = true;
+    this._mode = '3d'; // 3D renderer: '3d' (three.js, default when WebGL works), 'iso2d' (the Canvas 2D isometric view), 'flat' (iso = false)
+    this.quality = 'high'; // 'low': no shadow map
+    this.canvas3d = typeof document !== 'undefined' ? document.getElementById('game3d') : null;
+    this.world3d = null;
+    this.shk = { x: 0, y: 0 }; // the world shake (iso px) in the 3D view, so overlays move with the world
+    this.overlaid = new Map();
+    this.lastDt = 0;
+    this.glShown = null;
     this.isoNow = false;
     this.camIso = false;
     this.isoBaked = new WeakMap(); // ground chunk canvas → its iso diamond
@@ -127,6 +136,34 @@ export class Renderer {
     this.base = { s: 1, ex: 0, ey: 0 };
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (this.canvas3d) this.world3d = World3D.get(this.canvas3d, this);
+    if (!this.world3d) this._mode = 'iso2d';
+  }
+
+  /** 'flat' (the old top-down pass), 'iso2d' (Canvas 2D isometric) or '3d' (WebGL). Setting it works live from the console. */
+  get mode() { return this.iso ? this._mode : 'flat'; }
+
+  set mode(v) {
+    if (v === 'flat') { this.iso = false; this.snapCamera(); return; }
+    if (v !== '3d' && v !== 'iso2d') throw new Error(`renderer.mode: '3d', 'iso2d' or 'flat', not '${v}'`);
+    this.iso = true;
+    this._mode = v;
+    if (v === '3d' && !this.world3d && this.canvas3d) this.world3d = World3D.get(this.canvas3d, this);
+    if (v === '3d' && !this.world3d) this._mode = 'iso2d';
+    this.snapCamera();
+  }
+
+  /** The WebGL context was lost: carry on in the 2D isometric view. */
+  glLost() {
+    this._mode = 'iso2d';
+    this.world3d = null;
+    console.warn('[oberverse] the WebGL context was lost; using the 2D isometric view.');
+  }
+
+  showGL(on) {
+    if (!this.canvas3d || this.glShown === on) return;
+    this.glShown = on;
+    this.canvas3d.style.display = on ? 'block' : 'none';
   }
 
   resize() {
@@ -136,6 +173,7 @@ export class Renderer {
     this.canvas.height = Math.floor(window.innerHeight * dpr);
     this.canvas.style.width = `${window.innerWidth}px`;
     this.canvas.style.height = `${window.innerHeight}px`;
+    if (this.canvas3d) { this.canvas3d.style.width = `${window.innerWidth}px`; this.canvas3d.style.height = `${window.innerHeight}px`; }
     this.light.width = Math.ceil(this.canvas.width * LIGHT_SCALE);
     this.light.height = Math.ceil(this.canvas.height * LIGHT_SCALE);
     // v0.47.0: about 24 tiles across (the owner's "medium"), at a whole number of device pixels per world pixel
@@ -383,7 +421,7 @@ export class Renderer {
    * world pixels; in the old top-down view it is a lift on screen, as the callers used to subtract it from y.
    */
   toScreen(wx, wy, z = 0) {
-    if (this.isoNow) return { x: (wx - wy - this.cam.x) * this.cam.zoom, y: ((wx + wy) / 2 - z - this.cam.y) * this.cam.zoom };
+    if (this.isoNow) return { x: (wx - wy - this.cam.x + this.shk.x) * this.cam.zoom, y: ((wx + wy) / 2 - z - this.cam.y + this.shk.y) * this.cam.zoom };
     return { x: (wx - this.cam.x) * this.cam.zoom, y: (wy - z - this.cam.y) * this.cam.zoom };
   }
 
@@ -408,6 +446,18 @@ export class Renderer {
     // the Wrath cutscene plays in the iso view too (wrath.js is given the iso plane); a theme listed in WRATH_TOPDOWN would fall back to the old pass
     const wrath = this.game.combat.wrath;
     this.isoNow = Boolean(this.iso && this.pixel && !(wrath && WRATH_TOPDOWN.has(wrath.theme)));
+    this.lastDt = dt;
+    if (this.isoNow && this._mode === '3d' && this.world3d) {
+      try {
+        if (this.render3d(dt)) return;
+      } catch (err) { // a failure in the 3D view must not stop the game: carry on in the 2D isometric view
+        console.warn('[oberverse] the 3D view failed; using the 2D isometric view.', err);
+        this._mode = 'iso2d';
+      }
+      this.snapCamera();
+    }
+    this.shk.x = 0; this.shk.y = 0;
+    this.showGL(false);
     if (this.isoNow) return this.renderIso(dt);
     this.time += dt;
     this.prefetchGround(); // (what last frame's view will want next)
@@ -716,6 +766,57 @@ export class Renderer {
       return true;
     }
     return false;
+  }
+
+  /**
+   * One frame in the 3D view (docs/RENDERING.md 7). The WebGL canvas under this one draws the solid world (ground, buildings,
+   * props, people, vehicles, light); this canvas is cleared and draws only what is not solid: the interaction ring, bullets and
+   * sparks, the build cursor, tags, bubbles, bars, damage numbers, the crosshair and the Wrath cutscene. Returns false when the
+   * WebGL side could not draw (the caller then draws the 2D view).
+   */
+  render3d(dt) {
+    this.time += dt;
+    this.prefetchGround();
+    const g = this.game;
+    const main = this.ctx;
+    const map = g.currentMap();
+    this.layers = this.computeLayers(map);
+    this.updateCamera(dt);
+    const { zoom } = this.cam;
+    const cs = g.combat.shake;
+    const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0, this.launchShake(map));
+    this.shk.x = shake ? (Math.random() - 0.5) * shake : 0;
+    this.shk.y = shake ? (Math.random() - 0.5) * shake : 0;
+    this.blit = { x: 0, y: 0 };
+    this.base = { s: zoom, ex: (-this.cam.x + this.shk.x) * zoom, ey: (-this.cam.y + this.shk.y) * zoom }; // iso px -> device px, for the 2D effects drawn over the 3D scene
+    this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
+    const dtc = Math.min(dt, 0.1);
+    // which interiors are laid over which building, and which of them are open this frame (the same state the 2D view keeps)
+    const ids = new Set(this.layers.map((L) => L.map.id));
+    const overlaid = new Map();
+    for (const L of this.layers) {
+      if (L.map.kind === 'interior') continue;
+      for (const b of L.map.buildings) if (b.interior && ids.has(b.interior)) overlaid.set(b.interior, { b, L, st: this.bld.step(b, g.player.map === b.interior, this.time, dtc) });
+    }
+    this.overlaid = overlaid;
+    this.hiddenMaps = new Set();
+    for (const [id, r] of overlaid) if (r.st.t <= 0.001) this.hiddenMaps.add(id);
+    const ok = this.world3d.render(dt);
+    if (!ok) return false;
+    this.showGL(true);
+    main.setTransform(1, 0, 0, 1, 0, 0);
+    main.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.buildCursor) { main.save(); this.setGround(main); this.drawBuildCursor(main, this.buildCursor); main.restore(); }
+    this.setScreen(main);
+    this.drawCombatFxIso(main);
+    if (g.heavy) this.drawHeavyIso(main);
+    this.setScreen(main);
+    if (!g.combat.wrath) this.drawHighlight(main);
+    main.setTransform(1, 0, 0, 1, 0, 0);
+    if (g.combat.wrath) { drawWrath(this, g, g.combat.wrath); return true; }
+    this.drawOverlays(map);
+    this.drawCrosshair();
+    return true;
   }
 
   /** One frame of the world in the isometric view. Same pipeline as `render`: low-resolution pass, upscale, text, lights, overlays. */

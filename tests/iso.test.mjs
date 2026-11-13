@@ -286,3 +286,19 @@ test('wrathActors: in the iso view the cutscene stands on the iso plane at the p
   const mid = (a, b) => (a + b) / 2;
   assert.ok(Math.abs(c.x + 400 / 2 * 3 / c.zoom - mid(project(300, 200).x, project(340, 210).x)) < 40);
 });
+
+test('a building that is wanted open stays fully open, and one that is not stays roofed (no dip every other frame)', async () => {
+  const { IsoBuildings } = await import('../src/engine/isoBuildings.js');
+  const bld = new IsoBuildings();
+  const b = { id: 'b_test' };
+  let now = 0;
+  const stepFor = (want, frames) => { let last; for (let i = 0; i < frames; i++) { now += 0.016; last = bld.step(b, want, now, 0.016).t; assert.ok(last >= 0 && last <= 1); } return last; };
+  assert.equal(stepFor(false, 10), 0);
+  let prev = 0;
+  for (let i = 0; i < 40; i++) { now += 0.016; const t = bld.step(b, true, now, 0.016).t; assert.ok(t >= prev, `opening never goes back (${prev} -> ${t})`); prev = t; }
+  assert.equal(prev, 1);
+  for (let i = 0; i < 20; i++) { now += 0.016; assert.equal(bld.step(b, true, now, 0.016).t, 1, 'wanted open: t stays at 1'); }
+  assert.ok(stepFor(false, 5) > 0, 'the hold keeps it open for a moment after leaving');
+  assert.equal(stepFor(false, 60), 0);
+  assert.equal(stepFor(false, 5), 0, 'roofed stays roofed');
+});
