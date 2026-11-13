@@ -108,7 +108,7 @@ function groundSpec(id, sp) {
           G.cyl('dark', 'y', 0, 0, 0, r, th, shade(base, 0.08), { seg: angular ? 6 : 10 });
           G.cyl('dark', 'y', 0, th, 0, r * 0.7, 0.04, shade(base, -0.1), { seg: angular ? 6 : 10 });
           G.cyl('dark', 'y', -r * 0.3, th, r * 0.35, 0.07, 0.04, '#2a2c26', { seg: 8 }); // the commander's hatch
-          const gl = (t.gun || 24) / TILE;
+          const gl = Math.min((t.gun || 24) / TILE, hl - tcx - r * 0.6 + 0.25);
           const bar = t.barrels || 1;
           for (let i = 0; i < bar; i++) {
             const z = bar > 1 ? (i ? 1 : -1) * 0.1 : 0;

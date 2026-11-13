@@ -35,7 +35,7 @@ test('every model in content.vehicles has a registered builder, and every transi
   assert.ok(models.length >= 18);
   for (const m of models) assert.ok(builderFor(m), `${m.id} (${m.body})`);
   for (const b of busLines) assert.ok(builderFor(b), b.id);
-  const kinds = new Set(CONTENT.transit.traffic.loops?.map?.((l) => l.model) || []);
+  const kinds = new Set(CONTENT.transit.traffic.models);
   for (const id of kinds) assert.ok(CAR_MODELS[id] && builderFor({ id, ...CAR_MODELS[id] }), `traffic model ${id}`);
   // every body type that exists is a distinct builder
   const bodies = new Set(models.map((m) => m.body));
@@ -86,10 +86,9 @@ test('the wheels roll with the speed, the front ones steer with wheel, the brake
   o.userData.update({ ...v, braking: true }, { ...ctx, night: true, time: 0.2 }, 0.1);
   assert.notEqual(o.userData.parts.lampR.material, tail1, 'the brake lamp is brighter');
   assert.ok(o.userData.parts.lampR.material.emissiveIntensity > tail1.emissiveIntensity);
-  const red = o.userData.parts.barR.material;
-  o.userData.update({ ...v, braking: false }, { ...ctx, night: false, time: 0.4 }, 0.1);
-  o.userData.update({ ...v, braking: false }, { ...ctx, night: false, time: 0.9 }, 0.1);
-  assert.notEqual(o.userData.parts.barR.material, red, 'the siren bar flashes');
+  const seen = new Set();
+  for (const t of [0.0, 0.2, 0.4, 0.9]) { o.userData.update({ ...v, braking: false }, { ...ctx, time: t + 1 }, 0.1); seen.add(o.userData.parts.barR.material); }
+  assert.ok(seen.size >= 2, 'the siren bar flashes');
   // headlights: off for a parked car at night, on for the driven one
   const pipit = builderFor({ ...models[0] })({ ...models[0] }, ctx);
   pipit.userData.update({ id: 'p1', speed: 0 }, { night: true, game: { player: { driving: null } } }, 0.1);
@@ -240,7 +239,7 @@ test('machines3d: a launch shows the rocket on the pad, lifts it by the phase he
   const setSeq = (dLift, success = true) => { const s = startSequence(L, { id: 'U9' }, A.now, success, 10); s.lift = A.now + dLift; s.end = success ? s.lift + L.ascentMin : s.lift + (s.failT || 2) + L.aftermath; co.pad.seq = { ...s, look, unit: 'U9', company: 'meridian' }; };
   const w = fakeWorld(['starling_flats']);
   const ms = w.mapScenes.get('starling_flats');
-  const find = (cls) => ms.dynGroup.children.filter((c) => c.userData.subs && c.userData.subs.lower);
+  const find = () => ms.dynGroup.children.filter((c) => c.visible && c.userData.subs && c.userData.subs.lower);
   setSeq(10);
   syncMachines(w, g, {}, 0.016);
   let rk = find();

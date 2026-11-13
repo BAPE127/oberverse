@@ -208,13 +208,14 @@ export function wheelGeo(r, w, { hub = '#aeb4ba', tyre = '#1c1c20', lugs = 0, ba
   let g = wheelCache.get(key);
   if (!g) {
     const G = new Geo();
-    G.cyl('w', 'z', 0, 0, -w / 2, r, w, tyre, { seg });
+    const rt = lugs ? r - 0.032 : r; // (lugs stand proud: the tips are what touch the ground)
+    G.cyl('w', 'z', 0, 0, -w / 2, rt, w, tyre, { seg });
     G.cyl('w', 'z', 0, 0, -w / 2 - 0.004, r * 0.56, w + 0.008, hub, { seg: 10 });
     G.box('w', -r * 0.5, r * 0.5, -r * 0.07, r * 0.07, -w / 2 - 0.007, w / 2 + 0.007, bar);
     G.box('w', -r * 0.07, r * 0.07, -r * 0.5, r * 0.5, -w / 2 - 0.007, w / 2 + 0.007, bar);
     for (let i = 0; i < lugs; i++) {
       const a = (i / lugs) * Math.PI * 2;
-      G.tbox('w', Math.cos(a) * (r + 0.012), Math.sin(a) * (r + 0.012), 0, 0.06, ((Math.PI * 2 * r) / lugs) * 0.8, w, i % 2 ? tyre : '#2e2e34', 0, 0, a);
+      G.tbox('w', Math.cos(a) * (r - 0.04), Math.sin(a) * (r - 0.04), 0, 0.06, ((Math.PI * 2 * r) / lugs) * 0.8, w, i % 2 ? tyre : '#2e2e34', 0, 0, a);
     }
     g = G.build().w;
     wheelCache.set(key, g);

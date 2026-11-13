@@ -183,7 +183,7 @@ function spec(look, livery) {
         },
       },
       { name: 'nav', pivot: [0, 0, 0], build(G) { for (const n of navs) G.cube(`glow:${n.c}`, n.x, n.y, n.z, 0.12, 0.12, 0.12); } },
-      ...[0, 1, 2, 3].map((i) => ({ name: `prop${i}`, pivot: [0, 0, 0], build(G) { const p = props[i]; if (!p) return; G.box('dark', p.x - 0.03, p.x + 0.05, p.y - 0.06, p.y + 0.06, p.z - 0.06, p.z + 0.06, '#aeb4ba'); G.box('dark', p.x, p.x + 0.02, p.y - p.r, p.y + p.r, p.z - 0.05, p.z + 0.05, '#2a2c30'); } })),
+      ...[0, 1, 2, 3].map((i) => ({ name: `prop${i}`, pivot: [0, 0, 0], build(G) { const p = props[i]; if (!p) return; G.box('dark', p.x - 0.03, p.x + 0.05, p.y - 0.06, p.y + 0.06, p.z - 0.06, p.z + 0.06, '#aeb4ba'); const pr = Math.min(p.r, p.y - 0.06); G.box('dark', p.x, p.x + 0.02, p.y - pr, p.y + pr, p.z - 0.05, p.z + 0.05, '#2a2c30'); } })),
     ],
   };
 }
