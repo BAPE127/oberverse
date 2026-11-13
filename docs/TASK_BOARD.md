@@ -8,6 +8,9 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
+| B-1 | Combat in 3D: weapon models and poses, gunfire, blood, scorch and skid decals, blasts (owner, 2026-11-13) | sonnet-gameplay | Running |
+| B-2 | Battle rework, simulation (rules 4): perception, enemy AI by elements, believable troop movement, helicopters fly over buildings, teams, planning phase API, vehicles ×1.6, events for sound | sonnet-gameplay | Running. Owner's answers: planning = split teams + place forces + scout picture; smarter enemy with the same numbers; vehicles 1.6× with collision |
+| B-3 | Battle rework, presentation: planning screen, team selection, soldier poses, helicopter flight and 1.6× vehicle models in 3D, battle sound (gunfire, engines, rotors, shouts, ambience) | queued | After B-1 and B-2; Opus reviews the B-2 diff first (determinism, old-rules replay) |
 | G-9 | 3D defect list (`RENDERING.md` 7.6), by the owner's priority | sonnet-ui / sonnet-technical | When the owner asks |
 
 ## Waiting on the owner
