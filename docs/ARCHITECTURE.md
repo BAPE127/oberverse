@@ -13,6 +13,8 @@
 | Tests | Node's built-in `node:test` | Zero dependencies. Simulation code is DOM-free so it runs headlessly. |
 | Dev server | 60-line Node static server (`server.js`) | Only for `dev.html`, because browsers block ES modules on `file://`. Players never need it. |
 
+> **2026-11-13:** rendering now has a three.js 3D path (`src/engine3d/`, vendored library in `src/vendor/`); see `RENDERING.md` section 7 and TD-19. The table and sections below describe the Canvas 2D renderer, which remains as the fallback.
+
 ## Layering
 
 ```

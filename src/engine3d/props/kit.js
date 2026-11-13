@@ -5,8 +5,16 @@
 import { THREE, box, cyl, cone, blob, group, decal, board, mat, shade, mix, mute, hash, strHash, bake, textMat, sharedGeometry, Mesher, vertexMat } from '../lib3d.js';
 export { THREE, group, decal, board, mat, shade, mix, mute, hash, strHash, bake };
 
-export const WOOD = '#8a6442'; export const DWOOD = '#5e432c'; export const LWOOD = '#b08c66'; export const STEEL = '#8d9297'; export const IRON = '#3c4046';
-export const CONC = '#a5a7a4'; export const RED = '#b8402e'; export const BRASS = '#c9a43a'; export const CREAM = '#e6dcc3'; export const GREEN = '#3f6a4a';
+export const WOOD = '#8a6442';
+export const DWOOD = '#5e432c';
+export const LWOOD = '#b08c66';
+export const STEEL = '#8d9297';
+export const IRON = '#3c4046';
+export const CONC = '#a5a7a4';
+export const RED = '#b8402e';
+export const BRASS = '#c9a43a';
+export const CREAM = '#e6dcc3';
+export const GREEN = '#3f6a4a';
 
 // ---- materials: options for the material are separated from options for the mesh, so a material is shared by every placement
 const MK = ['emissive', 'ei', 'opacity', 'double', 'flat'];

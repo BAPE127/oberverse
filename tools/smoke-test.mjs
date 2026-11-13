@@ -313,6 +313,8 @@ try {
   await page.evaluate(() => {
     const g = window.oberverse.ui.game;
     const mags = g.npcs.get('npc_mags');
+    // she must be at the counter for the shop: a long run can land in her break or one of her natters, so step the clock until she is back
+    for (let i = 0; i < 200 && !(mags.activity === 'work' && mags.map === 'cafe'); i++) g.skipTime(5);
     g.changeMap(mags.map, 'entry');
     g.player.x = mags.x + 32; g.player.y = mags.y; g.player.facing = 'left';
   });

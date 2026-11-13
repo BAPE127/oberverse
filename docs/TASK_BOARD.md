@@ -8,8 +8,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| G-5 | 3D renderer (three.js), phase 3D-1 foundation (`RENDERING.md` section 7) | sonnet-ui | Started 2026-11-12, owner's change of direction |
-| G-6 | 3D-2 props, 3D-3 vehicles, 3D-4 battles, 3D-5 test/optimise/review | queued | After G-5 |
+| G-7 | 3D-4: the battle screen in 3D (`RENDERING.md` 7.3) | sonnet-ui | Next |
+| G-8 | 3D-5: defects in `RENDERING.md` 7.5 (decals, skids, aloft city, sleepers on beds, launch doubling, Hollowmoor factory floor), real-GPU check, Opus review | sonnet-technical, opus-reviewer | After G-7 |
 
 ## Waiting on the owner
 
@@ -17,7 +17,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 | --- | --- | --- |
 | O-2 | Should the live site (Pages, branch `claude/funny-mayer-52dll8`, at v0.103.5-era) be brought up to v0.103.11? | Players see a build eleven commits old |
 | O-3 | v0.104.0 (War: destruction, coup) waits behind the isometric view, by the owner's priority of 2026-11-12 | — |
-| O-5 | Version number and name for the isometric release (roadmap has v0.104.0 as War: destruction) | Needed before release notes and tags |
+| O-7 | Play the 3D build on a real machine and report what looks wrong (only software WebGL has been used so far) | Agents cannot see a real GPU |
+| O-5 | Version number and name for the 3D-view release (roadmap has v0.104.0 as War: destruction) | Needed before release notes and tags |
 | O-6 | Add a world facing vector so keyboard interaction and auto-aim follow the walking direction (a small simulation change; `RENDERING.md` 2.5) | Owner's approval required by the brief |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
 

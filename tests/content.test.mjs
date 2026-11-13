@@ -50,7 +50,11 @@ test('the game has no network or external AI dependency', () => {
   const src = new URL('../src/', import.meta.url).pathname;
   for (const file of walk(src).filter((f) => f.endsWith('.js'))) {
     const code = readFileSync(file, 'utf8');
+    // The vendored three.js (src/vendor/, TD-19) carries file and image loaders that can fetch and URLs in its comments and shaders.
+    // It is exempt from the text scan; instead no game module may name one of its loaders, so that code is never reached.
+    if (file.includes('/src/vendor/')) continue;
     assert.doesNotMatch(code, /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource|https?:\/\//, file);
+    assert.doesNotMatch(code, /\b(?:THREE|lib)\s*\.\s*\w*Loader\b|\b(?:File|Image|ImageBitmap|Texture|CubeTexture|Audio|Object|Material|BufferGeometry|Animation|DataTexture|CompressedTexture)Loader\b/, `${file} uses a three.js loader`);
   }
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /<script[^>]+src=["']https?:/);

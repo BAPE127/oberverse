@@ -215,6 +215,9 @@ export class World3D {
     this.gl.info.reset();
     // drop what has been out of sight for a long while
     if (this.frameNo % 60 === 0) this.sweep();
+    // a car or a person that was not placed this frame (removed, left the map, boarded) must not linger where it last stood
+    for (const e of this.vehicles.values()) if (e.last !== this.frameNo) e.obj.visible = false;
+    for (const e of this.figures.values()) if (e.last !== this.frameNo) e.fig.root.visible = false;
     host.occluders = this.occluders;
     return !this.gl.getContext().isContextLost();
   }

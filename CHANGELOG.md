@@ -2,19 +2,20 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
-## Unreleased — The Isometric View (in progress; version number to be set by the owner)
+## Unreleased — The 3D View (in progress; version number to be set by the owner)
 
-The world and the battle screen are drawn in a 2:1 isometric view (Canvas 2D, no library; design in `docs/RENDERING.md`). No rules, balance or saves change: the simulation is untouched and the renderer only reads it.
+The world is drawn in 3D with three.js: blocky low-poly buildings, people, props and vehicles under a fixed isometric camera, with real light and shadow (design and state in `docs/RENDERING.md`, sections 7.1 to 7.5). No rules, balance or saves change: the simulation is untouched and the renderer only reads it.
 
-- **The view.** New `src/engine/iso.js` (projection, inverse, ground-box depth sort) and `renderIso()` in the renderer: the ground chunks are baked into iso diamonds, people and props stand upright on them, everything is ordered by a topological sort on ground boxes. The old top-down path remains in the code (`window.oberverse.ui.renderer.iso = false`).
-- **Buildings have volume and never hide you.** `src/engine/isoBuildings.js`: walls, windows lit at night, signs, roofs, towers by their storeys. A building is roofed until you walk in, then opens (no roof, low near walls); when you are behind one, a see-through hole follows you. Name tags and bubbles of people you cannot see are not shown.
-- **Controls follow the screen.** On foot the keys are turned 45° (W is up the screen); driving is unchanged. The mouse aims on the chest plane, so a shot goes where the cursor is.
-- **Vehicles.** `src/engine/isoVehicles.js`: cars, buses, traffic, signature cars, tractors and the parked machines at Hollowmoor are built up from their own sprites to their real heights, at any heading.
-- **Combat and the Wrath.** Bullets, flashes, damage numbers, heavy weapons and blasts are placed with real heights; the player faces the aim. All ten Wrath cutscenes play in the new view; what the Wrath does is unchanged and is now written down in `docs/WRATH.md`.
-- **Battles.** The tactical battle uses the same projection, sort and buildings; clicks, box selection, orders and strikes land under the cursor; buildings open for units inside and fade in front of selected units.
-- **Tests.** `tests/iso.test.mjs`, `tests/iso_battle.test.mjs`; smoke steps for a tower (behind, inside, in front), aim, driving, gunfire, a Wrath, battle picking and orders.
+- **The library.** three.js r160 (MIT) is vendored as one file in `src/vendor/` and inlined into `index.html` by the bundler: still one file, still no network, still opens by double-click (decision TD-19, the one exception to "no dependencies"). `index.html` grows from 5.96 to 6.87 MB.
+- **The 3D world** (`src/engine3d/`). The existing pixel ground as textures; buildings with walls, windows, doors, signs, awnings, columns and roofs, towers by their storeys; box-figure people from each character's appearance, walking, turning and holding their weapon; a sun with shadows, night, street lamps, lit windows and headlights.
+- **Buildings never hide you.** A building is roofed until you walk in, then opens; when you are behind one, a see-through hole follows you. The smoke test reads the pixels to prove the figure is really visible.
+- **Every prop modelled**: all 159 types, fences and pipes joining in runs, pumpjacks, windsocks, traffic lights and fires alive.
+- **Vehicles and machines**: eight car bodies, the bus, tractors, the nine signature cars, eighteen aircraft, the rocket and crawler, and the mercenary company's thirty-three machines, with rolling and steering wheels, lamps and sirens.
+- **What carried over from the isometric work**: the camera angle, so keys still follow the screen and the mouse still aims true; all ten Wrath cutscenes over the 3D scene; the Canvas 2D isometric view as the automatic fallback where WebGL is missing (`renderer.mode = 'iso2d'`).
+- **The battle screen** is still the Canvas 2D isometric one (ground-box sort, shared buildings, picking and orders under the cursor); its 3D version is next.
+- **Tests.** `tests/engine3d.test.mjs`, `props3d.test.mjs`, `vehicles3d.test.mjs`, `iso.test.mjs`, `iso_battle.test.mjs`; the "no network" test now exempts the vendored file and forbids its loaders in game code.
 
-Not done yet: diagonal walking sprites, furniture and fences redrawn for the new angle, pitched roofs, and the defects listed in `docs/RENDERING.md` section 6.
+Checked only in headless Chromium with software WebGL; not yet on a real graphics card. Defects: `docs/RENDERING.md` section 7.5.
 
 ## [0.103.11] — 2026-11-09 — War: A Cleaner Battle Screen (development build)
 
