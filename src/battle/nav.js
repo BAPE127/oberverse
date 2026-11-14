@@ -1,15 +1,7 @@
 // Moving and seeing on a battle map (v0.101.0): A* on the tile grid, and a look along a line that walls and trees can stop. Pure: no canvas, no chance.
 import { TILE } from '../content/battle.js';
-import { idx, inb, tileAt, blocksSight } from './map.js';
+import { idx, inb, tileAt, blocksSight, canStand, clearance } from './map.js';
 
-/** Whether a unit of this kind can stand on a tile: people go anywhere a person can; vehicles stay off hedges and out of buildings; helicopters go over everything. */
-export function canStand(m, x, y, kind) {
-  if (!inb(m, x, y)) return false;
-  const t = m.tiles[idx(m, x, y)];
-  if (kind === 'heli') return true;
-  if (kind === 'inf') return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS || t === TILE.TRENCH || t === TILE.WIRE;
-  return t === TILE.GROUND || t === TILE.ROAD || t === TILE.CROP;
-}
 const cost = (t) => (t === TILE.WIRE ? 2.6 : t === TILE.TRENCH ? 1.2 : t === TILE.ROAD ? 1 : t === TILE.HEDGE ? 1.8 : t === TILE.CROP ? 1.3 : t === TILE.DOOR ? 1.4 : 1.1);
 
 /** A* (eight directions; no cutting a corner past a wall). Returns [{x,y}...] from the next tile to the goal, or [] when there is no way. `kind` is 'inf', 'veh' or 'heli'. */
@@ -65,23 +57,4 @@ export function los(m, ax, ay, az, bx, by, bz) {
   return true;
 }
 
-/**
- * How much room a vehicle has at each tile (rules 5): the distance from the tile's centre to the nearest tile a vehicle cannot stand on (the map's edge counts), up to 3. A vehicle needs this to be at
- * least its clearance radius (src/battle/sizes.js) to stand there or pass; a corridor three tiles wide gives 1.5 in its middle. Made once for a map and kept on it (not enumerable, so it is not saved).
- */
-export function clearance(m) {
-  let key = 0; const T = m.tiles; for (let i = 0; i < T.length; i++) key = (Math.imul(key, 31) + T[i]) | 0; // (a map's tiles can change under it: a breach, a collapsed trench, a test)
-  if (m.clr && m.clrKey === key) return m.clr;
-  const N = m.w * m.h; const c = new Float32Array(N); const cap = 3;
-  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-    if (!canStand(m, x, y, 'veh')) continue; let best = cap;
-    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
-      const bx = x + i; const by = y + j; if (inb(m, bx, by) && canStand(m, bx, by, 'veh')) continue;
-      const dx = Math.max(Math.abs(i) - 0.5, 0); const dy = Math.max(Math.abs(j) - 0.5, 0); const d = Math.hypot(dx, dy); if (d < best) best = d; // (the nearest point of the blocked tile)
-    }
-    c[y * m.w + x] = best;
-  }
-  Object.defineProperty(m, 'clr', { value: c, enumerable: false, configurable: true, writable: true }); Object.defineProperty(m, 'clrKey', { value: key, enumerable: false, configurable: true, writable: true });
-  return c;
-}
-export { tileAt };
+export { tileAt, canStand, clearance }; // (canStand and clearance live in map.js, which needs them while it builds a map; they are offered here as before)

@@ -246,7 +246,47 @@ export class Figure {
       this.arms.forEach((a, i) => { a.rotation.set((i ? 1 : -1) * -sw * 0.9, 0, 0); });
     }
     this.placeWeapon(lying, W);
+    if (!lying && (p.prone || p.crouch || p.kneel || p.signal)) this.poseExtra(p, W);
+    else if (this.extraOn) this.clearExtra();
     this.setLook(p);
+  }
+
+  /**
+   * The battle's added poses, on top of the ordinary one (a figure that never asks for them is untouched):
+   *   crouch 0..1  lowered, weapon still carried or aimed (halted in cover)
+   *   kneel  0..1  down on a knee, leaning to the ground (a medic at a casualty)
+   *   prone  true  on the belly, head and weapon forward (suppressed); crawl: a phase, the limbs drag when it is a number
+   *   signal 0..1  one arm raised and waved (an officer's rally)
+   * A casualty (`lying`) is on the back with the weapon dropped: the two are different shapes on purpose.
+   */
+  poseExtra(p, W) {
+    this.extraOn = true;
+    const h = this.geo.height; const wm = this.wm;
+    if (p.prone) {
+      const cr = p.crawl == null ? null : Math.sin(p.crawl) * 0.35;
+      this.lay.rotation.x = Math.PI / 2; this.lay.position.y = 0.13; this.lay.position.z = 0.02;
+      this.body.position.y = 0; this.body.scale.y = h;
+      this.legs.forEach((l, i) => { l.rotation.set(cr == null ? 0 : (i ? 1 : -1) * cr * 0.6, 0, (i ? 1 : -1) * 0.12); });
+      this.arms.forEach((a, i) => { a.rotation.set(-Math.PI + (cr == null ? 0 : (i ? 1 : -1) * cr * 0.5), 0, (i ? 1 : -1) * 0.12); });
+      if (wm) { // the weapon forward along the ground, held at the chest (the body's y scale is undone on the gun's own axis)
+        this.mount.position.set(0.04 * W, 0.98, 0.12); this.mount.rotation.set(-Math.PI / 2, 0, 0); this.mount.scale.set(WSCALE, WSCALE, WSCALE / h); this.mount.visible = true;
+      }
+      return;
+    }
+    const k = Math.max(0, Math.min(1, p.kneel || p.crouch || 0));
+    if (k > 0) {
+      this.body.scale.y = h * (1 - (p.kneel ? 0.32 : 0.24) * k);
+      if (p.kneel) { this.lay.rotation.x = 0.4 * k; this.legs.forEach((l, i) => { l.rotation.x = i ? -1.1 * k : 0.2 * k; }); }
+    }
+    if (p.signal) {
+      const a = this.arms[0]; const w = Math.sin((p.time || 0) * 9) * 0.35 * p.signal;
+      a.rotation.set(-Math.PI * 0.95, 0, 0.25 + w);
+    }
+  }
+
+  clearExtra() {
+    this.extraOn = false; this.body.scale.y = this.geo.height;
+    if (this.wm && !this.dropped) this.mount.scale.set(WSCALE, WSCALE / this.geo.height, WSCALE);
   }
 
   poseArms(p, model, W, swinging) {

@@ -11,7 +11,7 @@ import { disposeTree } from './lib3d.js';
 import { VEHICLES } from './registry3d.js';
 import { buildAircraft } from './vehicles/aircraft.js';
 import { buildRocket, buildCrawler, flameParts, puffGeometry, STAGE_SPLIT } from './vehicles/rocket.js';
-import { buildWarVehicle, buildHelicopter } from './vehicles/military.js';
+import { buildWarVehicle, buildHelicopter, sizeScale } from './vehicles/military.js';
 import { specId, isHeli } from '../engine/drawParked.js';
 import { PARK } from '../content/maps/hollowmoor.js';
 import { puffs, debris, clockText, height } from '../aero/launch.js';
@@ -342,7 +342,7 @@ function sync(world, game, ctx, dt) {
       e.sig = sig;
       e.obj.position.set(p.x, 0, p.y);
       e.obj.rotation.y = Math.PI / 2 - p.heading; // (the 2D heading: 0 = nose up; the models' +x is the nose)
-      e.obj.scale.setScalar(p.scale);
+      e.obj.scale.setScalar(p.kind === 'aircraft' ? p.scale : sizeScale(specId(p.type))); // (the simulation's footprint table, rules 5: a machine at home is as big as it is in the field)
       e.obj.userData.update?.(p.kind === 'aircraft' ? { v: 0, alt: 0, gear: true, state: 'parked' } : { running: false, speed: 0 }, c2, dt);
     }
   }

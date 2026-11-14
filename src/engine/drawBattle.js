@@ -15,6 +15,7 @@ import { TILE, ART_STYLE, SUPPORT, UAV } from '../content/battle.js';
 import { drawJet } from './drawBattleFx.js';
 import { LOOKS, DEFAULT_LOOK } from '../content/troops.js';
 import { unit } from '../battle/hash.js';
+import { sizeOf } from '../battle/sizes.js';
 import { project, unproject, sortItems, behindBox, hidesPoint, prismHit, spriteFacing, pointBox, bodyBox } from './iso.js';
 import { IsoBuildings, buildingHeight, columnPicture, bakeDiamond } from './isoBuildings.js';
 
@@ -219,9 +220,13 @@ export class BattleView {
 
   // ---- picking: all by the screen position of a thing, never by a world rectangle
   /** Where on the screen a unit is (its chest; a helicopter's hull is high). */
-  chest(u) { return this.toScreen(u.x * TP, u.y * TP, u.kind === 'inf' ? 10 : u.kind === 'helicopter' ? 46 : 8); }
+  chest(u) { return this.toScreen(u.x * TP, u.y * TP, u.kind === 'inf' ? 10 : u.kind === 'helicopter' ? this.altPx(u) + 14 : 8); }
+  /** How high a helicopter's hull is drawn, in px (the 3D layer's altitude when there is one: a helicopter at cruise is above the roofs; the sprite's 46 otherwise). */
+  altPx(u) { return this.r3 && u.alive ? this.r3.altOf(u) * TP : u.alive ? 46 : 0; }
+  /** A ground vehicle's footprint on the screen: the half length in px of its drawn body (rules 5: the simulation's `VEHICLE_SIZE`; the old sprites' size before). */
+  halfLenPx(u) { return this.B?.rules >= 5 && u.kind !== 'inf' ? sizeOf(u).len * TP * 0.5 : 26; }
   /** The nearest of `units` to the client position (sx, sy), or null. */
-  unitAt(units, sx, sy) { let best = null; let bd = Infinity; for (const u of units) { const p = this.chest(u); const d = Math.hypot(p.x - sx, p.y - sy); const lim = (u.kind === 'inf' ? 22 : 34) + 8 * this.cam.zoom; if (d < lim && d < bd) { bd = d; best = u; } } return best; }
+  unitAt(units, sx, sy) { let best = null; let bd = Infinity; for (const u of units) { const p = this.chest(u); const d = Math.hypot(p.x - sx, p.y - sy); const lim = (u.kind === 'inf' ? 22 : Math.max(34, this.halfLenPx(u) * 1.1 * this.cam.zoom)) + 8 * this.cam.zoom; if (d < lim && d < bd) { bd = d; best = u; } } return best; }
   /** The units whose screen positions lie in the client rectangle. */
   unitsIn(units, x0, y0, x1, y1) { const lo = { x: Math.min(x0, x1), y: Math.min(y0, y1) }; const hi = { x: Math.max(x0, x1), y: Math.max(y0, y1) }; return units.filter((u) => { const p = this.chest(u); return p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y; }); }
   /** The standing (roofed) building under a client position, if the pointer is on its picture: what the player means by "that building". */
@@ -384,12 +389,15 @@ export class BattleView {
 
   /** A unit's ring (selected), its state pip and health bar on the overlay, above the 3D body (which is taller than the sprite was). */
   marks(g, u, ui) {
-    const wx = u.x * TP; const wy = u.y * TP; const inf = u.kind === 'inf'; const sel = ui.selected?.has(u.id);
-    if (sel) { this.bill(g, wx, wy, 0); g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 2, inf ? 11 : 26, inf ? 5.5 : 13, 0, 0, Math.PI * 2); g.stroke(); }
+    const wx = u.x * TP; const wy = u.y * TP; const inf = u.kind === 'inf'; const sel = ui.selected?.has(u.id); const heli = u.kind === 'helicopter'; const half = this.halfLenPx(u);
+    if (sel || (ui.footprints && !inf)) { this.bill(g, wx, wy, 0); g.strokeStyle = '#7af0a0'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 2, inf ? 11 : half, inf ? 5.5 : half / 2, 0, 0, Math.PI * 2); if (sel) g.stroke(); }
+    if (ui.footprints && !inf && !heli) { const sz = sizeOf(u); const hd = u.heading ?? 0; const hl = sz.len * TP / 2; const hw = sz.wid * TP / 2; g.setTransform(1, 0, 0, 1, 0, 0); g.strokeStyle = '#ffe28a'; g.lineWidth = 1; g.beginPath(); [[hl, hw], [hl, -hw], [-hl, -hw], [-hl, hw]].forEach(([a, b], i) => { const x = wx + a * Math.cos(hd) - b * Math.sin(hd); const y = wy + a * Math.sin(hd) + b * Math.cos(hd); const q = this.toCanvas(x, y, 0); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.closePath(); g.stroke(); }
     if (!u.alive) return;
-    const top = inf ? 46 : u.kind === 'helicopter' ? 112 : 46;
+    const top = inf ? 46 : heli ? this.altPx(u) + 66 : Math.round(46 * Math.max(1, half / 26));
+    const tag = ui.tags?.get(u.id);
+    if (tag) { this.bill(g, wx, wy, 0); const ty = -top - (u.hp < u.hpMax || sel ? 14 : 6); g.fillStyle = tag.color; g.fillRect(-6, ty - 8, 12, 11); g.strokeStyle = INK; g.lineWidth = 1; g.strokeRect(-6, ty - 8, 12, 11); g.fillStyle = INK; g.font = 'bold 9px monospace'; g.textAlign = 'center'; g.fillText(tag.letter, 0, ty + 1); }
     if (inf && u.state !== 'steady') { this.bill(g, wx, wy, 0); g.fillStyle = u.state === 'broken' ? '#ff5a4a' : u.state === 'pinned' ? '#ffb43a' : '#ffe86a'; g.fillRect(-3, -top - 8, 6, 3); }
-    if (u.hp < u.hpMax || sel) { this.bill(g, wx, wy, 0); const w = inf ? 16 : 30; const y = -top; g.fillStyle = INK; g.fillRect(-w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(-w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(-w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
+    if (u.hp < u.hpMax || sel) { this.bill(g, wx, wy, 0); const w = inf ? 16 : Math.max(30, half * 1.2); const y = -top; g.fillStyle = INK; g.fillRect(-w / 2 - 1, y - 1, w + 2, 5); g.fillStyle = '#3a2a2a'; g.fillRect(-w / 2, y, w, 3); g.fillStyle = u.side === 'p' ? '#6ae88a' : '#f06a5a'; g.fillRect(-w / 2, y, Math.max(0, Math.round((w * u.hp) / u.hpMax)), 3); }
   }
 
   stateOf(b) { return this.bld.stateOf(this.scene.recs.get(b.id)); }
@@ -405,6 +413,7 @@ export class BattleView {
     const out = [];
     for (const u of B.units) {
       if (!u.alive || u.fled || u.hidden) continue;
+      if (u.kind === 'helicopter' && (u.z || 0) > 0.05) continue; // (a helicopter in the air is above every roof: it opens nothing and no building dissolves for it)
       const inOpen = u.side === 'p' && u.kind === 'inf' && this.opened[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]]; // (a room that is open is never left hidden behind its neighbour)
       // v0.104.x (3D): every unit of yours, selected or not, and the enemy in sight, is seen through whatever stands in front of it
       if (ui.selected?.has(u.id) || (this.r3 && u.side === 'p') || (u.side === 'e' && seen.has(u.id)) || inOpen) out.push({ id: u.id, kind: u.kind === 'inf' ? 'inf' : 'veh', x: u.x * TP, y: u.y * TP, z: u.kind === 'inf' ? (this.r3 ? 22 : 14) : this.r3 ? 14 : 8 });

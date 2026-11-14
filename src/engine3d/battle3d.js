@@ -18,11 +18,12 @@ import { PROPS, VEHICLES } from './registry3d.js';
 import './props3d.js';
 import './vehicles3d.js';
 import { fallbackProp, fallbackVehicle } from './fallbacks3d.js';
-import { buildWarVehicle, buildHelicopter } from './vehicles/military.js';
+import { buildWarVehicle, buildHelicopter, sizeScale } from './vehicles/military.js';
 import { buildAircraft } from './vehicles/aircraft.js';
 import { softwareGL } from './world3d.js';
 import { unproject, project, behindBox, hidesPoint } from '../engine/iso.js';
-import { TICK, TILE as BT, SUPPORT } from '../content/battle.js';
+import { TICK, TILE as BT, SUPPORT, FLIGHT } from '../content/battle.js';
+import { sizeOf } from '../battle/sizes.js';
 
 const TP = 32;
 const CHUNK = 8; // ground chunk, tiles (ground3d.js)
@@ -115,6 +116,7 @@ export class Battle3D {
   attach(B, V) {
     this.B = B; this.V = V;
     const map = B.map; const sc = V.scene;
+    this.cruiseAlt = Math.max(0, ...B.map.buildings.map((b) => (b.floors || 1) * STOREY)) + 2.5; // (a helicopter at cruise is above the tallest roof of this map, in tiles)
     this.mapStub = { id: 'battle', width: map.w, height: map.h };
     this.groundHost = { groundChunk: (m, cx, cy) => this.chunkCanvas(cx, cy), wantChunks: [] };
     this.ground = new Ground3D(this.groundHost);
@@ -335,11 +337,14 @@ export class Battle3D {
     const sid = V.specKey(u); const heli = u.kind === 'helicopter';
     let obj = null;
     try { obj = heli ? buildHelicopter(sid) : buildWarVehicle(sid); } catch (err) { obj = null; }
+    const k = this.B.rules >= 5 ? sizeScale(sid) : 1; // (rules 5: the simulation's footprint table; an older battle keeps the size it was made at)
     if (!obj) obj = fallbackVehicle({ body: 'x', len: 60, wid: 30 }, u.side === 'p' ? '#4f6a3e' : '#7a4a3e');
+    else obj.scale.setScalar(k);
+    obj.rotation.order = 'YZX'; // (yaw, then pitch, then roll about the nose: a helicopter banks into a turn and noses down)
     if (!u.alive) this.tintAll(obj, this.tintMat('wreck')); else if (u.side !== 'p') this.tintAll(obj, this.tintMat('enemy'));
     let shadow = null;
-    if (heli) { shadow = new THREE.Mesh(lib.sharedGeometry('bshadow', () => new THREE.CircleGeometry(1, 16)), this.shadowMat()); shadow.rotation.x = -Math.PI / 2; shadow.scale.set(1.3, 1.3, 1.3); shadow.position.y = 0.04; this.unitGroup.add(shadow); }
-    return { kind: heli ? 'heli' : 'veh', obj, shadow, alive: u.alive, hd: u.side === 'p' ? 0 : Math.PI, key: `${sid}|${u.alive}|${u.side}` };
+    if (heli) { shadow = new THREE.Mesh(lib.sharedGeometry('bshadow', () => new THREE.CircleGeometry(1, 16)), this.shadowMat()); shadow.rotation.x = -Math.PI / 2; const rr = (this.B.rules >= 5 ? (sizeOf(u).rotor || sizeOf(u).len) : 1.4) * 0.5; shadow.scale.set(rr, rr, rr); shadow.position.y = 0.04; this.unitGroup.add(shadow); }
+    return { kind: heli ? 'heli' : 'veh', obj, shadow, alive: u.alive, k, rpm: 0, rock: 0, shots: u.shots || 0, bank: 0, hd: u.side === 'p' ? 0 : Math.PI, key: `${sid}|${u.alive}|${u.side}` };
   }
 
   shadowMat() { return this.shMat || (this.shMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.28, depthWrite: false })); }
@@ -361,25 +366,60 @@ export class Battle3D {
       shown.add(u.id);
       e.obj.visible = true;
       const t = u.target ? B.byId.get(u.target) : null; const to = u.path?.[0] || t;
-      if (u.kind === 'inf') {
-        if (to) e.yaw += angleDiff(e.yaw, yawOf(to.x - u.x, to.y - u.y)) * Math.min(1, dt * 14);
-        const down = !u.alive; const crouch = u.state === 'pinned' || u.state === 'broken';
-        e.fig.pose({ x: u.x, y: 0, z: u.y, yaw: e.yaw, phase: u.moving && !down ? V.t * 11 + u.id.length * 0.7 : null, lying: down, lift: 0 });
-        e.fig.body.scale.y = e.fig.geo.height * (crouch && !down ? 0.74 : 1);
-        continue;
-      }
-      // a war machine: the hull turns toward where it goes, the turret toward what it shoots at
-      const want = to ? Math.atan2(to.y - u.y, to.x - u.x) : t ? Math.atan2(t.y - u.y, t.x - u.x) : (u.side === 'p' ? 0 : Math.PI);
-      let d = want - e.hd; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
-      if (u.alive) e.hd += d * 0.12;
-      const heli = e.kind === 'heli'; const lift = heli && u.alive ? 1.2 : 0;
-      e.obj.position.set(u.x, lift, u.y); e.obj.rotation.y = -e.hd;
-      if (e.obj.userData.update) e.obj.userData.update({ speed: u.moving && u.alive ? (u.speed || 2) * TP : 0, wheel: 0, running: u.alive }, null, dt);
-      const tur = e.obj.userData.subs?.turret;
-      if (tur && !heli) { const ta = t && u.alive ? Math.atan2(t.y - u.y, t.x - u.x) : e.hd; let r = e.hd - ta; while (r > Math.PI) r -= 2 * Math.PI; while (r < -Math.PI) r += 2 * Math.PI; tur.rotation.y = r; }
-      if (e.shadow) { e.shadow.visible = u.alive; e.shadow.position.set(u.x, 0.04, u.y); }
+      if (u.kind === 'inf') { this.poseSoldier(B, V, u, e, t, to, dt); continue; }
+      this.poseMachine(B, V, u, e, t, to, dt);
     }
     for (const [id, e] of this.units) if (!shown.has(id)) e.obj.visible = false, e.shadow && (e.shadow.visible = false);
+  }
+
+  /** The drawn height of a helicopter, in tiles: its simulated altitude (floors, `FLIGHT.cruise` at cruise) mapped so that cruise is above the tallest roof of the map. */
+  altOf(u) { return u.kind === 'helicopter' && u.alive && (u.z || 0) > 0 ? Math.min(1.15, u.z / FLIGHT.cruise) * (this.cruiseAlt ?? 10) : 0; }
+
+  /** A soldier from the simulation's state: the heading it turns to, whether it moves, fires, is on the ground, kneels at a casualty or signals. */
+  poseSoldier(B, V, u, e, t, to, dt) {
+    const rules5 = B.rules >= 5; const down = !u.alive;
+    if (rules5 && u.heading !== undefined) e.yaw += angleDiff(e.yaw, Math.PI / 2 - u.heading) * Math.min(1, dt * 14);
+    else if (to) e.yaw += angleDiff(e.yaw, yawOf(to.x - u.x, to.y - u.y)) * Math.min(1, dt * 14);
+    if ((u.shots || 0) > (e.shots || 0)) { e.kick = 1; e.aimT = 0.7; }
+    e.shots = u.shots || 0; e.kick = Math.max(0, (e.kick || 0) - dt * 6); e.aimT = Math.max(0, (e.aimT || 0) - dt);
+    const moving = u.moving && !down; const prone = rules5 && u.prone && !down;
+    const hard = u.state === 'pinned' || u.state === 'broken';
+    const tend = u.tendT > 0 && !moving; const aiming = e.aimT > 0 && !moving;
+    const still = !moving && !down && !prone;
+    const crouch = still && !tend && (rules5 ? (hard || Boolean(u.target) || aiming || (u.order?.type === 'hold' && u.settled)) : hard);
+    let rally = 0;
+    if (u.role === 'officer' && !down && !moving && B.tick % 10 === 0) e.rally = B.units.some((o) => o !== u && o.alive && o.side === u.side && o.state !== 'steady' && Math.hypot(o.x - u.x, o.y - u.y) < 7);
+    if (e.rally && u.role === 'officer' && !down) rally = 1;
+    e.fig.pose({ x: u.x, y: 0, z: u.y, yaw: e.yaw, phase: moving && !prone ? V.t * (u.order?.type === 'amove' || u.v > 1.5 ? 13 : 11) + u.id.length * 0.7 : null, lying: down, lift: 0, aim: aiming || (!moving && Boolean(u.target) && !hard), kick: e.kick, prone, crawl: prone && u.moving ? V.t * 6 : null, crouch: crouch ? 1 : 0, kneel: tend ? 1 : 0, signal: rally, time: V.t });
+  }
+
+  /** A war machine from the simulation's state: the hull at its heading, the turret at its own, wheels and tracks at its speed, a rock on firing, a wreck when it is dead; a helicopter at its altitude with its rotor, bank and nose. */
+  poseMachine(B, V, u, e, t, to, dt) {
+    const heli = e.kind === 'heli'; const rules5 = B.rules >= 5;
+    const want = rules5 && u.heading !== undefined ? u.heading : to ? Math.atan2(to.y - u.y, to.x - u.x) : t ? Math.atan2(t.y - u.y, t.x - u.x) : (u.side === 'p' ? 0 : Math.PI);
+    let d = want - e.hd; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    const prev = e.hd;
+    if (u.alive) e.hd += rules5 ? d * Math.min(1, dt * 12) : d * 0.12;
+    const alt = rules5 ? this.altOf(u) : heli && u.alive ? 1.2 : 0;
+    const sc = e.k || 1;
+    if ((u.shots || 0) > e.shots) e.rock = 1; e.shots = u.shots || 0; e.rock = Math.max(0, e.rock - dt * 5);
+    let pitch = -0.035 * e.rock; let roll = 0;
+    if (heli) {
+      const turn = d / Math.max(dt, 1e-3); e.bank += (Math.max(-0.5, Math.min(0.5, -turn * 0.18 * (u.v > 0.3 ? 1 : 0))) - e.bank) * Math.min(1, dt * 4);
+      roll = e.bank; pitch = -0.2 * Math.min(1, (u.v || 0) / Math.max(0.5, u.speed || 3)) * (alt > 0.5 ? 1 : 0);
+      const target = u.grounded === false || alt > 0.02 ? 1 : 0; e.rpm += (target - e.rpm) * Math.min(1, dt * (target ? 0.9 : 0.5));
+    }
+    void prev;
+    e.obj.position.set(u.x, alt, u.y); e.obj.rotation.set(roll, -e.hd, pitch, 'YZX');
+    const speed = u.moving && u.alive ? (rules5 ? (u.v || 0) : (u.speed || 2)) * TP / sc : 0;
+    if (e.obj.userData.update) e.obj.userData.update({ speed, wheel: 0, running: heli ? e.rpm > 0.05 : u.alive }, null, heli ? dt * Math.max(0.05, e.rpm) : dt);
+    const tur = e.obj.userData.subs?.turret;
+    if (tur && !heli) {
+      if (!u.alive) tur.rotation.y = 0.6 + (u.id.length % 5) * 0.4;
+      else { const ta = rules5 && u.tur !== undefined && u.tur !== null ? u.tur : t ? Math.atan2(t.y - u.y, t.x - u.x) : e.hd; let r = e.hd - ta; while (r > Math.PI) r -= 2 * Math.PI; while (r < -Math.PI) r += 2 * Math.PI; tur.rotation.y = r; tur.position.x = (tur.userData.rx ??= tur.position.x) - 0.05 * e.rock; }
+    }
+    if (!u.alive) e.obj.scale.set(sc, sc * 0.8, sc);
+    if (e.shadow) { e.shadow.visible = u.alive && !u.inside; e.shadow.position.set(u.x, 0.04, u.y); const base = (rules5 ? (sizeOf(u).rotor || sizeOf(u).len) : 1.4) * 0.5; const f = 1 + alt * 0.012; e.shadow.scale.set(base * f, base * f, base * f); }
   }
 
   // ------------------------------------------------------------------ jets, drones, falling shells

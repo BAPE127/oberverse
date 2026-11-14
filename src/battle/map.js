@@ -8,7 +8,6 @@
 //   blocksSight(map, x, y, z)                  whether the tile stops a look from floor z
 import { TILE, RECIPES, RECIPES_V1, ENTRIES, STYLES, ART_STYLE, ART_BIOME, minTiles, MAP_VER } from '../content/battle.js';
 import { unit, pick, between } from './hash.js';
-import { clearance } from './nav.js';
 
 const W = TILE.WALL;
 export const idx = (m, x, y) => y * m.w + x;
@@ -381,4 +380,33 @@ export function generate({ recipe = 'fields', biome = 'rural', style = 'sund', s
   for (const s of [m.spawns.p, m.spawns.e, m.objective]) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const n = idx(m, s.x + i, s.y + j); if (inb(m, s.x + i, s.y + j) && m.bid[n] < 0 && m.tiles[n] !== TILE.ROAD) m.tiles[n] = TILE.GROUND; }
   if (m.props) m.props = m.props.filter((p) => !((p.type === 'tree' || p.type === 'pine') && m.tiles[idx(m, p.x, p.y)] !== TILE.TREE) && !(p.type === 'bush' && m.tiles[idx(m, p.x, p.y)] !== TILE.HEDGE)); // a road carved or a start cleared took the tile
   return m;
+}
+
+/** Whether a unit of this kind can stand on a tile: people go anywhere a person can; vehicles stay off hedges and out of buildings; helicopters go over everything. */
+export function canStand(m, x, y, kind) {
+  if (!inb(m, x, y)) return false;
+  const t = m.tiles[idx(m, x, y)];
+  if (kind === 'heli') return true;
+  if (kind === 'inf') return t === TILE.GROUND || t === TILE.ROAD || t === TILE.HEDGE || t === TILE.CROP || t === TILE.FLOOR || t === TILE.DOOR || t === TILE.STAIRS || t === TILE.TRENCH || t === TILE.WIRE;
+  return t === TILE.GROUND || t === TILE.ROAD || t === TILE.CROP;
+}
+
+/**
+ * How much room a vehicle has at each tile (rules 5): the distance from the tile's centre to the nearest tile a vehicle cannot stand on (the map's edge counts), up to 3. A vehicle needs this to be at
+ * least its clearance radius (src/battle/sizes.js) to stand there or pass; a corridor three tiles wide gives 1.5 in its middle. Made once for a map and kept on it (not enumerable, so it is not saved).
+ */
+export function clearance(m) {
+  let key = 0; const T = m.tiles; for (let i = 0; i < T.length; i++) key = (Math.imul(key, 31) + T[i]) | 0; // (a map's tiles can change under it: a breach, a collapsed trench, a test)
+  if (m.clr && m.clrKey === key) return m.clr;
+  const N = m.w * m.h; const c = new Float32Array(N); const cap = 3;
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    if (!canStand(m, x, y, 'veh')) continue; let best = cap;
+    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
+      const bx = x + i; const by = y + j; if (inb(m, bx, by) && canStand(m, bx, by, 'veh')) continue;
+      const dx = Math.max(Math.abs(i) - 0.5, 0); const dy = Math.max(Math.abs(j) - 0.5, 0); const d = Math.hypot(dx, dy); if (d < best) best = d; // (the nearest point of the blocked tile)
+    }
+    c[y * m.w + x] = best;
+  }
+  Object.defineProperty(m, 'clr', { value: c, enumerable: false, configurable: true, writable: true }); Object.defineProperty(m, 'clrKey', { value: key, enumerable: false, configurable: true, writable: true });
+  return c;
 }

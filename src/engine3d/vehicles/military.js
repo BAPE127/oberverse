@@ -6,6 +6,7 @@
 import { assemble } from './geo.js';
 import { mix } from '../lib3d.js';
 import { SPEC } from '../../engine/drawFleet.js';
+import { VEHICLE_SIZE, VEHICLE_SCALE } from '../../content/battle.js';
 
 const TILE = 32;
 const INK = '#1b1a24';
@@ -14,6 +15,18 @@ const PAINT = {
 };
 const rnd = (a, b = 0) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
 const shade = (c, k) => mix(c, k < 0 ? '#000000' : '#ffffff', Math.abs(k));
+
+/**
+ * The factor that takes a model built from its sprite spec (length `L / 32` tiles) to the simulation's footprint (`VEHICLE_SIZE`, rules 5: 1.6 times what the drawing showed): the table is the
+ * one source, so this reads the length it gives for the spec id. A uniform factor, so the height, wheels and tracks grow with the hull and stay on the ground. 1 for an id with no spec.
+ */
+export function sizeScale(id) {
+  const sp = SPEC[id]; const sz = VEHICLE_SIZE[id];
+  if (!sp || !sz || !sp.L) return 1;
+  return sz.len / (sp.L / TILE);
+}
+/** The same factor for an older battle (rules below 5), which kept the drawn size: the table divided by the 1.6 it added. */
+export const oldSizeScale = (id) => sizeScale(id) / VEHICLE_SCALE;
 
 // ------------------------------------------------------------------------------------------------ ground vehicles
 function groundSpec(id, sp) {
