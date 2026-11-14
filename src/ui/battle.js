@@ -3,8 +3,10 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
-import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated, beginBattle, chooseEntry, deploy, planIntel, currentEntry, splitTeam, mergeTeams, teamOf } from '../battle/sim.js';
+import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated, beginBattle, autoPlan, chooseEntry, deploy, planIntel, currentEntry, splitTeam, mergeTeams, teamOf } from '../battle/sim.js';
 import { landingSpot, landRadius } from '../battle/flight.js';
+import { sizeOf } from '../battle/sizes.js';
+import { BattleAudio } from '../audio/battleAudio.js';
 import { myTeams, tagMap, teamLetter, TEAM_VARS, TEAM_FALLBACK, clickSelect, orderIds, teamsOfSelection, autoBind, bindTeam, recall, unplaced, intelText, liveMembers } from './battleTeams.js';
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
@@ -31,6 +33,8 @@ export function battlePanel(ui, body, opts = {}) {
   const S = { formation: 'line', speed: 1, acc: 0, sel: new Set(), mode: null, gFloor: 1, ground: new Set(), drag: null, keys: new Set(), done: Boolean(bt.result), lastSave: 0, vis: new Set(), visTick: -99, log: [], pings: [], menu: null, filed: Boolean(bt.result), bind: new Map(), place: null, passA: null, tags: new Map(), tagSig: '', teamName: '', confirm: false, footprints: false };
   const css = getComputedStyle(body); const colorOf = (i) => css.getPropertyValue(TEAM_VARS[i % TEAM_VARS.length]).trim() || TEAM_FALLBACK[i % TEAM_FALLBACK.length];
   if (B) S.bind = autoBind(B);
+  const ba = new BattleAudio(ui.audio); // (the sound of the fight: driven by B.sfx and the camera only; silent where there is no audio)
+  const listener = () => { const r = canvas.getBoundingClientRect(); const c = view.toTile(r.left + r.width / 2, r.top + r.height / 2); return { x: c.x, y: c.y, zoom: view.cam.zoom }; };
   const planning = () => Boolean(B) && B.phase === 'plan';
   if (planning()) S.speed = 0;
   let raf = 0; let last = performance.now(); let closed = false;
@@ -202,7 +206,7 @@ export function battlePanel(ui, body, opts = {}) {
     const has = (fn) => us.some(fn); const b = buildingAt(t, pe); const via = (mode) => () => target(pe, false, mode);
     const go = [['➜', 'Move here', 'M', via('move')], ['⚔', 'Attack-move here', 'A', via('amove')]];
     if (b) for (let i = 0; i < Math.min(b.floors, 5); i++) go.push(['⌂', b.floors > 1 ? `Garrison building ${b.id + 1}, floor ${i + 1}` : `Garrison building ${b.id + 1}`, i === Math.min(S.gFloor, b.floors - 1) ? 'G' : '', () => { S.gFloor = i; target(pe, false, 'garrison'); }]);
-    if (us.some((u) => u.kind === 'helicopter')) { go[0] = ['✈', 'Fly to here', 'F', via('move')]; go.push(['◌', 'Orbit here', 'O', via('orbit')], ['⇄', 'Attack pass through here', 'P', via('pass')], ['⤓', 'Land here', 'L', via('land')]); }
+    if (us.some((u) => u.kind === 'helicopter')) { if (us.every((u) => u.kind === 'helicopter')) go[0] = ['✈', 'Fly to here', 'F', via('move')]; go.push(['◌', 'Orbit here', 'O', via('orbit')], ['⇄', 'Attack pass through here', 'P', via('pass')], ['⤓', 'Land here', 'L', via('land')]); }
     const tac = [['↷', 'Flank round to here', '', via('flank')], ['◎', 'Regroup here', '', via('regroup')], ['👁', 'Scout ahead to here', '', via('recon')]];
     if (has(isVeh)) tac.push(['⮌', 'Reverse to here', '', via('reverse')]);
     const fire = [['☁', 'Throw smoke here', 'S', via('smoke')], ['≋', 'Suppress this point', '', via('suppress')], ['▦', 'Open the wall (breach)', 'B', via('breach')]];
@@ -271,7 +275,7 @@ export function battlePanel(ui, body, opts = {}) {
       if (t.kind === 'inf' && infTeams.length > 1) { const sel = h('select', { class: 'bt-sel', title: 'merge another team into this one' }, h('option', { value: '' }, 'Merge in…'), ...infTeams.filter((q) => q.id !== t.id).map((q) => h('option', { value: q.id }, q.name))); sel.onchange = () => { if (sel.value) doMerge([t.id, sel.value]); }; acts.push(sel); }
       kids.push(h('div', { class: `bt-tcard${out ? ' out' : ''}`, style: `border-left-color:${col}` }, h('div', { class: 'bt-th', onclick: () => { S.sel = new Set(live); const u = B.byId.get(live[0]); if (u) view.center(u.x, u.y); paintCard(); paintPlan(); } }, h('i', { class: 'bt-tl', style: `background:${col}` }, teamLetter(t)), h('b', {}, t.name), h('span', {}, t.kind === 'inf' ? `${live.length} soldier${live.length === 1 ? '' : 's'}` : t.kind === 'veh' ? 'machine' : ''), h('em', {}, out ? 'outside the zone' : 'in place'), h('kbd', {}, [...S.bind].find(([, v]) => v === t.id)?.[0] || '')), chips.length ? h('div', { class: 'bt-chips' }, ...chips) : null, acts.length ? h('div', { class: 'bt-chips' }, ...acts) : null));
     });
-    kids.push(h('div', { class: 'bt-chips' }, h('input', { class: 'bt-name', list: 'bt-names', placeholder: 'Name for the next team (Alpha, Medics…)', value: S.teamName, oninput: (e) => { S.teamName = e.target.value; } }), h('button', { title: 'lay the force out again, the sound way, in the chosen zone', onclick: () => { const r = chooseEntry(B, cur.id); say('Default placement.'); if (r.ok) save(); paintPlan(); } }, 'Default placement')));
+    kids.push(h('div', { class: 'bt-chips' }, h('input', { class: 'bt-name', list: 'bt-names', placeholder: 'Name for the next team (Alpha, Medics…)', value: S.teamName, oninput: (e) => { S.teamName = e.target.value; } }), h('button', { title: 'lay the force out again, the sound way, in the chosen zone', onclick: () => { const r = autoPlan(B); say(r.text); if (r.ok) save(); paintPlan(); } }, 'Default placement')));
     kids.push(h('div', { class: 'bt-sec' }, 'What the scouts know'), h('small', { class: 'bt-intel' }, intelText(intel)));
     if (S.confirm && un.count) kids.push(h('div', { class: 'bt-warnbox' }, `${un.count} of yours (${un.teams.join(', ')}) are outside the zone and will start where they are. Begin anyway?`, h('div', { class: 'bt-chips' }, h('button', { onclick: () => begin() }, 'Begin anyway'), h('button', { onclick: () => { S.confirm = false; paintPlan(); } }, 'Keep planning'))));
     else kids.push(h('button', { class: 'bt-begin', onclick: () => { if (un.count) { S.confirm = true; paintPlan(); } else begin(); } }, 'Begin the battle'));
@@ -329,8 +333,9 @@ export function battlePanel(ui, body, opts = {}) {
     if (!B) return;
     const r = canvas.getBoundingClientRect(); if (canvas.width !== Math.round(r.width) || canvas.height !== Math.round(r.height)) { canvas.width = Math.max(320, Math.round(r.width)); canvas.height = Math.max(240, Math.round(r.height)); }
     const pan = 700 * dtm / view.cam.zoom; for (const k of S.keys) { if (k === 'arrowleft') view.cam.x -= pan; if (k === 'arrowright') view.cam.x += pan; if (k === 'arrowup') view.cam.y -= pan; if (k === 'arrowdown') view.cam.y += pan; view.clamp(); }
-    if (!B.over && S.speed) { S.acc += dtm * TICK.perSecond * S.speed; let n = 0; while (S.acc >= 1 && !B.over && n < 80) { step(B); view.fx.step(); S.acc -= 1; n++; } if (n === 80) S.acc = 0; }
+    if (!B.over && S.speed) { S.acc += dtm * TICK.perSecond * S.speed; let n = 0; while (S.acc >= 1 && !B.over && n < 80) { step(B); view.fx.step(); if (n < 12) ba.feed(B.sfx, listener()); S.acc -= 1; n++; } if (n === 80) S.acc = 0; }
     if (B.over && !S.filed) finish();
+    if (!ba.on) ba.start(); ba.update(B, listener(), dtm, planning() || !S.speed || B.over);
     view.effects(B);
     view.visible = (e) => seenSet().has(e.id);
     if (S.tagSig !== `${B.teams?.length}|${B.teamSeq}|${(B.teams || []).map((t) => t.members.length).join()}`) { S.tagSig = `${B.teams?.length}|${B.teamSeq}|${(B.teams || []).map((t) => t.members.length).join()}`; S.tags = tagMap(B, colorOf); }
@@ -347,11 +352,11 @@ export function battlePanel(ui, body, opts = {}) {
   function close() {
     if (closed) return; closed = true; cancelAnimationFrame(raf); save();
     window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true);
-    view.dropR3();
+    ba.stop(); view.dropR3();
     ui.closePanel();
   }
   // the smoke test and the debug commands drive the same battle
-  ui.battleHandle = { B, S, view, give, paintPlan, doSplit, doMerge, begin, flyOrder, step: (n = 1) => { for (let i = 0; i < n && !B.over; i++) { step(B); view.fx.step(); } if (B.over && !S.filed) finish(); }, finish, close, save };
-  return { title: '', className: 'battlecmd', onClose: () => { if (!closed) { closed = true; cancelAnimationFrame(raf); save(); window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); } view.dropR3(); ui.battleHandle = null; } };
+  ui.battleHandle = { B, S, ba, view, give, sizeOf, paintPlan, doSplit, doMerge, begin, flyOrder, step: (n = 1) => { for (let i = 0; i < n && !B.over; i++) { step(B); view.fx.step(); } if (B.over && !S.filed) finish(); }, finish, close, save };
+  return { title: '', className: 'battlecmd', onClose: () => { if (!closed) { closed = true; cancelAnimationFrame(raf); save(); window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKeyUp, true); } ba.stop(); view.dropR3(); ui.battleHandle = null; } };
 }
 export { isVeh };

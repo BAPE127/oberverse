@@ -644,12 +644,48 @@ try {
     }
     // v0.101.0: a battle opens, draws frames, takes an order, and runs to its end and files its result, with no errors
     for (const recipe of ['city', 'fields']) {
-      const sk = g.war.skirmish(recipe); while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
+      const sk = g.war.skirmish(recipe); { const su = g.war.battle(sk.id)?.setup; const tk = su?.units.find((q) => q.side === 'p' && q.kind === 'tank'); if (tk && recipe === 'city') su.units.push({ ...tk, id: 'sv1', kind: 'helicopter', role: 'helicopter', vtype: 'viper', name: 'Viper', weapon: 'heli_gun', speed: 3.5 }); } // (a helicopter joins the city skirmish)
+      while (ui.panelStack.length) ui.closePanel(); ui.openPanel('battle', { id: sk.id }); await new Promise((r) => setTimeout(r, 400));
       const H = ui.battleHandle; const f0 = ui.battleFrames || 0; await new Promise((r) => setTimeout(r, 300));
       out[`battle_${recipe}`] = Boolean(H) && (ui.battleFrames || 0) > f0 && document.querySelector('.bt-canvas')?.width > 300;
       // docs/RENDERING.md 7 (3D-4): the battle runs in three.js, a WebGL canvas under the 2D one that draws the ground, buildings, props and units; the 2D canvas is a transparent overlay
       { const gl = document.querySelector('.bt-gl'); const st = H.view.r3?.stats || {}; const c2 = document.querySelector('.bt-canvas');
         out[`battle_${recipe}_3d`] = Boolean(H.view.r3) && Boolean(gl) && gl.width === c2.width && gl.height === c2.height && getComputedStyle(gl).display === 'block' && gl.nextElementSibling === c2 && st.calls > 5 && st.triangles > 500 && st.units >= 8 && !H.view.r3.lost; }
+      // rules 5, the planning stage: the battle opens paused with the plan panel; split a squad, drag a team into the zone with the pointer, begin
+      { const B = H.B; const cv = document.querySelector('.bt-canvas'); const snap = (name) => { const gl = document.querySelector('.bt-gl'); const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height; const g2 = o.getContext('2d'); if (gl) g2.drawImage(gl, 0, 0, o.width, o.height); g2.drawImage(cv, 0, 0); (window.__battleShots = window.__battleShots || {})[`${recipe}-${name}`] = o.toDataURL('image/png'); };
+        const frames = async (n) => { const f = ui.battleFrames; while (ui.battleFrames < f + n) await new Promise((r) => setTimeout(r, 20)); };
+        const mine = () => B.teams.filter((t) => t.side === 'p'); const inf = () => mine().filter((t) => t.kind === 'inf');
+        out[`battle_${recipe}_plan`] = B.phase === 'plan' && Boolean(document.querySelector('.bt-plan:not(.hidden)')) && inf().length >= 2 && B.tick === 0;
+        const t0 = inf().find((t) => t.members.length >= 4); const n0 = B.teams.length; H.S.sel = new Set(t0.members.slice(0, 2)); const sp = H.doSplit(t0.id);
+        out[`battle_${recipe}_split`] = sp.ok && B.teams.length === n0 + 1 && !H.view.foci(B, ui, new Set()).length === false;
+        await frames(4); snap('plan');
+        const tm = inf()[0]; const z = (B.map.entries.find((e) => e.id === B.entry) || B.map.entries[0]).zone; const u0 = B.byId.get(tm.members[0]); const mid = () => ({ x: tm.members.reduce((a, m) => a + B.byId.get(m).x, 0) / tm.members.length, y: tm.members.reduce((a, m) => a + B.byId.get(m).y, 0) / tm.members.length });
+        const pe = (t, x, y) => cv.dispatchEvent(new PointerEvent(t, { button: 0, clientX: x, clientY: y, bubbles: true, pointerId: 11 }));
+        let placed = false; const before = mid();
+        for (const [fx, fy] of [[0.5, 0.5], [0.3, 0.7], [0.7, 0.3], [0.8, 0.8], [0.2, 0.2]]) { const tx = z.x + z.w * fx; const ty = z.y + z.h * fy; const p0 = H.view.chest(B.byId.get(tm.members[0])); const p1 = H.view.toScreen(tx * 32, ty * 32, 0); pe('pointerdown', p0.x, p0.y); pe('pointermove', (p0.x + p1.x) / 2, (p0.y + p1.y) / 2); pe('pointermove', p1.x, p1.y); pe('pointerup', p1.x, p1.y); const m = mid(); if (Math.hypot(m.x - tx, m.y - ty) < 3.5) { placed = true; break; } }
+        const after = mid(); out[`battle_${recipe}_deployByPointer`] = placed && Math.hypot(after.x - before.x, after.y - before.y) > 0.5 && B.log.some((l) => l.order?.type === 'deploy');
+        out[`battle_${recipe}_planDetail`] = JSON.stringify({ phase: B.phase, teams: mine().length, before, after, zone: z });
+        H.begin(); await frames(3); out[`battle_${recipe}_begun`] = B.phase === 'live' && B.log.some((l) => l.order?.type === 'begin') && document.querySelector('.bt-plan').classList.contains('hidden');
+        // a tank beside a soldier: its drawn footprint is the simulation's table
+        const tank = B.units.find((q) => q.side === 'p' && q.kind === 'tank'); const R3 = H.view.r3;
+        if (tank && R3) { tank.heading = 0; tank.tur = 0; await frames(30); const e = R3.units.get(tank.id); const V3 = e.obj.position.constructor; const v = new V3(); let lo = Infinity; let hi = -Infinity; let wl = Infinity; let wh = -Infinity; e.obj.updateMatrixWorld(true);
+          const tur = e.obj.userData.subs?.turret; e.obj.traverse((o) => { for (let p = o; p; p = p.parent) if (p === tur) return; const bb = o.geometry && (o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox)); if (!bb || !o.isMesh) return; for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const zz of [bb.min.z, bb.max.z]) { v.set(x, y, zz).applyMatrix4(o.matrixWorld); lo = Math.min(lo, v.x); hi = Math.max(hi, v.x); wl = Math.min(wl, v.z); wh = Math.max(wh, v.z); } });
+          const sz = H.sizeOf(tank); out[`battle_${recipe}_tankSize`] = Math.abs((hi - lo) - sz.len) < 0.5 && (hi - lo) > 2.2 && Math.abs((wh - wl) - sz.wid) < 0.5; out[`battle_${recipe}_tankSizeDetail`] = JSON.stringify({ drawnLen: +(hi - lo).toFixed(2), drawnWid: +(wh - wl).toFixed(2), table: sz });
+          const sol = B.units.find((q) => q.side === 'p' && q.kind === 'inf'); tank.x = sol.x + 3.5; tank.y = sol.y; H.S.sel = new Set(); H.view.cam.zoom = 2.2; H.view.center(sol.x + 1.8, sol.y); await frames(10); snap('tank-beside-soldier'); H.view.cam.zoom = 1; }
+        // a helicopter at cruise over a roof: drawn above it, visible, opening nothing
+        const heli = B.units.find((q) => q.side === 'p' && q.kind === 'helicopter');
+        if (heli && R3) { const b = [...B.map.buildings].sort((a, c) => c.floors - a.floors)[0]; heli.x = b.x + b.w / 2; heli.y = b.y + b.h / 2; heli.z = 7; heli.grounded = false; heli.path = []; heli.order = { type: 'hold' }; H.S.speed = 0; H.S.sel = new Set(); H.view.cam.zoom = 1.3; H.view.center(heli.x, heli.y); H.view.cam.y -= R3.altOf(heli) * 32; await frames(40); // (the camera on the helicopter in the air, not on the ground under it)
+          const ee = R3.units.get(heli.id); const alt = R3.altOf(heli); const gl = document.querySelector('.bt-gl'); const grab = () => { const o = document.createElement('canvas'); o.width = gl.width; o.height = gl.height; const g2 = o.getContext('2d'); g2.drawImage(gl, 0, 0); return g2; };
+          const px = (g2, x, y) => { const d = g2.getImageData(Math.round(x) - 2, Math.round(y) - 2, 5, 5).data; let r = 0; let g = 0; let bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return [r / n, g / n, bl / n]; };
+          const q = H.view.toCanvas(heli.x * 32, heli.y * 32, (alt + 0.45) * 32); const a1 = px(grab(), q.x, q.y); R3.hidden = new Set([heli.id]); await frames(4); const a2 = px(grab(), q.x, q.y); R3.hidden = null; await frames(3);
+          const roofShown = R3.buildings.get(b.id)?.roofed?.group.visible !== false; const roofTop = b.floors * 2.3;
+          out[`battle_${recipe}_heliOverRoof`] = alt > roofTop && Math.abs(ee.obj.position.y - alt) < 0.05 && Math.abs(a1[0] - a2[0]) + Math.abs(a1[1] - a2[1]) + Math.abs(a1[2] - a2[2]) > 30 && roofShown && !H.view.foci(B, ui, new Set()).some((f) => f.id === heli.id);
+          out[`battle_${recipe}_heliDetail`] = JSON.stringify({ alt: +alt.toFixed(1), roofTop, y: +ee.obj.position.y.toFixed(1), a1, a2, roofShown });
+          snap('heli-over-roofs');
+          // it flies there: an order across the block arrives
+          H.view.cam.zoom = 1; heli.x = Math.max(2, b.x - 6); heli.y = b.y + b.h / 2; H.S.sel = new Set([heli.id]); const gx = Math.min(B.map.w - 3, b.x + b.w + 6); H.give({ type: 'move', x: gx, y: heli.y }, 'fly'); H.S.speed = 0; let n = 0; while (Math.hypot(heli.x - gx, heli.y - heli.y) > 0.6 && n < 1500) { H.step(10); n += 10; } await frames(10); snap('heli-turn'); out[`battle_${recipe}_heliFlies`] = Math.abs(heli.x - gx) < 1 && heli.z >= 6.5;
+          const L = heli.id; H.S.sel = new Set([L]); H.flyOrder('land', { x: Math.max(2, b.x - 9), y: b.y + b.h + 8 }); n = 0; while (!heli.grounded && n < 3000) { H.step(10); n += 10; } await frames(30); out[`battle_${recipe}_heliLands`] = heli.grounded && R3.altOf(heli) === 0; H.view.center(heli.x, heli.y); snap('heli-landed'); }
+        H.S.speed = 1; }
       const ids = H.B.units.filter((u) => u.side === 'p').map((u) => u.id); H.S.sel = new Set(ids); H.give({ type: 'amove', x: H.B.map.objective.x, y: H.B.map.objective.y }, 'attack-move');
       // v0.103.11: a right click opens the order menu at the cursor; its Move here item gives the order (a ping is drawn) and closes the menu
       { const cv = document.querySelector('.bt-canvas'); const rc = cv.getBoundingClientRect(); H.S.sel = new Set(ids); H.S.pings.length = 0;
@@ -660,7 +696,7 @@ try {
       // the isometric battle: a click picks the unit under it and a move order lands on the tile under the cursor
       { const cv = document.querySelector('.bt-canvas'); H.S.speed = 0; H.S.formation = 'none'; const u0 = H.B.units.find((u) => u.side === 'p' && u.kind === 'inf'); H.S.sel = new Set();
         const p = H.view.chest(u0); const pe = (t, x, y, b = 0) => cv.dispatchEvent(new PointerEvent(t, { button: b, clientX: x, clientY: y, bubbles: true, pointerId: 9 }));
-        pe('pointerdown', p.x, p.y); pe('pointerup', p.x, p.y); out[`battle_${recipe}_pick`] = H.S.sel.has(u0.id);
+        pe('pointerdown', p.x, p.y); pe('pointerup', p.x, p.y); out[`battle_${recipe}_pick`] = H.S.sel.has(u0.id); H.S.sel = new Set([u0.id]); // (a click takes the whole team; the order below is for one man)
         const rc = cv.getBoundingClientRect(); const tx = rc.left + rc.width * 0.6; const ty = rc.top + rc.height * 0.6; const want = H.view.toTile(tx, ty);
         H.S.mode = 'move'; pe('pointerdown', tx, ty); const o = H.B.byId.get(u0.id).order;
         out[`battle_${recipe}_orderAtCursor`] = Boolean(o) && Math.hypot(o.x - want.x, o.y - want.y) < 1; }
