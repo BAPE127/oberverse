@@ -13,12 +13,14 @@ export function canStand(m, x, y, kind) {
 const cost = (t) => (t === TILE.WIRE ? 2.6 : t === TILE.TRENCH ? 1.2 : t === TILE.ROAD ? 1 : t === TILE.HEDGE ? 1.8 : t === TILE.CROP ? 1.3 : t === TILE.DOOR ? 1.4 : 1.1);
 
 /** A* (eight directions; no cutting a corner past a wall). Returns [{x,y}...] from the next tile to the goal, or [] when there is no way. `kind` is 'inf', 'veh' or 'heli'. */
-export function findPath(m, from, to, kind = 'inf') {
+export function findPath(m, from, to, kind = 'inf', opts = null) {
+  const R = opts?.r || 0; const avoid = opts?.avoid || null; const pen = opts?.penalty || null; const clr = R ? clearance(m) : null;
+  const fits = (x, y) => canStand(m, x, y, kind) && (!clr || clr[idx(m, x, y)] >= R - 1e-6) && !(avoid && avoid.has(idx(m, x, y)));
   const sx = Math.floor(from.x); const sy = Math.floor(from.y); let gx = Math.floor(to.x); let gy = Math.floor(to.y);
   if (kind === 'heli') return [{ x: gx + 0.5, y: gy + 0.5 }];
-  if (!canStand(m, gx, gy, kind)) { // the nearest tile that can be stood on
+  if (!fits(gx, gy)) { // the nearest tile that can be stood on
     let best = null;
-    for (let r = 1; r < 8 && !best; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (canStand(m, gx + i, gy + j, kind) && (!best || Math.hypot(i, j) < best.d)) best = { x: gx + i, y: gy + j, d: Math.hypot(i, j) };
+    for (let r = 1; r < 8 && !best; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (fits(gx + i, gy + j) && (!best || Math.hypot(i, j) < best.d)) best = { x: gx + i, y: gy + j, d: Math.hypot(i, j) };
     if (!best) return []; gx = best.x; gy = best.y;
   }
   if (sx === gx && sy === gy) return [];
@@ -35,10 +37,10 @@ export function findPath(m, from, to, kind = 'inf') {
     for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
       if (!di && !dj) continue;
       const nx = cx + di; const ny = cy + dj;
-      if (!canStand(m, nx, ny, kind)) continue;
-      if (di && dj && (!canStand(m, cx + di, cy, kind) || !canStand(m, cx, cy + dj, kind))) continue;
+      if (!fits(nx, ny)) continue;
+      if (di && dj && (!fits(cx + di, cy) || !fits(cx, cy + dj))) continue;
       const n = idx(m, nx, ny); if (closed[n]) continue;
-      const ng = g[cur] + (di && dj ? 1.41 : 1) * cost(m.tiles[n]);
+      const ng = g[cur] + (di && dj ? 1.41 : 1) * cost(m.tiles[n]) + (pen ? pen[n] : 0);
       if (ng < g[n]) { g[n] = ng; prev[n] = cur; open.push([ng + h(nx, ny), n]); }
     }
   }
@@ -61,5 +63,25 @@ export function los(m, ax, ay, az, bx, by, bz) {
     if ((x0 !== x1 || y0 !== y1) && inb(m, x0, y0) && blocksSight(m, x0, y0, z)) return false;
   }
   return true;
+}
+
+/**
+ * How much room a vehicle has at each tile (rules 5): the distance from the tile's centre to the nearest tile a vehicle cannot stand on (the map's edge counts), up to 3. A vehicle needs this to be at
+ * least its clearance radius (src/battle/sizes.js) to stand there or pass; a corridor three tiles wide gives 1.5 in its middle. Made once for a map and kept on it (not enumerable, so it is not saved).
+ */
+export function clearance(m) {
+  let key = 0; const T = m.tiles; for (let i = 0; i < T.length; i++) key = (Math.imul(key, 31) + T[i]) | 0; // (a map's tiles can change under it: a breach, a collapsed trench, a test)
+  if (m.clr && m.clrKey === key) return m.clr;
+  const N = m.w * m.h; const c = new Float32Array(N); const cap = 3;
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    if (!canStand(m, x, y, 'veh')) continue; let best = cap;
+    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
+      const bx = x + i; const by = y + j; if (inb(m, bx, by) && canStand(m, bx, by, 'veh')) continue;
+      const dx = Math.max(Math.abs(i) - 0.5, 0); const dy = Math.max(Math.abs(j) - 0.5, 0); const d = Math.hypot(dx, dy); if (d < best) best = d; // (the nearest point of the blocked tile)
+    }
+    c[y * m.w + x] = best;
+  }
+  Object.defineProperty(m, 'clr', { value: c, enumerable: false, configurable: true, writable: true }); Object.defineProperty(m, 'clrKey', { value: key, enumerable: false, configurable: true, writable: true });
+  return c;
 }
 export { tileAt };

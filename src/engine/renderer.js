@@ -811,8 +811,7 @@ export class Renderer {
     main.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (this.buildCursor) { main.save(); this.setGround(main); this.drawBuildCursor(main, this.buildCursor); main.restore(); }
     this.setScreen(main);
-    this.drawCombatFxIso(main);
-    if (g.heavy) this.drawHeavyIso(main);
+    if (g.heavy) this.drawHeavyIso(main, true); // (bullets, blood, flashes, blasts, rockets and drones are meshes in the 3D scene: engine3d/combatfx3d.js)
     this.setScreen(main);
     if (!g.combat.wrath) this.drawHighlight(main);
     main.setTransform(1, 0, 0, 1, 0, 0);
@@ -1254,13 +1253,13 @@ export class Renderer {
   }
 
   /** Rockets, missiles, drones and strike reticles in the isometric view: projectiles fly at chest height, reticles lie on the ground, drones hover above their shadows. */
-  drawHeavyIso(ctx) {
+  drawHeavyIso(ctx, overlayOnly = false) {
     const g = this.game;
     const H = g.heavy;
     const t = g.realTime;
     ctx.save();
     this.setScreen(ctx);
-    for (const pr of H.projectiles) {
+    for (const pr of overlayOnly ? [] : H.projectiles) {
       const a = Math.atan2((pr.vx + pr.vy) / 2, pr.vx - pr.vy); // the flight's direction on screen
       const wa = Math.atan2(pr.vy, pr.vx);
       const head = project(pr.x, pr.y, 18);
@@ -1311,7 +1310,7 @@ export class Renderer {
         ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
       }
     }
-    for (const d of H.drones) {
+    for (const d of overlayOnly ? [] : H.drones) {
       const bob = Math.sin(t * 6 + d.born) * 2;
       const gp = project(d.x, d.y + 26); // (a drone's y is its height-line: the shadow lies 26 px below it, the body 40 above the shadow)
       const hp = project(d.x, d.y + 26, 40 + bob);

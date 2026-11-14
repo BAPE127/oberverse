@@ -24,7 +24,7 @@ test('a battle saved by v0.101.0 or by v0.102.0 (no rules in its setup) is playe
   const got = {};
   for (const gen of ['v1', 'v2']) for (const recipe of ['city', 'fields']) {
     const setup = JSON.parse(JSON.stringify(buildSetup({ key: `frozen|${gen}|${recipe}`, eng: { goal: 'defence', recipe, biome: 'rural', style: 'ostmark', enemy: { troops: 12, armour: 1, air: 1, skill: 1 } }, people, vehicles, support: { items: { item_missile_guided: 1 }, air: [] }, ai: { p: true, e: true } })));
-    delete setup.rules; if (gen === 'v1') { delete setup.map.ver; delete setup.support; }
+    delete setup.rules; setup.map.ver = 2; if (gen === 'v1') { delete setup.map.ver; delete setup.support; }
     const B = createBattle(setup);
     for (let i = 0; i < 700 && !B.over; i++) { if (i === 150) issue(B, ['p0', 'p1'], { type: 'move', x: B.map.objective.x, y: B.map.objective.y }); if (i === 200 && gen === 'v2') { const e = B.units.find((u) => u.side === 'e' && u.alive); if (e) callSupport(B, { kind: 'item_missile_guided', x: e.x, y: e.y }); } step(B); }
     assert.equal(snap(replay(setup, B.log, B.tick)), snap(B), `${gen}/${recipe} replays`); got[`${gen}/${recipe}`] = snap(B);
@@ -42,7 +42,7 @@ test('the three recipes of v0.102.1 are exactly what they were, and a battle mad
   const want = { city: '-779594545:700', trench: '1849248883:700' };
   for (const recipe of ['city', 'trench']) {
     const setup = JSON.parse(JSON.stringify(buildSetup({ key: `r3|${recipe}`, eng: { goal: 'defence', recipe, biome: 'rural', style: 'ostmark', enemy: { troops: 12, armour: 1, air: 1, aa: 1, skill: 1 } }, people: people3, vehicles: vehicles3, support: { items: { item_artillery_shell: 6, item_missile_guided: 1, item_breach_charge: 1 }, air: [], strategic: [] }, ai: { p: true, e: true } })));
-    setup.rules = 3; const B = createBattle(setup);
+    setup.rules = 3; setup.map.ver = 2; const B = createBattle(setup);
     for (let i = 0; i < 700 && !B.over; i++) { if (i === 100) issue(B, ['g1'], { type: 'fire', x: B.map.spawns.p.x + 25, y: B.map.spawns.p.y }); if (i === 150) issue(B, ['p1'], { type: 'tend' }); if (i === 200) { const e = B.units.find((u) => u.side === 'e' && u.alive); if (e) callSupport(B, { kind: 'item_missile_guided', x: e.x, y: e.y }); } step(B); }
     assert.equal(snap(replay(setup, B.log, B.tick)), snap(B), `${recipe} replays`); assert.equal(snap(B), want[recipe], `${recipe}: the battle of a rules-3 setup is what it was`);
   }
@@ -55,6 +55,7 @@ test('a battle made under rules 4 (v0.102.2) plays on as it was played', () => {
   const want = { 'city/defence': '-1593734039:700', 'trench/offence': '1331828643:700', 'forest/extract': '336952670:697' };
   for (const [recipe, goal] of [['city', 'defence'], ['trench', 'offence'], ['forest', 'extract']]) {
     const setup = JSON.parse(JSON.stringify(buildSetup({ key: `r4|${recipe}`, eng: { goal, recipe, biome: 'rural', style: 'ostmark', enemy: { troops: 18, armour: 1, air: 0, battery: 1, skill: 1 } }, people: people4, vehicles: vehicles4, reserve: ['p9', 'p10', 'p11'], support: { items: { item_artillery_shell: 9, item_missile_guided: 1 }, air: [], strategic: [] }, ai: { p: true, e: true } })));
+    setup.rules = 4; setup.map.ver = 2; // (RULES moved to 5: this battle is pinned to the rules it was made under)
     const B = createBattle(setup);
     for (let i = 0; i < 700 && !B.over; i++) { if (i === 60) issue(B, ['p2'], { type: 'stance', stance: 'defensive' }); if (i === 100) issue(B, ['g1', 'r1'], { type: 'fire', x: B.map.spawns.e.x - 20, y: B.map.spawns.e.y }); if (i === 250) { const e = B.units.find((u) => u.side === 'e' && u.alive && !u.battery); if (e) callSupport(B, { kind: 'item_missile_guided', x: e.x, y: e.y }); } if (i === 300) callReserve(B); step(B); }
     assert.equal(snap(replay(setup, B.log, B.tick)), snap(B), `${recipe} replays`); assert.equal(snap(B), want[`${recipe}/${goal}`], `${recipe}/${goal}: the battle of a rules-4 setup is what it was`);

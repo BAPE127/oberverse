@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, step, run, issue, callSupport, designated, outcome, replay } from '../src/battle/sim.js';
+import { createBattle, step, run, issue, callSupport, designated, outcome, replay, beginBattle } from '../src/battle/sim.js';
 import { TILE, ARTY } from '../src/content/battle.js';
 import { idx } from '../src/battle/map.js';
 
@@ -37,7 +37,7 @@ test('a strategic missile from the stores: twenty seconds, a huge blast, the rec
   const rec = storeMissile(g); assert.ok(g.war.transfer({ source: 'aero', ref: rec.id }).ok); const mid = C.equipment.find((x) => x.kind === 'missile').id;
   assert.ok(g.war.playEngagement(eng.id, squads).ok); const setup = eng.battle.setup; assert.deepEqual(setup.support.strategic.map((m) => m.id), [mid]);
   assert.ok(!g.war.giveBack({ id: mid }).ok && /set aside/.test(g.war.giveBack({ id: mid }).text), 'it cannot go back to Aerospace meanwhile');
-  const B = createBattle({ ...setup, ai: { p: false, e: false } }); const foe = B.units.find((u) => u.side === 'e'); const far = { x: foe.x, y: foe.y }; B.spotted[foe.id] = B.tick; assert.ok(callSupport(B, { kind: 'strategic', x: far.x, y: far.y }).ok); assert.ok(!callSupport(B, { kind: 'strategic', x: 5, y: 5 }).ok, 'only one in the stores');
+  const B = createBattle({ ...setup, ai: { p: false, e: false } }); beginBattle(B); /* (a battle you play begins in the planning stage) */ const foe = B.units.find((u) => u.side === 'e'); const far = { x: foe.x, y: foe.y }; B.spotted[foe.id] = B.tick; assert.ok(callSupport(B, { kind: 'strategic', x: far.x, y: far.y }).ok); assert.ok(!callSupport(B, { kind: 'strategic', x: 5, y: 5 }).ok, 'only one in the stores');
   run(B, 150); assert.equal(B.events.filter((e) => e.k === 'blast').length, 0, 'twenty seconds: not yet'); run(B, 100); assert.equal(B.events.filter((e) => e.k === 'blast').length, 1); assert.ok(!foe.alive, 'whoever stood there is gone');
   while (!B.over) step(B); const o = outcome(B); assert.deepEqual(o.used.strategic, [mid]); assert.ok(g.war.fileBattle(eng.id, o).ok); days(g, 8); assert.equal(eng.state, 'resolved'); assert.equal(C.equipment.find((x) => x.id === mid).status, 'destroyed'); assert.equal(eng.result.used['Strategic missiles'], 1); assert.deepEqual(g.war.check(), []);
 });

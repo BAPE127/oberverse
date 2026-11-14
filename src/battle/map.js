@@ -6,8 +6,9 @@
 //   generate({ recipe, biome, style, seed, ver })   → the map
 //   walkable(map, x, y)                        whether a person can stand on the tile
 //   blocksSight(map, x, y, z)                  whether the tile stops a look from floor z
-import { TILE, RECIPES, RECIPES_V1, STYLES, ART_STYLE, ART_BIOME, minTiles, MAP_VER } from '../content/battle.js';
+import { TILE, RECIPES, RECIPES_V1, ENTRIES, STYLES, ART_STYLE, ART_BIOME, minTiles, MAP_VER } from '../content/battle.js';
 import { unit, pick, between } from './hash.js';
+import { clearance } from './nav.js';
 
 const W = TILE.WALL;
 export const idx = (m, x, y) => y * m.w + x;
@@ -316,6 +317,55 @@ function finish2(m) {
   m.props = keep; delete m.plans; delete m.wire;
 }
 
+/** The clearance radius of the biggest ground vehicle (src/battle/sizes.js): every way a map offers a vehicle is checked and made for this. */
+export const MAX_VEHICLE_RADIUS = 1.2;
+/** Whether a ground vehicle of clearance radius `r` can drive from `a` to within three tiles of `b` (rules 5, map version 3). */
+export function vehicleCanReach(m, a, b, r = MAX_VEHICLE_RADIUS) {
+  const cl = clearance(m); const fit = (x, y) => inb(m, x, y) && cl[idx(m, x, y)] >= r - 1e-6; const seen = new Uint8Array(m.w * m.h); const q = [];
+  let sx = -1; let sy = -1; for (let k = 0; k < 6 && sx < 0; k++) for (let j = -k; j <= k && sx < 0; j++) for (let i = -k; i <= k && sx < 0; i++) if (Math.max(Math.abs(i), Math.abs(j)) === k && fit(Math.floor(a.x) + i, Math.floor(a.y) + j)) { sx = Math.floor(a.x) + i; sy = Math.floor(a.y) + j; }
+  if (sx < 0) return false; seen[idx(m, sx, sy)] = 1; q.push(sx, sy);
+  for (let h = 0; h < q.length; h += 2) {
+    const x = q[h]; const y = q[h + 1]; if (Math.hypot(x + 0.5 - b.x, y + 0.5 - b.y) < 3) return true;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const nx = x + di; const ny = y + dj; if (!fit(nx, ny) || seen[idx(m, nx, ny)]) continue; if (di && dj && (!fit(x + di, y) || !fit(x, y + dj))) continue; seen[idx(m, nx, ny)] = 1; q.push(nx, ny); }
+  }
+  return false;
+}
+/**
+ * Map version 3: vehicles are 1.6 times the size, so (1) the ground round a start, the objective and the exit is cleared of trees, hedges, wire and trench for a radius of three, and (2) every
+ * start and the exit must have a way to the objective that the biggest vehicle fits: if there is none, a road six wide is cut along the nearest line (round buildings and over a bridge).
+ */
+function fitForVehicles(m) {
+  const pts = [m.spawns.p, m.spawns.e, m.objective, m.exit];
+  for (const c of pts) for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) { const x = c.x + i; const y = c.y + j; if (!inb(m, x, y) || Math.hypot(i, j) > 3.2 || m.bid[idx(m, x, y)] >= 0) continue; const t = m.tiles[idx(m, x, y)]; if (t === TILE.TREE || t === TILE.HEDGE || t === TILE.WIRE || t === TILE.TRENCH) m.tiles[idx(m, x, y)] = TILE.GROUND; }
+  m.entries = (ENTRIES[m.recipe] || ENTRIES.fields).map((e) => ({ ...e, zone: { ...e.zone } }));
+  const links = [[m.spawns.p, m.objective], [m.spawns.e, m.objective], [m.objective, m.exit], ...m.entries.map((e) => [{ x: Math.floor(e.zone.x + e.zone.w / 2), y: Math.floor(e.zone.y + e.zone.h / 2) }, m.objective])];
+  for (let pass = 0; pass < 4; pass++) {
+    let ok = true;
+    for (const [a, b] of links) if (!vehicleCanReach(m, a, b)) { ok = false; cutRoad(m, a, b); }
+    if (ok) break;
+  }
+}
+/** Cut a road six wide from a to b: the cheapest way over ground that is not a building (a way a vehicle already fits is nearly free, water costs most so a bridge is used), paved six tiles wide (four of them fit the biggest vehicle). */
+export function cutRoad(m, a, b) {
+  const N = m.w * m.h; const cl = clearance(m); const dist = new Float64Array(N).fill(1e9); const prev = new Int32Array(N).fill(-1); const heap = [];
+  const push = (d, n) => { heap.push([d, n]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0]; const last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1; const r = l + 1; let k = i; if (l < heap.length && heap[l][0] < heap[k][0]) k = l; if (r < heap.length && heap[r][0] < heap[k][0]) k = r; if (k === i) break; [heap[k], heap[i]] = [heap[i], heap[k]]; i = k; } } return top; };
+  const nearB = (n) => { const x = n % m.w; const y = (n / m.w) | 0; for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (inb(m, x + i, y + j) && m.bid[idx(m, x + i, y + j)] >= 0) return true; return false; };
+  const tileCost = (n) => { if (m.bid[n] >= 0) return 1e9; const t = m.tiles[n]; if (nearB(n)) return 6; if (t === TILE.WATER) return 2000; if (cl[n] >= MAX_VEHICLE_RADIUS) return 0.2; return t === TILE.TREE ? 1.6 : t === TILE.WALL ? 3 : 1; };
+  const s0 = idx(m, a.x, a.y); const g0 = idx(m, Math.max(0, Math.min(m.w - 1, b.x)), Math.max(0, Math.min(m.h - 1, b.y))); dist[s0] = 0; push(0, s0);
+  while (heap.length) {
+    const [d, cur] = pop(); if (d > dist[cur]) continue; if (cur === g0) break;
+    const cx = cur % m.w; const cy = (cur / m.w) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const nx = cx + di; const ny = cy + dj; if (!inb(m, nx, ny)) continue; const n = idx(m, nx, ny); const c = tileCost(n); if (c >= 1e9) continue; if (di && dj && (m.bid[idx(m, cx + di, cy)] >= 0 || m.bid[idx(m, cx, cy + dj)] >= 0)) continue; const nd = d + (di && dj ? 1.41 : 1) * c; if (nd < dist[n]) { dist[n] = nd; prev[n] = cur; push(nd, n); } }
+  }
+  if (prev[g0] < 0 && g0 !== s0) return;
+  for (let c = g0; c >= 0; c = prev[c]) {
+    const cx = c % m.w; const cy = (c / m.w) | 0;
+    for (let j = -2; j <= 3; j++) for (let i = -2; i <= 3; i++) { const px = cx + i; const py = cy + j; if (!inb(m, px, py) || m.bid[idx(m, px, py)] >= 0) continue; const t = m.tiles[idx(m, px, py)]; if (t !== TILE.WATER && t !== TILE.ROAD) m.tiles[idx(m, px, py)] = TILE.ROAD; }
+    if (c === s0) break;
+  }
+}
+
 export function generate({ recipe = 'fields', biome = 'rural', style = 'sund', seed = 'seed', ver = MAP_VER } = {}) {
   const m = blank(recipe, biome, style, String(seed), ver);
   if (ver >= 2) { m.surf = new Uint8Array(m.w * m.h).fill(46); m.props = []; m.cars = []; m.fields = []; m.plans = []; m.wire = []; m.art = { style: ART_STYLE[style] || 'halver', biome: ART_BIOME[biome] || 'temperate' }; ({ city: cityV2, trench: trenchV2, compound: compoundV2, forest: forestV2 }[recipe] || fieldsV2)(m); finish2(m); }
@@ -326,6 +376,7 @@ export function generate({ recipe = 'fields', biome = 'rural', style = 'sund', s
     for (const b of m.buildings) if (!r.seen[idx(m, b.door.x, b.door.y)]) carve(m, { x: b.door.x, y: b.door.y + 1 }, m.objective);
     carve(m, m.spawns.p, m.objective); carve(m, m.spawns.e, m.objective);
   }
+  if (ver >= 3) fitForVehicles(m);
   // the spawn tiles themselves are ground
   for (const s of [m.spawns.p, m.spawns.e, m.objective]) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const n = idx(m, s.x + i, s.y + j); if (inb(m, s.x + i, s.y + j) && m.bid[n] < 0 && m.tiles[n] !== TILE.ROAD) m.tiles[n] = TILE.GROUND; }
   if (m.props) m.props = m.props.filter((p) => !((p.type === 'tree' || p.type === 'pine') && m.tiles[idx(m, p.x, p.y)] !== TILE.TREE) && !(p.type === 'bush' && m.tiles[idx(m, p.x, p.y)] !== TILE.HEDGE)); // a road carved or a start cleared took the tile

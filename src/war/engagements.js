@@ -123,7 +123,7 @@ export function play(game, id, squads, reserves = []) {
   const F = commitForces(game, C, eng, squads, null);
   const key = `${eng.id}|${salt(game)}`;
   eng.state = 'tactical'; eng.order = { squads: [...squads], general: null, generalName: null, day: game.clock.day, end: game.clock.day + eng.days };
-  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, intel: eng.strategic?.intel, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve }), tick: 0, log: [], result: null };
+  eng.battle = { key, setup: buildSetup({ key, eng: { goal: eng.goal, enemy: eng.enemy, intel: eng.strategic?.intel, recipe: eng.recipe || 'fields', biome: eng.terrain || 'rural', style: eng.style || 'sund' }, people: F.people, vehicles: F.vehicles, support: supportOf(C, eng.id), ai: { p: false, e: true }, reserve, plan: true }), tick: 0, log: [], result: null };
   C.log.push({ day: game.clock.day, text: `You take ${eng.title} to the field.` });
   return { ok: true, text: `${F.people.length} soldiers and ${F.vehicles.length} vehicles go to the field.` };
 }
@@ -139,7 +139,7 @@ export function skirmish(game, recipe = 'fields', enemy = { troops: 10, armour: 
   const key = `${id}|${salt(game)}`;
   const people = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, name: `Recruit ${i + 1}`, role: i === 0 ? 'officer' : i % 6 === 1 ? 'machine_gunner' : i % 6 === 2 ? 'anti_tank' : i % 6 === 3 ? 'medic' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
   const vehicles = [{ id: 'sv0', name: 'Anvil Mk1 tank', cls: 'tank', armour: 3, firepower: 3, speed: 3 }];
-  const setup = buildSetup({ key, eng: { goal: 'defence', enemy, recipe: recipe === 'city' ? 'city' : 'fields', biome: 'rural', style: recipe === 'city' ? 'halvermouth' : 'sund' }, people, vehicles, ai: { p: false, e: true } });
+  const setup = buildSetup({ key, eng: { goal: 'defence', enemy, recipe: recipe === 'city' ? 'city' : 'fields', biome: 'rural', style: recipe === 'city' ? 'halvermouth' : 'sund' }, people, vehicles, ai: { p: false, e: true }, plan: true });
   for (const u of setup.units) if (u.side === 'p') u.rec = null; // nothing here is a record of the company
   ensure(C).push({ id, kind: 'hold', title: 'Skirmish', text: 'A sandbox fight.', client: 'Nobody', clientName: 'Nobody', place: 'the practice ground', terrain: 'rural', goal: 'defence', days: 1, needs: { troops: 0, tanks: 0, helicopters: 0, medics: 0 }, enemy, pay: 0, state: 'tactical', offered: game.clock.day, expires: game.clock.day + 1, order: { squads: [], general: null, generalName: null, day: game.clock.day, end: game.clock.day + 1 }, battle: { key, setup, tick: 0, log: [], result: null }, result: null, recipe, style: 'sund' });
   return { ok: true, id, text: `Skirmish ${id} is ready.` };

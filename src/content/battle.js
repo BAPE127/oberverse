@@ -137,9 +137,9 @@ export const RECIPES = { city: { w: 88, h: 56 }, fields: { w: 120, h: 64 }, tren
 /** The sizes of the first generation of maps (v0.101.0), kept so a battle saved mid-way replays on the map it began on (setup.map.ver absent). */
 export const RECIPES_V1 = { city: { w: 72, h: 44 }, fields: { w: 80, h: 48 } };
 /** The map generator's version: 2 from v0.102.0 (the mock-up look: glyph ground, props, cars, roofed facades). */
-export const MAP_VER = 2;
+export const MAP_VER = 3;
 /** The rules version of the simulation: a setup carries the one it was made under, and anything that runs without an order (a medic tending, a helicopter's station time, anti-air) is on only from rules 3, so a battle saved earlier replays the way it was played. */
-export const RULES = 4;
+export const RULES = 5;
 
 /** National architecture, as data (docs/PROPOSAL_WAR_MAPS.md): floors a building has, and the colours the roof painter uses. Other countries map to the nearest of the five. */
 export const STYLES = {
@@ -159,3 +159,78 @@ export const ART_BIOME = { rural: 'temperate', taiga: 'snow', tundra: 'snow', sn
 /** The style an atlas country's places use (the others take the nearest of the five until they get their own). */
 export const STYLE_OF = { sund: 'sund', ostmark: 'ostmark', varn: 'varnistan', teshvar: 'varnistan', caldera: 'varnistan', lirre: 'ostmark', westreach: 'halvermouth', pallas: 'sund', windfen: 'windfen', morrow: 'windfen' };
 export const styleOf = (country) => STYLE_OF[country] || 'halvermouth';
+
+// ---- rules 5 (v0.104.x): what a side perceives, how it moves and thinks. Rules 4 is v0.102.2 and stays as it was; everything below is read only by a battle whose setup says rules 5 or more.
+/**
+ * Perception: a side acts on its CONTACTS, not on where the enemy really is. A contact is an enemy seen now, the place one was last seen (it ages and fades after `fade` seconds), or a place a sound
+ * came from (heard: the position is only roughly right, by `err` tiles at the edge of hearing). `loud` is how far a sound carries, in tiles, by weapon (and `blast`, `engine`, `rotor`).
+ */
+export const PER = {
+  every: 5, fade: 40, heardFade: 20, clearR: 5, cap: 14, err: 6, mergeR: 6,
+  loud: { default: 22, item_pistol: 14, item_smg: 18, item_shotgun: 18, item_assault_rifle: 24, item_lmg: 28, item_sniper_rifle: 32, item_rpg: 34, tank_gun: 46, heli_gun: 34, vehicle_mg: 26, aa_gun: 36, blast: 44, engine: 16, tank: 22, rotor: 40 },
+};
+
+/**
+ * Helicopters (rules 5): a helicopter has an altitude (`u.z`, in floors, like a person on a stair): `cruise` is above every roof, so it flies in a straight line over buildings, walls, trees and
+ * trenches and is stopped only by the edge of the map and by its own envelope (it climbs `climb` floors a second, speeds up `accel` and slows `brake` tiles a second a second, yaws `turn` radians a
+ * second). From that height it looks over everything (it sees `sightBonus` further) and is `seenFrom` tiles further off to those who look for it. It lands only where a disc of `landR` tiles round its
+ * rotor is open ground (not a roof, a wall, a tree, water, a trench) with nobody standing in it; people board and leave on the ground only.
+ */
+export const FLIGHT = { cruise: 7, climb: 1.4, descend: 1.0, accel: 1.6, brake: 2.4, turn: 1.5, sightBonus: 6, seenFrom: 8, orbitR: 6, edge: 1.5 };
+
+/**
+ * Vehicle sizes (rules 5, map version 3): the one table. A ground vehicle is `len` tiles long and `wid` wide, a helicopter has a `rotor` disc as well. They are 1.6 times what the drawing used to
+ * show (the sprite's length and width in art pixels, 0.9 of a 32-pixel tile for 16 art pixels... that is `art * 0.9 / 32`) so a tank is about 2.6 tiles long and 1.35 wide. The simulation takes
+ * its footprint, collision, path clearance, landing room and boarding distance from here; the 3D models are scaled from the same numbers. A type not in the table takes its class's size.
+ */
+export const VEHICLE_SCALE = 1.6;
+const K = (0.9 / 32) * VEHICLE_SCALE; const sz = (L, W, rotor = 0) => ({ len: Math.round(L * K * 100) / 100, wid: Math.round(W * K * 100) / 100, ...(rotor ? { rotor: Math.round(rotor * K * 100) / 100 } : {}) });
+export const VEHICLE_SIZE = {
+  anvil: sz(58, 30), lancer: sz(46, 24), bulwark: sz(64, 38), aegis: sz(56, 30), citadel: sz(66, 38),
+  wolf: sz(46, 24), badger: sz(48, 28), marten: sz(38, 20), ghost: sz(48, 24), warden: sz(56, 30), mule: sz(52, 24),
+  scout: sz(30, 16), armcar: sz(38, 20), dronecar: sz(48, 24), skimmer: sz(28, 14),
+  hammer: sz(56, 30), rainmaker: sz(54, 26), longbow: sz(56, 28), thump: sz(40, 24), howitzer: sz(56, 30), battery: sz(56, 30),
+  skyguard: sz(44, 26), falconer: sz(48, 24), longshot: sz(56, 26), lance: sz(44, 24),
+  truck: sz(52, 24), command: sz(50, 24), medevac: sz(48, 24),
+  wren: sz(30, 14, 30), drover: sz(52, 18, 46), viper: sz(46, 11, 42), talon: sz(56, 16, 48), mercy: sz(50, 18, 44), shade: sz(40, 16, 36), tempest: sz(58, 14, 46), ox: sz(64, 20, 38),
+};
+/** What a unit with no (known) type is, by its class (the battle's `kind` and `role`). */
+export const VEHICLE_BY_CLASS = { tank: 'anvil', carrier: 'wolf', helicopter: 'viper', recon: 'scout', artillery: 'hammer', antiair: 'skyguard', other: 'truck' };
+
+/** How units turn and speed up (rules 5). Turn rates in radians a second: a person turns in a fraction of a second, a tank takes time (`pivot`: past this error it stops and turns on the spot); a vehicle speeds up `accel` and brakes `brake` tiles a second a second; blocked by another vehicle for `reroute` ticks it plans round it, for `aside` it steps aside. */
+export const MOVE = { turn: { inf: 7, tank: 1.1, carrier: 1.5, recon: 1.8, other: 1.3, artillery: 1.0, antiair: 1.2 }, turret: { tank: 1.8, carrier: 2.4, recon: 2.8, other: 2, artillery: 1.2, antiair: 3 }, pivot: 1.1, accel: 1.4, brake: 3, reroute: 25, aside: 50, avoidTicks: 80 };
+
+/** Teams (rules 5): a squad is split into teams of one or more and merged again. In the planning stage that is free; in the battle the members must be within `radius` tiles of one another (a merge: the two teams' middles within `mergeRadius`) and none pinned or broken, and each member is busy re-forming for `pause` seconds (he does not fire). A squad is `squad` soldiers; the enemy's elements are `element` strong (3 to 6, from what they carry). */
+export const TEAMS = { squad: 6, element: 5, minElement: 3, radius: 6, mergeRadius: 8, pause: 3 };
+
+/**
+ * Entry zones (rules 5, map version 3): where the player's force may be set down in the planning stage. The first, 'main', holds the recipe's usual start; the others are other sensible approaches
+ * (another street, another track, the other side of the line). Each zone is a rectangle of tiles; a vehicle can drive from the middle of each to the objective (tests/battle_sizes.test.mjs).
+ */
+export const ENTRIES = {
+  city: [{ id: 'main', name: 'West avenue', zone: { x: 1, y: 3, w: 10, h: 6 } }, { id: 'north', name: 'Northern street', zone: { x: 27, y: 0, w: 6, h: 12 } }, { id: 'south', name: 'Southern street', zone: { x: 49, y: 44, w: 7, h: 11 } }],
+  fields: [{ id: 'main', name: 'Main track', zone: { x: 1, y: 36, w: 14, h: 8 } }, { id: 'north', name: 'North track', zone: { x: 1, y: 0, w: 14, h: 6 } }, { id: 'south', name: 'South track', zone: { x: 1, y: 58, w: 14, h: 6 } }],
+  trench: [{ id: 'main', name: 'Centre of the line', zone: { x: 2, y: 30, w: 14, h: 14 } }, { id: 'north', name: 'North sector', zone: { x: 2, y: 8, w: 14, h: 12 } }, { id: 'south', name: 'South sector', zone: { x: 2, y: 56, w: 14, h: 12 } }],
+  compound: [{ id: 'main', name: 'Road to the gate', zone: { x: 40, y: 63, w: 14, h: 8 } }, { id: 'west', name: 'Western fields', zone: { x: 1, y: 55, w: 16, h: 14 } }, { id: 'east', name: 'Eastern fields', zone: { x: 80, y: 55, w: 14, h: 14 } }],
+  forest: [{ id: 'main', name: 'South-west clearing', zone: { x: 1, y: 56, w: 14, h: 16 } }, { id: 'middle', name: 'Southern trail', zone: { x: 36, y: 58, w: 14, h: 14 } }, { id: 'north', name: 'North-west trail', zone: { x: 2, y: 2, w: 14, h: 10 } }],
+};
+
+/** Troops' manners (rules 5), added to MOVE: `bound` seconds each half of a team moves while the other covers; `getup` ticks to rise after going to ground; an officer near a broken man lets him rally this much sooner; `settle` tiles in which a unit that has arrived looks for better cover. */
+Object.assign(MOVE, { bound: 6, getup: 15, rallyBonus: 10, settle: 2, settleGain: 0.15 });
+
+/**
+ * The enemy's mind (rules 5): tunables of src/battle/ai.js. A force is grouped into elements (its teams); each element picks a behaviour from what its side perceives. Times in seconds, ranges in tiles.
+ * investigate: a heard place is gone to by the nearest idle element within `range` (not closer than `minRange`), for up to `timeout`, and a heard place older than `maxAge` is let go;
+ * fallback: an element that has lost `loss` of its strength, or is suppressed past `supp`, with a contact near, pulls back to its next position and returns to the fight when its suppression is under `recover`;
+ * flank: against a contact that has not moved for `still` seconds, another element goes round `offset` tiles to the side by the covered route; counter: an element of at least `minStrength` retakes lost ground;
+ * bound: an advancing element under fire goes in halves by `len` tiles; patrol: one element in `share` walks a round of the objective on defence; lane: how far out the fields of fire are laid;
+ * smoke: an officer throws smoke for an element crossing open ground under fire; battery: a cluster of `min` contacts, not nearer than `safe` to our own, is shelled; exposure: ground a known contact can see costs more to cross.
+ */
+export const AI = {
+  every: 10, investigate: { range: 45, minRange: 6, maxAge: 12, timeout: 25, share: 3 },
+  fallback: { loss: 0.5, supp: 40, recover: 20, cooldown: 30, dist: 10 }, counter: { minStrength: 3, cooldown: 40, timeout: 45, suppMax: 30 },
+  flank: { still: 3, offset: 11, cooldown: 40, minRange: 8, timeout: 45, maxRange: 34 }, bound: { len: 9, near: 24 }, advanceLen: 16,
+  patrol: { share: 3, wait: 15, radius: 12 }, lane: [14, 22], smoke: { range: 16, cooldown: 25, supp: 12 },
+  battery: { cluster: 5, min: 3, safe: 9, cooldown: 40 }, exposure: { range: 16, cost: 2, cap: 5, refresh: 30, contacts: 6 },
+  tankFollow: 5, atFear: 18, blast: { r: 25, seconds: 8 }, spread: 'skirmish',
+};

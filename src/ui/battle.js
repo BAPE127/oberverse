@@ -3,7 +3,7 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
-import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated } from '../battle/sim.js';
+import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated, autoPlan, beginBattle } from '../battle/sim.js';
 import { los } from '../battle/nav.js';
 import { BattleView, TP } from '../engine/drawBattle.js';
 import { FxLayer } from '../engine/drawBattleFx.js';
@@ -22,7 +22,9 @@ export function battlePanel(ui, body, opts = {}) {
   const menu = h('div', { class: 'bt-menu hidden', oncontextmenu: (e) => e.preventDefault() }); const hint = h('div', { class: 'bt-hint hidden' });
   body.append(canvas, top, bar, feed, card, hint, over, menu);
 
-  const B = bt.result ? null : (bt.tick > 0 ? replay(bt.setup, bt.log, bt.tick) : createBattle(bt.setup));
+  const B = bt.result ? null : (bt.tick > 0 || bt.log?.length ? replay(bt.setup, bt.log, bt.tick) : createBattle(bt.setup));
+  // TEMPORARY (until the planning screen exists): a rules-5 battle opens in the planning stage; place the force by the sound default and begin at once. The planning screen replaces this with the real stage (deploy, chooseEntry, splitTeam, planIntel, beginBattle in src/battle/sim.js).
+  if (B && B.phase === 'plan') { autoPlan(B); beginBattle(B); }
   const view = new BattleView(canvas); const squadLooks = {};
   for (const s of W.squads()) for (const m of s.members) squadLooks[m] = s.look;
   const S = { formation: 'line', speed: 1, acc: 0, sel: new Set(), mode: null, gFloor: 1, ground: new Set(), drag: null, keys: new Set(), done: Boolean(bt.result), lastSave: 0, vis: new Set(), visTick: -99, log: [], pings: [], menu: null, filed: Boolean(bt.result) };

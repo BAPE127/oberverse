@@ -11,6 +11,8 @@ import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
 import { buildRoofed, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
+import { CombatFx3D } from './combatfx3d.js';
+import { holdKeyOf } from './weapons3d.js';
 import { LightRig, presetFor, lampFactor } from './light3d.js';
 import { PROPS, VEHICLES } from './registry3d.js';
 import './props3d.js';
@@ -20,7 +22,6 @@ import { fallbackProp, fallbackVehicle } from './fallbacks3d.js';
 import { behindBox, hidesPoint, facingVector } from '../engine/iso.js';
 import { buildingBox } from '../engine/isoBuildings.js';
 import { FLAT_PROPS } from '../engine/drawWorld.js';
-import { lookOf, isGunLook } from '../engine/drawPixelWeapons.js';
 import { isDown } from '../systems/combat.js';
 import { wrathLift, wrathPlayerAlpha } from '../engine/wrath.js';
 import { floatLift } from '../engine/cardMagic.js';
@@ -94,6 +95,7 @@ export class World3D {
     this.sea.receiveShadow = false;
     this.scene.add(this.sea);
     this.shared = { roofTex: new Map(), wallMat: new Map() };
+    this.cfx = new CombatFx3D(this.scene);
     this.mapScenes = new Map();
     this.figures = new Map(); // actor → { fig, motion, key, last }
     this.vehicles = new Map(); // car object → { obj, key, last }
@@ -121,6 +123,7 @@ export class World3D {
     if (this.ground) this.ground.dispose();
     this.ground = new Ground3D(host);
     this.freshFrames = 3;
+    this.cfx?.reset();
   }
 
   resize(W, H) {
@@ -144,6 +147,7 @@ export class World3D {
 
   dispose() {
     this.reset(this.host);
+    this.cfx.dispose();
     this.rig.dispose();
   }
 
@@ -193,6 +197,7 @@ export class World3D {
       this.updateMap(ms, L, { x0: (wv.x - L.x) / TILE, y0: (wv.y - L.y) / TILE, x1: (wv.x + wv.w - L.x) / TILE, y1: (wv.y + wv.h - L.y) / TILE }, lamp);
     }
     this.updateActors(shown, lamp);
+    this.cfx.update(this);
     this.updateHoles();
     syncMachines(this, g, this.propCtx || {}, Math.min(host.lastDt || 0.016, 0.1));
     this.ground.endFrame();
@@ -434,15 +439,21 @@ export class World3D {
       const px = npc.x / TILE + lay.x / TILE; const pz = npc.y / TILE + lay.y / TILE;
       if (!this.nearView(px, pz)) { const e0 = this.figures.get(npc); if (e0) e0.fig.root.visible = false; continue; }
       const down = isDown(npc, clock);
-      const fight = npc.hostile?.mode === 'fight' && npc.profile.combat?.weapon ? g.content.items[npc.profile.combat.weapon] : null;
-      const nw = fight ? lookOf(fight) : null;
+      const wid = npc.profile.combat?.weapon;
+      const fighting = npc.hostile?.mode === 'fight' && wid;
+      const item = fighting ? g.content.items[wid] : null;
+      const hold = item ? holdKeyOf(item, wid) : null;
+      const melee = item?.weapon?.kind === 'melee';
       const wrathVictim = g.combat.wrath?.npcId === npc.id;
       const app = npc.profile.appearance;
+      const anim = npc.attackAnim; const since = anim ? g.realTime - anim.at : 99;
       let aim = null;
-      if (nw && npc.hostile?.mode === 'fight' && isGunLook(nw)) aim = { x: g.player.x - npc.x, y: g.player.y - npc.y };
+      if (fighting && !down) aim = { x: g.player.x - npc.x, y: g.player.y - npc.y };
       let yawFacing = null;
       if (wrathVictim) yawFacing = facingVector(npc.facing);
-      this.placeFigure(npc, ms, app, nw, null, { x: px, z: pz, down, sleeping: npc.activity === 'sleep', moving: wrathVictim ? false : Boolean(npc.moving), lift: wrathVictim ? wrathLift(g, g.combat.wrath) / TILE : npc.profile.float ? (npc.activity === 'sleep' ? 4 : floatLift(npc, now)) / TILE : 0, aim, facingVec: yawFacing, alpha: 1, now, dt });
+      const hurt = npc.hurtAt ? Math.max(0, 1 - (g.realTime - npc.hurtAt) / 0.28) : 0;
+      this.placeFigure(npc, ms, app, hold, null, { x: px, z: pz, down, sleeping: npc.activity === 'sleep', moving: wrathVictim ? false : Boolean(npc.moving), lift: wrathVictim ? wrathLift(g, g.combat.wrath) / TILE : npc.profile.float ? (npc.activity === 'sleep' ? 4 : floatLift(npc, now)) / TILE : 0, aim, facingVec: yawFacing, alpha: 1, now, dt,
+        raised: Boolean(aim) && !melee, swing: melee || !item ? (since < 0.24 && anim?.kind === 'melee' ? since / 0.22 : null) : null, swingArc: 0.6, kick: since < 0.14 && anim?.kind === 'gun' ? 1 - since / 0.14 : 0, flinch: hurt, flash: hurt, stun: npc.stunUntil > g.realTime });
     }
     // the player: alone in the street, or in the car (not drawn: the car is)
     const p = g.player;
@@ -451,10 +462,17 @@ export class World3D {
     const pAlpha = g.combat.wrath ? wrathPlayerAlpha(g, g.combat.wrath) : 1;
     const pe = this.figures.get(p);
     if (pms && !host.hidePlayer && !aboard && pAlpha > 0) {
-      const held = lookOf(g.combat.equipped());
+      const eq = g.combat.equipped();
+      const hold = holdKeyOf(eq, eq.id);
+      const kind = eq.weapon?.kind;
+      const anim = p.attackAnim; const since = anim ? g.realTime - anim.at : 99;
       let aim = null;
-      if (p.aim && (g.combat.equipped().weapon.kind === 'gun' || g.combat.cooldown > 0)) aim = p.aim;
-      this.placeFigure(p, pms, p.appearance, held, null, { x: p.x / TILE, z: p.y / TILE, down: false, sleeping: false, moving: Boolean(p.moving), lift: 0, aim, facingVec: null, alpha: pAlpha, now, dt });
+      if (p.aim && (kind === 'gun' || g.combat.cooldown > 0)) aim = p.aim;
+      else if (anim && since < 0.9 && (kind === 'gun' || since < 0.5)) aim = anim.dir;
+      const hurt = p.hurtAt ? Math.max(0, 1 - (g.realTime - p.hurtAt) / 0.28) : 0;
+      const arc = ((eq.weapon?.arc ?? 90) / 2) * (Math.PI / 180);
+      this.placeFigure(p, pms, p.appearance, hold, null, { x: p.x / TILE, z: p.y / TILE, down: false, sleeping: false, moving: Boolean(p.moving), lift: 0, aim, facingVec: null, alpha: pAlpha, now, dt,
+        raised: kind === 'gun' && Boolean(aim), swing: kind === 'melee' && anim && since < 0.24 ? since / 0.22 : null, swingArc: arc, kick: kind === 'gun' && since < 0.14 ? 1 - since / 0.14 : 0, flinch: hurt, flash: hurt, stun: false });
     } else if (pe) pe.fig.root.visible = false;
     // vehicles
     if (g.vehicles) {
@@ -510,22 +528,24 @@ export class World3D {
 
   placeFigure(actor, ms, app, holding, kit, s) {
     let e = this.figures.get(actor);
-    const key = personKey(app, holding, kit);
+    const key = personKey(app, null, kit); // (the weapon is swapped on the figure, not part of its build)
     if (e && e.key !== key) { e.fig.dispose(); this.figures.delete(actor); e = null; }
     if (!e) {
       if (performance.now() > this.deadline + 10) return;
-      e = { fig: new Figure(app, holding, kit), motion: newMotion(actor), key, last: 0 };
+      e = { fig: new Figure(app, null, kit), motion: newMotion(actor), key, last: 0, hold: null };
       this.figures.set(actor, e);
     }
     e.last = this.frameNo;
     const fig = e.fig;
+    if (holding) e.hold = holding;
+    fig.setWeapon(holding || (s.down ? e.hold : null)); // (whoever goes down drops what they held, beside them)
     if (fig.root.parent !== ms.dynGroup) ms.dynGroup.add(fig.root);
     fig.root.visible = true;
     this.count.figures++;
     const yaw = stepFacing(e.motion, actor, s.now, s.dt, facingVector, s.aim || (s.facingVec ? { x: s.facingVec[0], y: s.facingVec[1] } : null));
     const walk = s.moving && !s.down ? (actor.animTime || s.now) * 11 : null;
     const lying = s.down || s.sleeping;
-    fig.pose({ x: s.x - ms.group.position.x, y: 0, z: s.z - ms.group.position.z, yaw, phase: walk, lying, lift: s.lift });
+    fig.pose({ x: s.x - ms.group.position.x, y: 0, z: s.z - ms.group.position.z, yaw, phase: walk, lying, lift: s.lift, aim: s.raised, swing: s.swing ?? null, swingArc: s.swingArc, kick: s.kick, flinch: s.flinch, flash: s.flash, stun: s.stun, time: s.now });
     fig.setAlpha(s.alpha);
   }
 

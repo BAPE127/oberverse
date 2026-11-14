@@ -158,6 +158,19 @@ try {
     const m = R.world3d.figures.get(g.player)?.motion; let d = m ? Math.abs(m.yaw - Math.atan2(120, -60)) : 9; d = Math.min(d, Math.PI * 2 - d); return { d: Math.round(d * 100) / 100, hold: Boolean(R.world3d.figures.get(g.player)) };`);
   record('3d: aiming a gun with the mouse turns the player\'s figure to the aim', aimed.hold && aimed.d < 0.2, JSON.stringify(aimed));
   await shot('3d-aim');
+  // gunfire in 3D (src/engine3d/combatfx3d.js): a bullet and a blood pool the simulation holds are meshes in the WebGL canvas: the pixels there change when the effect layer is switched off for a frame
+  const fxPix = await at3d(`const W3 = R.world3d; const gl = W3.gl.getContext(); const H = R.canvas3d.height; const M = g.player.map; const X = g.player.x + 70; const Y = g.player.y + 10;
+    const px = (x, y) => { const o = new Uint8Array(4 * 25); gl.readPixels(Math.round(x) - 2, H - Math.round(y) - 2, 5, 5, gl.RGBA, gl.UNSIGNED_BYTE, o); return o; };
+    const dif = (a, b) => { let m = 0; for (let i = 0; i < a.length; i += 4) m = Math.max(m, Math.hypot(a[i] - b[i], a[i + 1] - b[i + 1], a[i + 2] - b[i + 2])); return Math.round(m); };
+    g.combat.bullets.push({ map: M, x: X, y: Y - 18, dx: 1, dy: 0, left: 900, speed: 0, kind: null, hurts: null, born: g.realTime });
+    g.combat.decals.push({ kind: 'pool', map: M, x: X + 40, y: Y + 30, size: 1, at: g.realTime - 10 });
+    const spots = [R.toScreen(X, Y, 23), R.toScreen(X + 40, Y + 30, 0)];
+    W3.render(0.016); const on = spots.map((q) => px(q.x, q.y));
+    W3.cfx.group.visible = false; W3.render(0.016); const off = spots.map((q) => px(q.x, q.y)); W3.cfx.group.visible = true;
+    const n = { bullets: W3.cfx.stats.streaks, decals: W3.cfx.stats.decals };
+    g.combat.bullets.pop(); g.combat.decals.pop(); W3.render(0.016);
+    return { tracer: dif(on[0], off[0]), blood: dif(on[1], off[1]), n };`);
+  record('3d: a bullet streak and a blood pool appear in the WebGL canvas (pixels change when the effect layer is off)', fxPix.tracer > 40 && fxPix.blood > 20, JSON.stringify(fxPix));
   await at3d(`ui.mouse.movedAt = -1e9; g.combat.equip(null); g.inventory.remove('item_revolver', 1);`); // (leave the pockets as they were: a giftable item adds a dialogue option later)
   const car = await at3d(`const m = g.maps.get('halvermouth'); g.changeMap('halvermouth', Object.keys(m.spots)[0]); g.clock.total = 14 * 60; R.snapCamera();
     const c = g.vehicles.carsOn('halvermouth')[0]; Object.assign(c, { x: g.player.x + 60, y: g.player.y + 90, angle: 0.4, speed: 0 }); await T(2500);

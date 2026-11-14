@@ -111,6 +111,7 @@ function cowGeometry(a) {
   return { body: body.build(), leg: leg.build(), arm: null, armHold: null, height: a.height || 1, wide: 1, cow: true };
 }
 
+const WSCALE = 1.18;
 const SHOULDER_Y = 0.86;
 const ARM = 0.44; // shoulder to hand
 const _v = new THREE.Vector3();
@@ -173,7 +174,7 @@ export class Figure {
     this.alpha = 1;
     this.mount = new THREE.Group(); // the weapon, positioned at the hand (not a child of the arm: the arm is turned to reach it)
     this.mount.visible = false;
-    this.mount.scale.y = 1 / this.geo.height; // (the body is scaled in height: the weapon is not)
+    this.mount.scale.set(WSCALE, WSCALE / this.geo.height, WSCALE); // (the body is scaled in height: the weapon is not; a little over size so it reads at the game's zoom)
     this.body.add(this.mount);
     this.wm = null; this.wKey = null; this.wMeshes = []; this.dropped = false;
     this.stars = null;
@@ -203,7 +204,7 @@ export class Figure {
   /** The muzzle of the held gun in world space (the scene must have had its matrices updated: call after `pose`). Returns false when nothing is held. */
   muzzleWorld(pos, dir) {
     if (!this.wm?.muzzle) return false;
-    this.root.updateMatrixWorld(true);
+    this.root.updateWorldMatrix(true, true);
     pos.set(this.wm.muzzle[0], this.wm.muzzle[1], this.wm.muzzle[2]);
     this.mount.localToWorld(pos);
     if (dir) { dir.set(0, 0, 1).transformDirection(this.mount.matrixWorld); }
@@ -277,7 +278,7 @@ export class Figure {
     if (lying !== this.dropped) {
       this.dropped = lying;
       (lying ? this.spin : this.body).add(this.mount);
-      this.mount.scale.y = lying ? 1 : 1 / this.geo.height;
+      this.mount.scale.set(WSCALE, lying ? WSCALE : WSCALE / this.geo.height, WSCALE);
     }
     if (lying) {
       this.mount.position.set(0.5 * W + 0.12, 0.07, 0.12);
@@ -294,7 +295,7 @@ export class Figure {
     const want = this.alpha < 0.999 ? 'fade' : f > 0.02 ? 'hit' : 'normal';
     if (f > 0.02 && want === 'hit') {
       if (!this.hitMat) { this.hitMat = vertexMat().clone(); delete this.hitMat.userData.seeThrough; this.hitMat.userData.keep = false; this.hitMat.emissive = new THREE.Color('#ff1a14'); holeLit(this.hitMat); }
-      this.hitMat.emissiveIntensity = 0.7 * f;
+      this.hitMat.emissiveIntensity = 0.45 * f;
     }
     this.useMat(want);
     if (p.stun && !this.cow) {

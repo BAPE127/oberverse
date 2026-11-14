@@ -6,7 +6,7 @@ import { generate, reachable, idx, walkable } from '../src/battle/map.js';
 import { createBattle, step } from '../src/battle/sim.js';
 import { buildSetup } from '../src/battle/setup.js';
 import { canStand } from '../src/battle/nav.js';
-import { TILE, STYLES, RECIPES, styleOf } from '../src/content/battle.js';
+import { TILE, STYLES, RECIPES, styleOf, MAP_VER } from '../src/content/battle.js';
 
 const hashOf = (m) => { let h = 0; for (const v of m.tiles) h = (h * 31 + v) >>> 0; return h; };
 
@@ -61,13 +61,13 @@ test('the enemy is exactly what the engagement says and your side is exactly you
 test('a map carries its ground glyphs, props and cars (v0.102.0), and a battle saved without a map version replays on the first generation', () => {
   for (const recipe of ['city', 'fields']) {
     const m = generate({ recipe, seed: 'glyph', style: 'ostmark' });
-    assert.equal(m.ver, 2); assert.equal(m.surf.length, m.w * m.h); assert.ok(m.props.length > 20, 'props'); assert.ok(m.props.every((p) => p.id && p.type));
+    assert.equal(m.ver, MAP_VER); assert.equal(m.surf.length, m.w * m.h); assert.ok(m.props.length > 20, 'props'); assert.ok(m.props.every((p) => p.id && p.type));
     assert.ok(recipe === 'fields' ? m.fields.length >= 1 : m.cars.length >= 10, 'fields or cars');
     for (const b of m.buildings) assert.ok(b.astyle && typeof b.seed === 'number', 'a building knows how to be painted');
     assert.ok(m.props.filter((p) => p.type === 'tree' || p.type === 'pine').every((p) => m.tiles[idx(m, p.x, p.y)] === TILE.TREE), 'a tree is a tile that stops sight');
     const old = generate({ recipe, seed: 'glyph', style: 'ostmark', ver: 1 }); assert.equal(old.ver, 1); assert.equal(old.w, { city: 72, fields: 80 }[recipe]); assert.equal(old.surf, undefined);
   }
-  const setup = buildSetup({ key: 'K|ver', eng: eng({ recipe: 'city' }), people: people(4), vehicles: [] }); assert.equal(setup.map.ver, 2);
+  const setup = buildSetup({ key: 'K|ver', eng: eng({ recipe: 'city' }), people: people(4), vehicles: [] }); assert.equal(setup.map.ver, MAP_VER);
   const saved = JSON.parse(JSON.stringify(setup)); delete saved.map.ver; assert.equal(createBattle(saved).map.w, 72); assert.equal(createBattle(setup).map.w, RECIPES.city.w);
 });
 

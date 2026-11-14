@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { armedCompany, days, build, STAGE2, buildAll, warGame } from './war_helpers.mjs';
 import { SaveManager, MemoryStorage } from '../src/save/saveManager.js';
 import { Game, CONTENT } from './helpers.mjs';
-import { createBattle, issue, run, runToEnd, outcome, replay, step } from '../src/battle/sim.js';
+import { createBattle, issue, run, runToEnd, outcome, replay, step, beginBattle } from '../src/battle/sim.js';
 
 const roundtrip = (g) => { const sm = new SaveManager(new MemoryStorage()); assert.ok(sm.save('slot1', g).ok); const g2 = new Game(CONTENT, { seed: 5 }); assert.ok(sm.load('slot1', g2).ok); return g2; };
 const snap = (B) => JSON.stringify(B.units.map((u) => [u.id, +u.x.toFixed(3), +u.y.toFixed(3), u.z, Math.round(u.hp), u.alive, u.fled]));
@@ -42,10 +42,10 @@ test('a played battle is applied once, on the engagement\'s last day, like a gen
 test('a battle in progress is saved as its setup, its orders and its tick, and a reload replays it to where it was and carries on to the same end', () => {
   const { g, eng, squads } = armedCompany(1003);
   assert.ok(g.war.playEngagement(eng.id, squads).ok);
-  const setup = eng.battle.setup; const B = createBattle(setup); const ids = B.units.filter((u) => u.side === 'p').map((u) => u.id);
+  const setup = eng.battle.setup; const B = createBattle(setup); assert.equal(B.phase, 'plan'); beginBattle(B); /* (a battle you play begins in the planning stage: rules 5) */ const ids = B.units.filter((u) => u.side === 'p').map((u) => u.id);
   run(B, 120); issue(B, ids, { type: 'amove', x: B.map.objective.x, y: B.map.objective.y }); run(B, 200); issue(B, ids.slice(0, 5), { type: 'hold' }); run(B, 150);
   assert.ok(g.war.saveBattle(eng.id, B.tick, B.log));
-  const g2 = roundtrip(g); const bt = g2.war.battle(eng.id); assert.equal(bt.tick, B.tick); assert.equal(bt.log.length, 2);
+  const g2 = roundtrip(g); const bt = g2.war.battle(eng.id); assert.equal(bt.tick, B.tick); assert.equal(bt.log.length, 3); // (the begin, and two orders)
   const R = replay(bt.setup, bt.log, bt.tick); assert.equal(snap(R), snap(B), 'replayed to the same moment');
   runToEnd(B); runToEnd(R); assert.deepEqual(outcome(R), outcome(B), 'and to the same end');
   assert.ok(JSON.stringify(g2.world.military).length < 120_000, 'the saved battle is small');
