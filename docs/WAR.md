@@ -93,51 +93,52 @@ The tactical battle was reworked after v0.104.0 ("too bland and easy"). **Rules 
 
 **Teams** (`src/battle/teams.js`). `B.teams = [{ id, side, squad, name, kind: 'inf'|'veh', formation, members }]`, ids `tm_p1`..; every infantry unit is in exactly one team (a squad of `TEAMS.squad` by default, or `spec.squad` if the setup names one), a vehicle or helicopter is a team of its own. `splitTeam(B, teamId, unitIds, name?)`, `mergeTeams(B, a, b)`, `teamOf(B, unitId)`, `expandIds`: each returns `{ ok, text, team }` and is logged (`{type:'split'}`, `{type:'merge'}`). Free in the planning stage; in the battle the members must be within `TEAMS.radius` tiles, none pinned or broken, and they are busy re-forming for `TEAMS.pause` s (a merge: the teams within `TEAMS.mergeRadius`). `issue(B, ids, order)` and `issueFormation` accept team ids as well as unit ids.
 
-**Planning stage** (`src/battle/plan.js`). A battle made with `setup.plan` (set by `play` and `skirmish` in `src/war/engagements.js`) and not headless starts in `B.phase = 'plan'`: `step` does nothing, `issue` and support are refused (no opening orders). `deploy(B, teamOrUnitId, x, y)` places a team (keeping its formation) or a vehicle or helicopter inside the chosen entry zone on valid ground (a vehicle's clearance, a helicopter's landing room); `chooseEntry(B, entryId)` lays the force out in another zone (`map.entries = [{ id, name, zone: {x,y,w,h} }]`, the first is `main`; every recipe has two or three); `planIntel(B)` returns `{ phase, level, entry, entries, objective, exit, contacts: [{id,x,y,kind,role,conf}], strongpoints, aa }` from the intel level and what is already marked, nothing else; `beginBattle(B)` starts the clock; `autoPlan(B)` is the sound default. All are logged (`deploy`, `entry`, `begin`) and replay. Headless battles and `ai.p` begin at once. `src/ui/battle.js` currently auto-plans and begins at once (marked TEMPORARY) until the planning screen exists; it must open a battle with a non-empty log by `replay`.
+**Planning stage** (`src/battle/plan.js`). A battle made with `setup.plan` (set by `play` and `skirmish` in `src/war/engagements.js`) and not headless starts in `B.phase = 'plan'`: `step` does nothing, `issue` and support are refused (no opening orders). `deploy(B, teamOrUnitId, x, y)` places a team (keeping its formation) or a vehicle or helicopter inside the chosen entry zone on valid ground (a vehicle's clearance, a helicopter's landing room); `chooseEntry(B, entryId)` lays the force out in another zone (`map.entries = [{ id, name, zone: {x,y,w,h} }]`, the first is `main`; every recipe has two or three); `planIntel(B)` returns `{ phase, level, entry, entries, objective, exit, contacts: [{id,x,y,kind,role,conf}], strongpoints, aa }` from the intel level and what is already marked, nothing else; `beginBattle(B)` starts the clock; `autoPlan(B)` is the sound default. `createBattle` itself applies the default placement when a battle starts in the planning stage (it is part of the initial state: nothing is logged for it); the player's actions are logged (`deploy`, `entry`, `autoplan` for a later press of the default-placement button, `begin`, `split`, `merge`) and replay through non-logging inner versions (`doDeploy`, `doEntry`, `doAutoPlan`, `doBegin`), so reloading never doubles the log. `run` and `runToEnd` begin a battle that is still in planning. `deploy` refuses a spot on another team's soldiers or on a vehicle, with a reason. Headless battles and `ai.p` begin at once. `src/ui/battle.js` currently auto-plans and begins at once (marked TEMPORARY) until the planning screen exists; it must open a battle with a non-empty log by `replay`.
 
 **Vehicle sizes** (`VEHICLE_SIZE` in `src/content/battle.js`, read through `src/battle/sizes.js`). Length and width in tiles, 1.6 times what the drawing showed (a tank is about 2.6 by 1.35; `VEHICLE_SCALE`); helicopters also have a `rotor` disc. A ground vehicle needs `clearRadius` of clear ground (`src/battle/nav.js clearance`: a 3-wide lane takes everything, a 2-wide one nothing), keeps `bodyRadius` apart from other vehicles (it waits, then plans round, then the later id steps aside), boards and is repaired from further away, and is placed apart. Map version 3 clears the ground round the starts, the objective and the exit and, where a way the biggest vehicle fits does not exist, cuts a six-wide road (`fitForVehicles`); `tests/battle_sizes.test.mjs` proves every start, entry and exit reaches the objective on every recipe.
 
 **Presentation events**: `B.sfx` (the per-tick list: cleared at the start of `step`, not part of the state; named `sfx` because `B.events` is the persistent log the renderers already read). `{ t: type, ... }`: `shot {id, weapon, x, y, z, tx, ty}`, `impact {x, y, hit}`, `explosion {x, y, size}`, `engine {id, x, y, rpm: idle|low|high}`, `tracks {id, x, y}`, `rotor {id, x, y, z, rpm | phase}`, `shout {id, kind: contact|suppressed|man_down|reloading|moving|grenade|medic|retreat|objective, x, y}`, `door {id, x, y}`, `breach {x, y}`, `incoming {x, y, kind}`, `aircraft {id, kind, x, y}`. At most `SFX_CAP` a tick.
 
-**Measured** (`node tools/battle-audit.mjs`; see `docs/TESTING.md` once recorded): headless results move a great deal, because a defender that digs in (cover is worth up to 85 percent) is far harder to attack than the old enemy that walked in from its edge. The strategic layer does not use played battles for delegated engagements (it uses the aggregate `estimate`/`resolve`), so no pay changes; `tests/battle_calibration.test.mjs` and the tank-loss mix in `tests/battle_sim.test.mjs` are pinned to rules 4 for that reason.
+**Measured** (`node tools/battle-audit.mjs`): the strategic layer does not use played battles for delegated engagements (it uses the aggregate `estimate`/`resolve`), so no pay changes; `tests/battle_calibration.test.mjs` and the tank-loss mix in `tests/battle_sim.test.mjs` are pinned to rules 4 because the enemy is meant to be harder.
 
-
-**Audit** (`node tools/battle-audit.mjs --seeds 40 --rules 3,4,5`: 12 soldiers, a tank and a carrier against 14 troops, a tank and a battery, both sides on the AI, headless; win = two objectives of three; own/foe = share of each side put out; len = ticks; rules 3 and 4 are identical here; per-goal counters are the means a battle for rules 5):
+**Audit** (`node tools/battle-audit.mjs --seeds 40 --rules 4,5`; 12 soldiers, a tank and a carrier against 14 troops, a tank and a battery, both sides on the AI, headless; win = two objectives of three; own/foe = share of each side put out; len = ticks; the logistics rows are from a later run after the convoy's escort was told to move rather than attack-move):
 
 | recipe | goal | win r4 | win r5 | own r4 | own r5 | foe r4 | foe r5 | len r4 | len r5 | flank | fall back | counter | investigate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| city | defence | 80% | 88% | 82% | 86% | 88% | 92% | 2350 | 2016 | 4.2 | 8.0 | 3.6 | 7.6 |
-| city | offence | 60% | 3% | 45% | 99% | 60% | 27% | 743 | 1545 | 1.4 | 4.7 | 0.9 | 11.1 |
-| city | raid | 98% | 3% | 16% | 96% | 44% | 27% | 401 | 1566 | 1.4 | 5.0 | 0.7 | 9.8 |
-| city | extract | 10% | 0% | 0% | 0% | 5% | 0% | 237 | 204 | 0.0 | 0.0 | 0.9 | 0.0 |
-| city | rescue | 10% | 0% | 0% | 0% | 3% | 0% | 229 | 198 | 0.0 | 0.0 | 0.8 | 0.0 |
-| city | logistics | 100% | 100% | 3% | 0% | 1% | 0% | 448 | 485 | 0.0 | 0.0 | 0.0 | 0.7 |
-| fields | defence | 5% | 55% | 92% | 78% | 33% | 90% | 1329 | 3324 | 3.5 | 7.5 | 3.8 | 17.6 |
-| fields | offence | 63% | 0% | 29% | 99% | 100% | 4% | 1413 | 1581 | 1.4 | 2.6 | 0.0 | 4.5 |
-| fields | raid | 100% | 0% | 19% | 98% | 73% | 5% | 484 | 1719 | 1.3 | 2.5 | 0.1 | 2.5 |
-| fields | extract | 3% | 0% | 0% | 0% | 2% | 0% | 274 | 257 | 0.0 | 0.0 | 1.0 | 0.0 |
-| fields | rescue | 0% | 0% | 0% | 0% | 0% | 0% | 257 | 251 | 0.0 | 0.0 | 1.0 | 0.0 |
-| fields | logistics | 90% | 68% | 32% | 25% | 82% | 47% | 785 | 1308 | 0.0 | 1.3 | 2.5 | 0.1 |
-| trench | defence | 60% | 83% | 95% | 75% | 67% | 93% | 1771 | 2857 | 3.5 | 7.6 | 1.2 | 19.5 |
-| trench | offence | 55% | 0% | 57% | 98% | 92% | 33% | 1138 | 2848 | 1.6 | 5.9 | 0.1 | 19.9 |
-| trench | raid | 95% | 8% | 23% | 95% | 60% | 29% | 455 | 2250 | 1.4 | 5.5 | 0.1 | 12.7 |
-| trench | extract | 3% | 0% | 0% | 6% | 2% | 3% | 246 | 262 | 0.0 | 0.1 | 1.0 | 0.3 |
-| trench | rescue | 0% | 0% | 0% | 0% | 0% | 0% | 233 | 229 | 0.0 | 0.0 | 0.8 | 0.0 |
-| trench | logistics | 100% | 70% | 55% | 27% | 78% | 42% | 755 | 1182 | 0.0 | 1.1 | 2.0 | 6.6 |
-| compound | defence | 73% | 95% | 90% | 48% | 79% | 97% | 3504 | 2637 | 2.5 | 4.2 | 0.6 | 4.6 |
-| compound | offence | 25% | 0% | 71% | 98% | 93% | 27% | 2680 | 1503 | 1.7 | 4.3 | 0.0 | 5.3 |
-| compound | raid | 80% | 0% | 62% | 96% | 91% | 29% | 1949 | 1444 | 1.5 | 4.9 | 0.0 | 5.7 |
+| city | defence | 80% | 55% | 82% | 90% | 88% | 82% | 2350 | 1517 | 2.1 | 5.5 | 2.0 | 3.5 |
+| city | offence | 60% | 23% | 45% | 89% | 60% | 68% | 743 | 1496 | 0.8 | 4.3 | 2.4 | 5.3 |
+| city | raid | 98% | 35% | 16% | 69% | 44% | 54% | 401 | 922 | 0.6 | 3.8 | 1.8 | 5.0 |
+| city | extract | 10% | 3% | 0% | 0% | 5% | 2% | 237 | 211 | 0.0 | 0.1 | 1.0 | 0.0 |
+| city | rescue | 10% | 3% | 0% | 1% | 3% | 1% | 229 | 203 | 0.0 | 0.1 | 0.9 | 0.0 |
+| city | logistics | 100% | 100% | 3% | 0% | 1% | 0% | 448 | 485 | 0.0 | 0.0 | 0.8 | 0.7 |
+| fields | defence | 5% | 45% | 92% | 83% | 33% | 81% | 1329 | 2179 | 2.9 | 6.0 | 2.7 | 10.0 |
+| fields | offence | 63% | 30% | 29% | 88% | 100% | 66% | 1413 | 1665 | 0.7 | 5.5 | 1.7 | 9.7 |
+| fields | raid | 100% | 45% | 19% | 67% | 73% | 47% | 484 | 1291 | 0.3 | 4.3 | 1.3 | 9.3 |
+| fields | extract | 3% | 20% | 0% | 4% | 2% | 16% | 274 | 323 | 0.0 | 0.6 | 1.2 | 0.1 |
+| fields | rescue | 0% | 18% | 0% | 4% | 0% | 15% | 257 | 312 | 0.0 | 0.5 | 1.1 | 0.0 |
+| fields | logistics | 90% | 73% | 32% | 26% | 82% | 16% | 785 | 1226 | 0.0 | 1.2 | 2.0 | 0.0 |
+| trench | defence | 60% | 85% | 95% | 60% | 67% | 99% | 1771 | 2134 | 1.9 | 4.7 | 0.6 | 12.0 |
+| trench | offence | 55% | 18% | 57% | 96% | 92% | 55% | 1138 | 2964 | 0.5 | 5.6 | 0.1 | 25.1 |
+| trench | raid | 95% | 40% | 23% | 61% | 60% | 40% | 455 | 1326 | 0.5 | 3.3 | 0.1 | 14.7 |
+| trench | extract | 3% | 5% | 0% | 12% | 2% | 10% | 246 | 305 | 0.0 | 0.3 | 1.0 | 0.7 |
+| trench | rescue | 0% | 8% | 0% | 8% | 0% | 5% | 233 | 280 | 0.0 | 0.1 | 0.8 | 0.3 |
+| trench | logistics | 100% | 100% | 55% | 8% | 78% | 15% | 755 | 1172 | 0.0 | 1.0 | 2.0 | 4.4 |
+| compound | defence | 73% | 70% | 90% | 60% | 79% | 88% | 3504 | 2173 | 1.3 | 4.2 | 0.9 | 4.1 |
+| compound | offence | 25% | 5% | 71% | 96% | 93% | 33% | 2680 | 2050 | 0.0 | 3.6 | 0.1 | 3.4 |
+| compound | raid | 80% | 0% | 62% | 85% | 91% | 25% | 1949 | 1310 | 0.1 | 2.9 | 0.2 | 1.9 |
 | compound | extract | 18% | 10% | 1% | 0% | 7% | 3% | 273 | 267 | 0.0 | 0.0 | 0.1 | 0.0 |
 | compound | rescue | 5% | 3% | 0% | 0% | 3% | 1% | 259 | 260 | 0.0 | 0.0 | 0.1 | 0.0 |
-| compound | logistics | 100% | 85% | 9% | 21% | 46% | 22% | 245 | 334 | 0.0 | 0.1 | 0.0 | 3.8 |
-| forest | defence | 0% | 93% | 91% | 51% | 25% | 98% | 1166 | 1774 | 2.9 | 5.8 | 0.5 | 5.2 |
-| forest | offence | 57% | 53% | 31% | 89% | 99% | 72% | 1160 | 2670 | 1.5 | 7.5 | 1.1 | 18.3 |
-| forest | raid | 98% | 38% | 15% | 86% | 40% | 54% | 461 | 1797 | 1.5 | 6.0 | 0.7 | 11.5 |
-| forest | extract | 100% | 78% | 5% | 24% | 65% | 24% | 687 | 663 | 0.0 | 0.7 | 0.9 | 0.6 |
-| forest | rescue | 100% | 75% | 7% | 26% | 70% | 25% | 692 | 662 | 0.0 | 0.8 | 0.8 | 0.8 |
-| forest | logistics | 100% | 40% | 22% | 40% | 86% | 48% | 819 | 1536 | 0.0 | 1.1 | 2.9 | 1.1 |
+| compound | logistics | 100% | 95% | 9% | 18% | 46% | 15% | 245 | 334 | 0.0 | 0.1 | 0.0 | 3.9 |
+| forest | defence | 0% | 63% | 91% | 86% | 25% | 81% | 1166 | 1939 | 2.5 | 5.0 | 0.5 | 2.6 |
+| forest | offence | 57% | 10% | 31% | 96% | 99% | 60% | 1160 | 1737 | 0.8 | 4.5 | 0.9 | 12.9 |
+| forest | raid | 98% | 33% | 15% | 88% | 40% | 55% | 461 | 1453 | 0.8 | 4.1 | 0.8 | 8.7 |
+| forest | extract | 100% | 78% | 5% | 20% | 65% | 27% | 687 | 663 | 0.0 | 0.8 | 0.9 | 0.6 |
+| forest | rescue | 100% | 75% | 7% | 21% | 70% | 26% | 692 | 662 | 0.0 | 0.8 | 0.9 | 0.9 |
+| forest | logistics | 100% | 80% | 22% | 21% | 86% | 21% | 819 | 1503 | 0.0 | 0.8 | 2.0 | 0.1 |
 
-19 of 30 recipe/goal pairs move the headless win rate by more than 10 points (attacking goals: offence and raid fall by 50 to 100 points on city, fields, trench and compound, 20 to 60 on forest; defence rises, because the defender now digs in; logistics falls by 15 to 60 in the open recipes; extract and rescue are near zero for the headless force before and after on four of five recipes). Step cost on the forest map with 40 troops and armour: rules 3 0.19 ms, rules 4 0.15 ms, rules 5 0.20 ms. **This is for Fable and the owner to weigh; no pay was tuned.** `node tools/econ-audit-war.mjs` is unchanged (no income figure was touched): soldier day 33,500, engagement 34,000 per troop-day, bare minimum 2,010,000 in 5 days, everything built 19,999,000.
+20 of 30 recipe/goal pairs move the headless win rate by more than 10 points. Headless offence and raid (the player attacking) now sit at 20-45 percent on city, fields and trench (it was 55-100 under rules 4), but only 0-10 on compound and about 10-30 on forest and trench offence: a dug-in garrison (cover is worth 75 to 85 percent in a building or a trench) is hard to take with rifles alone, and that is the existing cover table, not new weapon numbers. Defence rises (the enemy is the attacker and the player's headless force digs in). Logistics is 73-100. Extract and rescue are near zero for the headless force before and after on city, trench and compound. Step cost on the forest map with 40 troops and armour: rules 4 0.29 ms, rules 5 0.32 ms. No pay was tuned; `node tools/econ-audit-war.mjs` is unchanged. **For Fable and the owner to weigh.**
+
+**What the first rules-5 audit got wrong, and the fixes**: the attackers (the player's headless force, and the enemy when it attacks) fired half as many shots as under rules 4 and lost nearly everything. The cause was the attack logic, not only the dug-in defenders: the fixing element and the covering half of a bound held ground where they could see nothing; a contact that faded left an element holding; bounding began across the whole map; an attacker made the contact (a garrisoned building) its goal instead of the ground; the force was split to flank a defence stronger than itself. Now: a covering man who sees nothing moves; a fixing element goes up to where it can see the contact (or its last-known spot) and ends when it is gone; bounds begin only within `AI.bound.near` of a contact and a fire-fight is fought from cover first (`AI.stand`); the goal is the objective, held once reached; a flank needs a contact group of `AI.flank.maxGroup` or fewer; armed vehicles stand off at the edge of what infantry can see; a convoy's escort moves rather than attack-moves. Tunables from the review: `MOVE.bound` 10, `AI.bound.near` 16, `AI.battery.cooldown` 90 and `min` 4, `AI.fallback.supp` 55.
 
 ## The new look and battles (v0.101.0)
 

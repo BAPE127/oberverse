@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, run, runToEnd, step, issue, replay, deploy, chooseEntry, beginBattle, planIntel, autoPlan, callSupport, currentEntry } from '../src/battle/sim.js';
+import { createBattle, run, runToEnd, step, issue, replay, splitTeam, deploy, chooseEntry, beginBattle, planIntel, autoPlan, callSupport, currentEntry } from '../src/battle/sim.js';
 import { idx } from '../src/battle/map.js';
 
 const people = (n) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, role: 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true }));
@@ -13,7 +13,7 @@ const inside = (z, u) => u.x >= z.x && u.y >= z.y && u.x < z.x + z.w && u.y < z.
 
 test('a player\'s battle starts in the planning stage and does not tick; there are no opening orders and no support until it begins', () => {
   const B = createBattle(mk()); assert.equal(B.phase, 'plan'); const x0 = B.units.map((u) => [u.x, u.y].join());
-  step(B); run(B, 50); assert.equal(B.tick, 0); assert.deepEqual(B.units.map((u) => [u.x, u.y].join()), x0);
+  step(B); for (let i = 0; i < 50; i++) step(B); assert.equal(B.tick, 0); assert.deepEqual(B.units.map((u) => [u.x, u.y].join()), x0);
   issue(B, ['p0'], { type: 'move', x: 40, y: 40 }); assert.equal(B.byId.get('p0').order.type, 'hold'); assert.equal(B.log.length, 0, 'not logged');
   assert.equal(callSupport(B, { kind: 'smoke', x: 5, y: 5 }).ok, false);
   assert.equal(beginBattle(B).ok, true); assert.equal(B.phase, 'live'); run(B, 10); assert.equal(B.tick, 10); assert.equal(beginBattle(B).ok, false, 'once');
@@ -30,7 +30,7 @@ test('deploying: a team or a vehicle goes where you say inside the chosen zone a
   const cx = z.x + z.w / 2; const cy = z.y + z.h / 2;
   const r = deploy(B, sq.id, cx, cy); assert.ok(r.ok, r.text); for (const m of sq.members) { const u = B.byId.get(m); assert.ok(inside(z, u), `${m} is in the zone`); }
   assert.equal(deploy(B, sq.id, z.x + z.w + 30, cy).ok, false, 'outside the zone'); assert.equal(deploy(B, sq.id, 5, 5).ok === inside(z, { x: 5, y: 5 }), true);
-  const T = B.byId.get('T1'); assert.ok(deploy(B, 'T1', cx + 3, cy - 2).ok, 'a tank in open ground'); assert.ok(inside(z, T));
+  const T = B.byId.get('T1'); let parked = false; for (const [dx, dy] of [[5, -3], [-5, -3], [5, 3], [-5, 3], [0, -3], [0, 3], [6, 0]]) if (!parked && deploy(B, 'T1', cx + dx, cy + dy).ok) parked = true; assert.ok(parked, 'a tank in open ground'); assert.ok(inside(z, T)); assert.equal(deploy(B, 'T1', cx, cy).ok, false, 'not on top of the soldiers');
   assert.equal(deploy(B, 'T1', z.x + z.w + 2, cy).ok, false);
   const before = [T.x, T.y].join(); const other = B.byId.get('H1'); let landed = false; for (const [dx, dy] of [[-5, 2], [-5, -2], [5, 2], [5, -3], [0, 3], [0, -3], [-6, 0]]) if (!landed && deploy(B, 'H1', cx + dx, cy + dy).ok) landed = true; assert.ok(landed, 'a helicopter on open ground'); assert.equal(deploy(B, 'H1', cx, cy).ok, false, 'not on top of the squad'); assert.equal(other.grounded, true);
   assert.equal(deploy(B, 'T1', other.x, other.y).ok === true, true, '(a tank may stand where a helicopter has not landed)'); void before;
@@ -71,3 +71,19 @@ test('everything done in the planning stage is in the log and replays: the entry
   const half = replay(setup, B.log.slice(0, 3), 0); assert.equal(half.phase, 'plan', 'a replay of a plan not yet begun stays in it');
 });
 import * as awaitedSim from '../src/battle/sim.js';
+
+test('the way the screen uses it: default plan inside createBattle, entry, splits, deploys, a manual default placement, begin, orders; saved and reloaded three times it is the same battle and the log does not grow', () => {
+  const setup = mk({ key: 'PL5|x' }); const B = createBattle(setup); assert.equal(B.log.length, 0, 'the default placement is part of the initial state: nothing is logged for it');
+  assert.ok(chooseEntry(B, B.map.entries[1].id).ok); const sq = B.teams.find((t) => t.side === 'p' && t.kind === 'inf'); const z = B.map.entries[1].zone;
+  assert.ok(splitTeam(B, sq.id, sq.members.slice(0, 2), 'A').ok); const t2 = B.teams.find((t) => t.name === 'A'); assert.ok(splitTeam(B, sq.id, sq.members.slice(0, 1), 'B').ok);
+  for (const [dx, dy] of [[0, 0], [2, 3], [-3, 2], [3, -2]]) deploy(B, t2.id, z.x + z.w / 2 + dx, z.y + z.h / 2 + dy); deploy(B, 'T1', z.x + z.w - 3, z.y + 3);
+  assert.ok(autoPlan(B).ok); deploy(B, sq.id, z.x + z.w / 2, z.y + z.h / 2); assert.ok(beginBattle(B).ok); run(B, 80); issue(B, [sq.id], { type: 'amove', x: 50, y: 30 }); run(B, 120);
+  const snap = (X) => JSON.stringify([X.tick, X.entry, X.teams.map((t) => [t.id, t.members]), X.units.map((u) => [u.id, u.x, u.y, u.z, u.hp, u.alive, u.supp, u.heading])]); const n = B.log.length;
+  let log = JSON.parse(JSON.stringify(B.log)); for (let k = 0; k < 3; k++) { const R = replay(setup, log, B.tick); assert.equal(snap(R), snap(B), `reload ${k}`); assert.equal(R.log.length, n, 'the log is not doubled'); log = JSON.parse(JSON.stringify(R.log)); }
+});
+
+test('run and runToEnd on a battle still in planning begin it rather than wait for ever', () => {
+  const B = createBattle(mk({ key: 'PL6|x' })); assert.equal(B.phase, 'plan'); run(B, 5); assert.equal(B.phase, 'live'); assert.equal(B.tick, 5);
+  const C = createBattle(mk({ key: 'PL6|y', ai: { p: true, e: true }, plan: true })); runToEnd(C); assert.ok(C.over);
+  const D = createBattle(mk({ key: 'PL6|z' })); runToEnd(D); assert.ok(D.over && D.log[0].order.type === 'begin');
+});

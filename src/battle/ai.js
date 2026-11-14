@@ -84,7 +84,7 @@ export function planEnemy(B, X, side = 'e') {
     const us = el.members.map((m) => B.byId.get(m)).filter(Boolean); const spots = X.spread(B, us, sp.x, sp.y, AI.spread);
     for (const [u, at] of spots) { u.x = at.x; u.y = at.y; u.path = []; }
   });
-  for (const t of (B.teams || []).filter((q) => q.side === side && q.kind === 'veh')) { const u = B.byId.get(t.members[0]); if (u.battery || u.speed === 0) continue; const at = X.standNear(B, S.rear.x + (t.members[0].length % 5) * 2.5, S.rear.y + 1, 'veh'); if (at && u.kind !== 'helicopter') { u.x = at.x; u.y = at.y; } }
+  for (const t of (B.teams || []).filter((q) => q.side === side && q.kind === 'veh')) { const u = B.byId.get(t.members[0]); if (u.battery || u.speed === 0 || u.kind === 'helicopter') continue; const at = X.placeVehicle(B, u, S.rear.x, S.rear.y); if (at) { u.x = at.x; u.y = at.y; } } // (each where it fits: clearance and no other vehicle under it)
 }
 
 // ---- the mind itself: every AI.every ticks
@@ -126,7 +126,7 @@ export function runAI(B, side, X) {
     const face = near || (side === 'e' ? B.map.spawns.p : B.map.spawns.e);
     // ---- fall back
     if (A.mode === 'fallback') { if (avgSupp < AI.fallback.recover && (!fighting || nd > 18) || T - A.since > sec(40)) { A.mode = S.attacking ? 'advance' : 'defend'; A.cmd = null; A.since = T; A.cool.fallback = T + sec(AI.fallback.cooldown); } }
-    else if (fighting && (!A.cool.fallback || T > A.cool.fallback) && (avgSupp >= AI.fallback.supp || (losses >= AI.fallback.loss && n <= Math.ceil(A.n0 / 2)))) {
+    else if (fighting && n >= 2 && (!A.cool.fallback || T > A.cool.fallback) && (avgSupp >= AI.fallback.supp || (losses >= AI.fallback.loss && n <= Math.ceil(A.n0 / 2)))) {
       const from = c0; const pt = S.falls.find((p) => dist(p, near) > nd + 6 && dist(p, from) > AI.fallback.dist) || S.falls[S.falls.length - 1];
       A.prev = A.mode; A.mode = 'fallback'; A.since = T; A.cmd = null; A.fb = pt; B.stats.fallbacks++; X.shout(B, us[0], 'retreat');
     }
@@ -138,7 +138,8 @@ export function runAI(B, side, X) {
       const pinned = visC.find((c) => T - c.st >= sec(AI.flank.still) && dist(c, c0) >= AI.flank.minRange && dist(c, c0) <= AI.flank.maxRange);
       const cand = pinned ? els.filter((o) => o !== el && (o.ai.mode === 'advance' || o.ai.mode === 'fix') && living(B, o).length >= 2 && dist(mid(living(B, o)), c0) < 30) : [];
       const fixer = cand.sort((p1, p2) => living(B, p2).filter((u) => u.role === 'machine_gunner').length - living(B, p1).filter((u) => u.role === 'machine_gunner').length)[0]; // (the one with the guns holds him)
-      if (fixer) { const f = planFlank(B, X, us, c0, pinned, pen); if (f) { A.prev = A.mode; A.mode = 'flank'; A.since = T; A.cmd = null; A.fl = f; B.stats.flanks++; if (fixer.ai.mode !== 'fix') { fixer.ai.prev = fixer.ai.mode; fixer.ai.mode = 'fix'; } fixer.ai.fixUntil = T + sec(AI.flank.timeout); fixer.ai.fixC = pinned.id; fixer.ai.cmd = null; } else A.cool.flank = T + sec(10); }
+      const theirs = pinned ? seenC.filter((c) => dist(c, pinned) < 16).length : 0; // (a force that is not the stronger keeps together: splitting it would only make two weak ones)
+      if (fixer && theirs <= AI.flank.maxGroup) { const f = planFlank(B, X, us, c0, pinned, pen); if (f) { A.prev = A.mode; A.mode = 'flank'; A.since = T; A.cmd = null; A.fl = f; B.stats.flanks++; if (fixer.ai.mode !== 'fix') { fixer.ai.prev = fixer.ai.mode; fixer.ai.mode = 'fix'; } fixer.ai.fixUntil = T + sec(AI.flank.timeout); fixer.ai.fixC = pinned.id; fixer.ai.cmd = null; } else A.cool.flank = T + sec(10); }
     }
     if (A.mode === 'flank' && (T - A.since > sec(AI.flank.timeout) || !A.fl)) { A.mode = A.prev || 'advance'; A.cmd = null; A.cool.flank = T + sec(AI.flank.cooldown); }
     // ---- execute
@@ -157,11 +158,11 @@ export function runAI(B, side, X) {
         if (dist(c0, to) < 5 && !tgt) { A.mode = A.prev || 'advance'; A.cmd = null; }
         break;
       }
-      case 'fix': { // hold the contact in its sights: go up until someone sees it, then stay and fire
-        const tc = cs.find((c) => c.id === A.fixC); const seeing = us.some((u) => u.target);
-        if (!seeing && tc) { const d = dist(tc, c0) || 1; give(B, X, el, us, 'amove', tc.x + ((c0.x - tc.x) / d) * 9, tc.y + ((c0.y - tc.y) / d) * 9, {}, fmt, pen); }
+      case 'fix': { // hold the contact in its sights: go up to where it can be seen (or to where it was last seen), then stay and fire; when it is gone, go on
+        const tc = cs.find((c) => c.id === A.fixC); const seeing = us.some((u) => u.target && B.byId.get(u.target)?.alive);
+        if (!tc || (!seeing && T - tc.t > sec(20)) || T >= A.fixUntil || !els.some((o) => o.ai.mode === 'flank')) { A.mode = A.prev || 'advance'; A.cmd = null; break; }
+        if (!seeing) give(B, X, el, us, 'amove', tc.x, tc.y, {}, fmt, pen);
         else for (const u of us) if (u.order.type !== 'hold') { X.setOrder(B, u, { type: 'hold' }); u.path = []; A.cmd = null; }
-        if (T >= A.fixUntil || !els.some((o) => o.ai.mode === 'flank')) { A.mode = A.prev || 'advance'; A.cmd = null; }
         break;
       }
       case 'advance': advance(B, X, el, us, c0, near, nd, pen, face, fmt, S); smokeFor(B, X, el, us, near, nd); break;
@@ -192,23 +193,38 @@ function planFlank(B, X, us, c0, c, pen) {
 
 /** Advance toward the objective or the nearest known contact: together while nothing is near, by bounds (half moves, half covers) when the enemy is. */
 function advance(B, X, el, us, c0, near, nd, pen, face, fmt, S) {
-  const A = el.ai; const obj = B.map.objective; const goal = near && nd < 30 ? near : (dist(c0, obj) > 8 ? obj : (near || searchPoint(B, S, el)));
-  if (!goal) return;
+  const A = el.ai; const obj = B.map.objective; const inZone = us.every((u) => dist(u, obj) <= OBJECTIVE.zone + 3) || (A.searchUntil > B.tick); if (inZone) A.heldAt ??= B.tick; else A.heldAt = undefined;
+  if (inZone && B.tick - A.heldAt >= sec(60) && !(A.searchUntil > B.tick) && !(A.searchDone > B.tick)) { A.searchUntil = B.tick + sec(45); A.searchDone = B.tick + sec(45 + 60); }
+  const searching = A.searchUntil > B.tick;
+  const goal = searching ? (near || searchPoint(B, S, el)) : !inZone ? obj : (B.tick - A.heldAt < sec(60) || A.searchDone > B.tick ? null : (near || searchPoint(B, S, el))); // (on the ground: it is held; only after a long while with nothing happening does it go looking)
+  if (!goal && !(near && nd < AI.bound.near)) { for (const u of us) if (u.order.type !== 'hold' && !u.path.length) { X.setOrder(B, u, { type: 'hold' }); } return; }
+  const gl = goal || obj; // (the ground is what is taken: a contact on the way is fought, not made the goal)
   if (!near || nd > AI.bound.near) { // nothing near: on together, from cover to cover
-    const wp = wayPoint(B, X, c0, goal, AI.advanceLen, pen, face); if (wp) give(B, X, el, us, 'amove', wp.x, wp.y, {}, fmt, pen); return;
+    A.stand = undefined;
+    const wp = wayPoint(B, X, c0, gl, AI.advanceLen, pen, face); if (wp) give(B, X, el, us, 'amove', wp.x, wp.y, {}, fmt, pen); return;
   }
   // nobody can see anything to shoot, under fire or not: standing still covers nothing, so close with the contact together
-  if (!us.some((u) => u.target && B.byId.get(u.target)?.alive) && near.vis !== false) { give(B, X, el, us, 'amove', near.x, near.y, {}, fmt, pen); return; }
+  if (!us.some((u) => u.target && B.byId.get(u.target)?.alive) && near.vis !== false) { give(B, X, el, us, 'amove', gl.x, gl.y, {}, fmt, pen); return; }
   // a clear superiority over what is seen goes in together (the weight of fire counts); otherwise, by bounds
   const seenNear = B.per[el.side].size ? [...B.per[el.side].values()].filter((c) => !c.heard && c.armed !== false && c.t >= B.tick - 80 && dist(c, c0) < AI.bound.near).length : 0;
-  if (us.length >= 1.6 * Math.max(1, seenNear) && nd < 18) { give(B, X, el, us, 'amove', near.x, near.y, {}, fmt, pen); return; }
+  if (us.length >= 1.6 * Math.max(1, seenNear) && nd < 18) { give(B, X, el, us, 'amove', gl.x, gl.y, {}, fmt, pen); return; }
+  // in a fire-fight: stop in the best cover close by and shoot from rest (a man firing on the move hits little); after half a minute of it, bound forward
+  A.stand ??= B.tick;
+  if (B.tick - A.stand < sec(AI.stand)) {
+    const cv = coverNear(B, X, c0, 3, face);
+    if (!A.cvAt || dist(A.cvAt, c0) > 6) A.cvAt = cv;
+    for (const [i, u] of us.entries()) if (u.order.type !== 'hold' && !(u.order.settle)) { const at = coverNear(B, X, u, 3, face); if (at && dist(u, at) > 0.8) { u.pen = pen; X.setOrder(B, u, { type: 'move', x: at.x, y: at.y, settle: true }); } else { X.setOrder(B, u, { type: 'hold' }); u.path = []; } void i; }
+    A.cmd = null; return;
+  }
+  if (B.tick - A.stand > sec(AI.stand + 8)) A.stand = B.tick;
   // bounds: half goes, half covers; swap when the movers arrive or after a few seconds
   A.bd ||= { phase: 0, until: B.tick + sec(7) };
   const halves = [us.filter((_, k) => k % 2 === 0), us.filter((_, k) => k % 2 === 1)]; const mov = halves[A.bd.phase]; const cov = halves[1 - A.bd.phase];
   const arrived = mov.length === 0 || mov.every((u) => !u.path.length && u.order.type !== 'move') ;
   if (B.tick >= A.bd.until || (arrived && B.tick > A.bd.until - sec(5))) { A.bd.phase = 1 - A.bd.phase; A.bd.until = B.tick + sec(7); A.cmd = null; B.stats.bounds++; }
-  const m2 = halves[A.bd.phase]; const c2 = halves[1 - A.bd.phase];
-  const wp = wayPoint(B, X, mid(m2.length ? m2 : us), goal, AI.bound.len, pen, face);
+  const blind = halves[1 - A.bd.phase].filter((u) => !(u.target && B.byId.get(u.target)?.alive)); // (a covering man who can see nothing covers nothing: he goes too)
+  const m2 = [...halves[A.bd.phase], ...blind]; const c2 = halves[1 - A.bd.phase].filter((u) => !blind.includes(u));
+  const wp = wayPoint(B, X, mid(m2.length ? m2 : us), gl, AI.bound.len, pen, face);
   for (const u of c2) if (u.order.type !== 'hold') { X.setOrder(B, u, { type: 'hold' }); u.path = []; }
   if (wp && m2.length) { const k = m2.length > 1 ? X.spread(B, m2, wp.x, wp.y, 'skirmish') : [[m2[0], wp]]; for (const [u, at] of k) if (u.order.type !== 'move' || Math.hypot((u.order.x ?? 0) - at.x, (u.order.y ?? 0) - at.y) > 2.5) { u.pen = pen; X.setOrder(B, u, { type: 'move', x: at.x, y: at.y }); } }
 }
@@ -226,7 +242,7 @@ function searchPoint(B, S, el) {
 /** Throw smoke for an element that has to cross open ground under fire: an officer (or engineer) with smoke, between them and the contact. */
 function smokeFor(B, X, el, us, near, nd) {
   const A = el.ai; if (!near || nd > AI.smoke.range || nd < 6 || (A.cool.smoke && B.tick < A.cool.smoke)) return;
-  if (!us.some((u) => u.supp > AI.smoke.supp) || !near.vis) return;
+  if (!near.vis || !(us.some((u) => u.supp > AI.smoke.supp) || us.some((u) => u.target))) return; // (as soon as the enemy is in sight and shooting)
   const th = us.find((u) => u.smokes > 0 && u.order.type !== 'smoke'); if (!th) return; const c0 = mid(us); const k = Math.min(0.45, 8 / nd);
   X.setOrder(B, th, { type: 'smoke', x: c0.x + (near.x - c0.x) * k + (near.x - c0.x) * 0.15, y: c0.y + (near.y - c0.y) * k + (near.y - c0.y) * 0.15 }); A.cool.smoke = B.tick + sec(AI.smoke.cooldown); B.stats.smokes++; A.cmd = null;
 }
@@ -259,7 +275,7 @@ function vehicle(B, X, t, u, els, S, seenC, visC, cs, pen) {
     else if (u.order.type === 'hold') X.setOrder(B, u, { type: 'amove', x: B.map.objective.x, y: B.map.objective.y });
     return;
   }
-  if (u.W.airOnly || u.arty) { if (!A.set) { A.set = true; if (u.W.airOnly) { const at = X.standNear(B, S.rear.x + 3, S.rear.y + 3, 'veh'); if (at) X.setOrder(B, u, { type: 'move', x: at.x, y: at.y }); } } return; }
+  if (u.W.airOnly || u.arty) { if (!A.set) { A.set = true; if (u.W.airOnly && dist(u, S.rear) > 12) { const at = X.placeVehicle(B, u, S.rear.x + 3, S.rear.y + 3); if (at) X.setOrder(B, u, { type: 'move', x: at.x, y: at.y }); } } return; }
   const friends = els.map((e) => ({ e, us: living(B, e) })).filter((q) => q.us.length && q.e.ai.mode !== 'fallback');
   const lead = friends.slice().sort((a, b) => dist(mid(a.us), u) - dist(mid(b.us), u))[0];
   const at = seenC.filter((c) => c.role === 'anti_tank' && T - c.t < sec(25));
@@ -268,14 +284,20 @@ function vehicle(B, X, t, u, els, S, seenC, visC, cs, pen) {
     const bx = u.x - Math.cos(u.heading) * 6; const by = u.y - Math.sin(u.heading) * 6; const p = X.standNear(B, bx, by, 'veh'); if (p) { X.setOrder(B, u, { type: 'reverse', x: p.x, y: p.y }); A.cool.back = T + sec(12); A.cmd = null; return; }
   }
   if (!S.attacking) { // defence: hull-down near the objective, between it and the threat
-    const sp = A.hd ||= (X.standNear(B, B.map.objective.x + S.ux * 5, B.map.objective.y + S.uy * 5, 'veh') || S.rear);
+    const sp = A.hd ||= (X.placeVehicle(B, u, B.map.objective.x - S.ux * 8, B.map.objective.y - S.uy * 8) || S.rear);
     if (dist(u, sp) > 3 && (!A.cmd || u.order.type === 'hold')) { A.cmd = { x: sp.x, y: sp.y }; X.setOrder(B, u, { type: 'move', x: sp.x, y: sp.y }); }
+    return;
+  }
+  const foe = visC.concat(seenC).filter((c) => dist(c, u) < 24).sort((a, b) => dist(a, u) - dist(b, u))[0];
+  if (foe && u.W.range >= 14 && lead && !at.some((c) => dist(c, u) < AI.atFear)) { // an armed vehicle with the enemy in view stands off at the edge of what they can see (they see 12) and shoots from there
+    const d = dist(foe, u); const want = Math.min(u.W.range - 2, 13); const k = (d - want) / (d || 1);
+    if (d > want + 2 || d < want - 5) { const spot = X.placeVehicle(B, u, u.x + (foe.x - u.x) * k, u.y + (foe.y - u.y) * k); if (spot && (!A.cmd || Math.hypot(A.cmd.x - spot.x, A.cmd.y - spot.y) > 3)) { A.cmd = { x: spot.x, y: spot.y }; X.setOrder(B, u, { type: 'move', x: spot.x, y: spot.y }); } return; }
     return;
   }
   if (!lead) { if (u.order.type === 'hold' && dist(u, B.map.objective) > 6) X.setOrder(B, u, { type: 'move', x: B.map.objective.x, y: B.map.objective.y }); return; }
   const c = mid(lead.us); const dx = S.attacking ? S.ux * -1 : 0; void dx;
   const back = { x: c.x - (B.map.objective.x - c.x) / (dist(c, B.map.objective) || 1) * AI.tankFollow, y: c.y - (B.map.objective.y - c.y) / (dist(c, B.map.objective) || 1) * AI.tankFollow };
-  const spot = X.standNear(B, back.x, back.y, 'veh'); if (!spot) return;
+  const spot = X.placeVehicle(B, u, back.x, back.y); if (!spot) return;
   if (dist(u, spot) > 4 && (!A.cmd || Math.hypot(A.cmd.x - spot.x, A.cmd.y - spot.y) > 5 || u.order.type === 'hold')) { A.cmd = { x: spot.x, y: spot.y }; X.setOrder(B, u, { type: 'move', x: spot.x, y: spot.y }); }
 }
 const angle = (d) => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
@@ -296,7 +318,7 @@ function legacyP(B, X, mine, S) {
       else if (u.order.type === 'hold' && !(u.target && B.byId.get(u.target)?.alive)) X.setOrder(B, u, { type: 'amove', x: obj.x + ((i % 5) - 2), y: obj.y + ((i % 3) - 1) });
       return;
     }
-    if (isVeh(u) && u.kind !== 'helicopter' && u.order.type === 'hold' && !u.path.length) X.setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); else if (!isVeh(u) && u.order.type === 'hold') X.setOrder(B, u, { type: 'amove', x: exit.x, y: exit.y });
+    if (isVeh(u) && u.kind !== 'helicopter' && u.order.type === 'hold' && !u.path.length) X.setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); else if (!isVeh(u) && u.order.type === 'hold') X.setOrder(B, u, { type: 'move', x: exit.x, y: exit.y }); // (a convoy's escort goes with it rather than stopping to fight what it passes)
   });
   void S;
 }

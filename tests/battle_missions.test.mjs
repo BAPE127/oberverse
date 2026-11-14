@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSetup } from '../src/battle/setup.js';
-import { createBattle, run, runToEnd, issue, callReserve, outcome, replay, step } from '../src/battle/sim.js';
+import { createBattle, run, runToEnd, issue, callReserve, outcome, replay, step, beginBattle } from '../src/battle/sim.js';
 import { RESERVE, TICK, VIP_HOME } from '../src/content/battle.js';
 import { estimate } from '../src/war/combat.js';
 import { findPath } from '../src/battle/nav.js';
@@ -33,7 +33,7 @@ test('a reserve through the engagement: the squads you hold back are flagged in 
   assert.ok(g.war.playEngagement(eng.id, squads, [b]).ok); const setup = eng.battle.setup;
   const held = C.squads.find((s) => s.id === b).members; const flagged = setup.units.filter((u) => u.reserve).map((u) => u.id);
   assert.deepEqual(flagged.sort(), held.filter((m) => setup.units.some((u) => u.id === m)).sort(), 'exactly the squad that was held back'); assert.ok(flagged.length > 0);
-  const B = createBattle({ ...setup, ai: { p: false, e: false } }); assert.equal(B.reserve.length, flagged.length); run(B, 200); const o = outcome(B); assert.ok(o.dead.concat(o.wounded.map((w) => w.id)).every((id) => !flagged.includes(id)));
+  const B = createBattle({ ...setup, ai: { p: false, e: false } }); assert.equal(B.reserve.length, flagged.length); assert.equal(B.phase, 'plan'); beginBattle(B); run(B, 200); assert.ok(B.tick >= 200); const o = outcome(B); assert.ok(o.dead.concat(o.wounded.map((w) => w.id)).every((id) => !flagged.includes(id)));
   assert.ok(C.squads.find((s) => s.id === a)); void step;
 });
 

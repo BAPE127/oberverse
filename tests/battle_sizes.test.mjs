@@ -64,3 +64,14 @@ test('boarding and repair distances grow with the vehicle', () => {
   const B = createBattle(mk({ vehicles: [{ id: 'O1', name: 'Ox', cls: 'carrier', type: 'ox', armour: 1, firepower: 1, speed: 1 }] })); assert.ok(sizeOf(B.byId.get('O1')).len > 2.5);
   assert.equal(clearance(B.map).constructor.name, 'Float32Array');
 });
+
+test('on every recipe and goal, over six seeds, no two ground vehicles of either side start on one another, and an enemy vehicle that is ordered to move has moved after thirty seconds', () => {
+  const roles = ['rifleman', 'machine_gunner', 'rifleman', 'anti_tank', 'rifleman', 'medic'];
+  for (const recipe of Object.keys(RECIPES)) for (const goal of ['defence', 'offence', 'raid', 'extract', 'rescue', 'logistics']) for (let s = 0; s < 6; s++) {
+    const setup = buildSetup({ key: `SZ4|${recipe}|${goal}|${s}`, eng: { goal, recipe, biome: 'rural', style: 'sund', enemy: { troops: 8, armour: 3, air: 0, aa: 1, battery: 1, skill: 1 } }, people: roles.map((role, i) => ({ id: `p${i}`, name: `P${i}`, role, tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true })), vehicles: [tank('T1'), tank('T2')], ai: { p: true, e: true } });
+    const B = createBattle(setup); const g = B.units.filter((u) => u.kind !== 'inf' && u.kind !== 'helicopter' && !u.battery);
+    for (const a of g) for (const b of g) if (a.id < b.id) assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= bodyRadius(a) + bodyRadius(b) - 0.01, `${recipe}/${goal}/${s}: ${a.id} on ${b.id}`);
+    const start = new Map(g.map((u) => [u.id, [u.x, u.y]])); run(B, 300);
+    for (const u of g) if (u.side === 'e' && u.alive && u.order.type !== 'hold' && Math.hypot(u.order.x - u.x, u.order.y - u.y) > 2) assert.ok(Math.hypot(u.x - start.get(u.id)[0], u.y - start.get(u.id)[1]) >= 0.5, `${recipe}/${goal}/${s}: ${u.id} was ordered ${u.order.type} and has not moved`);
+  }
+});

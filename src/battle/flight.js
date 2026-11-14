@@ -1,6 +1,6 @@
 // Helicopters in flight (rules 5): altitude, a straight line over everything, hover, orbit, a pass, and landing only where there is room. Pure; the simulation calls `flyTick` for a helicopter
 // instead of walking it along a path.
-import { FLIGHT, TICK, TILE } from '../content/battle.js';
+import { FLIGHT, SFX_CAP, TICK, TILE } from '../content/battle.js';
 import { idx, inb } from './map.js';
 import { sizeOf } from './sizes.js';
 
@@ -38,7 +38,7 @@ const turnTo = (a, to, rate) => { let d = to - a; while (d > Math.PI) d -= 2 * M
  * ground and the order 'hold'; 'orbit' never ends by itself.
  */
 export function flyTick(B, u, moves) {
-  const o = u.order; const sfx = (e) => B.sfx.push(e);
+  const o = u.order; const sfx = (e) => { if (B.sfx.length < SFX_CAP) B.sfx.push(e); };
   if (u.grounded === undefined) u.grounded = u.z === 0;
   if (o.type === 'orbit') { // a carrot on the circle, a little ahead of where it is (or the nearest point of the circle while it is still far off)
     const r = o.r || FLIGHT.orbitR; const ang = Math.atan2(u.y - o.y, u.x - o.x); const far = Math.hypot(u.x - o.x, u.y - o.y) > r * 1.6; const a2 = far ? ang : ang + 0.6;

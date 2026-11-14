@@ -216,7 +216,7 @@ export const ENTRIES = {
 };
 
 /** Troops' manners (rules 5), added to MOVE: `bound` seconds each half of a team moves while the other covers; `getup` ticks to rise after going to ground; an officer near a broken man lets him rally this much sooner; `settle` tiles in which a unit that has arrived looks for better cover. */
-Object.assign(MOVE, { bound: 6, getup: 15, rallyBonus: 10, settle: 2, settleGain: 0.15 });
+Object.assign(MOVE, { bound: 10, getup: 15, rallyBonus: 10, settle: 2, settleGain: 0.15 });
 
 /**
  * The enemy's mind (rules 5): tunables of src/battle/ai.js. A force is grouped into elements (its teams); each element picks a behaviour from what its side perceives. Times in seconds, ranges in tiles.
@@ -228,11 +228,11 @@ Object.assign(MOVE, { bound: 6, getup: 15, rallyBonus: 10, settle: 2, settleGain
  */
 export const AI = {
   every: 10, investigate: { range: 45, minRange: 6, maxAge: 12, timeout: 25, share: 3 },
-  fallback: { loss: 0.5, supp: 40, recover: 20, cooldown: 30, dist: 10 }, counter: { minStrength: 3, cooldown: 40, timeout: 45, suppMax: 30 },
-  flank: { still: 3, offset: 11, cooldown: 40, minRange: 8, timeout: 45, maxRange: 34 }, bound: { len: 9, near: 24 }, advanceLen: 16,
+  fallback: { loss: 0.5, supp: 55, recover: 20, cooldown: 30, dist: 10 }, counter: { minStrength: 3, cooldown: 40, timeout: 45, suppMax: 30 },
+  flank: { maxGroup: 3, still: 3, offset: 11, cooldown: 40, minRange: 8, timeout: 45, maxRange: 34 }, bound: { len: 9, near: 16 }, advanceLen: 16,
   patrol: { share: 3, wait: 15, radius: 12 }, lane: [14, 22], smoke: { range: 16, cooldown: 25, supp: 12 },
-  battery: { cluster: 5, min: 3, safe: 9, cooldown: 40 }, exposure: { range: 16, cost: 2, cap: 5, refresh: 30, contacts: 6 },
-  tankFollow: 5, atFear: 18, blast: { r: 25, seconds: 8 }, spread: 'skirmish',
+  battery: { cluster: 5, min: 4, safe: 9, cooldown: 90 }, exposure: { range: 16, cost: 2, cap: 5, refresh: 30, contacts: 6 },
+  stand: 15, tankFollow: 5, atFear: 18, blast: { r: 25, seconds: 8 }, spread: 'skirmish',
 };
 
 /**

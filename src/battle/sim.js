@@ -15,7 +15,7 @@ import { unit as chance } from './hash.js';
 import { initPerception, updatePerception, sound, loudOf, contactsOf, nearestContact } from './perception.js';
 import { runAI, planEnemy, exposureGrid } from './ai.js';
 import { formationSpots } from './formation.js';
-import { deploy, chooseEntry, beginBattle, autoPlan, planIntel, currentEntry } from './plan.js';
+import { deploy, chooseEntry, beginBattle, autoPlan, planIntel, currentEntry, doDeploy, doEntry, doBegin, doAutoPlan } from './plan.js';
 import { formTeams, teamOf, expandIds, doSplit, doMerge } from './teams.js';
 import { flyTick, landingOk, landingSpot, landRadius, clampFlight } from './flight.js';
 
@@ -40,7 +40,7 @@ export function createBattle(setup) {
   if (rules >= 5) formTeams(B, B.units);
   if (rules >= 5 && B.ai.e) planEnemy(B, X, 'e');
   if (rules >= 5 && B.ai.p) planEnemy(B, X, 'p'); // (a headless force that defends digs in at once, as a player would in the planning stage)
-  if (rules >= 5 && setup.plan && !B.ai.p) B.phase = 'plan'; // (a player's battle starts in the planning stage; a headless one, or the enemy's side, plans itself and begins at once)
+  if (rules >= 5 && setup.plan && !B.ai.p) { B.phase = 'plan'; doAutoPlan(B); } // (a player's battle starts in the planning stage; a headless one, or the enemy's side, plans itself and begins at once)
   B.start.p = B.units.filter((u) => u.side === 'p').length; B.start.e = B.units.filter((u) => u.side === 'e').length;
   B.startAcc = { p: B.units.filter((u) => u.side === 'p' && u.rec).length };
   return B;
@@ -56,7 +56,7 @@ function placeUnits(B, side, specs) {
     for (let r = 0; r < rr && !spot; r++) for (let j = -r; j <= r && !spot; j++) for (let i = -r; i <= r && !spot; i++) {
       if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
       const x = s.x + i; const y = s.y + j; const k = `${x},${y}`;
-      if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0 && (B.rules < 5 || spec.kind !== 'helicopter' || landingOk(B, x + 0.5, y + 0.5, landRadius(spec))) && (!gv || (cl[idx(map, x, y)] >= rad - 1e-6 && !B.units.some((o) => o.alive && o.kind !== 'inf' && o.kind !== 'helicopter' && Math.hypot(o.x - x - 0.5, o.y - y - 0.5) < bodyRadius(o) + bodyRadius(spec) + 0.1)))) spot = { x, y, k };
+      if (!taken.has(k) && canStand(map, x, y, spec.kind === 'inf' ? 'inf' : spec.kind === 'helicopter' ? 'heli' : 'veh') && map.bid[idx(map, x, y)] < 0 && (B.rules < 5 || spec.kind !== 'helicopter' || landingOk(B, x + 0.5, y + 0.5, landRadius(spec))) && (!gv || (cl[idx(map, x, y)] >= rad - 1e-6 && !B.units.some((o) => o.alive && o.kind !== 'inf' && o.kind !== 'helicopter' && Math.hypot(o.x - x - 0.5, o.y - y - 0.5) < bodyRadius(o) + bodyRadius(spec) + 0.9)))) spot = { x, y, k };
     }
     spot ||= { x: s.x, y: s.y, k: 'x' }; taken.add(spot.k);
     const u = makeUnit(spec, side, spot.x + 0.5, spot.y + 0.5, B.rules);
@@ -117,7 +117,7 @@ export function mergeTeams(B, a, b) {
 function applyLogged(B, e) {
   const o = e.order;
   if (o.type === 'support') applySupport(B, o); else if (o.type === 'reserve') callReserve(B, true);
-  else if (o.type === 'deploy') deploy(B, o.id, o.x, o.y); else if (o.type === 'entry') chooseEntry(B, o.id); else if (o.type === 'begin') beginBattle(B);
+  else if (o.type === 'deploy') doDeploy(B, o.id, o.x, o.y); else if (o.type === 'entry') doEntry(B, o.id); else if (o.type === 'begin') doBegin(B); else if (o.type === 'autoplan') doAutoPlan(B);
   else if (o.type === 'split') doSplit(B, o.team, o.units, o.name); else if (o.type === 'merge') doMerge(B, o.a, o.b);
   else applyOrder(B, e.ids, o);
   B.log.push(e);
@@ -440,7 +440,7 @@ function driveAlong(B, u, speed) {
   if (blocker) {
     u.v = 0; u.blockT = (u.blockT || 0) + 1;
     if (u.blockT === MOVE.reroute) { const fin = u.path[u.path.length - 1]; const av = new Set(); const rb = bodyRadius(blocker) + clearRadius(u); for (let j = Math.floor(blocker.y - rb); j <= Math.ceil(blocker.y + rb); j++) for (let i = Math.floor(blocker.x - rb); i <= Math.ceil(blocker.x + rb); i++) if (inb(B.map, i, j) && Math.hypot(i + 0.5 - blocker.x, j + 0.5 - blocker.y) < rb) av.add(idx(B.map, i, j)); u.avoid = av; u.avoidT = B.tick + MOVE.avoidTicks; const np = pathFor(B, u, u, fin, 'veh'); if (np.length) u.path = np; }
-    else if (u.blockT >= MOVE.aside && u.id > blocker.id && u.blockT % 10 === 0) { const cl = clearance(B.map); const r = clearRadius(u); let best = null; for (let k = 0; k < 8 && !best; k++) { const a = (k / 8) * Math.PI * 2 + (u.blockT % 7); const ax = u.x + Math.cos(a) * 3; const ay = u.y + Math.sin(a) * 3; if (inb(B.map, Math.floor(ax), Math.floor(ay)) && cl[idx(B.map, Math.floor(ax), Math.floor(ay))] >= r && Math.hypot(ax - blocker.x, ay - blocker.y) > bodyRadius(blocker) + mine) best = { x: ax, y: ay }; } if (best) u.path.unshift(best); }
+    else if (u.blockT >= MOVE.aside && (u.id > blocker.id || (!blocker.moving && !blocker.path.length)) && u.blockT % 10 === 0) { const cl = clearance(B.map); const r = clearRadius(u); let best = null; for (let k = 0; k < 8 && !best; k++) { const a = (k / 8) * Math.PI * 2 + (u.blockT % 7); const ax = u.x + Math.cos(a) * 3; const ay = u.y + Math.sin(a) * 3; if (inb(B.map, Math.floor(ax), Math.floor(ay)) && cl[idx(B.map, Math.floor(ax), Math.floor(ay))] >= r && Math.hypot(ax - blocker.x, ay - blocker.y) > bodyRadius(blocker) + mine) best = { x: ax, y: ay }; } if (best) u.path.unshift(best); }
     return false;
   }
   u.blockT = 0; u.x = px; u.y = py; u.travelled += step; u.moving = true;
@@ -693,8 +693,9 @@ export function step(B) {
   else if (B.tick >= B.maxTicks) { B.over = true; B.why = 'time'; }
   return B;
 }
-export function run(B, ticks) { for (let i = 0; i < ticks && !B.over; i++) step(B); return B; }
-export function runToEnd(B) { while (!B.over) step(B); return B; }
+/** (a battle still in the planning stage is begun with the placing it has: run and runToEnd would otherwise wait for ever) */
+export function run(B, ticks) { if (B.phase === 'plan') beginBattle(B); for (let i = 0; i < ticks && !B.over; i++) step(B); return B; }
+export function runToEnd(B) { if (B.phase === 'plan') beginBattle(B); while (!B.over) step(B); return B; }
 
 /** The result, in the shape the engagement's apply step takes. Valid once the battle is over (or at any moment, as it stands). */
 export function outcome(B) {
@@ -737,5 +738,15 @@ export function replay(setup, log, tick) {
   return B;
 }
 /** What the other modules of the battle (perception, the AI) may call back into: the simulation's own sight, cover and order rules (passed in, so the modules do not import each other). */
-const X = { spread: (B, us, x, y, k) => spreadTo(B, us, x, y, k), pathFor: (B, u, from, to, kind, pen) => pathFor(B, u, from, to, kind, pen), shout: (B, u, k) => shout(B, u, k), teamOf, visible: (B, u, e) => visible(B, u, e), sightOf, coverFor: (B, t, from) => coverFor(B, t, from), setOrder: (B, u, o) => setOrder(B, u, o), standNear: (B, x, y, k) => standNear(B, x, y, k), seeLine: (B, a, za, b, zb) => seeLine(B, a, za, b, zb), isVeh, onGround: (u) => onGround(u), callReserve: (B, a) => callReserve(B, a), blast: (B, x, y, r, d, by) => blast(B, x, y, r, d, by) };
+/** The nearest place to (x, y) where a ground vehicle fits (clearance for its size, not on another vehicle, not in a building), searching outward. */
+function placeVehicle(B, u, x, y) {
+  const cl = clearance(B.map); const map = B.map;
+  for (const rad of [clearRadius(u) + 0.6, clearRadius(u)]) for (let r = 0; r < 20; r++) for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+    if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue; const tx = Math.floor(x) + i; const ty = Math.floor(y) + j;
+    if (!inb(map, tx, ty) || map.bid[idx(map, tx, ty)] >= 0 || cl[idx(map, tx, ty)] < rad - 1e-6) continue; // (open ground first, so a lane is not blocked by a parked vehicle)
+    if (!B.units.some((o) => o !== u && o.alive && o.kind !== 'inf' && o.kind !== 'helicopter' && Math.hypot(o.x - tx - 0.5, o.y - ty - 0.5) < bodyRadius(o) + bodyRadius(u) + 0.1)) return { x: tx + 0.5, y: ty + 0.5 };
+  }
+  return null;
+}
+const X = { placeVehicle, spread: (B, us, x, y, k) => spreadTo(B, us, x, y, k), pathFor: (B, u, from, to, kind, pen) => pathFor(B, u, from, to, kind, pen), shout: (B, u, k) => shout(B, u, k), teamOf, visible: (B, u, e) => visible(B, u, e), sightOf, coverFor: (B, t, from) => coverFor(B, t, from), setOrder: (B, u, o) => setOrder(B, u, o), standNear: (B, x, y, k) => standNear(B, x, y, k), seeLine: (B, a, za, b, zb) => seeLine(B, a, za, b, zb), isVeh, onGround: (u) => onGround(u), callReserve: (B, a) => callReserve(B, a), blast: (B, x, y, r, d, by) => blast(B, x, y, r, d, by) };
 export { standNear, inb, walkable, sightOf, coverFor, stateOf, reachOf, faceOf, hitModule, contactsOf, teamOf, expandIds, X, deploy, chooseEntry, beginBattle, autoPlan, planIntel, currentEntry };

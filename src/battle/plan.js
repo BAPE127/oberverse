@@ -24,10 +24,10 @@ const mineOnMap = (B) => B.units.filter((u) => u.side === 'p' && u.alive);
 function spotOk(B, u, x, y, ignore = null) {
   const m = B.map; const tx = Math.floor(x); const ty = Math.floor(y);
   if (!inb(m, tx, ty) || m.bid[idx(m, tx, ty)] >= 0 || !canStand(m, tx, ty, kindOf(u) === 'heli' ? 'veh' : kindOf(u))) return false;
-  if (u.kind === 'inf') return true;
+  if (u.kind === 'inf') return !B.units.some((o) => o.alive && !o.inside && o.kind !== 'inf' && o.kind !== 'helicopter' && dist(o, { x, y }) < bodyRadius(o) + 0.3); // (not under a vehicle)
   if (u.kind === 'helicopter') return landingOk(B, x, y, landRadius(u), u.id);
   if (clearance(m)[idx(m, tx, ty)] < clearRadius(u) - 1e-6) return false;
-  for (const o of B.units) if (o !== u && o !== ignore && o.alive && !o.inside && o.kind !== 'inf' && o.kind !== 'helicopter' && dist(o, { x, y }) < bodyRadius(o) + bodyRadius(u) + 0.1) return false;
+  for (const o of B.units) if (o !== u && o !== ignore && o.alive && !o.inside && o.kind !== 'helicopter' && dist(o, { x, y }) < bodyRadius(o) + bodyRadius(u) + 0.1) return false; // (not on a vehicle, and not on a soldier)
   return true;
 }
 function put(u, x, y, heading) { u.x = x; u.y = y; u.z = 0; u.path = []; u.order = { type: 'hold' }; u.target = null; u.moving = false; u.v = 0; if (heading !== undefined) u.heading = heading; }
@@ -46,7 +46,7 @@ function teamSpots(B, team, x, y, z) {
   const sp = formationSpots(us.length, x, y, headingTo(B, { x, y }), team.formation || 'line'); const out = []; const used = [];
   for (let i = 0; i < us.length; i++) {
     const cx = Math.max(z.x + 0.5, Math.min(z.x + z.w - 0.5, sp[i].x)); const cy = Math.max(z.y + 0.5, Math.min(z.y + z.h - 0.5, sp[i].y)); let at = null;
-    for (let r = 0; r <= 4 && !at; r++) for (let j = -r; j <= r && !at; j++) for (let k = -r; k <= r && !at; k++) { if (Math.max(Math.abs(j), Math.abs(k)) !== r) continue; const px = Math.floor(cx) + k + 0.5; const py = Math.floor(cy) + j + 0.5; if (inZone(z, px, py) && spotOk(B, us[i], px, py) && !used.some((q) => dist(q, { x: px, y: py }) < 0.9)) at = { x: px, y: py }; }
+    for (let r = 0; r <= 4 && !at; r++) for (let j = -r; j <= r && !at; j++) for (let k = -r; k <= r && !at; k++) { if (Math.max(Math.abs(j), Math.abs(k)) !== r) continue; const px = Math.floor(cx) + k + 0.5; const py = Math.floor(cy) + j + 0.5; if (inZone(z, px, py) && spotOk(B, us[i], px, py) && !B.units.some((o) => o.alive && !o.inside && o.kind === 'inf' && !team.members.includes(o.id) && dist(o, { x: px, y: py }) < 0.9) && !used.some((q) => dist(q, { x: px, y: py }) < 0.9)) at = { x: px, y: py }; }
     if (!at) return null; used.push(at); out.push([us[i], at]);
   }
   return out;
@@ -54,41 +54,60 @@ function teamSpots(B, team, x, y, z) {
 
 /** Place a team (an id of a team of yours) or a vehicle or helicopter (its unit id) with its middle at (x, y): inside the chosen entry zone, on ground it can stand on, in the planning stage only. Logged. */
 export function deploy(B, id, x, y) {
+  const r = doDeploy(B, id, x, y); if (r.ok) B.log.push({ t: 0, ids: [], order: { type: 'deploy', id, x, y } }); return r;
+}
+/** `deploy` without the log entry (the replay applies the entry itself). */
+export function doDeploy(B, id, x, y) {
   if (B.phase !== 'plan') return { ok: false, text: 'The battle has begun.' };
   const z = currentEntry(B).zone; const t = (B.teams || []).find((q) => q.id === id) || null; const u = B.byId.get(id);
   if (t && t.side === 'p') {
-    if (t.kind === 'veh') return deploy(B, t.members[0], x, y);
+    if (t.kind === 'veh') return doDeploy(B, t.members[0], x, y);
     const spots = teamSpots(B, t, x, y, z); if (!spots) return { ok: false, text: 'There is no room for them there: keep inside the zone, on open ground.' };
     for (const [m, p] of spots) put(m, p.x, p.y, headingTo(B, p));
-    B.log.push({ t: 0, ids: [], order: { type: 'deploy', id, x, y } }); return { ok: true, text: `${t.name} is in place.` };
+    return { ok: true, text: `${t.name} is in place.` };
   }
   if (u && u.side === 'p' && u.kind !== 'inf' && u.alive) {
     if (!inZone(z, x, y) || !spotOk(B, u, x, y)) return { ok: false, text: u.kind === 'helicopter' ? 'It needs open ground to land: nothing in the way, no roof, no narrow street.' : 'It does not fit there: keep inside the zone, on open ground with room for it.' };
     put(u, x, y, headingTo(B, { x, y })); if (u.kind === 'helicopter') { u.grounded = true; }
-    B.log.push({ t: 0, ids: [], order: { type: 'deploy', id, x, y } }); return { ok: true, text: `${u.name} is in place.` };
+    return { ok: true, text: `${u.name} is in place.` };
   }
   return { ok: false, text: 'Nothing of yours has that name.' };
 }
 
 /** The sound default: teams in a row along the front of the zone, vehicles and helicopters behind them. Not logged (it follows from the state); `chooseEntry` and the headless start use it. */
 export function autoPlan(B) {
+  if (B.phase !== 'plan') return { ok: false, text: 'The battle has begun.' };
+  doAutoPlan(B); B.log.push({ t: 0, ids: [], order: { type: 'autoplan' } }); return { ok: true, text: 'The force is placed by the default.' };
+}
+/** The default placement with no log entry: `createBattle` applies it when a battle starts in the planning stage (so it is part of the initial state), `chooseEntry` and the replay too. */
+export function doAutoPlan(B) {
   const z = currentEntry(B).zone; const f = frontOf(B, z); const spots = [];
   for (let j = z.y + 1; j < z.y + z.h - 1; j += 1) for (let i = z.x + 1; i < z.x + z.w - 1; i += 1) spots.push({ x: i + 0.5, y: j + 0.5, d: Math.hypot(i - f.x, j - f.y) });
   spots.sort((a, b) => a.d - b.d || a.y - b.y || a.x - b.x);
   const placed = []; const teams = (B.teams || []).filter((t) => t.side === 'p' && t.members.some((m) => B.byId.get(m)?.alive && !B.byId.get(m).inside));
-  for (const t of teams.filter((q) => q.kind === 'inf')) { for (const s of spots) { if (placed.some((p) => dist(p, s) < 3.4)) continue; const sp = teamSpots(B, t, s.x, s.y, z); if (!sp) continue; for (const [m, p] of sp) put(m, p.x, p.y, headingTo(B, p)); placed.push(s); break; } }
+  for (const t of teams.filter((q) => q.kind === 'inf')) { for (const s of spots) { if (placed.some((p) => dist(p, s) < 3.4)) continue; const sp = teamSpots(B, t, s.x, s.y, z); if (!sp) continue; for (const [m, p] of sp) put(m, p.x, p.y, headingTo(B, p)); placed.push(s); t.placed = true; break; } if (!t.placed) scatter(B, t, spots, z); delete t.placed; }
   for (const t of teams.filter((q) => q.kind === 'veh')) { const u = B.byId.get(t.members[0]); for (const s of [...spots].reverse()) { if (!spotOk(B, u, s.x, s.y)) continue; put(u, s.x, s.y, headingTo(B, s)); if (u.kind === 'helicopter') u.grounded = true; break; } }
+}
+/** A team that does not fit as a group: each member to the nearest free ground in the zone (never left outside it). */
+function scatter(B, t, spots, z) {
+  for (const id of t.members) { const u = B.byId.get(id); if (!u || !u.alive || u.inside) continue; for (const s of spots) if (inZone(z, s.x, s.y) && spotOk(B, u, s.x, s.y) && !B.units.some((o) => o !== u && o.alive && !o.inside && o.kind === 'inf' && dist(o, s) < 0.9)) { put(u, s.x, s.y, headingTo(B, s)); break; } }
 }
 /** Choose another entry zone (planning only): the force is laid out again in it. Logged. */
 export function chooseEntry(B, entryId) {
+  const r = doEntry(B, entryId); if (r.ok) B.log.push({ t: 0, ids: [], order: { type: 'entry', id: entryId } }); return r;
+}
+export function doEntry(B, entryId) {
   if (B.phase !== 'plan') return { ok: false, text: 'The battle has begun.' };
   const e = entriesOf(B).find((q) => q.id === entryId); if (!e) return { ok: false, text: 'No such entry.' };
-  B.entry = e.id; autoPlan(B); B.log.push({ t: 0, ids: [], order: { type: 'entry', id: e.id } }); return { ok: true, text: `Entering by ${e.name.toLowerCase()}.` };
+  B.entry = e.id; doAutoPlan(B); return { ok: true, text: `Entering by ${e.name.toLowerCase()}.` };
 }
 /** Start the clock. Logged. */
 export function beginBattle(B) {
+  const r = doBegin(B); if (r.ok) B.log.push({ t: 0, ids: [], order: { type: 'begin' } }); return r;
+}
+export function doBegin(B) {
   if (B.phase !== 'plan') return { ok: false, text: 'The battle has already begun.' };
-  B.phase = 'live'; B.log.push({ t: 0, ids: [], order: { type: 'begin' } }); return { ok: true, text: 'The battle begins.' };
+  B.phase = 'live'; return { ok: true, text: 'The battle begins.' };
 }
 
 /**
@@ -102,7 +121,7 @@ export function planIntel(B) {
   const known = level === 2; const contacts = []; const strongpoints = []; const aa = []; const used = new Set();
   for (const [id, e] of seen) {
     contacts.push({ id, x: e.x, y: e.y, kind: e.kind === 'inf' ? 'inf' : e.kind === 'helicopter' ? 'air' : 'veh', role: known ? e.role : null, conf: known ? 1 : 0.7 });
-    if (e.W?.airOnly) aa.push({ x: e.x, y: e.y, conf: known ? 1 : 0.7 });
+    if (e.W?.airOnly && known) aa.push({ x: e.x, y: e.y, conf: known ? 1 : 0.7 });
     const b = B.map.bid[idx(B.map, Math.floor(e.x), Math.floor(e.y))];
     if (b >= 0 && !used.has(`b${b}`)) { used.add(`b${b}`); const bd = B.map.buildings[b]; strongpoints.push({ kind: 'building', b, x: bd.x + bd.w / 2, y: bd.y + bd.h / 2, floors: bd.floors }); }
     else if (B.map.tiles[idx(B.map, Math.floor(e.x), Math.floor(e.y))] === TILE.TRENCH && !strongpoints.some((q) => q.kind === 'trench' && dist(q, e) < 6)) strongpoints.push({ kind: 'trench', x: e.x, y: e.y });
