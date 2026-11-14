@@ -2,6 +2,25 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## Unreleased — Combat in 3D and the Battle Rework (version number to be set by the owner)
+
+**Combat in the world, in 3D** (no change to damage, accuracy or any rule):
+- **Weapons** (`src/engine3d/weapons3d.js`): a model for each of the 31 weapon looks, held, carried, shouldered along the aim and swung; the energy families glow in their colour.
+- **Gunfire, blood and blasts** (`src/engine3d/combatfx3d.js`): muzzle flash at the muzzle with a light, tracers, brass, impact sparks; droplets on a hit, soft pools and spatter on the ground, a red flash and flinch on the figure hit, stun stars; bodies lie with the weapon beside them; scorch and skid marks, rockets, fireballs and smoke in the scene. The flat 2D paint is gone from the 3D view (it stays in the fallback views).
+
+**Battles reworked** (new battles only: rules 5, map version 3; a battle saved under older rules plays on by them):
+- **The enemy no longer knows where you are.** It acts on what it sees, what it last saw and what it hears. It fights in elements of three to six: digging in with fields of fire, patrolling, investigating a noise, advancing by bounds, flanking a pinned contact, falling back, counter-attacking, calling its battery. Same numbers and weapons as before.
+- **Troops move and work like troops**: spacing, cover on arrival, going to ground under fire, target priority, turn rates; vehicles accelerate, brake and bring their turrets round.
+- **Helicopters fly** over buildings at altitude, orbit, make attack passes and land only on open ground (F, O, P, L and the order menu).
+- **Planning before the fight**: choose your way in, split squads into teams and merge them, place teams and vehicles in your zone, and see the scout picture your intelligence allows. Teams keep their letter and colour, are picked with one click and bound to keys 1 to 9. (Battle speed keys are now − and +.)
+- **Military vehicles are 1.6 times bigger**, in battles (with the room they need on the ground) and at the base.
+- **Sound** (`src/audio/battleAudio.js`, all synthesised): rifles, machine guns, cannon, mortars and their incoming whistle, explosions, engines, tracks, rotors, aircraft, shouts, and a background that swells with the fighting; placed by where it happens on screen.
+- **Soldier and vehicle poses**: carry, aim with recoil, crouch, prone and crawl, kneeling medic, officer's signal; hulls and turrets turn separately.
+
+How hard it is now, the computer playing your side with no planning or support, 40 runs each (win rate, old rules → new): attack: city 60 → 23%, fields 63 → 30%, trench 55 → 18%, compound 25 → 5%, forest 57 → 10%; raid: 98 → 35, 100 → 45, 95 → 40, 80 → 0, 98 → 33; defence: 80 → 55, 5 → 45, 60 → 85, 73 → 70, 0 → 63. Compound and forest assaults are close to unwinnable for the computer-played side; no attended battle has been played yet. Full table: `docs/WAR.md`. Delegated engagements on the strategic map are worked out separately and are unaffected; no pay figure changed.
+
+Not done: tracers, impacts and smoke in a battle are still flat paint over the buildings; garrisoned figures at windows; a tank is drawn wider than its footprint (1.75 against 1.35 tiles); without WebGL the battle keeps its old sprite sizes; a vehicle can be placed on a street lamp. Checked in software WebGL only.
+
 ## [0.104.0] — 2026-11-13 — The Graphics Update (development build)
 
 The world is drawn in 3D with three.js: blocky low-poly buildings, people, props and vehicles under a fixed isometric camera, with real light and shadow (design and state in `docs/RENDERING.md`, sections 7.1 to 7.5). No rules, balance or saves change: the simulation is untouched and the renderer only reads it.

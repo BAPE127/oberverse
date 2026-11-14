@@ -219,7 +219,8 @@ After the owner played the build on a real machine, four things were fixed and t
 ### 7.6 Known defects and limits in 3D
 
 - Only the owner has seen it on a real GPU; agents test in software WebGL (about 85–100 ms a frame, shadows off automatically). The noise grain of the see-behind window, lamp brightness and shadow quality may want tuning by eye.
-- Not drawn in 3D yet: skid marks, blood and scorch decals, water shimmer, Morganius's card effects, hit flinch/flash and stun stars on figures, the city below an aloft tower floor (plain sky), weather. Signature cars' ground trails are left to the 2D overlay and were not checked.
+- Since v0.104.0 (unreleased): weapons, gunfire, blood, hit flash, stun stars, scorch and skid marks and blasts are in the 3D scene (`weapons3d.js`, `combatfx3d.js`); weapons are drawn 1.18× life size to read; the corpse pool, scorch and skid marks were verified by tests and a pixel check, not by a screenshot of a real kill.
+- Not drawn in 3D yet: water shimmer, Morganius's card effects, the city below an aloft tower floor (plain sky), weather. Signature cars' ground trails are left to the 2D overlay and were not checked.
 - Sleepers lie on the floor, not on the bed. Animals do not animate.
 - `moored_ship` blocks a 4×9 berth but its model is a 3.2-tile tug at the north end (exempt in the collision test). Thin things (tree trunks, lamps, bollards) block a whole tile, as the simulation says. Aircraft turned on their apron (`heading`) are not covered by the collision test.
 - Interior partitions are full height and a tile thick; a kerb height might read better.

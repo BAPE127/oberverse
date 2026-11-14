@@ -8,15 +8,15 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| B-1 | Combat in 3D: weapon models and poses, gunfire, blood, scorch and skid decals, blasts (owner, 2026-11-13) | sonnet-gameplay | Running |
-| B-2 | Battle rework, simulation (rules 4): perception, enemy AI by elements, believable troop movement, helicopters fly over buildings, teams, planning phase API, vehicles ×1.6, events for sound | sonnet-gameplay | Running. Owner's answers: planning = split teams + place forces + scout picture; smarter enemy with the same numbers; vehicles 1.6× with collision |
-| B-3 | Battle rework, presentation: planning screen, team selection, soldier poses, helicopter flight and 1.6× vehicle models in 3D, battle sound (gunfire, engines, rotors, shouts, ambience) | queued | After B-1 and B-2; Opus reviews the B-2 diff first (determinism, old-rules replay) |
+| B-4 | Battle effects in 3D (tracers, impacts, smoke off the 2D overlay), garrison figures at windows, tank drawn width vs `VEHICLE_SIZE`, deploy preview dry-run, `issue()` to return refusals | sonnet-ui / sonnet-gameplay | After the owner has played |
 | G-9 | 3D defect list (`RENDERING.md` 7.6), by the owner's priority | sonnet-ui / sonnet-technical | When the owner asks |
 
 ## Waiting on the owner
 
 | # | Question | Why it matters |
 | --- | --- | --- |
+| O-8 | Play an attended rules-5 battle; are compound and forest assaults too hard (headless 0–10%)? Lower garrison cover there, or leave | Cover values are the cause; the owner asked for unchanged stats |
+| O-9 | Version number and name for combat in 3D + the battle rework | Release files and roadmap numbering |
 | O-3 | War: destruction and coup is now v0.105.0 (the Graphics Update took v0.104.0) | — |
 | O-6 | Add a world facing vector so keyboard interaction and auto-aim follow the walking direction (a small simulation change; `RENDERING.md` 2.5) | Owner's approval required by the brief |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
