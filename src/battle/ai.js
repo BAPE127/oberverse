@@ -127,7 +127,7 @@ export function runAI(B, side, X) {
       A.prev = A.mode; A.mode = 'fallback'; A.since = T; A.cmd = null; A.fb = pt; B.stats.fallbacks++; X.shout(B, us[0], 'retreat');
     }
     // ---- counter-attack
-    if (A.mode !== 'fallback' && A.mode !== 'counter' && (S.zoneLost || A.lost) && n >= AI.counter.minStrength && avgSupp < AI.counter.suppMax && (!A.cool.counter || T > A.cool.counter) && !S.attacking) { A.prev = A.mode; A.mode = 'counter'; A.since = T; A.cmd = null; A.tgt = { x: obj.x, y: obj.y }; B.stats.counters++; }
+    if (A.mode !== 'fallback' && A.mode !== 'counter' && (S.zoneLost || A.lost) && els.filter((q) => q.ai.mode === 'counter').length < Math.max(1, Math.ceil(els.length / 3)) && dist(c0, obj) <= 28 && n >= AI.counter.minStrength && avgSupp < AI.counter.suppMax && (!A.cool.counter || T > A.cool.counter) && !S.attacking) { A.prev = A.mode; A.mode = 'counter'; A.since = T; A.cmd = null; A.tgt = { x: obj.x, y: obj.y }; B.stats.counters++; }
     if (A.mode === 'counter' && (T - A.since > sec(AI.counter.timeout) || (!S.zoneLost && dist(c0, obj) < 6))) { A.mode = A.prev || 'defend'; A.cmd = null; A.cool.counter = T + sec(AI.counter.cooldown); }
     // ---- flank a contact that is not moving
     if ((A.mode === 'advance' || A.mode === 'defend' || A.mode === 'patrol') && n >= 2 && (!A.cool.flank || T > A.cool.flank)) {

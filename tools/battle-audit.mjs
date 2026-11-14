@@ -18,8 +18,8 @@ export const make = (recipe, goal, seed, rules, extra = {}) => {
 };
 function runOne(setup) { const B = createBattle(setup); runToEnd(B); const o = outcome(B); return { B, o }; }
 const pct = (x) => `${Math.round(x * 100)}%`.padStart(4); const f1 = (x) => x.toFixed(1).padStart(5);
-const rows = [];
-for (const recipe of RECIPES) for (const goal of GOALS) {
+const MAIN = import.meta.url === `file://${process.argv[1]}`; const rows = [];
+for (const recipe of MAIN ? RECIPES : []) for (const goal of GOALS) {
   const line = { recipe, goal, r: {} };
   for (const rules of RULES) {
     let win = 0; let prim = 0; let own = 0; let foe = 0; let ticks = 0; const st = { flanks: 0, fallbacks: 0, counters: 0, investigations: 0, bounds: 0, smokes: 0, battery: 0 };
@@ -35,8 +35,8 @@ for (const recipe of RECIPES) for (const goal of GOALS) {
   const shift = RULES.includes(4) && x5 ? Math.round((x5.win - line.r[4].win) * 100) : null;
   console.log(`${recipe.padEnd(8)} ${goal.padEnd(9)} ${cells}${extra}${shift !== null ? ` | win 5-4: ${shift >= 0 ? '+' : ''}${shift}` : ''}`);
 }
-if (RULES.includes(4) && RULES.includes(5)) { const big = rows.filter((l) => Math.abs(l.r[5].win - l.r[4].win) > 0.1); console.log(`\n${big.length} of ${rows.length} recipe/goal pairs move the headless win rate by more than 10 points between rules 4 and 5.`); }
-if (process.argv.includes('--cost')) {
+if (MAIN && RULES.includes(4) && RULES.includes(5)) { const big = rows.filter((l) => Math.abs(l.r[5].win - l.r[4].win) > 0.1); console.log(`\n${big.length} of ${rows.length} recipe/goal pairs move the headless win rate by more than 10 points between rules 4 and 5.`); }
+if (MAIN && process.argv.includes('--cost')) {
   for (const rules of RULES) {
     const setup = make('forest', 'offence', 1, rules, { troops: 40, armour: 3, air: 1 }); const B = createBattle(setup); let n = 0; const t0 = process.hrtime.bigint();
     while (!B.over && n < 1500) { step(B); n++; } const ms = Number(process.hrtime.bigint() - t0) / 1e6;
