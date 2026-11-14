@@ -234,3 +234,14 @@ export const AI = {
   battery: { cluster: 5, min: 3, safe: 9, cooldown: 40 }, exposure: { range: 16, cost: 2, cap: 5, refresh: 30, contacts: 6 },
   tankFollow: 5, atFear: 18, blast: { r: 25, seconds: 8 }, spread: 'skirmish',
 };
+
+/**
+ * Presentation events (rules 5): `B.sfx` is a list made fresh every step (cleared at the start of `step`, not part of the battle's state or of any hash) of what a screen or a sound layer needs; the
+ * persistent log of what happened is still `B.events`. Each is { t: type, ... } with positions in tiles:
+ *   shot { id, weapon, x, y, z, tx, ty }   impact { x, y, hit }   explosion { x, y, size }   engine { id, x, y, rpm: 'idle'|'low'|'high' }   tracks { id, x, y }   rotor { id, x, y, z?, rpm?, phase? }
+ *   shout { id, kind, x, y }: kind is contact, suppressed, man_down, reloading, moving, grenade, medic, retreat or objective
+ *   door { id, x, y }   breach { x, y }   incoming { x, y, kind } (a shell, a missile or a bomb about a second and a half out)   aircraft { id, kind, x, y }
+ * `MAG`: how many shots before a soldier reloads (a shout; the rate of fire is unchanged: the weapon tables already average the reload in).
+ */
+export const MAG = { default: 6, item_lmg: 10, item_sniper_rifle: 4, item_rpg: 1, item_shotgun: 4, item_pistol: 8, item_smg: 8 };
+export const SFX_CAP = 160;

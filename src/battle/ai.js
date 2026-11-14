@@ -44,7 +44,9 @@ function init(B, side, X) {
   for (const b of m.buildings.slice().sort((a, c) => dist({ x: a.x + a.w / 2, y: a.y + a.h / 2 }, obj) - dist({ x: c.x + c.w / 2, y: c.y + c.h / 2 }, obj))) { if (dist({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, obj) > 24 || sps.length >= 6) break; sps.push({ kind: 'building', b: b.id, x: b.door.x + 0.5, y: b.door.y + 1.5, floors: b.floors, c: { x: b.x + b.w / 2, y: b.y + b.h / 2 } }); }
   let tr = 0; for (let j = Math.floor(obj.y - 16); j <= obj.y + 16 && tr < 6; j += 2) for (let i = Math.floor(obj.x - 16); i <= obj.x + 16 && tr < 6; i += 2) if (inb(m, i, j) && m.tiles[idx(m, i, j)] === TILE.TRENCH && !sps.some((s) => s.kind === 'trench' && dist(s, { x: i, y: j }) < 6)) { sps.push({ kind: 'trench', x: i + 0.5, y: j + 0.5 }); tr++; }
   const ring = []; for (let k = 0; k < 6; k++) { const a = Math.atan2(uy, ux) + (k - 2.5) * 0.6; const p = X.standNear(B, obj.x + Math.cos(a) * 7, obj.y + Math.sin(a) * 7, 'inf'); if (p) ring.push({ kind: 'cover', x: p.x, y: p.y }); }
-  if (sps.length < 4) sps.push(...ring);
+  // strongpoints in turn: a building, then two on ground in the open (a trench, a covered spot): not the whole force behind walls
+  const blds = sps.filter((q) => q.kind === 'building'); const open = [...sps.filter((q) => q.kind !== 'building'), ...ring]; sps.length = 0;
+  for (let k = 0, o = 0; k < blds.length || o < open.length; k++) { if (blds[k]) sps.push(blds[k]); for (let q = 0; q < 2 && o < open.length; q++) sps.push(open[o++]); } // (one element in three behind walls)
   const rear = X.standNear(B, obj.x - ux * 9, obj.y - uy * 9, 'veh') || { x: obj.x, y: obj.y };
   const falls = sps.slice().sort((a, c) => dist(c, foeSpawn) - dist(a, foeSpawn)).map((s) => ({ x: s.x, y: s.y })); falls.push({ x: ownSpawn.x, y: ownSpawn.y });
   return { side, attacking, ux, uy, lanes, sps, ring, rear, falls, n: 0, inv: new Map(), batT: -9999, zoneLost: false };
@@ -73,15 +75,16 @@ function wayPoint(B, X, from, to, len, pen, face) {
 }
 
 // ---- the enemy's plan before the first tick: where it stands
-export function planEnemy(B, X) {
-  const S = (B.ai5 ||= {}).e ||= init(B, 'e', X); if (S.attacking) return; // (an attacker starts at its entry)
-  const els = (B.teams || []).filter((t) => t.side === 'e' && t.kind === 'inf'); const sps = S.sps.filter((s) => s.kind !== 'cover' || S.sps.length < 4 || true);
+export function planEnemy(B, X, side = 'e') {
+  if (B.goal === 'extract' || B.goal === 'rescue' || B.goal === 'logistics') return; // (a person to be got out, a convoy to get through: the guard is not on top of them at the first tick)
+  const S = (B.ai5 ||= {})[side] ||= init(B, side, X); if (S.attacking) return; // (an attacker starts at its entry)
+  const els = (B.teams || []).filter((t) => t.side === side && t.kind === 'inf'); const sps = S.sps.filter((s) => s.kind !== 'cover' || S.sps.length < 4 || true);
   els.forEach((el, i) => {
     const sp = sps[i % Math.max(1, sps.length)]; if (!sp) return; el.ai = { mode: 'defend', since: 0, sp, cmd: null, cool: {} };
     const us = el.members.map((m) => B.byId.get(m)).filter(Boolean); const spots = X.spread(B, us, sp.x, sp.y, AI.spread);
     for (const [u, at] of spots) { u.x = at.x; u.y = at.y; u.path = []; }
   });
-  for (const t of (B.teams || []).filter((q) => q.side === 'e' && q.kind === 'veh')) { const u = B.byId.get(t.members[0]); if (u.battery || u.speed === 0) continue; const at = X.standNear(B, S.rear.x + (t.members[0].length % 5) * 2.5, S.rear.y + 1, 'veh'); if (at && u.kind !== 'helicopter') { u.x = at.x; u.y = at.y; } }
+  for (const t of (B.teams || []).filter((q) => q.side === side && q.kind === 'veh')) { const u = B.byId.get(t.members[0]); if (u.battery || u.speed === 0) continue; const at = X.standNear(B, S.rear.x + (t.members[0].length % 5) * 2.5, S.rear.y + 1, 'veh'); if (at && u.kind !== 'helicopter') { u.x = at.x; u.y = at.y; } }
 }
 
 // ---- the mind itself: every AI.every ticks
@@ -94,13 +97,14 @@ export function runAI(B, side, X) {
   if (legacy) { legacyP(B, X, mine, S); return; }
   const cs = contactsOf(B, side); const seenC = cs.filter((c) => !c.heard && c.armed !== false && T - c.t <= sec(20)); const visC = seenC.filter((c) => c.vis);
   const heardC = cs.filter((c) => c.heard && T - c.t <= sec(AI.investigate.maxAge));
-  for (const c of cs) { if (c.sx === undefined || Math.hypot(c.x - c.sx, c.y - c.sy) > 1.5) { c.sx = c.x; c.sy = c.y; c.st = T; } } // (how long it has stayed where it is)
+  for (const c of cs) c.st ??= T;
   const pen = visC.length ? exposureGrid(B, side) : null;
   const els = (B.teams || []).filter((t) => t.side === side && t.kind === 'inf' && living(B, t).length);
   for (const el of els) el.ai ||= { mode: null, since: T, cmd: null, cool: {}, n0: living(B, el).length };
   // zone: our ground lost? (only what we perceive of it)
   const ownIn = mine.filter((u) => X.onGround(u) && dist(u, obj) <= OBJECTIVE.zone).length; const foeIn = seenC.filter((c) => c.vis && dist(c, obj) <= OBJECTIVE.zone + 2).length;
-  S.zoneLost = !S.attacking && ownIn === 0 && foeIn > 0;
+  if (ownIn > 0) S.emptyAt = T; S.emptyAt ??= T; // (nobody of ours on the ground for a long while: go and look, whether or not anyone has been seen there)
+  S.zoneLost = !S.attacking && ownIn === 0 && (foeIn > 0 || T - S.emptyAt > sec(45));
   // blast awareness: a recent blast near spreads the force out
   const scatter = cs.some((c) => c.heard && c.kind === 'blast' && T - c.t <= sec(AI.blast.seconds) && els.some((e) => dist(c, mid(living(B, e))) <= AI.blast.r));
   const fmt = scatter ? 'skirmish' : 'line';
@@ -130,10 +134,11 @@ export function runAI(B, side, X) {
     if (A.mode !== 'fallback' && A.mode !== 'counter' && (S.zoneLost || A.lost) && els.filter((q) => q.ai.mode === 'counter').length < Math.max(1, Math.ceil(els.length / 3)) && dist(c0, obj) <= 28 && n >= AI.counter.minStrength && avgSupp < AI.counter.suppMax && (!A.cool.counter || T > A.cool.counter) && !S.attacking) { A.prev = A.mode; A.mode = 'counter'; A.since = T; A.cmd = null; A.tgt = { x: obj.x, y: obj.y }; B.stats.counters++; }
     if (A.mode === 'counter' && (T - A.since > sec(AI.counter.timeout) || (!S.zoneLost && dist(c0, obj) < 6))) { A.mode = A.prev || 'defend'; A.cmd = null; A.cool.counter = T + sec(AI.counter.cooldown); }
     // ---- flank a contact that is not moving
-    if ((A.mode === 'advance' || A.mode === 'defend' || A.mode === 'patrol') && n >= 2 && (!A.cool.flank || T > A.cool.flank)) {
-      const fixing = els.some((o) => o !== el && o.ai.mode !== 'fallback' && living(B, o).some((u) => u.target && B.byId.get(u.target)?.alive));
+    if (A.mode === 'advance' && n >= 2 && (!A.cool.flank || T > A.cool.flank)) {
       const pinned = visC.find((c) => T - c.st >= sec(AI.flank.still) && dist(c, c0) >= AI.flank.minRange && dist(c, c0) <= AI.flank.maxRange);
-      if (fixing && pinned && A.mode === 'advance') { const f = planFlank(B, X, us, c0, pinned, pen); if (f) { A.prev = A.mode; A.mode = 'flank'; A.since = T; A.cmd = null; A.fl = f; B.stats.flanks++; } else A.cool.flank = T + sec(10); }
+      const cand = pinned ? els.filter((o) => o !== el && (o.ai.mode === 'advance' || o.ai.mode === 'fix') && living(B, o).length >= 2 && dist(mid(living(B, o)), c0) < 30) : [];
+      const fixer = cand.sort((p1, p2) => living(B, p2).filter((u) => u.role === 'machine_gunner').length - living(B, p1).filter((u) => u.role === 'machine_gunner').length)[0]; // (the one with the guns holds him)
+      if (fixer) { const f = planFlank(B, X, us, c0, pinned, pen); if (f) { A.prev = A.mode; A.mode = 'flank'; A.since = T; A.cmd = null; A.fl = f; B.stats.flanks++; if (fixer.ai.mode !== 'fix') { fixer.ai.prev = fixer.ai.mode; fixer.ai.mode = 'fix'; } fixer.ai.fixUntil = T + sec(AI.flank.timeout); fixer.ai.fixC = pinned.id; fixer.ai.cmd = null; } else A.cool.flank = T + sec(10); }
     }
     if (A.mode === 'flank' && (T - A.since > sec(AI.flank.timeout) || !A.fl)) { A.mode = A.prev || 'advance'; A.cmd = null; A.cool.flank = T + sec(AI.flank.cooldown); }
     // ---- execute
@@ -150,6 +155,13 @@ export function runAI(B, side, X) {
         if (f.stage === 'out') { if (dist(c0, f.wp) < 4 || T - f.t0 > sec(30)) { f.stage = 'in'; A.cmd = null; } else { give(B, X, el, us, 'move', f.wp.x, f.wp.y, {}, 'skirmish', f.pen); break; } }
         const tgt = visC.find((c) => c.id === f.cid) || seenC.find((c) => c.id === f.cid); const to = tgt || f.dest; give(B, X, el, us, 'amove', to.x, to.y, {}, fmt, pen);
         if (dist(c0, to) < 5 && !tgt) { A.mode = A.prev || 'advance'; A.cmd = null; }
+        break;
+      }
+      case 'fix': { // hold the contact in its sights: go up until someone sees it, then stay and fire
+        const tc = cs.find((c) => c.id === A.fixC); const seeing = us.some((u) => u.target);
+        if (!seeing && tc) { const d = dist(tc, c0) || 1; give(B, X, el, us, 'amove', tc.x + ((c0.x - tc.x) / d) * 9, tc.y + ((c0.y - tc.y) / d) * 9, {}, fmt, pen); }
+        else for (const u of us) if (u.order.type !== 'hold') { X.setOrder(B, u, { type: 'hold' }); u.path = []; A.cmd = null; }
+        if (T >= A.fixUntil || !els.some((o) => o.ai.mode === 'flank')) { A.mode = A.prev || 'advance'; A.cmd = null; }
         break;
       }
       case 'advance': advance(B, X, el, us, c0, near, nd, pen, face, fmt, S); smokeFor(B, X, el, us, near, nd); break;
@@ -180,11 +192,16 @@ function planFlank(B, X, us, c0, c, pen) {
 
 /** Advance toward the objective or the nearest known contact: together while nothing is near, by bounds (half moves, half covers) when the enemy is. */
 function advance(B, X, el, us, c0, near, nd, pen, face, fmt, S) {
-  const A = el.ai; const obj = B.map.objective; const goal = near && nd < 30 ? near : (dist(c0, obj) > 5 ? obj : (near || searchPoint(B, S, el)));
+  const A = el.ai; const obj = B.map.objective; const goal = near && nd < 30 ? near : (dist(c0, obj) > 8 ? obj : (near || searchPoint(B, S, el)));
   if (!goal) return;
   if (!near || nd > AI.bound.near) { // nothing near: on together, from cover to cover
     const wp = wayPoint(B, X, c0, goal, AI.advanceLen, pen, face); if (wp) give(B, X, el, us, 'amove', wp.x, wp.y, {}, fmt, pen); return;
   }
+  // nobody can see anything to shoot, under fire or not: standing still covers nothing, so close with the contact together
+  if (!us.some((u) => u.target && B.byId.get(u.target)?.alive) && near.vis !== false) { give(B, X, el, us, 'amove', near.x, near.y, {}, fmt, pen); return; }
+  // a clear superiority over what is seen goes in together (the weight of fire counts); otherwise, by bounds
+  const seenNear = B.per[el.side].size ? [...B.per[el.side].values()].filter((c) => !c.heard && c.armed !== false && c.t >= B.tick - 80 && dist(c, c0) < AI.bound.near).length : 0;
+  if (us.length >= 1.6 * Math.max(1, seenNear) && nd < 18) { give(B, X, el, us, 'amove', near.x, near.y, {}, fmt, pen); return; }
   // bounds: half goes, half covers; swap when the movers arrive or after a few seconds
   A.bd ||= { phase: 0, until: B.tick + sec(7) };
   const halves = [us.filter((_, k) => k % 2 === 0), us.filter((_, k) => k % 2 === 1)]; const mov = halves[A.bd.phase]; const cov = halves[1 - A.bd.phase];
@@ -195,10 +212,16 @@ function advance(B, X, el, us, c0, near, nd, pen, face, fmt, S) {
   for (const u of c2) if (u.order.type !== 'hold') { X.setOrder(B, u, { type: 'hold' }); u.path = []; }
   if (wp && m2.length) { const k = m2.length > 1 ? X.spread(B, m2, wp.x, wp.y, 'skirmish') : [[m2[0], wp]]; for (const [u, at] of k) if (u.order.type !== 'move' || Math.hypot((u.order.x ?? 0) - at.x, (u.order.y ?? 0) - at.y) > 2.5) { u.pen = pen; X.setOrder(B, u, { type: 'move', x: at.x, y: at.y }); } }
 }
-/** Where an attacker looks when the objective is reached and nothing is known: the buildings round it, in turn. */
+/** Where an attacker looks when the objective is reached and nothing is known: the nearest building of those round the objective it has not looked into yet (each for a while), then again. */
 function searchPoint(B, S, el) {
-  const bs = B.map.buildings; if (!bs.length) return null; el.ai.sweep = (el.ai.sweep ?? 0); const b = bs[(el.ai.sweep + el.id.length) % bs.length];
-  if (!el.ai.sweepAt || B.tick - el.ai.sweepAt > sec(25)) { el.ai.sweepAt = B.tick; el.ai.sweep++; } return { x: b.door.x + 0.5, y: b.door.y + 1.5 };
+  const bs = B.map.buildings; if (!bs.length) return null; const A = el.ai; const obj = B.map.objective; const T = B.tick;
+  S.looked ||= new Map(); const door = (b) => ({ x: b.door.x + 0.5, y: b.door.y + 1.5 });
+  if (A.sweepB !== undefined && T - A.sweepAt < sec(25) && dist(mid(living(B, el)), door(bs[A.sweepB])) > 5) return door(bs[A.sweepB]);
+  if (A.sweepB !== undefined) S.looked.set(A.sweepB, T);
+  const c0 = mid(living(B, el)); let best = null; let bd = 1e9;
+  for (const b of bs) { const seen = S.looked.get(b.id); if (seen !== undefined && T - seen < sec(240)) continue; const d = dist(door(b), c0) + 0.5 * dist(door(b), obj); if (d < bd) { bd = d; best = b; } }
+  if (!best) { S.looked.clear(); best = bs[0]; }
+  A.sweepB = best.id; A.sweepAt = T; return door(best);
 }
 /** Throw smoke for an element that has to cross open ground under fire: an officer (or engineer) with smoke, between them and the contact. */
 function smokeFor(B, X, el, us, near, nd) {
@@ -277,4 +300,4 @@ function legacyP(B, X, mine, S) {
   });
   void S;
 }
-export { contactsOf, nearestContact, SUPPRESS, SUPPORT, UAV };
+export { planFlank, contactsOf, nearestContact, SUPPRESS, SUPPORT, UAV };

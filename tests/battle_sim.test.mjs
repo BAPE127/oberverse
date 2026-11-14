@@ -106,7 +106,7 @@ test('a battle ends and says how: the result has the shape the engagement applie
 test('a played battle commits tanks and helicopters as units with hit points: a tank can be destroyed and is reported lost, and small arms barely scratch it', () => {
   const T = { id: 'T1', name: 'Anvil', cls: 'tank', armour: 3, firepower: 3, speed: 3 };
   let lost = 0; let alive = 0;
-  for (let k = 0; k < 8; k++) { const B = createBattle(mk({ key: `V${k}|x`, ai: { p: true, e: true }, vehicles: [T], enemy: { troops: 14, armour: 2, air: 0, skill: 1.1 } })); runToEnd(B); const o = outcome(B); if (o.lost.includes('T1')) lost++; else alive++; }
+  for (let k = 0; k < 8; k++) { const su = mk({ key: `V${k}|x`, ai: { p: true, e: true }, vehicles: [T], enemy: { troops: 14, armour: 2, air: 0, skill: 1.1 } }); su.rules = 4; su.map.ver = 2; /* (the mix is the tuning of rules 4: under rules 5 the enemy's tanks sit hull-down and the lone tank is lost nearly always: see tools/battle-audit.mjs) */ const B = createBattle(su); runToEnd(B); const o = outcome(B); if (o.lost.includes('T1')) lost++; else alive++; }
   assert.ok(lost > 0 && alive > 0, `the tank is neither invulnerable nor made of paper: ${lost} lost, ${alive} came home`);
   const B = createBattle(mk({ vehicles: [T] })); const t = B.units.find((u) => u.id === 'T1'); assert.ok(t.hpMax > 400);
 });

@@ -15,6 +15,7 @@ function table(T, seeds) {
     let w1 = 0; let w2 = 0; let dead = 0; const t0 = Date.now();
     for (let s = 0; s < seeds; s++) {
       const setup = buildSetup({ key: `Cal${s}|${goal}`, eng: { goal, recipe: s % 2 ? 'city' : 'fields', biome: 'rural', style: 'halvermouth', enemy: { troops: T, armour: 0, air: 0, skill: 1 } }, people: people(12), vehicles: [], ai: { p: true, e: true } });
+      setup.rules = 4; setup.map.ver = 2; // (the estimate is calibrated against the battle of rules 4; rules 5 has an enemy that digs in, which is meant to be harder: see tests/battle_ai.test.mjs and tools/battle-audit.mjs)
       const B = createBattle(setup); runToEnd(B); const o = outcome(B); if (o.objectives >= 1) w1++; if (o.objectives >= 2) w2++; dead += o.dead.length;
     }
     rows[goal] = { w1: w1 / seeds, w2: w2 / seeds, dead: dead / seeds, ms: Date.now() - t0 };

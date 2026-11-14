@@ -22,7 +22,7 @@ export function updatePerception(B, X) {
     for (const e of B.units) {
       if (e.side === u.side || !e.alive || e.fled || e.hidden) continue;
       if (!X.visible(B, u, e)) continue;
-      seen.push(e.id); m.set(e.id, { id: e.id, x: e.x, y: e.y, t: T, vis: true, heard: false, kind: e.kind, role: e.role, vtype: e.vtype || null, armed: e.W.range > 0, conf: 1 });
+      seen.push(e.id); const was = m.get(e.id); if (!was && B.sfx.length < 160) B.sfx.push({ t: 'shout', id: u.id, kind: 'contact', x: u.x, y: u.y }); m.set(e.id, { id: e.id, x: e.x, y: e.y, t: T, st: was && Math.hypot(was.x - e.x, was.y - e.y) < 1.5 ? was.st : T, vis: true, heard: false, kind: e.kind, role: e.role, vtype: e.vtype || null, armed: e.W.range > 0, conf: 1 }); // (st: since when it has stayed where it is)
     }
     u.seen = seen;
     for (const [k, c] of m) if (c.t < T - 1 && dist(c, u) <= PER.clearR && !seen.includes(k)) m.delete(k); // (he looked where it was, and it is not there)
@@ -30,7 +30,7 @@ export function updatePerception(B, X) {
   if (phase === 0) {
     for (const side of ['p', 'e']) {
       const m = B.per[side];
-      if (side === 'p') for (const [id, at] of Object.entries(B.spotted)) { const e = B.byId.get(id); if (e && e.alive && !e.fled && !e.hidden && T - at <= PER.every * 2) m.set(id, { id, x: e.x, y: e.y, t: at, vis: T - at <= PER.every, heard: false, kind: e.kind, role: e.role, vtype: e.vtype || null, armed: e.W.range > 0, conf: 0.9 }); }
+      if (side === 'p') for (const [id, at] of Object.entries(B.spotted)) { const e = B.byId.get(id); if (e && e.alive && !e.fled && !e.hidden && T - at <= PER.every * 2) m.set(id, { id, x: e.x, y: e.y, t: at, vis: T - at <= PER.every, heard: false, kind: e.kind, role: e.role, vtype: e.vtype || null, armed: e.W.range > 0, conf: 0.9, st: m.get(id)?.st ?? at }); }
       for (const [k, c] of m) { const age = (T - c.t) / TICK.perSecond; const lim = c.heard ? PER.heardFade : PER.fade; c.vis = c.vis && T - c.t <= PER.every * 2; c.conf = Math.max(0, (c.heard ? 0.4 : 1) * (1 - age / lim)); if (age > lim) m.delete(k); }
     }
     hear(B);
