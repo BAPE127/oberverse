@@ -109,6 +109,7 @@ export class Heavy {
     const pd = dist(g.player.x, g.player.y, x, y);
     if (pd <= R) g.combat.damagePlayer(damage * 0.6 * (1 - 0.6 * (pd / R)), null);
     this.crime(x, y);
+    g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open
   }
 
   // --------------------------------------------------------------- update

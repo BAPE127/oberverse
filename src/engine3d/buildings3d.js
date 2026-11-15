@@ -695,3 +695,27 @@ export function buildOpen(b, I, shared) {
   g.userData.room = room;
   return g;
 }
+
+/**
+ * v0.106.0: the holes blown in a roofed building's walls, seen from outside (src/systems/breaches.js): a dark opening the height of the ground
+ * floor with broken brick round its edge, set just proud of the facade at each hole's tile. `holes` are the world's breach records for this
+ * building; positions are tiles in the street map's frame. The materials get the see-through patch like the walls they sit on.
+ */
+export function buildHoles(b, holes) {
+  const g = new THREE.Group(); g.name = 'holes';
+  const dark = new THREE.MeshLambertMaterial({ color: '#17130f' }); const brick = new THREE.MeshLambertMaterial({ color: mute(b.wall || '#a8604a', 0.35) });
+  seeThroughN(dark); seeThroughN(brick);
+  for (const r of holes) {
+    const nx = r.ox - r.x; const nz = r.oy - r.y; const along = nx ? 'z' : 'x';
+    const cx = r.x + 0.5 + nx * 0.5; const cz = r.y + 0.5 + nz * 0.5;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.86 : 0.06, 1.55, along === 'x' ? 0.06 : 0.86), dark);
+    m.position.set(cx + nx * 0.03, 0.8, cz + nz * 0.03); g.add(m);
+    for (let i = 0; i < 6; i++) { // broken brick round the edge, a little different at each hole
+      const k = ((r.x * 31 + r.y * 17 + i * 7) % 10) / 10; const side = i % 2 ? 1 : -1; const up = 0.25 + (i >> 1) * 0.6;
+      const bb = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.16 + k * 0.1 : 0.09, 0.12 + k * 0.08, along === 'x' ? 0.09 : 0.16 + k * 0.1), brick);
+      const off = side * (0.42 + k * 0.05); bb.position.set(cx + nx * 0.05 + (along === 'x' ? off : 0), up + k * 0.2, cz + nz * 0.05 + (along === 'z' ? off : 0)); bb.rotation.y = k; g.add(bb);
+    }
+  }
+  return g;
+}
+

@@ -34,6 +34,8 @@ import { Heavy } from '../systems/heavy.js';
 import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
 import { Homes } from '../systems/homes.js';
+import { Breaches } from '../systems/breaches.js';
+import { BREACH } from '../content/destruction.js';
 import { Casino } from '../systems/casino.js';
 import { Transit } from '../systems/transit.js';
 import { Pursuit } from '../systems/pursuit.js';
@@ -85,6 +87,7 @@ export class Game {
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
     this.homes = new Homes(this); // v0.36.0: break-ins and invitations
+    this.breaches = new Breaches(this); // v0.106.0: holes blown in walls
     this.casino = new Casino(this); // v0.52.0: the Phonograph Grand
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
@@ -838,6 +841,7 @@ export class Game {
     const type = this.content.propTypes[prop.type];
     const name = prop.interact?.name || prop.name || type?.label || 'Object';
     switch (prop.interact?.kind) {
+      case 'breach_repair': return `Have Mason's Os brick up the hole (${BREACH.repairCost} obols)`; // v0.106.0
       case 'container': return `Search ${this.containerDef(prop.interact.container)?.name || name}`;
       case 'read': return `Read ${this.content.docs[prop.interact.doc]?.title || name}`;
       case 'sleep': return 'Sleep';
@@ -925,6 +929,7 @@ export class Game {
       return { type: 'message', text: prop.examine };
     }
     switch (act.kind) {
+      case 'breach_repair': return { type: 'message', text: this.breaches.repair(act.breach).text }; // v0.106.0
       case 'lift': return this.liftPanel(act.tower);
       case 'casino': { // v0.52.0: sit at a table; the host flies over, then the table opens
         const r = this.casino.sit(act.table);
@@ -1382,6 +1387,7 @@ export class Game {
     }
     this.arms.spawnStaff();
     this.hq.afterLoad(); // v0.87.0
+    this.breaches.afterLoad(); // v0.106.0: the holes in the walls, laid again
     this.war.afterLoad(); // v0.100.0
     this.dairy.afterLoad();
     this.farm.sync();

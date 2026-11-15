@@ -522,6 +522,7 @@ export class Vehicles {
       if (near) g.bus.emit('sfx', { id: 'sfx_crash' });
       if (g.heavy && (car.id === g.player.driving || car.rammed)) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
     }
+    if (car.id === g.player.driving && g.breaches) { const d = Math.sign(car.speed) || 1; g.breaches.ram(car.map, car.x, car.y, Math.cos(car.travel) * d, Math.sin(car.travel) * d, Math.abs(car.speed)); } // v0.106.0: driven into a wall hard enough, it gives
     car.speed = -car.speed * 0.25;
   }
 

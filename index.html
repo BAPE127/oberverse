@@ -6814,6 +6814,7 @@ const PROP_TYPES = {
   busstop: { solid: true, label: 'Bus stop', defaults: {} },
   trafficlight: { solid: true, label: 'Traffic light', defaults: {} },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
+  rubble: { solid: false, label: 'Rubble', defaults: { examine: 'Broken brick and plaster where a wall used to be.' } }, // v0.106.0: a wall blown open (src/systems/breaches.js)
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },
   tent: { solid: true, label: 'Tent', defaults: { w: 2 } },
@@ -31048,7 +31049,8 @@ __m["src/war/damage.js"] = (function () {
 //   apply(game, id, amount, source)                  hurt it: refused for a core structure of the company's base while the base is protected
 //   repair(game, id, amount, source)                 the only way it gets better (a repair contract's work); same gate
 //   stateOf(game, id) / view(game)                   reads
-// The gate protects a structure when owner === 'company' and core === true and baseProtected(game). Everything else (the national fort, a company's outbuildings that are not
+// The gate protects a structure when owner === 'company' and core === true and baseProtected(game); from v0.106.0 also an imported character's
+// building (owner 'imported', always) and a government building (owner 'government') while the same one flag says no coup has been staged. Everything else (the national fort, a company's outbuildings that are not
 // core, equipment, people) is not the gate's business. A source that is not on the list is refused outright.
 const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
 const { baseProtected } = __m["src/war/protection.js"];
@@ -31077,6 +31079,8 @@ function apply(game, id, amount, source) {
   if (!s) return { ok: false, refused: false, text: `${id} is not a known structure.`, state: null };
   if (!DAMAGE_SOURCES.includes(source)) return { ok: false, refused: true, text: `"${source}" is not a way a structure can be damaged.`, state: s.state };
   if (!(amount > 0)) return { ok: false, refused: false, text: 'No damage.', state: s.state };
+  if (s.owner === 'imported') return { ok: false, refused: true, text: `${s.name} will not break. Some places in the Oberverse are not yours to damage.`, state: s.state }; // v0.106.0: an imported character's building, always
+  if (s.owner === 'government' && baseProtected(game)) return { ok: false, refused: true, text: `${s.name} is a government building: it cannot be damaged unless a coup has been staged.`, state: s.state }; // v0.106.0: the same one flag
   if (s.owner === 'company' && s.core && baseProtected(game)) return { ok: false, refused: true, text: `${s.name} is protected: nothing can damage the core of your base until a coup is staged.`, state: s.state };
   const before = s.state;
   s.hp = Math.max(0, s.hp - amount);
@@ -37129,6 +37133,7 @@ class Heavy {
     const pd = dist(g.player.x, g.player.y, x, y);
     if (pd <= R) g.combat.damagePlayer(damage * 0.6 * (1 - 0.6 * (pd / R)), null);
     this.crime(x, y);
+    g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open
   }
 
   // --------------------------------------------------------------- update
@@ -37818,6 +37823,7 @@ class Vehicles {
       if (near) g.bus.emit('sfx', { id: 'sfx_crash' });
       if (g.heavy && (car.id === g.player.driving || car.rammed)) g.heavy.shakeUntil = g.realTime + Math.min(0.4, Math.abs(car.speed) / 900);
     }
+    if (car.id === g.player.driving && g.breaches) { const d = Math.sign(car.speed) || 1; g.breaches.ram(car.map, car.x, car.y, Math.cos(car.travel) * d, Math.sin(car.travel) * d, Math.abs(car.speed)); } // v0.106.0: driven into a wall hard enough, it gives
     car.speed = -car.speed * 0.25;
   }
 
@@ -38248,6 +38254,206 @@ class Homes {
 }
 
 return { Homes };
+})();
+
+// ---- src/content/destruction.js
+__m["src/content/destruction.js"] = (function () {
+// Destruction in the open world (v0.106.0, owner's decision of 2026-11-15): explosions, heavy weapons and vehicle rams blow holes in the walls
+// of ordinary buildings. A hole is a way in and out, rubble lies outside it, it stays after a reload, and Mason's Os bricks it up for a fee.
+// A building never collapses. Never damaged: buildings where an imported character lives or works (worked out from the characters, not
+// listed here), government buildings while no coup has been staged, and the core of your company's base while it is protected (the one
+// flag, src/war/protection.js). Every hole goes through the damage gate (src/war/damage.js), the only writer of a structure's state.
+
+/** Street maps whose every building belongs to the state. */
+const GOVERNMENT_STREETS = ['crown_quarter', 'fort_gullcrest', 'ironcrest_grounds', 'willowmere_grounds'];
+/** Government buildings standing on ordinary streets. */
+const GOVERNMENT_BUILDINGS = ['b_hall_of_justice', 'b_police'];
+
+const BREACH = {
+  /** A blast reaches walls within this share of its radius. */
+  reach: 0.85,
+  /** At most this many wall tiles open per blast (a hole one or two tiles wide). */
+  perBlast: 2,
+  /** The least blast (a heavy-weapons blast's damage) that opens a wall; a grenade-sized one only scorches it. */
+  minDamage: 60,
+  /** A wall tile's share of its building's structure points (the gate keeps the building's state: intact, damaged; never destroyed). */
+  hpPerTile: 6,
+  /** Hit points of a building in the gate. */
+  hp: 100,
+  /** A vehicle ramming a wall at this speed or more (px a second) breaks through. */
+  ramSpeed: 230,
+  /** Mason's Os's price to brick up one hole: labour and materials. */
+  repairCost: 180,
+  /** How many holes the world keeps (the oldest are bricked up by their owners when there are more). */
+  keep: 120,
+};
+
+return { GOVERNMENT_STREETS, GOVERNMENT_BUILDINGS, BREACH };
+})();
+
+// ---- src/systems/breaches.js
+__m["src/systems/breaches.js"] = (function () {
+// Holes blown in walls in the open world (v0.106.0; content and rules in src/content/destruction.js). A heavy-weapons blast or a vehicle
+// ramming at speed opens the wall tiles of a building it reaches. A hole is a pair of seamless portal doors, one on the street (the
+// building's footprint tile) and one in the room (its wall tile), so people walk through it exactly as through a front door; rubble lies
+// outside it. Holes are kept in `world.breaches` and laid again on every load (maps are rebuilt from content, then this state is applied,
+// the v0.88 pattern). Mason's Os bricks a hole up for a fee. Buildings never collapse.
+//
+// Every hole is first put to the damage gate (src/war/damage.js) under the building's structure id; the gate refuses an imported
+// character's building always, a government building while no coup has been staged, and the core of your base while it is protected.
+const { TILE } = __m["src/core/util.js"];
+const { BREACH, GOVERNMENT_STREETS, GOVERNMENT_BUILDINGS } = __m["src/content/destruction.js"];
+const { register, apply: damageApply } = __m["src/war/damage.js"];
+const { isProtected } = __m["src/systems/combat.js"];
+
+const sid = (street, b) => `bld:${street}:${b.id}`;
+
+class Breaches {
+  constructor(game) { this.game = game; this.importedMaps = null; }
+
+  get list() { const w = this.game.world; if (!w.breaches) w.breaches = []; return w.breaches; }
+
+  afterLoad() { this.importedMaps = null; for (const r of this.list) this.open(r); }
+
+  /** Map ids where an imported character lives or works (schedule blocks of work and sleep, and their home): their buildings are never damaged. */
+  imported() {
+    if (this.importedMaps) return this.importedMaps;
+    const g = this.game; const out = new Set();
+    for (const npc of g.npcs?.values?.() || []) {
+      if (!isProtected(npc)) continue;
+      for (const blk of npc.profile.schedule || []) { if (!['work', 'sleep', 'home'].includes(blk.activity)) continue; const m = String(blk.spot || '').split(':')[0]; if (m) out.add(m); } // (where they live and work, not every café they eat in)
+      const home = g.homes?.homeOf?.(npc.id); if (home?.map) out.add(home.map);
+    }
+    this.importedMaps = out; return out;
+  }
+
+  /** Whose a building is, for the gate: 'imported', 'government', 'company' or 'civil'. */
+  ownerOf(street, b) {
+    if (this.imported().has(b.interior)) return 'imported';
+    if (GOVERNMENT_STREETS.includes(street) || GOVERNMENT_BUILDINGS.includes(b.id)) return 'government';
+    if (b.facility || street === 'hollowmoor_lot') return 'company';
+    return 'civil';
+  }
+
+  /** The gate's record for a building (made on first use). */
+  structure(street, b) {
+    const owner = this.ownerOf(street, b);
+    return register(this.game, sid(street, b), { owner, core: owner === 'company', hp: BREACH.hp, name: b.name || b.mapLabel || 'a building' });
+  }
+
+  /** The outward step of a wall tile of a building's room (x, y in room tiles), or null for a corner or an inner tile. */
+  static normal(b, ix, iy) {
+    const edgeX = ix === 0 ? -1 : ix === b.w - 1 ? 1 : 0; const edgeY = iy === 0 ? -1 : iy === b.h - 1 ? 1 : 0;
+    if ((edgeX && edgeY) || (!edgeX && !edgeY)) return null;
+    return { x: edgeX, y: edgeY };
+  }
+
+  /** The wall tiles of street `S`'s buildings a blast at world px (x, y) on S with radius R px can open, nearest first. */
+  candidates(S, x, y, R) {
+    const g = this.game; const out = [];
+    for (const b of S.buildings || []) {
+      if (!b.interior) continue; const I = g.maps.get(b.interior); if (!I) continue;
+      const cx = Math.max(b.x * TILE, Math.min(x, (b.x + b.w) * TILE)); const cy = Math.max(b.y * TILE, Math.min(y, (b.y + b.h) * TILE));
+      if (Math.hypot(cx - x, cy - y) > R) continue;
+      for (let iy = 0; iy < b.h; iy++) for (let ix = 0; ix < b.w; ix++) {
+        const n = Breaches.normal(b, ix, iy); if (!n) continue;
+        if (I.tileAt(ix, iy) !== 'W') continue; // (already open, a window, the front door)
+        const tx = b.x + ix; const ty = b.y + iy; const ox = tx + n.x; const oy = ty + n.y;
+        if (S.blockedTile(ox, oy)) continue; // (against another building, water, a fence: no way out there)
+        if (b.door && Math.abs(b.door.x - tx) + Math.abs(b.door.y - ty) <= 1) continue;
+        const d = Math.hypot((tx + 0.5) * TILE - x, (ty + 0.5) * TILE - y); if (d > R) continue;
+        out.push({ b, ix, iy, tx, ty, ox, oy, d });
+      }
+    }
+    return out.sort((a, c) => a.d - c.d);
+  }
+
+  /** The street a map belongs to (itself, or the street a room is laid in) and the offset of `mapId`'s px in it. */
+  streetOf(mapId) {
+    const g = this.game; const m = g.maps.get(mapId); if (!m) return null;
+    if (m.kind !== 'interior') return { S: m, ox: 0, oy: 0 };
+    for (const n of g.neighbors(mapId)) if (n.map.kind !== 'interior') { const off = g.mapOffset(n.map.id, mapId); if (off) return { S: n.map, ox: off.x, oy: off.y }; }
+    return null;
+  }
+
+  /** A blast of `radiusTiles` and `damage` at px (x, y) on `mapId`: opens up to BREACH.perBlast wall tiles. Returns how many opened. */
+  blast(mapId, x, y, radiusTiles, damage, source = 'explosion') {
+    if (!(damage >= BREACH.minDamage)) return 0;
+    const st = this.streetOf(mapId); if (!st) return 0;
+    const R = radiusTiles * TILE * BREACH.reach; const px = x + st.ox; const py = y + st.oy;
+    let n = 0; const refused = new Set();
+    for (const c of this.candidates(st.S, px, py, R)) {
+      if (n >= BREACH.perBlast) break;
+      if (refused.has(c.b.id)) continue;
+      const r = this.make(st.S, c, source);
+      if (r === 'refused') refused.add(c.b.id); else if (r) n++;
+    }
+    if (n) this.game.bus.emit('sfx', { id: 'sfx_explosion' });
+    return n;
+  }
+
+  /** A vehicle at px (x, y) on `mapId` hit a wall moving at `speed` px a second towards (dx, dy): opens the tile it hit. */
+  ram(mapId, x, y, dx, dy, speed) {
+    if (!(speed >= BREACH.ramSpeed)) return 0;
+    const st = this.streetOf(mapId); if (!st) return 0;
+    const ahead = { x: x + st.ox + Math.sign(dx) * TILE * 0.8, y: y + st.oy + Math.sign(dy) * TILE * 0.8 };
+    const c = this.candidates(st.S, ahead.x, ahead.y, TILE * 0.9)[0]; if (!c) return 0;
+    return this.make(st.S, c, 'vehicle') === true ? 1 : 0;
+  }
+
+  /** Open one wall tile, if the gate allows it. Returns true, 'refused' or false. */
+  make(S, c, source) {
+    const g = this.game; this.structure(S.id, c.b);
+    const r = damageApply(g, sid(S.id, c.b), BREACH.hpPerTile, source);
+    if (!r.ok) { if (r.refused && !this.warned?.has(c.b.id)) { (this.warned ||= new Set()).add(c.b.id); g.notify?.(r.text, 'info'); } return r.refused ? 'refused' : false; }
+    const rec = { street: S.id, b: c.b.id, x: c.tx, y: c.ty, ix: c.ix, iy: c.iy, ox: c.ox, oy: c.oy, day: g.clock.day };
+    this.list.push(rec); this.open(rec);
+    while (this.list.length > BREACH.keep) this.close(this.list[0], false);
+    g.reportCrime?.({ fact: 'fact_player_explosion', map: S.id, x: (c.tx + 0.5) * TILE, y: (c.ty + 0.5) * TILE, radius: 12 });
+    return true;
+  }
+
+  /** Lay a hole into the maps: the two portal doors, the rubble outside, the room's wall tile gone. */
+  open(rec) {
+    const g = this.game; const S = g.maps.get(rec.street); const b = S?.buildings.find((q) => q.id === rec.b); const I = b && g.maps.get(b.interior);
+    if (!S || !I) return false;
+    const id = `breach_${rec.b}_${rec.x}_${rec.y}`; const spot = `${id}_out`;
+    if (S.doorIndex.has(rec.y * S.width + rec.x) && S.doorAt(rec.x, rec.y)?.id === id) return true; // (already laid)
+    S.spots[spot] = { x: rec.ox, y: rec.oy, facing: 'down' };
+    S.addDoor({ id, x: rec.x, y: rec.y, building: b.id, breach: true, seamless: true, portal: true, label: 'a hole in the wall', to: { map: I.id, spot: 'entry' } });
+    for (const p of [...I.props]) if (rec.ix >= p.x && rec.ix < p.x + (p.w || 1) && rec.iy >= p.y && rec.iy < p.y + (p.h || 1) && (p.w || 1) === 1 && (p.h || 1) === 1) I.removeProp(p.id); // (a window or a picture on that bit of wall)
+    I.addDoor({ id: `${id}_in`, x: rec.ix, y: rec.iy, breach: true, seamless: true, portal: true, label: 'a hole in the wall', to: { map: S.id, spot } });
+    S.addProp({ id: `${id}_rubble`, type: 'rubble', x: rec.ox, y: rec.oy, w: 1, h: 1, examine: 'Broken brick and plaster where a wall used to be.', interact: { kind: 'breach_repair', breach: id } });
+    return true;
+  }
+
+  /** Brick a hole up (Mason's Os's work, or its owner's when there are too many): the doors and the rubble go, the wall comes back. */
+  close(rec, notify = true) {
+    const g = this.game; const S = g.maps.get(rec.street); const b = S?.buildings.find((q) => q.id === rec.b); const I = b && g.maps.get(b.interior);
+    const id = `breach_${rec.b}_${rec.x}_${rec.y}`;
+    if (S) { S.removeDoor(id); S.grid[rec.y][rec.x] = 'B'; S.removeProp(`${id}_rubble`); delete S.spots[`${id}_out`]; }
+    if (I) { I.removeDoor(`${id}_in`); I.grid[rec.iy][rec.ix] = 'W'; }
+    const i = this.list.indexOf(rec); if (i >= 0) this.list.splice(i, 1);
+    if (notify) g.notify?.(`Mason's Os have bricked up the hole in ${b?.name || 'the wall'}.`, 'info');
+  }
+
+  byId(id) { return this.list.find((r) => `breach_${r.b}_${r.x}_${r.y}` === id) || null; }
+
+  /** Hire Mason's Os to brick up a hole: paid from your wallet. */
+  repair(id) {
+    const g = this.game; const rec = this.byId(id); if (!rec) return { ok: false, text: 'There is no hole there now.' };
+    const p = g.player; const cost = BREACH.repairCost;
+    if (p.money < cost) return { ok: false, text: `Mason's Os would brick this up for ${cost} obols. You have ${p.money}.` };
+    const pl = g.player; const S = g.maps.get(rec.street);
+    if (pl.map === rec.street && Math.floor(pl.x / TILE) === rec.x && Math.floor(pl.y / TILE) === rec.y) return { ok: false, text: 'Step out of the hole first.' };
+    void S;
+    p.money -= cost; g.bus.emit('money:changed', { delta: -cost, total: p.money });
+    this.close(rec);
+    return { ok: true, text: `Mason's Os bricked it up for ${cost} obols. "A wall-to-wall service," says the foreman.` };
+  }
+}
+
+return { Breaches };
 })();
 
 // ---- src/casino/roulette.js
@@ -56862,6 +57068,8 @@ const { Heavy } = __m["src/systems/heavy.js"];
 const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
 const { Homes } = __m["src/systems/homes.js"];
+const { Breaches } = __m["src/systems/breaches.js"];
+const { BREACH } = __m["src/content/destruction.js"];
 const { Casino } = __m["src/systems/casino.js"];
 const { Transit } = __m["src/systems/transit.js"];
 const { Pursuit } = __m["src/systems/pursuit.js"];
@@ -56913,6 +57121,7 @@ class Game {
     this.tablet = new Tablet(this);
     this.vehicles = new Vehicles(this);
     this.homes = new Homes(this); // v0.36.0: break-ins and invitations
+    this.breaches = new Breaches(this); // v0.106.0: holes blown in walls
     this.casino = new Casino(this); // v0.52.0: the Phonograph Grand
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
@@ -57666,6 +57875,7 @@ class Game {
     const type = this.content.propTypes[prop.type];
     const name = prop.interact?.name || prop.name || type?.label || 'Object';
     switch (prop.interact?.kind) {
+      case 'breach_repair': return `Have Mason's Os brick up the hole (${BREACH.repairCost} obols)`; // v0.106.0
       case 'container': return `Search ${this.containerDef(prop.interact.container)?.name || name}`;
       case 'read': return `Read ${this.content.docs[prop.interact.doc]?.title || name}`;
       case 'sleep': return 'Sleep';
@@ -57753,6 +57963,7 @@ class Game {
       return { type: 'message', text: prop.examine };
     }
     switch (act.kind) {
+      case 'breach_repair': return { type: 'message', text: this.breaches.repair(act.breach).text }; // v0.106.0
       case 'lift': return this.liftPanel(act.tower);
       case 'casino': { // v0.52.0: sit at a table; the host flies over, then the table opens
         const r = this.casino.sit(act.table);
@@ -58210,6 +58421,7 @@ class Game {
     }
     this.arms.spawnStaff();
     this.hq.afterLoad(); // v0.87.0
+    this.breaches.afterLoad(); // v0.106.0: the holes in the walls, laid again
     this.war.afterLoad(); // v0.100.0
     this.dairy.afterLoad();
     this.farm.sync();
@@ -67691,7 +67903,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-const FLAT_PROPS = new Set(['runway_light', 'crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle']);
+const FLAT_PROPS = new Set(['runway_light', 'crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle', 'rubble']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -68244,6 +68456,10 @@ function drawProp(ctx, p, opts) {
       ctx.fillStyle = '#3a2c25';
       ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
       ctx.fillText(p.label || 'FOUNDER', x + 12, y + 32);
+      break;
+    }
+    case 'rubble': { // v0.106.0: a wall blown open
+      for (const [dx, dy, w, h, c] of [[4, 18, 9, 6, '#8a4a3a'], [14, 22, 8, 5, '#a8604a'], [20, 14, 7, 6, '#6a3a2a'], [8, 10, 6, 5, '#c8b8a0'], [16, 8, 10, 3, '#6b4a2e']]) { ctx.fillStyle = c; ctx.fillRect(x + dx, y + dy, w, h); }
       break;
     }
     case 'trash': {
@@ -73360,7 +73576,31 @@ function buildOpen(b, I, shared) {
   return g;
 }
 
-return { STOREY, KERB, buildingKind, floorsOf, height3d, HOLES, makeHoles, makeHole, HOLES_SHARED, seeThroughN, seeThrough, holeLit, setHole, endHoles, buildRoofed, wallClass, wallRuns, wallPieces, buildRoom, buildStreetWalls, buildOpen };
+/**
+ * v0.106.0: the holes blown in a roofed building's walls, seen from outside (src/systems/breaches.js): a dark opening the height of the ground
+ * floor with broken brick round its edge, set just proud of the facade at each hole's tile. `holes` are the world's breach records for this
+ * building; positions are tiles in the street map's frame. The materials get the see-through patch like the walls they sit on.
+ */
+function buildHoles(b, holes) {
+  const g = new THREE.Group(); g.name = 'holes';
+  const dark = new THREE.MeshLambertMaterial({ color: '#17130f' }); const brick = new THREE.MeshLambertMaterial({ color: mute(b.wall || '#a8604a', 0.35) });
+  seeThroughN(dark); seeThroughN(brick);
+  for (const r of holes) {
+    const nx = r.ox - r.x; const nz = r.oy - r.y; const along = nx ? 'z' : 'x';
+    const cx = r.x + 0.5 + nx * 0.5; const cz = r.y + 0.5 + nz * 0.5;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.86 : 0.06, 1.55, along === 'x' ? 0.06 : 0.86), dark);
+    m.position.set(cx + nx * 0.03, 0.8, cz + nz * 0.03); g.add(m);
+    for (let i = 0; i < 6; i++) { // broken brick round the edge, a little different at each hole
+      const k = ((r.x * 31 + r.y * 17 + i * 7) % 10) / 10; const side = i % 2 ? 1 : -1; const up = 0.25 + (i >> 1) * 0.6;
+      const bb = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.16 + k * 0.1 : 0.09, 0.12 + k * 0.08, along === 'x' ? 0.09 : 0.16 + k * 0.1), brick);
+      const off = side * (0.42 + k * 0.05); bb.position.set(cx + nx * 0.05 + (along === 'x' ? off : 0), up + k * 0.2, cz + nz * 0.05 + (along === 'z' ? off : 0)); bb.rotation.y = k; g.add(bb);
+    }
+  }
+  return g;
+}
+
+
+return { STOREY, KERB, buildingKind, floorsOf, height3d, HOLES, makeHoles, makeHole, HOLES_SHARED, seeThroughN, seeThrough, holeLit, setHole, endHoles, buildRoofed, wallClass, wallRuns, wallPieces, buildRoom, buildStreetWalls, buildOpen, buildHoles };
 })();
 
 // ---- src/engine3d/ground3d.js
@@ -75204,6 +75444,15 @@ function trash(p) {
   return done(g);
 }
 
+/** v0.106.0: what is left of a wall blown open: broken brick, plaster and a beam, low enough to walk over. */
+function rubble(p) {
+  const k = rnd(p); const cols = ['#8a4a3a', '#a8604a', '#6a3a2a', '#c8b8a0', '#9a8f84'];
+  const parts = [];
+  for (let i = 0; i < 7; i++) { const a = (i * 2.399 + k * 6) % (Math.PI * 2); const r = 0.12 + ((i * 37) % 10) / 30; parts.push(bx(0.16 + (i % 3) * 0.06, 0.07 + (i % 2) * 0.06, 0.14 + (i % 2) * 0.05, cols[i % 5], Math.cos(a) * r, 0.0, Math.sin(a) * r, { ry: a })); }
+  parts.push(bx(0.5, 0.05, 0.08, '#6b4a2e', -0.05, 0.06, 0.05, { ry: 0.6 + k }));
+  return done(group(0.5, 0, 0.5, ...parts));
+}
+
 function dumpster(p) {
   const col = typeof p.color === 'string' ? mute(p.color, 0.3) : '#3f6a4a';
   return done(oriented(p, 2, 1, (L, D) => [bx(L - 0.1, 0.78, D - 0.2, col, 0, 0.12, 0), bx(L - 0.04, 0.08, D - 0.12, shade(col, -26), 0, 0.9, -0.04, { rx: -0.06 }),
@@ -75430,9 +75679,9 @@ function chainfence(p, ctx) {
   });
 }
 
-const BUILDERS = { fence, chainfence, streetlamp, bench, hydrant, mailbox, trash, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar };
+const BUILDERS = { fence, chainfence, streetlamp, bench, hydrant, mailbox, trash, rubble, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar };
 
-return { streetlamp, bench, hydrant, mailbox, trash, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar, fence, chainfence, BUILDERS };
+return { streetlamp, bench, hydrant, mailbox, trash, rubble, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar, fence, chainfence, BUILDERS };
 })();
 
 // ---- src/engine3d/props/nature.js
@@ -79940,7 +80189,7 @@ const lib = __m["src/engine3d/lib3d.js"];
 const { disposeTree } = __m["src/engine3d/lib3d.js"];
 const { cameraFrame, applyFrame, TILE } = __m["src/engine3d/camera3d.js"];
 const { Ground3D } = __m["src/engine3d/ground3d.js"];
-const { buildRoofed, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } = __m["src/engine3d/buildings3d.js"];
+const { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } = __m["src/engine3d/buildings3d.js"];
 const { Figure, stepFacing, newMotion, personKey } = __m["src/engine3d/people3d.js"];
 const { CombatFx3D } = __m["src/engine3d/combatfx3d.js"];
 const { holdKeyOf } = __m["src/engine3d/weapons3d.js"];
@@ -80074,6 +80323,7 @@ class World3D {
   disposeBuilding(e) {
     if (e.roofed) { e.roofed.group.removeFromParent(); disposeTree(e.roofed.group); }
     if (e.open) { e.open.removeFromParent(); disposeTree(e.open); }
+    if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; }
   }
 
   dispose() {
@@ -80187,7 +80437,7 @@ class World3D {
       for (const b of lm.buildings) {
         if (b.facility && g.war.facilityState(b.facility) !== 'built') continue;
         if (b.hall && !g.aero.hallBuilt(b.hall)) continue;
-        if (b.x + b.w < r.x0 - 2 || b.x > r.x1 + 2 || b.y + b.h < r.y0 - 2 || b.y > r.y1 + 2) { const e0 = ms.buildings.get(b); if (e0) { if (e0.roofed) e0.roofed.group.visible = false; if (e0.open) e0.open.visible = false; } continue; }
+        if (b.x + b.w < r.x0 - 2 || b.x > r.x1 + 2 || b.y + b.h < r.y0 - 2 || b.y > r.y1 + 2) { const e0 = ms.buildings.get(b); if (e0) { if (e0.holes) e0.holes.visible = false; if (e0.roofed) e0.roofed.group.visible = false; if (e0.open) e0.open.visible = false; } continue; }
         let e = ms.buildings.get(b);
         if (!e) { e = { b, roofed: null, open: null, last: 0, lit: 0, litAt: -9 }; ms.buildings.set(b, e); }
         e.last = this.frameNo;
@@ -80206,6 +80456,11 @@ class World3D {
             e.open = buildOpen(b, I, this.shared);
             ms.bldGroup.add(e.open);
           }
+        }
+        if (e.roofed) { // v0.106.0: the holes blown in its walls, seen from outside (rebuilt when their number changes)
+          const hs = (g.world.breaches || []).filter((r) => r.b === b.id && r.street === lm.id);
+          if ((e.holeN || 0) !== hs.length) { if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; } e.holeN = hs.length; if (hs.length) { e.holes = buildHoles(b, hs); ms.bldGroup.add(e.holes); } }
+          if (e.holes) e.holes.visible = t < 1;
         }
         if (e.roofed) {
           e.roofed.group.visible = t < 1;
@@ -93219,7 +93474,7 @@ const lib = __m["src/engine3d/lib3d.js"];
 const { disposeTree } = __m["src/engine3d/lib3d.js"];
 const { cameraFrame, applyFrame } = __m["src/engine3d/camera3d.js"];
 const { Ground3D } = __m["src/engine3d/ground3d.js"];
-const { buildRoofed, height3d, STOREY, KERB, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles } = __m["src/engine3d/buildings3d.js"];
+const { buildRoofed, buildHoles, height3d, STOREY, KERB, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles } = __m["src/engine3d/buildings3d.js"];
 const { Figure, personKey, yawOf, angleDiff } = __m["src/engine3d/people3d.js"];
 const { LightRig, presetFor, lampFactor } = __m["src/engine3d/light3d.js"];
 const { PROPS, VEHICLES } = __m["src/engine3d/registry3d.js"];
@@ -93437,6 +93692,11 @@ class Battle3D {
         const r = buildRoofed(r3, this.shared);
         for (const m of r.mats) seeThroughN(m);
         e.roofed = r; e.litFor = -1; this.bldGroup.add(r.group);
+      }
+      if (e.roofed) { // v0.106.0: walls blown open show as holes in the roofed building, not only as rubble at its foot
+        const hs = B.rubble.filter((r) => B.map.bid[r.y * B.map.w + r.x] === b.id).map((r) => ({ x: r.x, y: r.y, ox: r.x + (r.x === b.x ? -1 : r.x === b.x + b.w - 1 ? 1 : 0), oy: r.y + (r.y === b.y ? -1 : r.y === b.y + b.h - 1 ? 1 : 0) })).filter((r) => r.ox !== r.x || r.oy !== r.y);
+        if ((e.holeN || 0) !== hs.length) { if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; } e.holeN = hs.length; if (hs.length) { e.holes = buildHoles(b, hs); this.bldGroup.add(e.holes); } }
+        if (e.holes) e.holes.visible = t < 1;
       }
       if (e.roofed) {
         if (e.litFor !== this.darkness) { e.litFor = this.darkness; const k = lampFactor(this.darkness); for (const m of e.roofed.emissive) m.emissiveIntensity = (m.userData.emissiveBase || 0.8) * k; } // (windows glow by night)
@@ -93720,6 +93980,7 @@ class Battle3D {
     this.units.clear();
     for (const e of this.buildings.values()) {
       if (e.roofed) { e.roofed.group.removeFromParent(); this.disposeRoofed(e.roofed.group); }
+      if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); }
       this.dropOpen(e);
     }
     this.buildings.clear();

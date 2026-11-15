@@ -11,7 +11,7 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
-import { buildRoofed, height3d, STOREY, KERB, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles } from './buildings3d.js';
+import { buildRoofed, buildHoles, height3d, STOREY, KERB, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles } from './buildings3d.js';
 import { Figure, personKey, yawOf, angleDiff } from './people3d.js';
 import { LightRig, presetFor, lampFactor } from './light3d.js';
 import { PROPS, VEHICLES } from './registry3d.js';
@@ -229,6 +229,11 @@ export class Battle3D {
         const r = buildRoofed(r3, this.shared);
         for (const m of r.mats) seeThroughN(m);
         e.roofed = r; e.litFor = -1; this.bldGroup.add(r.group);
+      }
+      if (e.roofed) { // v0.106.0: walls blown open show as holes in the roofed building, not only as rubble at its foot
+        const hs = B.rubble.filter((r) => B.map.bid[r.y * B.map.w + r.x] === b.id).map((r) => ({ x: r.x, y: r.y, ox: r.x + (r.x === b.x ? -1 : r.x === b.x + b.w - 1 ? 1 : 0), oy: r.y + (r.y === b.y ? -1 : r.y === b.y + b.h - 1 ? 1 : 0) })).filter((r) => r.ox !== r.x || r.oy !== r.y);
+        if ((e.holeN || 0) !== hs.length) { if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; } e.holeN = hs.length; if (hs.length) { e.holes = buildHoles(b, hs); this.bldGroup.add(e.holes); } }
+        if (e.holes) e.holes.visible = t < 1;
       }
       if (e.roofed) {
         if (e.litFor !== this.darkness) { e.litFor = this.darkness; const k = lampFactor(this.darkness); for (const m of e.roofed.emissive) m.emissiveIntensity = (m.userData.emissiveBase || 0.8) * k; } // (windows glow by night)
@@ -512,6 +517,7 @@ export class Battle3D {
     this.units.clear();
     for (const e of this.buildings.values()) {
       if (e.roofed) { e.roofed.group.removeFromParent(); this.disposeRoofed(e.roofed.group); }
+      if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); }
       this.dropOpen(e);
     }
     this.buildings.clear();

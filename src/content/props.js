@@ -99,6 +99,7 @@ export const PROP_TYPES = {
   busstop: { solid: true, label: 'Bus stop', defaults: {} },
   trafficlight: { solid: true, label: 'Traffic light', defaults: {} },
   statue: { solid: true, label: 'Statue', defaults: { w: 2, h: 2 } },
+  rubble: { solid: false, label: 'Rubble', defaults: { examine: 'Broken brick and plaster where a wall used to be.' } }, // v0.106.0: a wall blown open (src/systems/breaches.js)
   trash: { solid: false, label: 'Rubbish', defaults: { examine: 'Bin bags, newspapers and something that used to be a sofa.' } },
   barrelfire: { solid: true, label: 'Burning barrel', defaults: { examine: 'An oil drum with a fire in it. People gather here on cold nights. The drum says OBER\'S OIL.' } },
   tent: { solid: true, label: 'Tent', defaults: { w: 2 } },

@@ -9,7 +9,7 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
-import { buildRoofed, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
+import { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
 import { CombatFx3D } from './combatfx3d.js';
 import { holdKeyOf } from './weapons3d.js';
@@ -143,6 +143,7 @@ export class World3D {
   disposeBuilding(e) {
     if (e.roofed) { e.roofed.group.removeFromParent(); disposeTree(e.roofed.group); }
     if (e.open) { e.open.removeFromParent(); disposeTree(e.open); }
+    if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; }
   }
 
   dispose() {
@@ -256,7 +257,7 @@ export class World3D {
       for (const b of lm.buildings) {
         if (b.facility && g.war.facilityState(b.facility) !== 'built') continue;
         if (b.hall && !g.aero.hallBuilt(b.hall)) continue;
-        if (b.x + b.w < r.x0 - 2 || b.x > r.x1 + 2 || b.y + b.h < r.y0 - 2 || b.y > r.y1 + 2) { const e0 = ms.buildings.get(b); if (e0) { if (e0.roofed) e0.roofed.group.visible = false; if (e0.open) e0.open.visible = false; } continue; }
+        if (b.x + b.w < r.x0 - 2 || b.x > r.x1 + 2 || b.y + b.h < r.y0 - 2 || b.y > r.y1 + 2) { const e0 = ms.buildings.get(b); if (e0) { if (e0.holes) e0.holes.visible = false; if (e0.roofed) e0.roofed.group.visible = false; if (e0.open) e0.open.visible = false; } continue; }
         let e = ms.buildings.get(b);
         if (!e) { e = { b, roofed: null, open: null, last: 0, lit: 0, litAt: -9 }; ms.buildings.set(b, e); }
         e.last = this.frameNo;
@@ -275,6 +276,11 @@ export class World3D {
             e.open = buildOpen(b, I, this.shared);
             ms.bldGroup.add(e.open);
           }
+        }
+        if (e.roofed) { // v0.106.0: the holes blown in its walls, seen from outside (rebuilt when their number changes)
+          const hs = (g.world.breaches || []).filter((r) => r.b === b.id && r.street === lm.id);
+          if ((e.holeN || 0) !== hs.length) { if (e.holes) { e.holes.removeFromParent(); disposeTree(e.holes); e.holes = null; } e.holeN = hs.length; if (hs.length) { e.holes = buildHoles(b, hs); ms.bldGroup.add(e.holes); } }
+          if (e.holes) e.holes.visible = t < 1;
         }
         if (e.roofed) {
           e.roofed.group.visible = t < 1;

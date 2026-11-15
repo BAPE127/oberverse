@@ -47,6 +47,15 @@ export function trash(p) {
   return done(g);
 }
 
+/** v0.106.0: what is left of a wall blown open: broken brick, plaster and a beam, low enough to walk over. */
+export function rubble(p) {
+  const k = rnd(p); const cols = ['#8a4a3a', '#a8604a', '#6a3a2a', '#c8b8a0', '#9a8f84'];
+  const parts = [];
+  for (let i = 0; i < 7; i++) { const a = (i * 2.399 + k * 6) % (Math.PI * 2); const r = 0.12 + ((i * 37) % 10) / 30; parts.push(bx(0.16 + (i % 3) * 0.06, 0.07 + (i % 2) * 0.06, 0.14 + (i % 2) * 0.05, cols[i % 5], Math.cos(a) * r, 0.0, Math.sin(a) * r, { ry: a })); }
+  parts.push(bx(0.5, 0.05, 0.08, '#6b4a2e', -0.05, 0.06, 0.05, { ry: 0.6 + k }));
+  return done(group(0.5, 0, 0.5, ...parts));
+}
+
 export function dumpster(p) {
   const col = typeof p.color === 'string' ? mute(p.color, 0.3) : '#3f6a4a';
   return done(oriented(p, 2, 1, (L, D) => [bx(L - 0.1, 0.78, D - 0.2, col, 0, 0.12, 0), bx(L - 0.04, 0.08, D - 0.12, shade(col, -26), 0, 0.9, -0.04, { rx: -0.06 }),
@@ -273,4 +282,4 @@ export function chainfence(p, ctx) {
   });
 }
 
-export const BUILDERS = { fence, chainfence, streetlamp, bench, hydrant, mailbox, trash, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar };
+export const BUILDERS = { fence, chainfence, streetlamp, bench, hydrant, mailbox, trash, rubble, dumpster, bollard, crate, barrel, barrelfire, sign, bigsign, roadsign, noticeboard, busstop, trafficlight, flagpole, gatepost, ranchpost, statue, tent, laundry, crosswalk, booth, fountain, boat, marquee_pylon, valet_stand, pillar };

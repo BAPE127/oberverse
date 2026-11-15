@@ -422,7 +422,7 @@ function drawLighthouse(ctx, b, opts) {
 
 // ------------------------------------------------------------------- props
 /** Props drawn flat on the ground before y-sorted objects. */
-export const FLAT_PROPS = new Set(['runway_light', 'crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle']);
+export const FLAT_PROPS = new Set(['runway_light', 'crops', 'shipberth', 'gangway', 'companionway', 'moored_ship', 'slipway', 'belt', 'inserter', 'sorter', 'rug', 'flowerbed', 'window', 'chair', 'item', 'painting', 'trench', 'board', 'crosswalk', 'trash', 'lift', 'helipad', 'magic_circle', 'rubble']);
 
 const LAMP = { red: ['#ff3b2f', '#4a1410'], amber: ['#ffb02e', '#4a3410'], green: ['#3fe07a', '#103a20'] };
 
@@ -975,6 +975,10 @@ export function drawProp(ctx, p, opts) {
       ctx.fillStyle = '#3a2c25';
       ctx.font = 'bold 6px "Trebuchet MS", sans-serif';
       ctx.fillText(p.label || 'FOUNDER', x + 12, y + 32);
+      break;
+    }
+    case 'rubble': { // v0.106.0: a wall blown open
+      for (const [dx, dy, w, h, c] of [[4, 18, 9, 6, '#8a4a3a'], [14, 22, 8, 5, '#a8604a'], [20, 14, 7, 6, '#6a3a2a'], [8, 10, 6, 5, '#c8b8a0'], [16, 8, 10, 3, '#6b4a2e']]) { ctx.fillStyle = c; ctx.fillRect(x + dx, y + dy, w, h); }
       break;
     }
     case 'trash': {

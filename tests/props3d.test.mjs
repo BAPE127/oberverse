@@ -21,7 +21,7 @@ test('every one of the prop types has a builder, and nothing is registered that 
   const missing = Object.keys(PROP_TYPES).filter((t) => !PROPS.has(t));
   assert.deepEqual(missing, []);
   for (const table of Object.values(GROUPS)) for (const t of Object.keys(table)) assert.ok(PROP_TYPES[t], `${t} is not a prop type`);
-  assert.equal(Object.keys(PROP_TYPES).length, 159);
+  assert.equal(Object.keys(PROP_TYPES).length, 160); // (v0.106.0: + rubble)
 });
 
 test('each builder, on a record of its default footprint, gives an object that fits the footprint, stands on the ground and is built of parts', () => {

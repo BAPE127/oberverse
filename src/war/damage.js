@@ -5,7 +5,8 @@
 //   apply(game, id, amount, source)                  hurt it: refused for a core structure of the company's base while the base is protected
 //   repair(game, id, amount, source)                 the only way it gets better (a repair contract's work); same gate
 //   stateOf(game, id) / view(game)                   reads
-// The gate protects a structure when owner === 'company' and core === true and baseProtected(game). Everything else (the national fort, a company's outbuildings that are not
+// The gate protects a structure when owner === 'company' and core === true and baseProtected(game); from v0.106.0 also an imported character's
+// building (owner 'imported', always) and a government building (owner 'government') while the same one flag says no coup has been staged. Everything else (the national fort, a company's outbuildings that are not
 // core, equipment, people) is not the gate's business. A source that is not on the list is refused outright.
 import { ensureMilitary, peekMilitary } from './state.js';
 import { baseProtected } from './protection.js';
@@ -34,6 +35,8 @@ export function apply(game, id, amount, source) {
   if (!s) return { ok: false, refused: false, text: `${id} is not a known structure.`, state: null };
   if (!DAMAGE_SOURCES.includes(source)) return { ok: false, refused: true, text: `"${source}" is not a way a structure can be damaged.`, state: s.state };
   if (!(amount > 0)) return { ok: false, refused: false, text: 'No damage.', state: s.state };
+  if (s.owner === 'imported') return { ok: false, refused: true, text: `${s.name} will not break. Some places in the Oberverse are not yours to damage.`, state: s.state }; // v0.106.0: an imported character's building, always
+  if (s.owner === 'government' && baseProtected(game)) return { ok: false, refused: true, text: `${s.name} is a government building: it cannot be damaged unless a coup has been staged.`, state: s.state }; // v0.106.0: the same one flag
   if (s.owner === 'company' && s.core && baseProtected(game)) return { ok: false, refused: true, text: `${s.name} is protected: nothing can damage the core of your base until a coup is staged.`, state: s.state };
   const before = s.state;
   s.hp = Math.max(0, s.hp - amount);
