@@ -786,7 +786,8 @@ export class UI {
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';
-    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    const army = g.army?.hunting(); // v0.106.0: the 4th star, the Army
+    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted + (army ? 1 : 0))}<span class="off">${'★'.repeat(Math.max(0, 3 - pol.wanted))}</span></span> ${army ? 'THE ARMY' : 'WANTED'}${army ? ` <span class="tag">🪖 ×${g.army.soldiers().filter((n) => !n.dead && n.map === g.player.map).length} soldiers · Fort Gullcrest has ${g.army.state.stock.soldiers + g.army.state.stock.heavy} left</span>` : ''}`;
     const cruisers = g.pursuit?.active().filter((c) => c.chase.mode === 'chase').length || 0;
     if (pol?.wanted > 0 && cruisers) whtmlWanted += ` <span class="tag">🚓 ×${cruisers} in pursuit</span>`;
     else if (pol?.wanted > 0 && g.pursuit?.active().length) whtmlWanted += ' <span class="tag">🔦 They\'re searching</span>';

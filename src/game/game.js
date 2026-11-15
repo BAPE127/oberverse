@@ -35,6 +35,7 @@ import { Tablet } from '../systems/tablet.js';
 import { Vehicles } from '../systems/vehicles.js';
 import { Homes } from '../systems/homes.js';
 import { Breaches } from '../systems/breaches.js';
+import { Army } from '../systems/army.js';
 import { BREACH } from '../content/destruction.js';
 import { Casino } from '../systems/casino.js';
 import { Transit } from '../systems/transit.js';
@@ -88,6 +89,7 @@ export class Game {
     this.vehicles = new Vehicles(this);
     this.homes = new Homes(this); // v0.36.0: break-ins and invitations
     this.breaches = new Breaches(this); // v0.106.0: holes blown in walls
+    this.army = new Army(this); // v0.106.0: the 4th wanted star
     this.casino = new Casino(this); // v0.52.0: the Phonograph Grand
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
@@ -334,6 +336,7 @@ export class Game {
     }
     this.combat.update(dt);
     this.police.update(dt);
+    this.army.update(dt); // v0.106.0
     this.gang.update(dt);
     this.heavy.update(dt);
     this.transit.update(dt);
@@ -358,6 +361,7 @@ export class Game {
     this.combat.minuteTick();
     this.homes.minuteTick();
     this.police.minuteTick();
+    this.army.minuteTick(); // v0.106.0
     this.calculators.minuteTick();
     this.gang.minuteTick();
     this.factory.minuteTick();
@@ -1280,6 +1284,7 @@ export class Game {
   serialize() {
     const npcs = {};
     for (const [id, n] of this.npcs) {
+      if (n.profile.transient) continue; // v0.106.0: the Army's soldiers out on a hunt are not saved (a load sends fresh waves)
       npcs[id] = {
         map: n.map, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, facing: n.facing,
         activity: n.activity, mood: n.mood, met: n.met, relationships: n.relationships, knowledge: n.knowledge,

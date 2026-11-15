@@ -810,7 +810,8 @@ export class Combat {
           // v0.44.0: a real bullet, aimed with a shooter's wobble — keep moving and it can miss you
           const ang = Math.atan2(p.y - BODY_Y - oy, p.x - ox) + (g.rng.next() - 0.5) * 0.22;
           const bd = { x: Math.cos(ang), y: Math.sin(ang) };
-          this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
+          if (wp.projectile === 'rocket' && g.heavy) g.heavy.launchRocket(ox + bd.x * 12, oy - 18 + bd.y * 8, bd, wp, npc.id); // v0.106.0: a soldier's launcher fires a real rocket
+          else this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
           this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, dir: bd, until: g.realTime + 0.06, start: g.realTime });
         } else {
           g.bus.emit('sfx', { id: 'sfx_punch' });

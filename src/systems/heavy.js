@@ -45,9 +45,9 @@ export class Heavy {
 
   // ------------------------------------------------------------- launching
   /** An RPG rocket (Combat.fire, for weapons with `projectile`). */
-  launchRocket(ox, oy, dir, wp) {
+  launchRocket(ox, oy, dir, wp, byNpc = null) {
     const g = this.game;
-    this.projectiles.push({ kind: 'rocket', x: ox, y: oy + 18, vx: dir.x * ROCKET_SPEED, vy: dir.y * ROCKET_SPEED, travelled: 0, range: wp.range * TILE, damage: wp.damage, blast: wp.blast, born: g.realTime, by: 'player' });
+    this.projectiles.push({ byNpc, kind: 'rocket', x: ox, y: oy + 18, vx: dir.x * ROCKET_SPEED, vy: dir.y * ROCKET_SPEED, travelled: 0, range: wp.range * TILE, damage: wp.damage, blast: wp.blast, born: g.realTime, by: 'player' });
   }
 
   /** Use a missile or drone from the inventory (item use: { heavy: type }). */
@@ -86,7 +86,7 @@ export class Heavy {
   }
 
   /** An explosion. Imported characters are never harmed by it. */
-  explode(x, y, radiusTiles, damage) {
+  explode(x, y, radiusTiles, damage, byNpc = null) {
     const g = this.game;
     const R = radiusTiles * TILE;
     g.combat.fx.push({ type: 'blast', x, y, r: R, until: g.realTime + 0.9, start: g.realTime });
@@ -108,8 +108,8 @@ export class Heavy {
     }
     const pd = dist(g.player.x, g.player.y, x, y);
     if (pd <= R) g.combat.damagePlayer(damage * 0.6 * (1 - 0.6 * (pd / R)), null);
-    this.crime(x, y);
-    g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open
+    if (!byNpc) this.crime(x, y); // (v0.106.0: a soldier's rocket is not your crime)
+    if (!byNpc) g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open (yours; the Army's rockets do not open walls)
   }
 
   // --------------------------------------------------------------- update
@@ -137,21 +137,23 @@ export class Heavy {
         pr.y += (pr.vy * dt) / n;
         pr.travelled += step / n;
         // a direct hit on someone
+        if (pr.byNpc && dist(g.player.x, g.player.y - 18, pr.x, pr.y) <= HIT) { this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc); done = true; break; } // v0.106.0: a soldier's rocket is aimed at you
         for (const npc of g.combat.targets()) {
           if (dist(npc.x, npc.y, pr.x, pr.y) > HIT) continue;
+          if (pr.byNpc && (npc.id === pr.byNpc || npc.profile.faction === 'fac_army' || isProtected(npc))) continue; // (it does not hit its own side, and it is not the player's attack on anyone)
           if (isProtected(npc)) {
             // a direct attack on an imported character: the Wrath, not an explosion
             g.combat.smite(npc, BLAST_WEAPON);
             this.projectiles = [];
             return;
           }
-          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc);
           done = true;
           break;
         }
         if (done) break;
         if (map.blockedTile(Math.floor(pr.x / TILE), Math.floor(pr.y / TILE)) || pr.travelled >= pr.range) {
-          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc);
           done = true;
         }
       }

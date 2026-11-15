@@ -100,7 +100,7 @@ export class Police {
     const sev = this.severityOf(e);
     s.record += sev;
     s.lastCrimeDay = g.clock.day;
-    if (e.fact === 'fact_player_murder' && this.isOfficer(g.npcs.get(e.victim))) s.officersKilled += 1;
+    if (e.fact === 'fact_player_murder' && this.isOfficer(g.npcs.get(e.victim))) { s.officersKilled += 1; g.bus.emit('police:officerKilled', { id: e.victim }); } // v0.106.0: two of these at three stars bring the Army
     const ids = [...new Set([...(e.witnesses || []), ...(e.victim ? [e.victim] : [])])];
     const people = ids.map((id) => g.npcs.get(id)).filter((n) => n && !isDown(n, g.clock.total));
     const officers = people.filter((n) => this.isOfficer(n) && n.id !== CHIEF);
@@ -403,6 +403,7 @@ export class Police {
   surrender() {
     const g = this.game;
     if (this.jailed()) return { ok: false, text: '' };
+    if (g.army?.hunting()) { const r = g.army.surrender(); if (r) return r; } // v0.106.0: to a soldier near you
     if (this.state.wanted <= 0) return { ok: false, text: 'Nobody is trying to arrest you.' };
     const near = this.activeOfficers().find((o) => o.map === g.player.map && dist(o.x, o.y, g.player.x, g.player.y) < 8 * TILE);
     if (!near) return { ok: false, text: 'There\'s no officer close enough to surrender to.' };
@@ -425,6 +426,7 @@ export class Police {
   /** Arrested, beaten, or struck down: everything ends in a cell. */
   sendToJail(reason) {
     const g = this.game;
+    if (g.army?.hunting()) g.army.endHunt(); // v0.106.0: arrested, the hunt is over
     const s = this.state;
     const p = g.player;
     // confiscate weapons, ammunition, stolen goods and any jail keys

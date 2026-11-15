@@ -110,6 +110,7 @@ export class Breaches {
   make(S, c, source) {
     const g = this.game; this.structure(S.id, c.b);
     const r = damageApply(g, sid(S.id, c.b), BREACH.hpPerTile, source);
+    if (!r.ok && r.refused && this.ownerOf(S.id, c.b) === 'government') g.army?.raise('an attack on a government building', true); // v0.106.0: the 4th star
     if (!r.ok) { if (r.refused && !this.warned?.has(c.b.id)) { (this.warned ||= new Set()).add(c.b.id); g.notify?.(r.text, 'info'); } return r.refused ? 'refused' : false; }
     const rec = { street: S.id, b: c.b.id, x: c.tx, y: c.ty, ix: c.ix, iy: c.iy, ox: c.ox, oy: c.oy, day: g.clock.day };
     this.list.push(rec); this.open(rec);
