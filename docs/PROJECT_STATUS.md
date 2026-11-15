@@ -6,15 +6,15 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Where the project stands
 
-- **Version:** v0.104.0 (The Graphics Update), development channel, save schema 1.
+- **Version:** v0.105.0 (Combat in 3D and the Battle Rework), development channel, save schema 1.
 - **Size:** about 84,000 lines of source in `src/` (18 folders), 163 test files, 48 system and design documents.
 - **Released:** the home coast and Halvermouth, the living-world simulation, combat, quests and emergent events, the corporate empire (companies, group, bank, bonds, exchange, managers, headquarters), shipping, arms works, aerospace, farming, casino, the World Atlas, the complete Politics update (v0.93–v0.97), and the War update through Strategic Command (v0.98–v0.103.11).
-- **In progress (unreleased, on the working branch):** combat in 3D (weapons, gunfire, blood, blasts) and the battle rework (rules 5: perception, element AI, flight, teams, planning, 1.6× vehicles, sound). Built, tested and seen by Fable in screenshots; awaiting the owner's play, a decision on compound/forest difficulty and a version number. See `CHANGELOG.md` Unreleased.
-- **Next on the roadmap:** v0.105.0 *War: Destruction, Government Response and Coup*, then v0.106.0 *War: Migration and Release*, then the Post-War Expansion (v0.107.0–v0.115.0). Every number moved up one when the Graphics Update took v0.104.0. See `ROADMAP.md` section 0.
+- **In progress:** nothing. v0.105.0 released on 2026-11-15 and published to the live site.
+- **Next on the roadmap:** v0.106.0 *War: Destruction, Government Response and Coup*, then v0.107.0 *War: Migration and Release*, then the Post-War Expansion (v0.108.0–v0.116.0). See `ROADMAP.md` section 0.
 
 ## Last work
 
-2026-11-13 — **v0.104.0, The Graphics Update** released on the working branch (`CHANGELOG.md`).
+2026-11-15 — **v0.105.0, Combat in 3D and the Battle Rework** (`CHANGELOG.md`). The last items were done in the lead session on Opus after the Sonnet agents reached the subscription's weekly limit.
 
 ## Health
 
@@ -32,10 +32,7 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Recommended next assignment
 
-1. The owner plays an attended battle (planning, teams, helicopters, sound) and answers: are compound and forest assaults too hard (`WAR.md` audit); version number for this release.
-2. Battle effects in 3D (tracers, impacts, smoke are still flat paint), garrison figures at windows, tank width.
-3. v0.105.0 on the roadmap, War: destruction (may need renumbering if this work takes that number).
+1. The owner plays an attended battle under rules 5 (planning, teams, helicopters, sound) and reports difficulty and feel; forest attack (13%% headless) and trench defence (85%%) are the outliers.
+2. v0.106.0 War: destruction, government response and the coup.
 
-**Paused 2026-11-15:** the subscription's weekly usage limit was reached (resets 2026-11-19 02:00 UTC). State on the working branch: suite 1,461/1,461 and smoke 91/91 before the cover change; after it, the battle and war tests pass (325/325) but the full suite, build and smoke have not been re-run. `index.html` on the branch predates the cover change. See `TASK_BOARD.md` Blocked.
-
-Usage note: two agents at once exhaust the subscription's 5-hour window before either finishes. Run one at a time, WIP-commit before and after, resume with SendMessage.
+Usage note: the Sonnet agents hit the weekly limit on 2026-11-15 (resets 2026-11-19 02:00 UTC). Run one agent at a time; WIP-commit before and after; resume a stopped agent with SendMessage.

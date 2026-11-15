@@ -1,10 +1,10 @@
 {
   "name": "The Oberverse",
-  "version": "0.104.0",
+  "version": "0.105.0",
   "buildChannel": "development",
   "saveSchemaVersion": 1,
   "contentSchemaVersion": 1,
-  "releaseDate": "2026-11-13",
+  "releaseDate": "2026-11-15",
   "entryPoint": "index.html (generated, self-contained — open directly or via GitHub Pages)",
   "runCommand": "Open index.html in a browser. Developers: dev.html via `npm run dev`; rebuild index.html with `npm run build`.",
   "runtime": {

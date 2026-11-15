@@ -2,6 +2,19 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.105.0',
+    date: '2026-11-15',
+    channel: 'development',
+    title: 'Combat in 3D and the Battle Rework',
+    notes: [
+      'Weapons are real models now, held and aimed properly. Shots flash at the muzzle and leave tracers and brass; a hit shows, blood pools on the ground, bodies lie with their weapon beside them, and explosions, scorch and skid marks are in the scene.',
+      'The enemy in a battle no longer knows where you are. It acts on what it sees, what it last saw and what it hears, and it fights in small groups that dig in, patrol, come to look at a noise, advance by bounds, flank, fall back and counter-attack. Same numbers and weapons as before.',
+      'Before a battle you plan it: choose your way in, split squads into lettered teams, place them and your vehicles, and look at what your intelligence knows. Teams keep their letter, are picked with one click and bound to keys 1 to 9 (battle speed is now on minus and plus).',
+      'Helicopters fly over the buildings, orbit, make attack passes and land only where their rotor has room. Military vehicles are much bigger. Soldiers crouch in cover, go prone under fire and fire from the windows they hold.',
+      'Battles have sound: rifles, machine guns, cannon, mortars, explosions, engines, rotors, shouts and a background that swells with the fighting. Dug-in defenders are easier to shift than before. Battles saved before this version play on by their old rules.',
+    ],
+  },
+  {
     version: '0.104.0',
     date: '2026-11-13',
     channel: 'development',

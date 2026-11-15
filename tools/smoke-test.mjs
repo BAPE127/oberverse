@@ -684,7 +684,16 @@ try {
           snap('heli-over-roofs');
           // it flies there: an order across the block arrives
           H.view.cam.zoom = 1; heli.x = Math.max(2, b.x - 6); heli.y = b.y + b.h / 2; H.S.sel = new Set([heli.id]); const gx = Math.min(B.map.w - 3, b.x + b.w + 6); H.give({ type: 'move', x: gx, y: heli.y }, 'fly'); H.S.speed = 0; let n = 0; while (Math.hypot(heli.x - gx, heli.y - heli.y) > 0.6 && n < 1500) { H.step(10); n += 10; } await frames(10); snap('heli-turn'); out[`battle_${recipe}_heliFlies`] = Math.abs(heli.x - gx) < 1 && heli.z >= 6.5;
-          const L = heli.id; H.S.sel = new Set([L]); H.flyOrder('land', { x: Math.max(2, b.x - 9), y: b.y + b.h + 8 }); n = 0; while (!heli.grounded && n < 3000) { H.step(10); n += 10; } await frames(30); out[`battle_${recipe}_heliLands`] = heli.grounded && R3.altOf(heli) === 0; H.view.center(heli.x, heli.y); snap('heli-landed'); }
+          const L = heli.id; H.S.sel = new Set([L]); for (const [ox, oy] of [[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6], [12, 6], [-12, 6], [6, 12], [-6, -12], [18, 0]]) { H.flyOrder('land', { x: Math.max(3, Math.min(H.B.map.w - 3, b.x - 9 + ox)), y: Math.max(3, Math.min(H.B.map.h - 3, b.y + b.h + 8 + oy)) }); if (heli.order?.type === 'land') break; } n = 0; while (!heli.grounded && n < 3000) { H.step(10); n += 10; } await frames(30); out[`battle_${recipe}_heliLands`] = heli.grounded && R3.altOf(heli) === 0; H.view.center(heli.x, heli.y); snap('heli-landed'); }
+        if (recipe === 'city') { // pictures for review: a garrison at its windows, a close fire-fight with 3D tracers, the fight later on (prone men, the dead, wrecks)
+          const inf = B.units.filter((u) => u.side === 'p' && u.kind === 'inf' && u.alive); const bs = B.map.buildings.map((b, i) => ({ b, i })).sort((a, c) => Math.hypot(a.b.x - inf[0].x, a.b.y - inf[0].y) - Math.hypot(c.b.x - inf[0].x, c.b.y - inf[0].y)); const gb = bs[0];
+          H.S.sel = new Set(inf.slice(0, 3).map((u) => u.id)); H.give({ type: 'garrison', b: gb.i, floor: Math.min(1, (gb.b.floors || 1) - 1) }, 'garrison'); H.S.sel = new Set(inf.slice(3).map((u) => u.id)); H.give({ type: 'amove', x: B.map.objective.x, y: B.map.objective.y }, 'attack-move');
+          for (let k = 0; k < 60 && !inf.slice(0, 3).some((u) => u.gstage === 'post'); k++) H.step(10); H.S.sel = new Set(); H.view.cam.zoom = 2; H.view.center(gb.b.x + gb.b.w / 2, gb.b.y + gb.b.h / 2); await frames(12); snap('garrison');
+          out.battle_city_posted = inf.slice(0, 3).filter((u) => u.gstage === 'post').length;
+          for (let k = 0; k < 60 && !B.units.some((u) => u.side === 'p' && u.alive && u.target && u.kind === 'inf' && u.gstage !== 'post'); k++) H.step(10);
+          { const u = B.units.find((q) => q.side === 'p' && q.alive && q.target && q.kind === 'inf' && q.gstage !== 'post') || inf[3]; H.view.cam.zoom = 2.6; H.view.center(u.x, u.y); for (let k = 0; k < 6; k++) { H.step(1); await frames(2); } snap('fight-close'); }
+          H.step(500); { const u = B.units.find((q) => q.side === 'p' && q.alive && q.prone) || B.units.find((q) => !q.alive && q.kind !== 'inf') || B.units.find((q) => !q.alive) || inf[3]; H.view.cam.zoom = 2.2; H.view.center(u.x, u.y); await frames(12); snap('later'); out.battle_city_laterDetail = JSON.stringify({ prone: B.units.filter((q) => q.prone && q.alive).length, dead: B.units.filter((q) => !q.alive).length, wrecks: B.units.filter((q) => !q.alive && q.kind !== 'inf').length }); }
+        }
         H.S.speed = 1; }
       const ids = H.B.units.filter((u) => u.side === 'p').map((u) => u.id); H.S.sel = new Set(ids); H.give({ type: 'amove', x: H.B.map.objective.x, y: H.B.map.objective.y }, 'attack-move');
       // v0.103.11: a right click opens the order menu at the cursor; its Move here item gives the order (a ping is drawn) and closes the menu
@@ -726,9 +735,12 @@ try {
       }
       H.view.cam.zoom = 0.4; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 3; await new Promise((r) => setTimeout(r, 150)); H.view.cam.zoom = 1; // far, close and command tiers draw
       H.step(40); await new Promise((r) => setTimeout(r, 250)); (window.__battleShots = window.__battleShots || {})[recipe] = (() => { const gl = document.querySelector('.bt-gl'); const c2 = document.querySelector('.bt-canvas'); const o = document.createElement('canvas'); o.width = c2.width; o.height = c2.height; const g2 = o.getContext('2d'); if (gl) g2.drawImage(gl, 0, 0, o.width, o.height); g2.drawImage(c2, 0, 0); return o.toDataURL('image/png'); })(); // the picture mid-fight, written to tools/out/ after the checks
+      // the sound of the fight: a few real seconds of battle at speed start voices from B.sfx, inside the cap; leaving releases them all
+      if (recipe === 'city') { const sp0 = H.S.speed; H.S.speed = 4; await new Promise((r) => setTimeout(r, 2500)); const st = H.ba.stats; out.battle_audio = H.ba.on && st.voices > 0 && H.ba.active.length <= 24; out.battle_audioDetail = JSON.stringify({ on: H.ba.on, voices: st.voices, dropped: st.dropped, stolen: st.stolen, limited: st.limited, active: H.ba.active.length, ctx: ui.audio?.ctx?.state || null }); H.S.speed = sp0; }
       H.step(6000); await new Promise((r) => setTimeout(r, 200));
       out[`battle_${recipe}_end`] = H.B.over && Boolean(g.war.battle(sk.id)?.result) && /battle|field|lost|hard-won/i.test(document.querySelector('.bt-over')?.textContent || '');
       ui.closePanel(); await new Promise((r) => setTimeout(r, 100));
+      if (recipe === 'city') out.battle_audioReleased = H.ba.active.length === 0 && !H.ba.on && !H.ba.bed;
       out[`battle_${recipe}_glClosed`] = !document.querySelector('.bt-gl') && !ui.battleHandle; out.battle_worldIntact = Boolean(ui.renderer.world3d) && !ui.renderer.world3d.lost && !ui.renderer.world3d.gl.getContext().isContextLost();
     }
     // v0.103.0: the strategic map opens with no theatre, lists the order of battle, and its enlist and raise screens open
@@ -1022,11 +1034,12 @@ try {
     g.combat.smite(n, null);
     return { money: g.player.money, day: g.clock.day };
   }, st3);
-  await wait(4300);
-  const mid = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: Boolean(g.combat.wrath), iso: ui.renderer.isoNow, theme: g.combat.wrath?.theme, struck: g.combat.wrath?.struck }; });
+  // the cutscene runs on real frames: on a slow (software) renderer it reaches each beat later, so wait for the beat, not a fixed time
+  const midOf = () => page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: Boolean(g.combat.wrath), iso: ui.renderer.isoNow, theme: g.combat.wrath?.theme, struck: g.combat.wrath?.struck }; });
+  await wait(4300); let mid = await midOf(); for (let i = 0; i < 40 && mid.wrath && !(mid.struck >= 3); i++) { await wait(250); mid = await midOf(); }
   await shot('3d-wrath-oil');
   record('iso: during the Wrath the world is drawn by the iso renderer and the cutscene is running', mid.wrath && mid.iso && mid.theme === 'oil' && mid.struck >= 3, JSON.stringify(mid));
-  await wait(6000);
+  await wait(6000); for (let i = 0; i < 40 && !(await page.evaluate(() => window.oberverse.ui.game.combat.wrath?.over === true)); i++) await wait(250);
   record('iso: the Wrath ends with the struck-down card', (await page.evaluate(() => window.oberverse.ui.game.combat.wrath?.over === true)) && (await page.isVisible('#modal:not(.hidden)')));
   await page.click('#modal-body button.primary'); await wait(600);
   const wrathAfter = await page.evaluate(() => { const ui = window.oberverse.ui; const g = ui.game; return { wrath: g.combat.wrath, map: g.player.map, money: g.player.money, health: g.player.health, time: g.clock.timeString, day: g.clock.day, iso: ui.renderer.isoNow, state: ui.state }; });

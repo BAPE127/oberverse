@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.105.0 | 2026-11-15 | development | 1 | Combat in 3D and the Battle Rework: weapons, gunfire, blood and blasts in 3D; battles under rules 5 (perception, element AI, flying helicopters, teams, planning stage, vehicles 1.6×, sound, lower garrison cover). A battle saved under older rules plays on by them. No save-format change. |
 | 0.104.0 | 2026-11-13 | development | 1 | The Graphics Update: the world and the battles drawn in 3D with three.js (vendored, inlined; the one library), blocky low-poly buildings, people, all 159 props, vehicles and aircraft; buildings open when entered and dissolve in front of you; keys follow the screen. Canvas 2D isometric fallback without WebGL. No rules or save changes. |
 | 0.103.11 | 2026-11-09 | development | 1 | War, the battle screen: a right-click order menu, one slim bar, order pings. No save changes. |
 | 0.103.10 | 2026-11-08 | development | 1 | War, sea power: fleets of ships lent by the shipping company (bombardment, blockade), passages and landings with escorts, international contracts from the embassies. Saves gain optional `war.fleets`, `war.navy`, `war.intl`, `contract` on a battalion and a war marker on a lent vessel. |

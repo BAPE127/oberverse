@@ -2,7 +2,7 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
-## Unreleased — Combat in 3D and the Battle Rework (version number to be set by the owner)
+## [0.105.0] — 2026-11-15 — Combat in 3D and the Battle Rework (development build)
 
 **Combat in the world, in 3D** (no change to damage, accuracy or any rule):
 - **Weapons** (`src/engine3d/weapons3d.js`): a model for each of the 31 weapon looks, held, carried, shouldered along the aim and swung; the energy families glow in their colour.
@@ -19,7 +19,10 @@ All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see d
 
 How hard it is now, the computer playing your side with no planning or support, 40 runs each (win rate, old rules → new): attack: city 60 → 23%, fields 63 → 30%, trench 55 → 18%, compound 25 → 5%, forest 57 → 10%; raid: 98 → 35, 100 → 45, 95 → 40, 80 → 0, 98 → 33; defence: 80 → 55, 5 → 45, 60 → 85, 73 → 70, 0 → 63. Compound and forest assaults are close to unwinnable for the computer-played side; no attended battle has been played yet. Full table: `docs/WAR.md`. Delegated engagements on the strategic map are worked out separately and are unaffected; no pay figure changed.
 
-Not done: tracers, impacts and smoke in a battle are still flat paint over the buildings; garrisoned figures at windows; a tank is drawn wider than its footprint (1.75 against 1.35 tiles); without WebGL the battle keeps its old sprite sizes; a vehicle can be placed on a street lamp. Checked in software WebGL only.
+- **Finished before release**: fire, smoke, dust, sparks and tracers of a battle are in the 3D scene (`src/engine3d/battleFx3d.js`), behind buildings when they are behind them, instead of paint over the roofs; a soldier holding a window of a roofed building is seen in it, at his floor, and fires from it; a street lamp, bench or bin a vehicle stands on is hidden under it; the planning screen's green ghost is the simulation's own answer (`canDeploy`, a dry run of `deploy`), with its reason when it is red; helicopters need a rotor disc 1.5× wider to land and are drawn to fit it exactly, so a landed helicopter's blades clear what the check cleared (every map still has over a thousand landing spots); the battle sound is checked in a real browser (voices start, stay under the cap, all released on leaving).
+- **Garrison cover lowered** (owner's decision, rules 5 only): a building 75% → 30%, a window 85% → 40%, a trench 75% → 30%, a tree or wall 25% → 12%. With the computer playing your side (40 runs each): attack city 28%, fields 48%, trench 28%, compound 38%, forest 13%; raid 50, 63, 28, 35, 35; defence 38, 45, 85, 38, 65. Forest attack is still hard (the enemy's force there, not cover) and trench defence easy.
+
+Checked in software WebGL only; nobody has played an attended battle under the new rules yet.
 
 ## [0.104.0] — 2026-11-13 — The Graphics Update (development build)
 

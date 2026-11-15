@@ -18,12 +18,15 @@ import { PROPS, VEHICLES } from './registry3d.js';
 import './props3d.js';
 import './vehicles3d.js';
 import { fallbackProp, fallbackVehicle } from './fallbacks3d.js';
-import { buildWarVehicle, buildHelicopter, sizeScale } from './vehicles/military.js';
+import { buildWarVehicle, buildHelicopter, fitScale } from './vehicles/military.js';
 import { buildAircraft } from './vehicles/aircraft.js';
 import { softwareGL } from './world3d.js';
 import { unproject, project, behindBox, hidesPoint } from '../engine/iso.js';
 import { TICK, TILE as BT, SUPPORT, FLIGHT } from '../content/battle.js';
 import { sizeOf } from '../battle/sizes.js';
+import { canStand } from '../battle/map.js';
+import { BattleFx3D } from './battleFx3d.js';
+import { windowPost } from '../engine/drawBattle.js';
 
 const TP = 32;
 const CHUNK = 8; // ground chunk, tiles (ground3d.js)
@@ -92,6 +95,7 @@ export class Battle3D {
     this.shared = { roofTex: new Map(), wallMat: new Map() };
     this.groundGroup = new THREE.Group(); this.propGroup = new THREE.Group(); this.carGroup = new THREE.Group(); this.bldGroup = new THREE.Group(); this.unitGroup = new THREE.Group(); this.fxGroup = new THREE.Group();
     this.scene.add(this.groundGroup, this.propGroup, this.carGroup, this.bldGroup, this.unitGroup, this.fxGroup);
+    this.pfx = new BattleFx3D(this.scene); // (fire, smoke, dust, sparks and tracers: the FxLayer's particles, in the scene)
     this.buildings = new Map(); this.units = new Map(); this.piles = new Map(); this.shots = new Map(); this.jets = new Map(); this.drones = new Map();
     this.chunks = new Map(); this.lamps = []; this.ground = null; this.decalSig = '';
     this.frame = 0; this.fresh = 3; this.lost = false; this.stats = {}; this.B = null; this.darkness = 0;
@@ -123,7 +127,7 @@ export class Battle3D {
     this.decalSig = this.decalKey(B);
     // props, baked into a few meshes per cell
     const ctx = { THREE, lib, map: sc.gm, game: null, night: false, state: null, time: 0 };
-    const cells = new Map();
+    const cells = new Map(); this.loose = [];
     for (const it of sc.items) {
       if (it.k !== 'prop') continue;
       const pp = it.pp; const build = PROPS.get(pp.type); let obj = null;
@@ -132,6 +136,11 @@ export class Battle3D {
       lib.placeProp(obj, pp);
       obj.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) seeThroughN(m); });
       for (const l of obj.userData.lights || []) this.lamps.push({ x: obj.position.x + l.x, y: l.y, z: obj.position.z + l.z, color: l.color, intensity: l.intensity, distance: l.distance || l.dist || 8, prio: 0 });
+      // a prop on ground a vehicle may drive over (a lamp, a bench, a bin on the pavement: the battle does not block on them) stays a
+      // separate object, hidden while a vehicle stands on it, instead of a tank showing a street lamp through its hull
+      const w = pp.w || 1; const h = pp.h || 1; let drivable = false;
+      for (let j = 0; j < h && !drivable; j++) for (let i = 0; i < w; i++) if (canStand(map, Math.floor(pp.x) + i, Math.floor(pp.y) + j, 'veh')) { drivable = true; break; }
+      if (drivable) { obj.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); }); this.propGroup.add(obj); this.loose.push({ obj, x0: pp.x, y0: pp.y, x1: pp.x + w, y1: pp.y + h }); continue; }
       const key = `${Math.floor(pp.x / PROP_CELL)},${Math.floor(pp.y / PROP_CELL)}`;
       let g = cells.get(key); if (!g) { g = new THREE.Group(); cells.set(key, g); }
       g.add(obj);
@@ -190,6 +199,8 @@ export class Battle3D {
     this.syncPiles(B, V);
     this.syncUnits(B, V, f);
     this.syncFx(B, V, f);
+    if (V.fx) this.pfx.sync(V.fx, f.tier === 'far');
+    this.clearUnder(B);
     const P = presetFor(this.darkness, true);
     this.scene.background = this.bg || (this.bg = new THREE.Color());
     this.bg.set(P.bg);
@@ -337,7 +348,7 @@ export class Battle3D {
     const sid = V.specKey(u); const heli = u.kind === 'helicopter';
     let obj = null;
     try { obj = heli ? buildHelicopter(sid) : buildWarVehicle(sid); } catch (err) { obj = null; }
-    const k = this.B.rules >= 5 ? sizeScale(sid) : 1; // (rules 5: the simulation's footprint table; an older battle keeps the size it was made at)
+    const k = this.B.rules >= 5 && obj ? fitScale(sid, obj) : 1; // (rules 5: the simulation's footprint table; an older battle keeps the size it was made at)
     if (!obj) obj = fallbackVehicle({ body: 'x', len: 60, wid: 30 }, u.side === 'p' ? '#4f6a3e' : '#7a4a3e');
     else obj.scale.setScalar(k);
     obj.rotation.order = 'YZX'; // (yaw, then pitch, then roll about the nose: a helicopter banks into a turn and noses down)
@@ -369,16 +380,34 @@ export class Battle3D {
       if (u.kind === 'inf') { this.poseSoldier(B, V, u, e, t, to, dt); continue; }
       this.poseMachine(B, V, u, e, t, to, dt);
     }
+    for (const u of f.posted || []) { // a soldier at a window of a roofed building: in the window, at his floor, looking out
+      if (this.hidden?.has(u.id) || shown.has(u.id)) continue;
+      const wp = windowPost(B, u); if (!wp) continue;
+      let e = this.units.get(u.id); if (!e) { e = this.makeUnit(u, V); if (!e) continue; this.units.set(u.id, e); this.unitGroup.add(e.obj); }
+      shown.add(u.id); e.obj.visible = true;
+      this.poseSoldier(B, V, u, e, u.target ? B.byId.get(u.target) : null, null, dt, { x: wp.x, z: wp.y, y: wp.floor * STOREY + 0.35, yaw: yawOf(wp.dx, wp.dy) });
+    }
     for (const [id, e] of this.units) if (!shown.has(id)) e.obj.visible = false, e.shadow && (e.shadow.visible = false);
+  }
+
+  /** Hide each drivable-ground prop that a ground vehicle (alive or wrecked) stands on; show it again when the vehicle has gone. */
+  clearUnder(B) {
+    if (!this.loose?.length) return;
+    const vs = B.units.filter((u) => u.kind !== 'inf' && !u.hidden && !(u.kind === 'helicopter' && (u.z || 0) > 0));
+    for (const L of this.loose) {
+      let under = false;
+      for (const u of vs) { const s = sizeOf(u); const r = Math.max(s.len || 1, s.wid || 1) * 0.5; const cx = Math.max(L.x0, Math.min(u.x, L.x1)); const cy = Math.max(L.y0, Math.min(u.y, L.y1)); if (Math.hypot(u.x - cx, u.y - cy) < r) { under = true; break; } }
+      L.obj.visible = !under;
+    }
   }
 
   /** The drawn height of a helicopter, in tiles: its simulated altitude (floors, `FLIGHT.cruise` at cruise) mapped so that cruise is above the tallest roof of the map. */
   altOf(u) { return u.kind === 'helicopter' && u.alive && (u.z || 0) > 0 ? Math.min(1.15, u.z / FLIGHT.cruise) * (this.cruiseAlt ?? 10) : 0; }
 
   /** A soldier from the simulation's state: the heading it turns to, whether it moves, fires, is on the ground, kneels at a casualty or signals. */
-  poseSoldier(B, V, u, e, t, to, dt) {
+  poseSoldier(B, V, u, e, t, to, dt, at = null) {
     const rules5 = B.rules >= 5; const down = !u.alive;
-    if (rules5 && u.heading !== undefined) e.yaw += angleDiff(e.yaw, Math.PI / 2 - u.heading) * Math.min(1, dt * 14);
+    if (at) { /* facing out of his window: below */ } else if (rules5 && u.heading !== undefined) e.yaw += angleDiff(e.yaw, Math.PI / 2 - u.heading) * Math.min(1, dt * 14);
     else if (to) e.yaw += angleDiff(e.yaw, yawOf(to.x - u.x, to.y - u.y)) * Math.min(1, dt * 14);
     if ((u.shots || 0) > (e.shots || 0)) { e.kick = 1; e.aimT = 0.7; }
     e.shots = u.shots || 0; e.kick = Math.max(0, (e.kick || 0) - dt * 6); e.aimT = Math.max(0, (e.aimT || 0) - dt);
@@ -390,7 +419,8 @@ export class Battle3D {
     let rally = 0;
     if (u.role === 'officer' && !down && !moving && B.tick % 10 === 0) e.rally = B.units.some((o) => o !== u && o.alive && o.side === u.side && o.state !== 'steady' && Math.hypot(o.x - u.x, o.y - u.y) < 7);
     if (e.rally && u.role === 'officer' && !down) rally = 1;
-    e.fig.pose({ x: u.x, y: 0, z: u.y, yaw: e.yaw, phase: moving && !prone ? V.t * (u.order?.type === 'amove' || u.v > 1.5 ? 13 : 11) + u.id.length * 0.7 : null, lying: down, lift: 0, aim: aiming || (!moving && Boolean(u.target) && !hard), kick: e.kick, prone, crawl: prone && u.moving ? V.t * 6 : null, crouch: crouch ? 1 : 0, kneel: tend ? 1 : 0, signal: rally, time: V.t });
+    if (at) { e.yaw += angleDiff(e.yaw, at.yaw) * Math.min(1, dt * 14); }
+    e.fig.pose({ x: at ? at.x : u.x, y: at ? at.y : 0, z: at ? at.z : u.y, yaw: e.yaw, phase: moving && !prone ? V.t * (u.order?.type === 'amove' || u.v > 1.5 ? 13 : 11) + u.id.length * 0.7 : null, lying: down, lift: 0, aim: aiming || (!moving && Boolean(u.target) && !hard), kick: e.kick, prone, crawl: prone && u.moving ? V.t * 6 : null, crouch: crouch || (at && !aiming) ? 1 : 0, kneel: tend ? 1 : 0, signal: rally, time: V.t });
   }
 
   /** A war machine from the simulation's state: the hull at its heading, the turret at its own, wheels and tracks at its speed, a rock on firing, a wreck when it is dead; a helicopter at its altitude with its rotor, bank and nose. */
@@ -485,6 +515,7 @@ export class Battle3D {
       this.dropOpen(e);
     }
     this.buildings.clear();
+    this.pfx?.dispose();
     this.ground?.dispose();
     this.chunks.clear();
     for (const g of [this.propGroup, this.carGroup, this.fxGroup, this.bldGroup, this.unitGroup, this.groundGroup]) { g.removeFromParent(); disposeTree(g); }

@@ -87,3 +87,15 @@ test('run and runToEnd on a battle still in planning begin it rather than wait f
   const C = createBattle(mk({ key: 'PL6|y', ai: { p: true, e: true }, plan: true })); runToEnd(C); assert.ok(C.over);
   const D = createBattle(mk({ key: 'PL6|z' })); runToEnd(D); assert.ok(D.over && D.log[0].order.type === 'begin');
 });
+
+test('the planning preview (canDeploy) agrees with deploy everywhere in the zone and changes nothing', async () => {
+  const { canDeploy } = await import('../src/battle/plan.js');
+  const B = createBattle(mk({ recipe: 'city' })); const z = currentEntry(B).zone; const team = B.teams.find((t) => t.side === 'p' && t.kind !== 'veh');
+  const snap = () => JSON.stringify(B.units.map((u) => [u.id, u.x, u.y, u.heading]));
+  for (const id of [team.id, 'T1', 'H1']) for (let y = z.y - 2; y < z.y + z.h + 2; y += 3) for (let x = z.x - 2; x < z.x + z.w + 2; x += 3) {
+    const before = snap(); const logN = B.log.length; const dry = canDeploy(B, id, x + 0.5, y + 0.5);
+    assert.equal(snap(), before, 'a preview moves nobody'); assert.equal(B.log.length, logN, 'and logs nothing');
+    const C = createBattle(mk({ recipe: 'city' })); const real = deploy(C, id, x + 0.5, y + 0.5);
+    assert.equal(dry.ok, real.ok, `${id} at ${x},${y}: preview ${dry.ok} vs deploy ${real.ok}`); if (!dry.ok) assert.equal(dry.text, real.text);
+  }
+});

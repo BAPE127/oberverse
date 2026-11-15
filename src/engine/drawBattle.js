@@ -18,6 +18,7 @@ import { unit } from '../battle/hash.js';
 import { sizeOf } from '../battle/sizes.js';
 import { project, unproject, sortItems, behindBox, hidesPoint, prismHit, spriteFacing, pointBox, bodyBox } from './iso.js';
 import { IsoBuildings, buildingHeight, columnPicture, bakeDiamond } from './isoBuildings.js';
+import { STOREY } from '../engine3d/buildings3d.js';
 
 export const TP = 32; // pixels a tile is drawn at, at command zoom
 const INK = '#1b1a24';
@@ -192,6 +193,22 @@ const specOf = (u) => (u.vtype === 'rainmaker' || u.vtype === 'longbow' || (FLEE
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /** The view: owns a canvas, a camera (in iso space: `cam` is the iso point at the canvas's top left) and the effects; `draw(B, ui)` paints a frame. */
+/**
+ * A soldier at his post in a building (garrison, settled at the window he covers): where he shows in the 3D view, at the window tile's outer
+ * face (x, y in tiles), the way the window looks (dx, dy), his floor, and the building. Null when he is not at a window (walking to it,
+ * on the stairs, outside). Paint only: the simulation keeps him on the tile inside.
+ */
+export function windowPost(B, u) {
+  if (u.kind !== 'inf' || u.gstage !== 'post' || !u.post || !u.alive || u.fled) return null;
+  if (Math.hypot(u.x - u.post.x, u.y - u.post.y) > 0.6) return null;
+  const m = B.map; const px = Math.floor(u.post.x); const py = Math.floor(u.post.y);
+  for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+    const i = px + dx; const j = py + dy; if (i < 0 || j < 0 || i >= m.w || j >= m.h) continue;
+    if (m.tiles[j * m.w + i] === TILE.WINDOW) return { x: px + 0.5 + dx * 1.42, y: py + 0.5 + dy * 1.42, dx, dy, floor: u.z || 0, b: m.bid[py * m.w + px] };
+  }
+  return null;
+}
+
 export class BattleView {
   constructor(canvas) { this.cv = canvas; this.ctx = canvas.getContext('2d'); this.cam = { x: 0, y: 0, zoom: 1 }; this.fx = null; this.scene = null; this.map = null; this.t = 0; this.hdg = new Map(); this.face = new Map(); this.air = []; this.labels = []; this.rings = []; this.evi = 0; this.lastShots = new Map(); this.lastHp = new Map(); this.seenAt = new Map(); this.bld = new IsoBuildings(200); this.fade = new Map(); this.floors = new Map(); this.opened = {}; this.ex = 0; this.ey = 0; this.r3 = null; }
   attach(B, looks = {}) {
@@ -284,7 +301,7 @@ export class BattleView {
     if (B.tick % 3 === 0) for (const c of B.smoke) if (c.until > B.tick) for (let i = 0; i < 2; i++) this.fx.cloud((c.x + (unit(`sc|${B.tick}|${i}`) - 0.5) * c.r * 1.7) * T, (c.y + (unit(`sd|${B.tick}|${i}`) - 0.5) * c.r * 1.3) * T, 6);
     for (const u of B.units) if (u.burning && B.tick % 4 === 0) this.fx.flame(u.x * T, u.y * T, 8);
     for (const u of B.units) {
-      const s0 = this.lastShots.get(u.id) ?? u.shots; if (u.shots > s0) { const t = u.target ? B.byId.get(u.target) : null; if (t) { const dx = t.x - u.x; const dy = t.y - u.y; const d = Math.hypot(dx, dy) || 1; this.fx.muzzle(u.x * TP, u.y * TP, dx / d, dy / d, 12); this.fx.tracer(u.x * TP, u.y * TP, t.x * TP, t.y * TP, u.side, 12); if (u.W.pierce >= 1 || u.W.rocket) this.fx.blast(t.x * TP, t.y * TP, false, 8); } }
+      const s0 = this.lastShots.get(u.id) ?? u.shots; if (u.shots > s0) { const t = u.target ? B.byId.get(u.target) : null; if (t) { const wp = this.r3 ? windowPost(B, u) : null; const sx = (wp ? wp.x : u.x) * TP; const sy = (wp ? wp.y : u.y) * TP; const sz = wp ? wp.floor * STOREY * TP + 22 : 12; const dx = t.x - u.x; const dy = t.y - u.y; const d = Math.hypot(dx, dy) || 1; this.fx.muzzle(sx, sy, dx / d, dy / d, sz); this.fx.tracer(sx, sy, t.x * TP, t.y * TP, u.side, sz); if (u.W.pierce >= 1 || u.W.rocket) this.fx.blast(t.x * TP, t.y * TP, false, 8); } }
       this.lastShots.set(u.id, u.shots);
       const h0 = this.lastHp.get(u.id) ?? u.hp; if (u.hp < h0 - 0.5) this.fx.hit(u.x * TP, u.y * TP, 10); if (h0 > 0 && u.hp <= 0) this.fx.blast(u.x * TP, u.y * TP, u.kind !== 'inf', 8); this.lastHp.set(u.id, u.hp);
       if (!u.alive && u.kind !== 'inf' && B.tick % 8 === 0) this.fx.smoke(u.x * TP, u.y * TP, 6);
@@ -371,16 +388,18 @@ export class BattleView {
     this.vw = { x0: cam.x, y0: cam.y, x1: cam.x + this.cv.width / Z, y1: cam.y + this.cv.height / Z };
     const seen = ui.seen || new Set(B.units.filter((u) => u.side === 'e').map((u) => u.id)); const open = this.opened;
     const list = tier === 'far' ? [] : this.visibleUnits(B, open, seen);
-    if (!this.r3.render(B, ui, this, { units: list, foci: this.foci(B, ui, seen), tier, dt: 1 / 60, open })) return false;
+    // soldiers at the windows of a roofed building they hold: seen from outside (the rest of a garrison stays out of sight inside)
+    const posted = tier === 'far' ? [] : B.units.filter((u) => (u.side === 'p' || seen.has(u.id)) && !u.hidden && !open[B.map.bid[Math.floor(u.y) * B.map.w + Math.floor(u.x)]] && windowPost(B, u));
+    if (!this.r3.render(B, ui, this, { units: list, posted, foci: this.foci(B, ui, seen), tier, dt: 1 / 60, open })) return false;
     g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, this.cv.width, this.cv.height);
     this.ground(g);
     const o = B.map.objective; this.ring(g, o.x * TP + 16, o.y * TP + 16, 4 * TP); g.strokeStyle = 'rgba(255,224,120,0.9)'; g.lineWidth = 3; g.setLineDash([8, 6]); g.stroke(); g.setLineDash([]);
     if (B.goal === 'extract' || B.goal === 'rescue') { const h0 = B.map.spawns.p; this.ring(g, h0.x * TP + 16, h0.y * TP + 16, 4 * TP); g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.setLineDash([6, 5]); g.stroke(); g.setLineDash([]); }
     if (B.goal === 'logistics') { this.ground(g); g.strokeStyle = 'rgba(120,255,160,0.9)'; g.lineWidth = 3; g.strokeRect(B.map.exit.x * TP - 20, B.map.exit.y * TP - 60, 40, 120); }
     this.screen(g);
-    if (tier === 'far') { this.banners(g, B, seen, ui); this.screen(g); this.fx.draw(g, project); g.setTransform(1, 0, 0, 1, 0, 0); return true; }
+    if (tier === 'far') { this.banners(g, B, seen, ui); g.setTransform(1, 0, 0, 1, 0, 0); return true; } // (fire, smoke and tracers are in the 3D scene: src/engine3d/battleFx3d.js)
     for (const u of list) this.marks(g, u, ui);
-    this.screen(g); this.fx.draw(g, project);
+    this.screen(g);
     this.overlay(g, B);
     for (const b of B.map.buildings) if (open[b.id] && this.stateOf(b).t > 0.5) this.plate(g, b, open[b.id].floor);
     g.setTransform(1, 0, 0, 1, 0, 0);

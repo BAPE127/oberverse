@@ -3,6 +3,7 @@
 // SPEC: running gear, hull shape, turret, features, hull colour) so every id is the vehicle the player owns. Sizes are the spec's px / 32:
 // a tank is about 1.8 tiles long, against a car's 2.3.
 // What moves: a turret creeps round, a radar dish turns, wheels steer and roll (when driven), rotors turn when `running`.
+import { THREE } from '../three.js';
 import { assemble } from './geo.js';
 import { mix } from '../lib3d.js';
 import { SPEC } from '../../engine/drawFleet.js';
@@ -24,6 +25,25 @@ export function sizeScale(id) {
   const sp = SPEC[id]; const sz = VEHICLE_SIZE[id];
   if (!sp || !sz || !sp.L) return 1;
   return sz.len / (sp.L / TILE);
+}
+/**
+ * The factor a model is drawn at in a rules-5 battle or at the base: a ground vehicle by its length (sizeScale; the hull then
+ * matches the table's width too, the gun overhanging as guns do); a helicopter so that its main rotor disc is the table's rotor,
+ * the room the landing check keeps clear. Measured on the model once per type.
+ */
+const FIT = new Map();
+export function fitScale(id, obj) {
+  const sz = VEHICLE_SIZE[id];
+  if (!sz || !sz.rotor) return sizeScale(id);
+  if (FIT.has(id)) return FIT.get(id);
+  const rotor = obj?.userData?.subs?.rotor; let k = sizeScale(id);
+  if (rotor) {
+    const s0 = obj.scale.clone(); obj.scale.setScalar(1); obj.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(rotor); const d = Math.max(b.max.x - b.min.x, b.max.z - b.min.z);
+    obj.scale.copy(s0); obj.updateMatrixWorld(true);
+    if (d > 0.05) k = sz.rotor / d;
+  }
+  FIT.set(id, k); return k;
 }
 /** The same factor for an older battle (rules below 5), which kept the drawn size: the table divided by the 1.6 it added. */
 export const oldSizeScale = (id) => sizeScale(id) / VEHICLE_SCALE;

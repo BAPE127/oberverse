@@ -57,22 +57,25 @@ export function deploy(B, id, x, y) {
   const r = doDeploy(B, id, x, y); if (r.ok) B.log.push({ t: 0, ids: [], order: { type: 'deploy', id, x, y } }); return r;
 }
 /** `deploy` without the log entry (the replay applies the entry itself). */
-export function doDeploy(B, id, x, y) {
+export function doDeploy(B, id, x, y, dry = false) {
   if (B.phase !== 'plan') return { ok: false, text: 'The battle has begun.' };
   const z = currentEntry(B).zone; const t = (B.teams || []).find((q) => q.id === id) || null; const u = B.byId.get(id);
   if (t && t.side === 'p') {
-    if (t.kind === 'veh') return doDeploy(B, t.members[0], x, y);
+    if (t.kind === 'veh') return doDeploy(B, t.members[0], x, y, dry);
     const spots = teamSpots(B, t, x, y, z); if (!spots) return { ok: false, text: 'There is no room for them there: keep inside the zone, on open ground.' };
-    for (const [m, p] of spots) put(m, p.x, p.y, headingTo(B, p));
+    if (!dry) for (const [m, p] of spots) put(m, p.x, p.y, headingTo(B, p));
     return { ok: true, text: `${t.name} is in place.` };
   }
   if (u && u.side === 'p' && u.kind !== 'inf' && u.alive) {
     if (!inZone(z, x, y) || !spotOk(B, u, x, y)) return { ok: false, text: u.kind === 'helicopter' ? 'It needs open ground to land: nothing in the way, no roof, no narrow street.' : 'It does not fit there: keep inside the zone, on open ground with room for it.' };
-    put(u, x, y, headingTo(B, { x, y })); if (u.kind === 'helicopter') { u.grounded = true; }
+    if (!dry) { put(u, x, y, headingTo(B, { x, y })); if (u.kind === 'helicopter') { u.grounded = true; } }
     return { ok: true, text: `${u.name} is in place.` };
   }
   return { ok: false, text: 'Nothing of yours has that name.' };
 }
+
+/** Whether `deploy` would accept this, and why not, changing nothing (the planning screen's preview while you drag). */
+export const canDeploy = (B, id, x, y) => doDeploy(B, id, x, y, true);
 
 /** The sound default: teams in a row along the front of the zone, vehicles and helicopters behind them. Not logged (it follows from the state); `chooseEntry` and the headless start use it. */
 export function autoPlan(B) {

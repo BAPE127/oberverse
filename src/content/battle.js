@@ -194,7 +194,8 @@ export const VEHICLE_SIZE = {
   hammer: sz(56, 30), rainmaker: sz(54, 26), longbow: sz(56, 28), thump: sz(40, 24), howitzer: sz(56, 30), battery: sz(56, 30),
   skyguard: sz(44, 26), falconer: sz(48, 24), longshot: sz(56, 26), lance: sz(44, 24),
   truck: sz(52, 24), command: sz(50, 24), medevac: sz(48, 24),
-  wren: sz(30, 14, 30), drover: sz(52, 18, 46), viper: sz(46, 11, 42), talon: sz(56, 16, 48), mercy: sz(50, 18, 44), shade: sz(40, 16, 36), tempest: sz(58, 14, 46), ox: sz(64, 20, 38),
+  // helicopters: the rotor disc is 1.5 times the 2D sprite's, so a landed helicopter's blades (drawn to this disc in 3D) clear what the landing check cleared
+  wren: sz(30, 14, 45), drover: sz(52, 18, 69), viper: sz(46, 11, 63), talon: sz(56, 16, 72), mercy: sz(50, 18, 66), shade: sz(40, 16, 54), tempest: sz(58, 14, 69), ox: sz(64, 20, 57),
 };
 /** What a unit with no (known) type is, by its class (the battle's `kind` and `role`). */
 export const VEHICLE_BY_CLASS = { tank: 'anvil', carrier: 'wolf', helicopter: 'viper', recon: 'scout', artillery: 'hammer', antiair: 'skyguard', other: 'truck' };

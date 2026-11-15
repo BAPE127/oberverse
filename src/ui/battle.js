@@ -3,6 +3,7 @@
 // view that opens a building to one floor (with a switch to show the ground floor instead), speed controls, and the result when it ends. The panel only DRAWS and GIVES ORDERS: the battle is
 // the simulation's, the records are the engagement's (game.war), and the battle is saved as its setup, its orders and its tick.
 import { h } from './panels.js';
+import { canDeploy } from '../battle/plan.js';
 import { createBattle, step, issue, outcome, replay, sightOf, isVeh, callSupport, callReserve, issueFormation, designated, beginBattle, autoPlan, chooseEntry, deploy, planIntel, currentEntry, splitTeam, mergeTeams, teamOf } from '../battle/sim.js';
 import { landingSpot, landRadius } from '../battle/flight.js';
 import { sizeOf } from '../battle/sizes.js';
@@ -300,7 +301,7 @@ export function battlePanel(ui, body, opts = {}) {
       label(c.x, c.y - 14, sure ? `${c0.role ? c0.role.replace('_', ' ') : c0.kind === 'inf' ? 'troops' : c0.kind === 'air' ? 'aircraft' : 'vehicle'} (confirmed)` : `${c0.kind === 'inf' ? 'troops' : c0.kind === 'air' ? 'aircraft' : 'vehicle'}? (suspected)`, '#ff9a8a');
     }
     for (const a of intel.aa) { const c = view.toCanvas(a.x * TP, a.y * TP, 0); label(c.x, c.y - 28, 'AA', '#ffd45a'); }
-    if (S.place?.moved && S.mouseAt) { const t = S.mouse; const zn = cur.zone; const ok = t && t.x >= zn.x && t.y >= zn.y && t.x < zn.x + zn.w && t.y < zn.y + zn.h; const c = view.toCanvas(t.x * TP, t.y * TP, 0); ell(c.x, c.y, 1.6 * TP * z); g2.strokeStyle = ok ? '#7af0a0' : '#ff6a58'; g2.lineWidth = 3; g2.stroke(); label(c.x, c.y - 16, ok ? `place ${S.place.name || 'here'}` : 'outside your zone', ok ? '#7af0a0' : '#ff6a58'); }
+    if (S.place?.moved && S.mouseAt) { const t = S.mouse; const zn = cur.zone; const pv = t && S.place.id ? canDeploy(B, S.place.id, t.x, t.y) : { ok: false, text: 'outside your zone' }; const ok = pv.ok; void zn; const c = view.toCanvas(t.x * TP, t.y * TP, 0); ell(c.x, c.y, 1.6 * TP * z); g2.strokeStyle = ok ? '#7af0a0' : '#ff6a58'; g2.lineWidth = 3; g2.stroke(); label(c.x, c.y - 16, ok ? `place ${S.place.name || 'here'}` : pv.text, ok ? '#7af0a0' : '#ff6a58'); } // (the simulation's own answer, changing nothing: green exactly where Begin will find them)
   };
   // ---- a helicopter's flight: its path, an orbit's ring, a pass's line, a landing's mark (at the altitude it is drawn at; the landing on the ground)
   const drawFlight = () => {
