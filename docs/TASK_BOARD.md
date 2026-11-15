@@ -8,15 +8,14 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 | # | Task | Agent | Notes |
 | --- | --- | --- | --- |
-| B-4 | Battle effects in 3D (tracers, impacts, smoke off the 2D overlay), garrison figures at windows, tank drawn width vs `VEHICLE_SIZE`, deploy preview dry-run, `issue()` to return refusals | sonnet-ui / sonnet-gameplay | After the owner has played |
 | G-9 | 3D defect list (`RENDERING.md` 7.6), by the owner's priority | sonnet-ui / sonnet-technical | When the owner asks |
 
 ## Waiting on the owner
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| O-8 | Play an attended rules-5 battle; are compound and forest assaults too hard (headless 0–10%)? Lower garrison cover there, or leave | Cover values are the cause; the owner asked for unchanged stats |
-| O-9 | Version number and name for combat in 3D + the battle rework | Release files and roadmap numbering |
+| O-8 | Garrison cover lowered on the owner's word (`COVER5`, 2026-11-15). Forest offence is still 13% headless (the enemy's heavier force, not cover) and trench defence 85%; play it and say | Remaining difficulty outliers |
+| O-9 | Release now without B-4, or wait until the usage limit resets on 2026-11-19? | The owner asked for B-4, then release and publish; B-4 cannot be done before the 19th |
 | O-3 | War: destruction and coup is now v0.105.0 (the Graphics Update took v0.104.0) | — |
 | O-6 | Add a world facing vector so keyboard interaction and auto-aim follow the walking direction (a small simulation change; `RENDERING.md` 2.5) | Owner's approval required by the brief |
 | O-4 | Roadmap open questions 2, 3, 4, 6, 7 (`ROADMAP.md` section 6) | 2–4 affect battle rules; none blocks 12a |
@@ -45,4 +44,7 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 
 ## Blocked
 
-None.
+| # | Task | Blocked by | Resume |
+| --- | --- | --- | --- |
+| B-4 | Battle presentation, the not-done list (owner, 2026-11-14: "Do what is not done"): effects in 3D off the 2D overlay, garrison figures at windows, vehicle footprints to `VEHICLE_SIZE` on both axes, props hidden under vehicles, deploy preview from the sim's validity helpers, a look at unviewed poses, a smoke check that battle audio starts and releases voices | The subscription's **weekly** usage limit, hit 2026-11-15; resets 2026-11-19 02:00 UTC. Nothing was written before the stop | Resume the sonnet-ui agent with SendMessage, or start a fresh one from the brief in this row; one agent at a time |
+| REL | Release v0.105.0 (combat in 3D + battle rework, garrison cover lowered) and publish to the live site, as the owner asked | Waits for B-4 unless the owner says to release without it | Fable: version files, changelog heading, roadmap +1, build, full suite, smoke, push both branches |

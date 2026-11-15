@@ -36,4 +36,6 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 2. Battle effects in 3D (tracers, impacts, smoke are still flat paint), garrison figures at windows, tank width.
 3. v0.105.0 on the roadmap, War: destruction (may need renumbering if this work takes that number).
 
+**Paused 2026-11-15:** the subscription's weekly usage limit was reached (resets 2026-11-19 02:00 UTC). State on the working branch: suite 1,461/1,461 and smoke 91/91 before the cover change; after it, the battle and war tests pass (325/325) but the full suite, build and smoke have not been re-run. `index.html` on the branch predates the cover change. See `TASK_BOARD.md` Blocked.
+
 Usage note: two agents at once exhaust the subscription's 5-hour window before either finishes. Run one at a time, WIP-commit before and after, resume with SendMessage.
