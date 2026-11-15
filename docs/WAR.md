@@ -105,36 +105,38 @@ The tactical battle was reworked after v0.104.0 ("too bland and easy"). **Rules 
 
 | recipe | goal | win r4 | win r5 | own r4 | own r5 | foe r4 | foe r5 | len r4 | len r5 | flank | fall back | counter | investigate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| city | defence | 80% | 55% | 82% | 90% | 88% | 82% | 2350 | 1517 | 2.1 | 5.5 | 2.0 | 3.5 |
-| city | offence | 60% | 23% | 45% | 89% | 60% | 68% | 743 | 1496 | 0.8 | 4.3 | 2.4 | 5.3 |
-| city | raid | 98% | 35% | 16% | 69% | 44% | 54% | 401 | 922 | 0.6 | 3.8 | 1.8 | 5.0 |
+| city | defence | 80% | 38% | 82% | 92% | 88% | 75% | 2350 | 1440 | 2.1 | 5.5 | 2.0 | 3.5 |
+| city | offence | 60% | 28% | 45% | 88% | 60% | 75% | 743 | 1392 | 0.8 | 4.3 | 2.4 | 5.3 |
+| city | raid | 98% | 50% | 16% | 66% | 44% | 61% | 401 | 912 | 0.6 | 3.8 | 1.8 | 5.0 |
 | city | extract | 10% | 3% | 0% | 0% | 5% | 2% | 237 | 211 | 0.0 | 0.1 | 1.0 | 0.0 |
 | city | rescue | 10% | 3% | 0% | 1% | 3% | 1% | 229 | 203 | 0.0 | 0.1 | 0.9 | 0.0 |
 | city | logistics | 100% | 100% | 3% | 0% | 1% | 0% | 448 | 485 | 0.0 | 0.0 | 0.8 | 0.7 |
-| fields | defence | 5% | 45% | 92% | 83% | 33% | 81% | 1329 | 2179 | 2.9 | 6.0 | 2.7 | 10.0 |
-| fields | offence | 63% | 30% | 29% | 88% | 100% | 66% | 1413 | 1665 | 0.7 | 5.5 | 1.7 | 9.7 |
-| fields | raid | 100% | 45% | 19% | 67% | 73% | 47% | 484 | 1291 | 0.3 | 4.3 | 1.3 | 9.3 |
+| fields | defence | 5% | 45% | 92% | 84% | 33% | 81% | 1329 | 2142 | 2.9 | 6.0 | 2.7 | 10.0 |
+| fields | offence | 63% | 48% | 29% | 82% | 100% | 76% | 1413 | 1439 | 0.7 | 5.5 | 1.7 | 9.7 |
+| fields | raid | 100% | 63% | 19% | 65% | 73% | 60% | 484 | 1110 | 0.3 | 4.3 | 1.3 | 9.3 |
 | fields | extract | 3% | 20% | 0% | 4% | 2% | 16% | 274 | 323 | 0.0 | 0.6 | 1.2 | 0.1 |
 | fields | rescue | 0% | 18% | 0% | 4% | 0% | 15% | 257 | 312 | 0.0 | 0.5 | 1.1 | 0.0 |
-| fields | logistics | 90% | 73% | 32% | 26% | 82% | 16% | 785 | 1226 | 0.0 | 1.2 | 2.0 | 0.0 |
-| trench | defence | 60% | 85% | 95% | 60% | 67% | 99% | 1771 | 2134 | 1.9 | 4.7 | 0.6 | 12.0 |
-| trench | offence | 55% | 18% | 57% | 96% | 92% | 55% | 1138 | 2964 | 0.5 | 5.6 | 0.1 | 25.1 |
-| trench | raid | 95% | 40% | 23% | 61% | 60% | 40% | 455 | 1326 | 0.5 | 3.3 | 0.1 | 14.7 |
+| fields | logistics | 90% | 75% | 32% | 25% | 82% | 16% | 785 | 1294 | 0.0 | 1.2 | 2.0 | 0.0 |
+| trench | defence | 60% | 85% | 95% | 62% | 67% | 99% | 1771 | 2073 | 1.9 | 4.7 | 0.6 | 12.0 |
+| trench | offence | 55% | 28% | 57% | 95% | 92% | 63% | 1138 | 2759 | 0.5 | 5.6 | 0.1 | 25.1 |
+| trench | raid | 95% | 28% | 23% | 68% | 60% | 47% | 455 | 1443 | 0.5 | 3.3 | 0.1 | 14.7 |
 | trench | extract | 3% | 5% | 0% | 12% | 2% | 10% | 246 | 305 | 0.0 | 0.3 | 1.0 | 0.7 |
 | trench | rescue | 0% | 8% | 0% | 8% | 0% | 5% | 233 | 280 | 0.0 | 0.1 | 0.8 | 0.3 |
-| trench | logistics | 100% | 100% | 55% | 8% | 78% | 15% | 755 | 1172 | 0.0 | 1.0 | 2.0 | 4.4 |
-| compound | defence | 73% | 70% | 90% | 60% | 79% | 88% | 3504 | 2173 | 1.3 | 4.2 | 0.9 | 4.1 |
-| compound | offence | 25% | 5% | 71% | 96% | 93% | 33% | 2680 | 2050 | 0.0 | 3.6 | 0.1 | 3.4 |
-| compound | raid | 80% | 0% | 62% | 85% | 91% | 25% | 1949 | 1310 | 0.1 | 2.9 | 0.2 | 1.9 |
+| trench | logistics | 100% | 100% | 55% | 8% | 78% | 16% | 755 | 1190 | 0.0 | 1.0 | 2.0 | 4.4 |
+| compound | defence | 73% | 38% | 90% | 82% | 79% | 81% | 3504 | 2639 | 1.3 | 4.2 | 0.9 | 4.1 |
+| compound | offence | 25% | 38% | 71% | 88% | 93% | 63% | 2680 | 1961 | 0.0 | 3.6 | 0.1 | 3.4 |
+| compound | raid | 80% | 35% | 62% | 63% | 91% | 45% | 1949 | 1070 | 0.1 | 2.9 | 0.2 | 1.9 |
 | compound | extract | 18% | 10% | 1% | 0% | 7% | 3% | 273 | 267 | 0.0 | 0.0 | 0.1 | 0.0 |
 | compound | rescue | 5% | 3% | 0% | 0% | 3% | 1% | 259 | 260 | 0.0 | 0.0 | 0.1 | 0.0 |
 | compound | logistics | 100% | 95% | 9% | 18% | 46% | 15% | 245 | 334 | 0.0 | 0.1 | 0.0 | 3.9 |
-| forest | defence | 0% | 63% | 91% | 86% | 25% | 81% | 1166 | 1939 | 2.5 | 5.0 | 0.5 | 2.6 |
-| forest | offence | 57% | 10% | 31% | 96% | 99% | 60% | 1160 | 1737 | 0.8 | 4.5 | 0.9 | 12.9 |
-| forest | raid | 98% | 33% | 15% | 88% | 40% | 55% | 461 | 1453 | 0.8 | 4.1 | 0.8 | 8.7 |
+| forest | defence | 0% | 65% | 91% | 87% | 25% | 83% | 1166 | 2157 | 2.5 | 5.0 | 0.5 | 2.6 |
+| forest | offence | 57% | 13% | 31% | 95% | 99% | 58% | 1160 | 1994 | 0.8 | 4.5 | 0.9 | 12.9 |
+| forest | raid | 98% | 35% | 15% | 87% | 40% | 54% | 461 | 1392 | 0.8 | 4.1 | 0.8 | 8.7 |
 | forest | extract | 100% | 78% | 5% | 20% | 65% | 27% | 687 | 663 | 0.0 | 0.8 | 0.9 | 0.6 |
 | forest | rescue | 100% | 75% | 7% | 21% | 70% | 26% | 692 | 662 | 0.0 | 0.8 | 0.9 | 0.9 |
-| forest | logistics | 100% | 80% | 22% | 21% | 86% | 21% | 819 | 1503 | 0.0 | 0.8 | 2.0 | 0.1 |
+| forest | logistics | 100% | 80% | 22% | 21% | 86% | 20% | 819 | 1612 | 0.0 | 0.8 | 2.0 | 0.1 |
+
+**Garrison cover (rules 5, owner: "lower that cover")**: `COVER5` in `src/content/battle.js` overrides `COVER` under rules 5 only (`coverFor`; rules 4 and under keep the old table, pinned in `tests/battle_sim.test.mjs`): building 0.75 -> 0.30, window 0.85 -> 0.40, trench 0.75 -> 0.30, tree/wall 0.25 -> 0.12. The table above shows the win, own, foe and len of rules 5 re-measured with it (40 seeds) for defence, offence, raid and logistics; the extract and rescue rows are from the earlier run (not re-measured; they were not the goal of this tuning). Still outside the band: forest offence 13% (cover is not the cause: infantry on both sides stand in almost no cover there, mean 0.03; attackers die at the same ranges as on fields, 7 tiles on average, to rifles, the enemy tank and rocket launchers, so it is the heavier enemy force in a map that hides it, not garrison cover) and trench defence 85% (the enemy's assault into the trench fails; rules 4 was 60%).
 
 20 of 30 recipe/goal pairs move the headless win rate by more than 10 points. Headless offence and raid (the player attacking) now sit at 20-45 percent on city, fields and trench (it was 55-100 under rules 4), but only 0-10 on compound and about 10-30 on forest and trench offence: a dug-in garrison (cover is worth 75 to 85 percent in a building or a trench) is hard to take with rifles alone, and that is the existing cover table, not new weapon numbers. Defence rises (the enemy is the attacker and the player's headless force digs in). Logistics is 73-100. Extract and rescue are near zero for the headless force before and after on city, trench and compound. Step cost on the forest map with 40 troops and armour: rules 4 0.29 ms, rules 5 0.32 ms. No pay was tuned; `node tools/econ-audit-war.mjs` is unchanged. **For Fable and the owner to weigh.**
 

@@ -13,6 +13,8 @@ export const TRENCH_COLLAPSE = { dmg: 250, share: 0.75 };
 
 /** The chance a shot is absorbed by what the target stands in or behind (docs/PROPOSAL_WAR_TACTICAL.md section 5). */
 export const COVER = { open: 0, hedge: 0.25, crop: 0.25, tree: 0.25, building: 0.75, window: 0.85, trench: 0.75 };
+/** Rules 5 only: the cover of a garrisoned building floor, a window, a trench and a tree or wall, lowered so that assaults on dug-in defenders are hard but fair (owner: "lower that cover"). Everything else is COVER. */
+export const COVER5 = { building: 0.3, window: 0.4, trench: 0.3, tree: 0.12 };
 
 /** Each floor above the ground adds this much sight and reach (tiles); roofs and low walls stop blocking from above. */
 export const HEIGHT = { sight: 3, reach: 1 };

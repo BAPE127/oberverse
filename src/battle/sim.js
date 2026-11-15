@@ -6,7 +6,7 @@
 //   step(B) / run(B, ticks)             advance one tick / many
 //   outcome(B)                          the result, in the shape src/war/engagements.js applyOutcome takes
 //   replay(setup, log, tick)            the battle again, from the start, to a tick
-import { MAG, SFX_CAP, MOVE, FLIGHT, RESERVE, RAID, VIPS, VIP_HOME, DESIGNATE, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
+import { MAG, SFX_CAP, MOVE, FLIGHT, RESERVE, RAID, VIPS, VIP_HOME, DESIGNATE, STANCES, DEFENSIVE, CARRY, BAIL, REPAIR, DEPLOY, TRENCH_COLLAPSE, CHARGE, TEND, UAV, ARTY, SCATTER, STATION, FLAK, WIRE_SLOW, TICK, TILE, COVER, COVER5, HEIGHT, SUPPRESS, WEAPONS, ARMOUR_FLOOR, ROLE, OBJECTIVE, SPEED, DOWN, FACING, MODULES, MODULE, SUPPORT, BREACH } from '../content/battle.js';
 import { OUTCOMES } from '../war/combat.js';
 import { generate, idx, inb, tileAt, walkable } from './map.js';
 import { findPath, los, canStand, clearance } from './nav.js';
@@ -162,17 +162,18 @@ function sightOf(u) { return u.sight + (u.kind === 'helicopter' ? FLIGHT.sightBo
 const reachOf = (u) => u.W.range + (u.kind === 'helicopter' ? 0 : HEIGHT.reach * u.z);
 function coverFor(B, t, from) {
   if (isVeh(t)) return 0;
+  const C = B.rules >= 5 ? { ...COVER, ...COVER5 } : COVER;
   const tile = tileAt(B.map, Math.floor(t.x), Math.floor(t.y));
   if (tile === TILE.FLOOR || tile === TILE.DOOR || tile === TILE.STAIRS) {
     const x = Math.floor(t.x); const y = Math.floor(t.y);
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(B.map, x + dx, y + dy) === TILE.WINDOW) return COVER.window;
-    return COVER.building;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(B.map, x + dx, y + dy) === TILE.WINDOW) return C.window;
+    return C.building;
   }
-  if (tile === TILE.TRENCH) return COVER.trench;
-  if (tile === TILE.HEDGE) return COVER.hedge; if (tile === TILE.CROP) return COVER.crop;
+  if (tile === TILE.TRENCH) return C.trench;
+  if (tile === TILE.HEDGE) return C.hedge; if (tile === TILE.CROP) return C.crop;
   const x = Math.floor(t.x); const y = Math.floor(t.y); const sx = Math.sign(from.x - t.x); const sy = Math.sign(from.y - t.y);
   const n = tileAt(B.map, x + sx, y + sy); const n2 = tileAt(B.map, x + sx, y); const n3 = tileAt(B.map, x, y + sy);
-  return [n, n2, n3].some((q) => q === TILE.WALL || q === TILE.HEDGE || q === TILE.TREE) ? COVER.tree : 0;
+  return [n, n2, n3].some((q) => q === TILE.WALL || q === TILE.HEDGE || q === TILE.TREE) ? C.tree : 0;
 }
 const stateOf = (u) => { const m = (u.morale - 70) * SUPPRESS.moraleShift; return u.supp >= SUPPRESS.broken + m ? 'broken' : u.supp >= SUPPRESS.pinned + m ? 'pinned' : u.supp >= SUPPRESS.shaken + m ? 'shaken' : 'steady'; };
 

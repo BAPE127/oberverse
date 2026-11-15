@@ -6,7 +6,7 @@ import { buildSetup } from '../src/battle/setup.js';
 import { createBattle, step, run, runToEnd, issue, outcome, replay, sightOf, coverFor, stateOf, reachOf } from '../src/battle/sim.js';
 import { los } from '../src/battle/nav.js';
 import { generate, idx } from '../src/battle/map.js';
-import { COVER, HEIGHT, SUPPRESS, TILE, TICK } from '../src/content/battle.js';
+import { COVER, COVER5, HEIGHT, SUPPRESS, TILE, TICK } from '../src/content/battle.js';
 
 const people = (n, o = {}) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, role: i % 8 === 0 ? 'machine_gunner' : i % 9 === 0 ? 'anti_tank' : 'rifleman', tier: 2, armour: 1, exp: 0, morale: 70, fatigue: 0, armed: true, ...o }));
 const mk = (o = {}) => buildSetup({ key: o.key || 'K1|x', eng: { goal: o.goal || 'defence', recipe: o.recipe || 'city', biome: 'rural', style: 'halvermouth', enemy: o.enemy || { troops: 12, armour: 0, air: 0, skill: 1 } }, people: o.people || people(12), vehicles: o.vehicles || [], ai: o.ai || { p: false, e: true } });
@@ -48,7 +48,8 @@ test('walls and trees stop a look unless you are above them; each floor adds sig
 });
 
 test('cover is what the target stands in or behind: open ground none, a hedge or crop a quarter, a building three quarters, a window most; vehicles take none', () => {
-  const B = createBattle(mk({ vehicles: [{ id: 'T1', name: 'Tank', cls: 'tank', armour: 3, firepower: 3, speed: 3 }] }));
+  const su4 = mk({ vehicles: [{ id: 'T1', name: 'Tank', cls: 'tank', armour: 3, firepower: 3, speed: 3 }] }); su4.rules = 4; su4.map.ver = 2; // (the table below is the one of rules 4 and under)
+  const B = createBattle(su4);
   const m = B.map; const t = { x: 0, y: 0, z: 0, kind: 'inf' }; const from = { x: 0, y: 0 };
   const at = (x, y, tile, kind = 'inf') => { m.tiles[idx(m, x, y)] = tile; return { x: x + 0.5, y: y + 0.5, z: 0, kind }; };
   const open = at(30, 5, TILE.GROUND); m.tiles[idx(m, 29, 5)] = TILE.GROUND; m.tiles[idx(m, 31, 5)] = TILE.GROUND; m.tiles[idx(m, 30, 4)] = TILE.GROUND; m.tiles[idx(m, 30, 6)] = TILE.GROUND;
@@ -59,6 +60,15 @@ test('cover is what the target stands in or behind: open ground none, a hedge or
   m.tiles[idx(m, 33, 12)] = TILE.WINDOW; assert.equal(coverFor(B, inside, { x: 40, y: 12 }), COVER.window);
   assert.equal(coverFor(B, at(30, 14, TILE.GROUND, 'tank'), from), 0, 'a vehicle has armour, not cover');
   void t;
+  // rules 5 lowers garrison and trench cover (COVER5); rules 4 and under keep the table as it was
+  const tr = at(30, 16, TILE.TRENCH);
+  assert.equal(coverFor(B, tr, { x: 40, y: 16 }), COVER.trench);
+  const B5 = createBattle({ ...mk({}), rules: 5 }); const m5 = B5.map;
+  const in5 = { x: 32.5, y: 12.5, z: 0, kind: 'inf' }; for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) m5.tiles[idx(m5, 32 + dx, 12 + dy)] = TILE.FLOOR;
+  assert.equal(coverFor(B5, in5, { x: 40, y: 12 }), COVER5.building);
+  m5.tiles[idx(m5, 33, 12)] = TILE.WINDOW; assert.equal(coverFor(B5, in5, { x: 40, y: 12 }), COVER5.window);
+  m5.tiles[idx(m5, 30, 16)] = TILE.TRENCH; assert.equal(coverFor(B5, { x: 30.5, y: 16.5, z: 0, kind: 'inf' }, { x: 40, y: 16 }), COVER5.trench);
+  assert.deepEqual([COVER5.building, COVER5.window, COVER5.trench].map((v) => v < COVER.building), [true, true, true]);
 });
 
 test('suppression builds from shots and moves a unit through steady, shaken, pinned and broken; a high-morale unit resists more; it fades; a broken unit runs and a rallied one stops', () => {
