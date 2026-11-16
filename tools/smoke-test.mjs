@@ -150,7 +150,8 @@ try {
     const px = (x, y) => { const o = new Uint8Array(4); gl.readPixels(Math.round(x), H - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o); return [o[0], o[1], o[2]]; };
     // drop tiles in view near the player: where the deck has a hole
     const pts = []; const tx0 = Math.floor(g.player.x / 32); const ty0 = Math.floor(g.player.y / 32);
-    for (let dy = -6; dy <= 6 && pts.length < 12; dy++) for (let dx = -6; dx <= 6 && pts.length < 12; dx++) if (sky.tileAt(tx0 + dx, ty0 + dy) === 'O') pts.push(R.toScreen((tx0 + dx + 0.5) * 32, (ty0 + dy + 0.5) * 32, 0));
+    // (every drop within 9 tiles: some lie behind a tower or its cut-away slab, so the check asks for a share of them, not most)
+    for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) if (sky.tileAt(tx0 + dx, ty0 + dy) === 'O') pts.push(R.toScreen((tx0 + dx + 0.5) * 32, (ty0 + dy + 0.5) * 32, 0));
     const inView = pts.filter((q) => q.x > 20 && q.y > 20 && q.x < R.canvas3d.width - 20 && q.y < H - 20);
     W3.render(0.016); const on = inView.map((q) => px(q.x, q.y));
     W3.hideBelow = true; W3.render(0.016); const off = inView.map((q) => px(q.x, q.y)); W3.hideBelow = false;
@@ -166,7 +167,7 @@ try {
     return { gl: true, pts: inView.length, changed, below, crown, sump };
   });
   await shot('3d-neumina-terrace');
-  record('Neumina: through the drops of a level you see the level below (pixels change with it switched off), and from the Terraces both levels below are drawn; the Crown has its cloud sea and sky, the Sump its murk', levels.gl && levels.pts >= 3 && levels.changed >= Math.ceil(levels.pts / 2) && levels.below.join() === 'neumina_skyway@-7,neumina_street@-14' && levels.crown.clouds && levels.crown.bg === '#8fb8e0' && levels.sump.bg === '#0a0807', JSON.stringify(levels));
+  record('Neumina: through the drops of a level you see the level below (pixels change with it switched off), and from the Terraces both levels below are drawn; the Crown has its cloud sea and sky, the Sump its murk', levels.gl && levels.pts >= 12 && levels.changed >= Math.max(10, Math.ceil(levels.pts / 4)) && levels.below.join() === 'neumina_skyway@-7,neumina_street@-14' && levels.crown.clouds && levels.crown.bg === '#8fb8e0' && levels.sump.bg === '#0a0807', JSON.stringify(levels));
   // v0.106.0: a heavy blast blows a hole in an ordinary building's wall: walkable both ways, rubble, and a hole drawn on the roofed building in 3D
   const hole = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; while (ui.panelStack.length) ui.closePanel(); g.clock.total = Math.floor(g.clock.total / 1440) * 1440 + 13 * 60;
