@@ -7,7 +7,7 @@
 // Units: 1 unit = 1 tile; the group's origin is the map's own, x east, z south, y up.
 import { THREE, hash, strHash, canvas, tex, shade, mix, mute, box, cyl, cone, group, board, textMat, mat, bake } from './lib3d.js';
 import { buildingHeight } from '../engine/isoBuildings.js';
-import { dressNeoTower, dressCrownTower } from './neoTower3d.js';
+import { dressNeoTower, dressCrownTower, dressSumpPier, dressNeonShack } from './neoTower3d.js';
 
 const FP = 32; // facade texture pixels per tile
 export const STOREY = 2.3; // tiles of wall to a storey of an ordinary building
@@ -376,7 +376,9 @@ export function buildRoofed(b, shared) {
     const pm = mat(shade(kind === 'tower' ? trim : wall, 8));
     const ph = kind === 'shack' ? 0.12 : 0.38;
     deco.add(box(b.w, ph, 0.16, pm, { y: H, z: b.h / 2 - 0.08 }), box(b.w, ph, 0.16, pm, { y: H, z: -b.h / 2 + 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: b.w / 2 - 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: -b.w / 2 + 0.08 }));
+    if (b.neonTrim) dressNeonShack(b, deco, H, seed); // (the Sump: salvage neon on a shack)
     if (b.crown) out.top = Math.max(out.top, dressCrownTower(b, g, deco, H, seed)); // (the Crown: white, gold and glass)
+    else if (b.pier) out.top = Math.max(out.top, dressSumpPier(b, g, deco, H, seed)); // (the Sump: the foundations, wired)
     else if (b.neo) out.top = Math.max(out.top, dressNeoTower(b, g, deco, H, seed)); // (Neumina: the megacity's dressing in place of the roof clutter)
     else if (kind !== 'shack') {
       const n = Math.max(1, Math.round(b.w * b.h / 40));

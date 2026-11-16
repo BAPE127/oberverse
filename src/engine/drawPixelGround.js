@@ -121,6 +121,7 @@ const PX = {
   beach: P('#86e6dc', '#5fd8dc', '#3cc4dc', '#2aaed2', '#2898c0', '#2784ad', '#26729a', '#25668a'),
   pond: P('#163a56', '#1b4664', '#215273', '#285f82'),
   harbour: P('#1f5574', '#245f7f', '#2a6a8a', '#317596'),
+  sludge: P('#0e3a2a', '#145236', '#1c6e40', '#2a9a4e', '#4fd86a'), // v0.107.0: the Sump's run-off
   pondEdge: pack(rgb('#3d7a8e')),
   void: pack(rgb('#14121a')),
 };
@@ -342,6 +343,7 @@ function paintPixels(ctx, map, tx0, ty0, tw, th) {
   const out = new Uint32Array(img.data.buffer);
   const st = F.style;
   const interior = map.kind === 'interior';
+  const sludge = Boolean(map.def?.atmos?.sludge); // v0.107.0: the Sump's water is run-off that glows
   const capCol = st ? pack(rgb(st.wall.cap)) : pack(rgb('#5b4a45'));
   const WALL = CID.W;
   for (let y = 0; y < phh; y++) {
@@ -385,6 +387,7 @@ function paintPixels(ctx, map, tx0, ty0, tw, th) {
         case CID.k: col = pick(PX.soil, 0.6 * N(wx, wy) + ((wy >> 2) & 1) * 0.35 - 0.05, wx, wy); break;
         case CID.R: col = pick(PX.ridge, 0.6 * big(wx, wy) + 0.4 * N(wx >> 1, wy >> 1), wx, wy); break;
         case CID['~']: case CID.r: {
+          if (sludge && c === CID['~']) { col = pick(PX.sludge, 0.55 * big(wx, wy) + 0.45 * N(wx >> 1, wy >> 1), wx, wy); break; }
           const shore = LAB ? LAB[k] : 0;
           const dd = (D ? D[k] : 255) / 2 + (N(wx * 2, wy * 2) - 0.5) * 6;
           // all water is the same deep blue away from the shore; near a beach it's foam and turquoise
@@ -609,9 +612,11 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
     }
     case 'q': { // v0.107.0: the Sump: cracked patched concrete, rust stains, standing water that catches what light there is
       if (r > 0.55) R(px + 2 + Math.floor(r * 9), py + 3, 1, T - 8, '#1b1815');
-      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, '#3c5a60'); } // a puddle
+      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, r < 0.06 ? '#ff4fb8' : r < 0.12 ? '#3ad8ff' : '#3c5a60'); R(px + 15, py + 16, 3, 1, r < 0.09 ? '#b06bff' : '#2c4a50'); } // a puddle, catching the neon
       else if (r > 0.86) R(px + 9, py + 6, 10, 10, 'rgba(120,58,26,0.28)'); // rust
       if (x % 3 === 0) R(px, py, 1, T, '#211e1a');
+      if ((x * 7 + y * 3) % 23 === 0) R(px, py + Math.floor(T * 0.3), T, 1, '#2fd8a8'); // a glowing cable run along the ground
+      else if ((x * 5 + y * 11) % 29 === 0) R(px + Math.floor(T * 0.6), py, 1, T, '#d84fb0');
       break;
     }
     case 'Q': { // v0.107.0: the Crown: white stone slabs, fine joints, a gold inlay line on every fourth course

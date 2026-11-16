@@ -6491,22 +6491,25 @@ function sump() {
   const buildings = [];
   // the foundations: piers of the towers above, squatted, their lit windows amber
   const piers = [[1, 1, 8, 7, 'Pier Nine'], [13, 1, 7, 5, 'Pier Ten'], [27, 1, 9, 5, 'Pier Eleven'], [43, 1, 7, 6, 'Pier Twelve'], [1, 13, 6, 8, 'Pier Fourteen']];
-  for (const [x, y, w, h, name] of piers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_pier_${x}_${y}`, name, mapLabel: name, x, y, w, h, tower: 30, storeys: 12, wall: '#2c2925', trim: '#1a1816', glass: '#ffb866' }); }
+  for (const [x, y, w, h, name] of piers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_pier_${x}_${y}`, name, mapLabel: name, x, y, w, h, tower: 30, pier: true, storeys: 12, wall: '#2c2925', trim: '#1a1816', glass: '#ffb866' }); }
   // the Drain Cathedral: an old pump hall the squatters made a church of
   m.rect(20, 11, 13, 7, 'B'); buildings.push({ id: 'nm_u_cathedral', name: 'The Drain Cathedral', mapLabel: 'The Drain Cathedral', x: 20, y: 11, w: 13, h: 7, wall: '#4a4038', trim: '#2a241e', columns: true, storeys: 3, sign: 'ST. RUNOFF' });
   // the shanties: sheet metal and salvage, in clusters along the alleys
   const shanty = [[10, 9, 4, 3, '#6b4a34'], [14, 9, 3, 3, '#3f5a58'], [36, 9, 4, 3, '#6a5a3a'], [40, 9, 3, 3, '#5a3a3a'], [51, 9, 4, 3, '#3a4a5a'], [9, 16, 3, 3, '#5a4a3a'],
     [9, 22, 4, 3, '#4a5a3a'], [14, 22, 3, 3, '#6b4a34'], [36, 13, 3, 3, '#3f5a58'], [52, 14, 4, 3, '#5a3a3a'], [53, 19, 3, 3, '#6a5a3a'], [18, 22, 4, 2, '#3a4a5a'],
     [2, 25, 4, 3, '#5a3a3a'], [47, 30, 3, 2, '#4a5a3a'], [52, 30, 4, 2, '#6b4a34']];
-  shanty.forEach(([x, y, w, h, wall], i) => { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_shack_${i}`, name: 'A shack', x, y, w, h, wall, shabby: true, storeys: 1 + (i % 2) }); });
+  shanty.forEach(([x, y, w, h, wall], i) => { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_shack_${i}`, name: 'A shack', x, y, w, h, wall, shabby: true, storeys: 1 + (i % 2), ...(i % 3 !== 2 ? { neonTrim: ['#ff3fb4', '#4dfcff', '#5dff9c', '#ffb347', '#b06bff'][i % 5] } : {}) }); });
   // Mother Kettle's soup kitchen
-  m.rect(26, 22, 6, 3, 'B'); buildings.push({ id: 'nm_u_kettle', name: "Mother Kettle's", mapLabel: "Mother Kettle's", x: 26, y: 22, w: 6, h: 3, wall: '#7a5a3a', shabby: true, storeys: 1, sign: 'SOUP' });
+  m.rect(26, 22, 6, 3, 'B'); buildings.push({ id: 'nm_u_kettle', name: "Mother Kettle's", mapLabel: "Mother Kettle's", x: 26, y: 22, w: 6, h: 3, wall: '#7a5a3a', shabby: true, storeys: 1, sign: 'SOUP', neonTrim: '#ffb347' });
   // the run-off channel along the south, two plank bridges over it
   m.rect(0, 38, W, 3, '~'); m.rect(12, 38, 3, 3, 'p'); m.rect(40, 38, 3, 3, 'p'); m.rect(0, 41, W, 5, 'u');
   const props = [];
   let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_u_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
   // the Scrap Bazaar: tents and salvage round a fire
-  for (const [x, y] of [[37, 19], [41, 19], [45, 19], [37, 24], [45, 24]]) P('tent', x, y, { w: 2 });
+  for (const [x, y, c] of [[37, 19, '#4dfcff'], [41, 19, '#ff3fb4'], [45, 19, '#5dff9c'], [37, 24, '#ffb347'], [45, 24, '#b06bff']]) P('market_stall_neo', x, y, { w: 2, color: c, examine: 'A stall of salvage: chips pulled from dead drones, cables sold by the arm-length, and a box marked PROBABLY FINE.' });
+  P('holo_ad', 42, 19, { color: '#ff5fd6', examine: 'A stolen hologram projector, still showing the advert it was stolen with: a perfume called ALTITUDE, for people who will never smell it.' });
+  P('data_pylon', 35, 24, { examine: 'A city access node somebody has opened like a tin. Twelve cables run out of it to twelve different shacks.' });
+  P('vend_neo', 49, 20, { examine: 'A vending machine hauled down from the Skyway. It sells only one thing now, and the label has been scratched off.' });
   P('barrelfire', 42, 22); for (const [x, y] of [[40, 22], [44, 22], [42, 21]]) P('crate', x, y);
   for (const [x, y] of [[39, 27], [48, 21], [35, 21]]) P('barrel', x, y);
   P('laundry', 36, 17, { w: 3 }); P('laundry', 47, 17, { w: 3 });
@@ -6521,6 +6524,12 @@ function sump() {
   for (const [x, y] of [[16, 13], [34, 16], [22, 27], [48, 13]]) P('streetlamp', x, y);
   for (const [x, y] of [[27, 26], [30, 26]]) P('bench', x, y);
   P('vent_stack', 19, 9); P('vent_stack', 41, 13); P('vent_stack', 6, 22);
+  // salvage neon and second-hand tech everywhere: signs on poles, scavenger drones, grow-light fungus farms, a hologram preacher at the Cathedral
+  for (const [x, y, c] of [[19, 12, '#4dfcff'], [34, 12, '#ff3fb4'], [8, 18, '#5dff9c'], [24, 21, '#ffb347'], [52, 27, '#b06bff'], [13, 26, '#ff5f5f'], [46, 33, '#4dfcff']]) P('neon_sign', x, y, { color: c });
+  P('drone_pad', 50, 34, { w: 2, h: 2, examine: 'A scavenger drone\'s nest: it goes up the shafts at night and comes back with whatever fell off the Skyway.' });
+  for (const [x, y] of [[33, 33], [17, 30]]) P('glow_planter', x, y, { w: 2, examine: 'Fungus under a grow light. Down here it is food, medicine, and on Thursdays, something else.' });
+  P('holo_ad', 23, 19, { color: '#ffe2a0', examine: 'A hologram saint above the Cathedral door, patched together from a bank\'s advert. She still says "Your trust, compounded" now and then.' });
+  P('neon_lamp', 37, 30, { color: '#ff9f5f' }); P('neon_lamp', 12, 34, { color: '#9fdcff' });
   P('security_camera', 27, 30, { examine: 'A Gutterline camera, pointed down at the Chain Lift. Someone has taped a picture of an eye over the lens.' });
   // the Chain Lift: a freight cage up to the Gutterline
   P('lift', 29, 31, { examine: 'The Chain Lift: a freight cage on a chain as thick as your leg. It goes up to the Gutterline, and complains the whole way.' });
@@ -6528,7 +6537,7 @@ function sump() {
   for (const x of [27, 28, 30, 31]) P('chainfence', x, 33);
   return {
     id: 'neumina_sump', name: 'Neumina — The Sump', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1,
-    atmos: { dark: [0.78, 1], bg: '#0a0807' }, edges: { lip: '#2a2622', glow: '#d8902a' },
+    atmos: { dark: [0.78, 1], bg: '#0a0807', sludge: true }, edges: { lip: '#2a2622', glow: '#d8902a' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
     areas: [{ id: 'area_nm_sump', name: 'Neumina, the Sump', x: 0, y: 0, w: W, h: H }],
     doors: [{ id: 'door_nm_chain_up', x: 29, y: 32, keepTile: true, label: 'The Chain Lift up to the Gutterline', to: { map: 'neumina_street', spot: 'chain' } }],
@@ -60871,6 +60880,7 @@ const PX = {
   beach: P('#86e6dc', '#5fd8dc', '#3cc4dc', '#2aaed2', '#2898c0', '#2784ad', '#26729a', '#25668a'),
   pond: P('#163a56', '#1b4664', '#215273', '#285f82'),
   harbour: P('#1f5574', '#245f7f', '#2a6a8a', '#317596'),
+  sludge: P('#0e3a2a', '#145236', '#1c6e40', '#2a9a4e', '#4fd86a'), // v0.107.0: the Sump's run-off
   pondEdge: pack(rgb('#3d7a8e')),
   void: pack(rgb('#14121a')),
 };
@@ -61092,6 +61102,7 @@ function paintPixels(ctx, map, tx0, ty0, tw, th) {
   const out = new Uint32Array(img.data.buffer);
   const st = F.style;
   const interior = map.kind === 'interior';
+  const sludge = Boolean(map.def?.atmos?.sludge); // v0.107.0: the Sump's water is run-off that glows
   const capCol = st ? pack(rgb(st.wall.cap)) : pack(rgb('#5b4a45'));
   const WALL = CID.W;
   for (let y = 0; y < phh; y++) {
@@ -61135,6 +61146,7 @@ function paintPixels(ctx, map, tx0, ty0, tw, th) {
         case CID.k: col = pick(PX.soil, 0.6 * N(wx, wy) + ((wy >> 2) & 1) * 0.35 - 0.05, wx, wy); break;
         case CID.R: col = pick(PX.ridge, 0.6 * big(wx, wy) + 0.4 * N(wx >> 1, wy >> 1), wx, wy); break;
         case CID['~']: case CID.r: {
+          if (sludge && c === CID['~']) { col = pick(PX.sludge, 0.55 * big(wx, wy) + 0.45 * N(wx >> 1, wy >> 1), wx, wy); break; }
           const shore = LAB ? LAB[k] : 0;
           const dd = (D ? D[k] : 255) / 2 + (N(wx * 2, wy * 2) - 0.5) * 6;
           // all water is the same deep blue away from the shore; near a beach it's foam and turquoise
@@ -61359,9 +61371,11 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
     }
     case 'q': { // v0.107.0: the Sump: cracked patched concrete, rust stains, standing water that catches what light there is
       if (r > 0.55) R(px + 2 + Math.floor(r * 9), py + 3, 1, T - 8, '#1b1815');
-      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, '#3c5a60'); } // a puddle
+      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, r < 0.06 ? '#ff4fb8' : r < 0.12 ? '#3ad8ff' : '#3c5a60'); R(px + 15, py + 16, 3, 1, r < 0.09 ? '#b06bff' : '#2c4a50'); } // a puddle, catching the neon
       else if (r > 0.86) R(px + 9, py + 6, 10, 10, 'rgba(120,58,26,0.28)'); // rust
       if (x % 3 === 0) R(px, py, 1, T, '#211e1a');
+      if ((x * 7 + y * 3) % 23 === 0) R(px, py + Math.floor(T * 0.3), T, 1, '#2fd8a8'); // a glowing cable run along the ground
+      else if ((x * 5 + y * 11) % 29 === 0) R(px + Math.floor(T * 0.6), py, 1, T, '#d84fb0');
       break;
     }
     case 'Q': { // v0.107.0: the Crown: white stone slabs, fine joints, a gold inlay line on every fourth course
@@ -73753,7 +73767,49 @@ function dressCrownTower(b, g, deco, H, seed) {
   return y;
 }
 
-return { dressNeoTower, dressCrownTower };
+const SCRAP = ['#ff3fb4', '#4dfcff', '#5dff9c', '#ffb347', '#b06bff', '#ff5f5f'];
+
+/** The Sump's piers (level 1): the city's foundations, squatted and wired. Pipes and glowing coolant conduits up the faces the camera sees, cable
+ * bundles slung between them, salvaged neon signs bolted on at the bottom, a lit band above the street. Futuristic, but the future second-hand. */
+function dressSumpPier(b, g, deco, H, seed) {
+  const lit = (c, ei = 1.6) => mat(c, { emissive: c, ei });
+  const hw = b.w / 2; const hd = b.h / 2;
+  const pipe = mat('#4a4640'); const rust = mat('#5a3a26');
+  // pipes and conduits up the south and east faces
+  for (let i = 0; i < 4; i++) {
+    const south = i % 2 === 0; const t = (hash(seed, 60 + i) - 0.5) * 0.8;
+    const glowing = hash(seed, 64 + i) > 0.55; const c = glowing ? lit(hash(seed, 68 + i) > 0.5 ? '#5dff9c' : '#4dfcff', 1.2) : (hash(seed, 72 + i) > 0.5 ? pipe : rust);
+    const r = glowing ? 0.13 : 0.2;
+    deco.add(cyl(r, H - 0.2, c, { x: south ? t * b.w : hw + r + 0.02, z: south ? hd + r + 0.02 : t * b.h, y: 0.1, seg: 8, cast: false }));
+  }
+  // a lit band above the street, and salvaged signs under it
+  const band = SCRAP[Math.floor(hash(seed, 80) * SCRAP.length)];
+  deco.add(box(b.w + 0.1, 0.14, 0.08, lit(band, 1.4), { y: 3.4, z: hd + 0.05, cast: false }), box(0.08, 0.14, b.h + 0.1, lit(band, 1.4), { y: 3.4, x: hw + 0.05, cast: false }));
+  for (let i = 0; i < 3; i++) {
+    const c = SCRAP[Math.floor(hash(seed, 81 + i) * SCRAP.length)]; const south = hash(seed, 84 + i) > 0.4;
+    const w = 0.9 + hash(seed, 87 + i) * 1.6; const h = 0.4 + hash(seed, 90 + i) * 0.5; const y = 1.4 + hash(seed, 93 + i) * 1.5; const o = (hash(seed, 96 + i) - 0.5) * ((south ? b.w : b.h) - w - 0.4);
+    if (south) deco.add(box(w + 0.12, h + 0.12, 0.08, mat('#151418'), { x: o, y: y - 0.06, z: hd + 0.06, cast: false }), box(w, h, 0.04, lit(c, 1.8), { x: o, y, z: hd + 0.12, cast: false }));
+    else deco.add(box(0.08, h + 0.12, w + 0.12, mat('#151418'), { z: o, y: y - 0.06, x: hw + 0.06, cast: false }), box(0.04, h, w, lit(c, 1.8), { z: o, y, x: hw + 0.12, cast: false }));
+  }
+  // cable bundles slung off the faces, sagging
+  for (let i = 0; i < 3; i++) {
+    const y = 4.5 + i * 2.6 + hash(seed, 100 + i); const south = i % 2 === 0;
+    deco.add(box(south ? b.w * 0.9 : 0.08, 0.08, south ? 0.08 : b.h * 0.9, mat('#121214'), { y, z: south ? hd + 0.35 : 0, x: south ? 0 : hw + 0.35, cast: false }));
+  }
+  return H + 1;
+}
+
+/** A Sump shack with salvage neon: a lit strip along its roof edge, a small sign, and a dish on the roof (everybody down here is listening to
+ * something). `b.neonTrim` is the colour. */
+function dressNeonShack(b, deco, H, seed) {
+  const c = b.neonTrim; const lit = mat(c, { emissive: c, ei: 1.7 });
+  const hw = b.w / 2; const hd = b.h / 2;
+  deco.add(box(b.w, 0.08, 0.06, lit, { y: H - 0.05, z: hd + 0.04, cast: false }), box(0.06, 0.08, b.h, lit, { y: H - 0.05, x: hw + 0.04, cast: false }));
+  if (hash(seed, 110) > 0.4) { const sw = Math.min(1.4, b.w - 0.6); deco.add(box(sw, 0.36, 0.04, mat(shade(c, 40), { emissive: c, ei: 2 }), { x: (hash(seed, 111) - 0.5) * (b.w - sw), y: H * 0.62, z: hd + 0.08, cast: false })); }
+  if (hash(seed, 112) > 0.45) { const x = (hash(seed, 113) - 0.5) * (b.w - 1); deco.add(cyl(0.05, 0.5, mat('#6a6a70'), { x, z: -hd * 0.3, y: H }), cyl(0.36, 0.06, mat('#9a9aa2'), { x, z: -hd * 0.3, y: H + 0.5, seg: 12, rt: 0.12 })); }
+}
+
+return { dressNeoTower, dressCrownTower, dressSumpPier, dressNeonShack };
 })();
 
 // ---- src/engine3d/buildings3d.js
@@ -73767,7 +73823,7 @@ __m["src/engine3d/buildings3d.js"] = (function () {
 // Units: 1 unit = 1 tile; the group's origin is the map's own, x east, z south, y up.
 const { THREE, hash, strHash, canvas, tex, shade, mix, mute, box, cyl, cone, group, board, textMat, mat, bake } = __m["src/engine3d/lib3d.js"];
 const { buildingHeight } = __m["src/engine/isoBuildings.js"];
-const { dressNeoTower, dressCrownTower } = __m["src/engine3d/neoTower3d.js"];
+const { dressNeoTower, dressCrownTower, dressSumpPier, dressNeonShack } = __m["src/engine3d/neoTower3d.js"];
 
 const FP = 32; // facade texture pixels per tile
 const STOREY = 2.3; // tiles of wall to a storey of an ordinary building
@@ -74136,7 +74192,9 @@ function buildRoofed(b, shared) {
     const pm = mat(shade(kind === 'tower' ? trim : wall, 8));
     const ph = kind === 'shack' ? 0.12 : 0.38;
     deco.add(box(b.w, ph, 0.16, pm, { y: H, z: b.h / 2 - 0.08 }), box(b.w, ph, 0.16, pm, { y: H, z: -b.h / 2 + 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: b.w / 2 - 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: -b.w / 2 + 0.08 }));
+    if (b.neonTrim) dressNeonShack(b, deco, H, seed); // (the Sump: salvage neon on a shack)
     if (b.crown) out.top = Math.max(out.top, dressCrownTower(b, g, deco, H, seed)); // (the Crown: white, gold and glass)
+    else if (b.pier) out.top = Math.max(out.top, dressSumpPier(b, g, deco, H, seed)); // (the Sump: the foundations, wired)
     else if (b.neo) out.top = Math.max(out.top, dressNeoTower(b, g, deco, H, seed)); // (Neumina: the megacity's dressing in place of the roof clutter)
     else if (kind !== 'shack') {
       const n = Math.max(1, Math.round(b.w * b.h / 40));

@@ -106,3 +106,45 @@ export function dressCrownTower(b, g, deco, H, seed) {
   deco.add(box(0.26, 0.26, 0.26, warm(2.4), { y: y + sh, cast: false }));
   return y;
 }
+
+const SCRAP = ['#ff3fb4', '#4dfcff', '#5dff9c', '#ffb347', '#b06bff', '#ff5f5f'];
+
+/** The Sump's piers (level 1): the city's foundations, squatted and wired. Pipes and glowing coolant conduits up the faces the camera sees, cable
+ * bundles slung between them, salvaged neon signs bolted on at the bottom, a lit band above the street. Futuristic, but the future second-hand. */
+export function dressSumpPier(b, g, deco, H, seed) {
+  const lit = (c, ei = 1.6) => mat(c, { emissive: c, ei });
+  const hw = b.w / 2; const hd = b.h / 2;
+  const pipe = mat('#4a4640'); const rust = mat('#5a3a26');
+  // pipes and conduits up the south and east faces
+  for (let i = 0; i < 4; i++) {
+    const south = i % 2 === 0; const t = (hash(seed, 60 + i) - 0.5) * 0.8;
+    const glowing = hash(seed, 64 + i) > 0.55; const c = glowing ? lit(hash(seed, 68 + i) > 0.5 ? '#5dff9c' : '#4dfcff', 1.2) : (hash(seed, 72 + i) > 0.5 ? pipe : rust);
+    const r = glowing ? 0.13 : 0.2;
+    deco.add(cyl(r, H - 0.2, c, { x: south ? t * b.w : hw + r + 0.02, z: south ? hd + r + 0.02 : t * b.h, y: 0.1, seg: 8, cast: false }));
+  }
+  // a lit band above the street, and salvaged signs under it
+  const band = SCRAP[Math.floor(hash(seed, 80) * SCRAP.length)];
+  deco.add(box(b.w + 0.1, 0.14, 0.08, lit(band, 1.4), { y: 3.4, z: hd + 0.05, cast: false }), box(0.08, 0.14, b.h + 0.1, lit(band, 1.4), { y: 3.4, x: hw + 0.05, cast: false }));
+  for (let i = 0; i < 3; i++) {
+    const c = SCRAP[Math.floor(hash(seed, 81 + i) * SCRAP.length)]; const south = hash(seed, 84 + i) > 0.4;
+    const w = 0.9 + hash(seed, 87 + i) * 1.6; const h = 0.4 + hash(seed, 90 + i) * 0.5; const y = 1.4 + hash(seed, 93 + i) * 1.5; const o = (hash(seed, 96 + i) - 0.5) * ((south ? b.w : b.h) - w - 0.4);
+    if (south) deco.add(box(w + 0.12, h + 0.12, 0.08, mat('#151418'), { x: o, y: y - 0.06, z: hd + 0.06, cast: false }), box(w, h, 0.04, lit(c, 1.8), { x: o, y, z: hd + 0.12, cast: false }));
+    else deco.add(box(0.08, h + 0.12, w + 0.12, mat('#151418'), { z: o, y: y - 0.06, x: hw + 0.06, cast: false }), box(0.04, h, w, lit(c, 1.8), { z: o, y, x: hw + 0.12, cast: false }));
+  }
+  // cable bundles slung off the faces, sagging
+  for (let i = 0; i < 3; i++) {
+    const y = 4.5 + i * 2.6 + hash(seed, 100 + i); const south = i % 2 === 0;
+    deco.add(box(south ? b.w * 0.9 : 0.08, 0.08, south ? 0.08 : b.h * 0.9, mat('#121214'), { y, z: south ? hd + 0.35 : 0, x: south ? 0 : hw + 0.35, cast: false }));
+  }
+  return H + 1;
+}
+
+/** A Sump shack with salvage neon: a lit strip along its roof edge, a small sign, and a dish on the roof (everybody down here is listening to
+ * something). `b.neonTrim` is the colour. */
+export function dressNeonShack(b, deco, H, seed) {
+  const c = b.neonTrim; const lit = mat(c, { emissive: c, ei: 1.7 });
+  const hw = b.w / 2; const hd = b.h / 2;
+  deco.add(box(b.w, 0.08, 0.06, lit, { y: H - 0.05, z: hd + 0.04, cast: false }), box(0.06, 0.08, b.h, lit, { y: H - 0.05, x: hw + 0.04, cast: false }));
+  if (hash(seed, 110) > 0.4) { const sw = Math.min(1.4, b.w - 0.6); deco.add(box(sw, 0.36, 0.04, mat(shade(c, 40), { emissive: c, ei: 2 }), { x: (hash(seed, 111) - 0.5) * (b.w - sw), y: H * 0.62, z: hd + 0.08, cast: false })); }
+  if (hash(seed, 112) > 0.45) { const x = (hash(seed, 113) - 0.5) * (b.w - 1); deco.add(cyl(0.05, 0.5, mat('#6a6a70'), { x, z: -hd * 0.3, y: H }), cyl(0.36, 0.06, mat('#9a9aa2'), { x, z: -hd * 0.3, y: H + 0.5, seg: 12, rt: 0.12 })); }
+}

@@ -119,22 +119,25 @@ function sump() {
   const buildings = [];
   // the foundations: piers of the towers above, squatted, their lit windows amber
   const piers = [[1, 1, 8, 7, 'Pier Nine'], [13, 1, 7, 5, 'Pier Ten'], [27, 1, 9, 5, 'Pier Eleven'], [43, 1, 7, 6, 'Pier Twelve'], [1, 13, 6, 8, 'Pier Fourteen']];
-  for (const [x, y, w, h, name] of piers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_pier_${x}_${y}`, name, mapLabel: name, x, y, w, h, tower: 30, storeys: 12, wall: '#2c2925', trim: '#1a1816', glass: '#ffb866' }); }
+  for (const [x, y, w, h, name] of piers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_pier_${x}_${y}`, name, mapLabel: name, x, y, w, h, tower: 30, pier: true, storeys: 12, wall: '#2c2925', trim: '#1a1816', glass: '#ffb866' }); }
   // the Drain Cathedral: an old pump hall the squatters made a church of
   m.rect(20, 11, 13, 7, 'B'); buildings.push({ id: 'nm_u_cathedral', name: 'The Drain Cathedral', mapLabel: 'The Drain Cathedral', x: 20, y: 11, w: 13, h: 7, wall: '#4a4038', trim: '#2a241e', columns: true, storeys: 3, sign: 'ST. RUNOFF' });
   // the shanties: sheet metal and salvage, in clusters along the alleys
   const shanty = [[10, 9, 4, 3, '#6b4a34'], [14, 9, 3, 3, '#3f5a58'], [36, 9, 4, 3, '#6a5a3a'], [40, 9, 3, 3, '#5a3a3a'], [51, 9, 4, 3, '#3a4a5a'], [9, 16, 3, 3, '#5a4a3a'],
     [9, 22, 4, 3, '#4a5a3a'], [14, 22, 3, 3, '#6b4a34'], [36, 13, 3, 3, '#3f5a58'], [52, 14, 4, 3, '#5a3a3a'], [53, 19, 3, 3, '#6a5a3a'], [18, 22, 4, 2, '#3a4a5a'],
     [2, 25, 4, 3, '#5a3a3a'], [47, 30, 3, 2, '#4a5a3a'], [52, 30, 4, 2, '#6b4a34']];
-  shanty.forEach(([x, y, w, h, wall], i) => { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_shack_${i}`, name: 'A shack', x, y, w, h, wall, shabby: true, storeys: 1 + (i % 2) }); });
+  shanty.forEach(([x, y, w, h, wall], i) => { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_shack_${i}`, name: 'A shack', x, y, w, h, wall, shabby: true, storeys: 1 + (i % 2), ...(i % 3 !== 2 ? { neonTrim: ['#ff3fb4', '#4dfcff', '#5dff9c', '#ffb347', '#b06bff'][i % 5] } : {}) }); });
   // Mother Kettle's soup kitchen
-  m.rect(26, 22, 6, 3, 'B'); buildings.push({ id: 'nm_u_kettle', name: "Mother Kettle's", mapLabel: "Mother Kettle's", x: 26, y: 22, w: 6, h: 3, wall: '#7a5a3a', shabby: true, storeys: 1, sign: 'SOUP' });
+  m.rect(26, 22, 6, 3, 'B'); buildings.push({ id: 'nm_u_kettle', name: "Mother Kettle's", mapLabel: "Mother Kettle's", x: 26, y: 22, w: 6, h: 3, wall: '#7a5a3a', shabby: true, storeys: 1, sign: 'SOUP', neonTrim: '#ffb347' });
   // the run-off channel along the south, two plank bridges over it
   m.rect(0, 38, W, 3, '~'); m.rect(12, 38, 3, 3, 'p'); m.rect(40, 38, 3, 3, 'p'); m.rect(0, 41, W, 5, 'u');
   const props = [];
   let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_u_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
   // the Scrap Bazaar: tents and salvage round a fire
-  for (const [x, y] of [[37, 19], [41, 19], [45, 19], [37, 24], [45, 24]]) P('tent', x, y, { w: 2 });
+  for (const [x, y, c] of [[37, 19, '#4dfcff'], [41, 19, '#ff3fb4'], [45, 19, '#5dff9c'], [37, 24, '#ffb347'], [45, 24, '#b06bff']]) P('market_stall_neo', x, y, { w: 2, color: c, examine: 'A stall of salvage: chips pulled from dead drones, cables sold by the arm-length, and a box marked PROBABLY FINE.' });
+  P('holo_ad', 42, 19, { color: '#ff5fd6', examine: 'A stolen hologram projector, still showing the advert it was stolen with: a perfume called ALTITUDE, for people who will never smell it.' });
+  P('data_pylon', 35, 24, { examine: 'A city access node somebody has opened like a tin. Twelve cables run out of it to twelve different shacks.' });
+  P('vend_neo', 49, 20, { examine: 'A vending machine hauled down from the Skyway. It sells only one thing now, and the label has been scratched off.' });
   P('barrelfire', 42, 22); for (const [x, y] of [[40, 22], [44, 22], [42, 21]]) P('crate', x, y);
   for (const [x, y] of [[39, 27], [48, 21], [35, 21]]) P('barrel', x, y);
   P('laundry', 36, 17, { w: 3 }); P('laundry', 47, 17, { w: 3 });
@@ -149,6 +152,12 @@ function sump() {
   for (const [x, y] of [[16, 13], [34, 16], [22, 27], [48, 13]]) P('streetlamp', x, y);
   for (const [x, y] of [[27, 26], [30, 26]]) P('bench', x, y);
   P('vent_stack', 19, 9); P('vent_stack', 41, 13); P('vent_stack', 6, 22);
+  // salvage neon and second-hand tech everywhere: signs on poles, scavenger drones, grow-light fungus farms, a hologram preacher at the Cathedral
+  for (const [x, y, c] of [[19, 12, '#4dfcff'], [34, 12, '#ff3fb4'], [8, 18, '#5dff9c'], [24, 21, '#ffb347'], [52, 27, '#b06bff'], [13, 26, '#ff5f5f'], [46, 33, '#4dfcff']]) P('neon_sign', x, y, { color: c });
+  P('drone_pad', 50, 34, { w: 2, h: 2, examine: 'A scavenger drone\'s nest: it goes up the shafts at night and comes back with whatever fell off the Skyway.' });
+  for (const [x, y] of [[33, 33], [17, 30]]) P('glow_planter', x, y, { w: 2, examine: 'Fungus under a grow light. Down here it is food, medicine, and on Thursdays, something else.' });
+  P('holo_ad', 23, 19, { color: '#ffe2a0', examine: 'A hologram saint above the Cathedral door, patched together from a bank\'s advert. She still says "Your trust, compounded" now and then.' });
+  P('neon_lamp', 37, 30, { color: '#ff9f5f' }); P('neon_lamp', 12, 34, { color: '#9fdcff' });
   P('security_camera', 27, 30, { examine: 'A Gutterline camera, pointed down at the Chain Lift. Someone has taped a picture of an eye over the lens.' });
   // the Chain Lift: a freight cage up to the Gutterline
   P('lift', 29, 31, { examine: 'The Chain Lift: a freight cage on a chain as thick as your leg. It goes up to the Gutterline, and complains the whole way.' });
@@ -156,7 +165,7 @@ function sump() {
   for (const x of [27, 28, 30, 31]) P('chainfence', x, 33);
   return {
     id: 'neumina_sump', name: 'Neumina — The Sump', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1,
-    atmos: { dark: [0.78, 1], bg: '#0a0807' }, edges: { lip: '#2a2622', glow: '#d8902a' },
+    atmos: { dark: [0.78, 1], bg: '#0a0807', sludge: true }, edges: { lip: '#2a2622', glow: '#d8902a' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
     areas: [{ id: 'area_nm_sump', name: 'Neumina, the Sump', x: 0, y: 0, w: W, h: H }],
     doors: [{ id: 'door_nm_chain_up', x: 29, y: 32, keepTile: true, label: 'The Chain Lift up to the Gutterline', to: { map: 'neumina_street', spot: 'chain' } }],
