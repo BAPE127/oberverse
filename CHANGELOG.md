@@ -7,6 +7,7 @@ All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see d
 The owner's direction of 2026-11-16: the roadmap is scratched; Special Operations (spy missions played in person, with hacking) begin with Neumina. Design: `docs/SPECIAL_OPERATIONS.md`.
 
 - **A city in levels** (`src/content/maps/neumina.js`): Neumina's Street Level, the Skyway seven tiles above it, and the Terraces seven above that; eight towers rise from the street through every level; stairs and a lift join the levels. Each level is its own flat map; the 3D view draws the levels below you through the open drops (`def.below`, the new drop tile `O`, holes cut in the ground, `src/engine3d/levels3d.js` for the decks' lit edges, a haze between levels), and nothing above you. A new dark **deck plating** ground (`n`). Neumina is abroad: it is not on Sund's map (two world-map tests now skip maps marked `abroad`).
+- A tower rising from a level below is cut away around you like any other building (the see-behind now tests the whole body, not one point at the chest).
 - Not reachable in play yet except through the debug teleport (`tp neumina_skyway`): missions come with the next steps.
 
 ## [0.106.0] — 2026-11-15 — War: Destruction, the Army and the Coup (development build)

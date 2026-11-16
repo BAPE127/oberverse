@@ -492,7 +492,7 @@ export class Renderer {
     const s = pixel ? zoom / this.px : zoom; // world → canvas scale
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
     // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
@@ -902,7 +902,7 @@ export class Renderer {
     const ctx = this.ctx;
     const s = zoom / this.px;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : '#2d6f8f';
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const cs = g.combat.shake;
     const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0, this.launchShake(map));

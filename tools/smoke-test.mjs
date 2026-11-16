@@ -156,7 +156,7 @@ try {
     W3.hideBelow = true; W3.render(0.016); const off = inView.map((q) => px(q.x, q.y)); W3.hideBelow = false;
     const changed = on.filter((c, i) => Math.hypot(c[0] - off[i][0], c[1] - off[i][1], c[2] - off[i][2]) > 20).length;
     g.changeMap('neumina_terrace', 'bridge'); R.snapCamera?.(); await new Promise((r) => setTimeout(r, 2600)); W3.render(0.016);
-    const below = (W3.extraLayers || []).map((L) => `${L.map.id}@-${L.depth}`);
+    const below = (W3.extraLayers || []).map((L) => `${L.map.id}@${W3.mapScenes.get(L.map.id)?.group.position.y}`); // (where each level is really drawn, not where it should be)
     ui.openPanel('map'); await new Promise((r) => setTimeout(r, 300)); while (ui.panelStack.length) ui.closePanel(); // (the map screen opens abroad without an error)
     R.mode = 'iso2d'; await new Promise((r) => setTimeout(r, 400)); R.mode = '3d'; // (and the 2D fallback draws a level without an error)
     return { gl: true, pts: inView.length, changed, below };

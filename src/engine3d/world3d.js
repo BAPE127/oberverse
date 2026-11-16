@@ -61,6 +61,13 @@ class MapScene {
   }
 }
 
+/** v0.107.0: does a building hide any part of a person standing at (x, y) with the chest at z: the middle and the sides of the body (12 px either way across the
+ * screen), from the knees to the head. One point at the chest missed a tower whose edge cut through the body. */
+function hidesBody(box, top, x, y, z) {
+  for (const dz of [-14, 0, 14]) for (const s of [-12, 0, 12]) if (hidesPoint(box, top, x + s / 2, y - s / 2, z + dz)) return true;
+  return false;
+}
+
 export class World3D {
   /** One WebGL context per canvas for the life of the page: a new Renderer (new game, load) reuses it. Returns null when WebGL is unavailable. */
   static get(canvas, host) {
@@ -202,10 +209,12 @@ export class World3D {
     // lower, through the holes of the deck (its 'O' tiles), and the one under it too. Levels above you are not drawn. The rules know nothing of
     // this: each level is its own flat map, joined to the others by stairs and lifts (ordinary doors).
     this.extraLayers = [];
+    for (const ms0 of this.mapScenes.values()) if (ms0.haze) ms0.haze.visible = false; // (a level's haze shows only while it is drawn below you)
     { const top = host.layers.find((L) => L.map.id === g.player.map) || host.layers[0]; let cur = top?.map; let depth = 0;
       for (let k = 0; cur?.def?.below && k < 2; k++) {
         const bm = g.maps.get(cur.def.below.map); if (!bm) break; depth += cur.def.below.drop;
-        const ms = this.sceneFor(bm); ms.group.visible = !this.hideBelow; ms.last = this.frameNo; // (`hideBelow`: the smoke test, the level below on and off) ms.group.position.set(top.x / TILE, -depth, top.y / TILE); shown.add(ms);
+        const ms = this.sceneFor(bm); ms.group.visible = !this.hideBelow; ms.last = this.frameNo; // (`hideBelow`: the smoke test, the level below on and off)
+        ms.group.position.set(top.x / TILE, -depth, top.y / TILE); shown.add(ms);
         const L2 = { map: bm, x: top.x, y: top.y, depth }; this.extraLayers.push(L2); const mg = depth * 1.6 + 4;
         this.updateMap(ms, L2, { x0: (wv.x - top.x) / TILE - mg, y0: (wv.y - top.y) / TILE - mg, x1: (wv.x + wv.w - top.x) / TILE + mg, y1: (wv.y + wv.h - top.y) / TILE + mg }, lamp);
         this.levelDressing(ms, cur, bm, depth);
@@ -312,9 +321,10 @@ export class World3D {
             const box = buildingBox(b, L); const top = Math.max(H3, e.roofed.top - 0.5) * TILE;
             for (let k = 0; k < this.foci.length; k++) {
               const f = this.foci[k];
-              if (!behindBox(f, box) || !hidesPoint(box, top, f.x, f.y, f.z)) continue;
+              const fz = f.z + (L.depth || 0) * TILE; // (v0.107.0: a tower rising from a level below stands `depth` lower than you: the focus is that much higher above its foot)
+              if (!behindBox(f, box) || !hidesBody(box, top, f.x, f.y, fz)) continue;
               f.covered = true;
-              if (k === 0) this.occluders.push({ box, h: top, fade: 0, hx: f.x - f.y, hy: (f.x + f.y) / 2 - f.z, r: f.rx, f });
+              if (k === 0) this.occluders.push({ box, h: top, fade: 0, hx: f.x - f.y, hy: (f.x + f.y) / 2 - fz, r: f.rx, f });
             }
           }
           if (night && e.roofed.lights.length && t < 0.5) for (const l of e.roofed.lights) { if (l.door && !e.lit && !l.tower) continue; this.cands.push({ x: l.x + ox, y: l.y, z: l.z + oz, color: l.color, intensity: l.intensity, distance: l.distance, prio: l.prio }); }
@@ -534,7 +544,7 @@ export class World3D {
       const geo = new THREE.PlaneGeometry(lowerMap.width + 40, lowerMap.height + 40); const mat = new THREE.MeshBasicMaterial({ color: '#1a1030', transparent: true, opacity: 0.32, depthWrite: false });
       const h = new THREE.Mesh(geo, mat); h.rotation.x = -Math.PI / 2; h.position.set(lowerMap.width / 2, 0.6, lowerMap.height / 2); h.renderOrder = 2; lowerMs.haze = h; lowerMs.group.add(h);
     }
-    lowerMs.haze.position.y = Math.min(depth * 0.55, 6);
+    lowerMs.haze.position.y = Math.min(depth * 0.55, 6); lowerMs.haze.visible = true;
   }
 
   nearView(x, z, pad = 3) {

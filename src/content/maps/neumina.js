@@ -36,6 +36,7 @@ function street() {
   for (const x of [2, 10, 26, 32, 40, 48, 60, 66]) { P('streetlamp', x, 17); P('streetlamp', x, 27); }
   for (const [x, y] of [[23, 22], [41, 22], [59, 22], [23, 32], [41, 32], [59, 32]]) P('trafficlight', x, y);
   for (const [x, y] of [[4, 22], [30, 33], [50, 17], [64, 33]]) P('bench', x, y);
+  P('stairs', 35, 24, { examine: 'The public stair tower up to the Skyway. Its steps are worn into dips by a million commuters.' });
   for (const [x, y] of [[3, 14], [12, 23], [46, 23], [62, 14]]) P('trash', x, y);
   return {
     id: 'neumina_street', name: 'Neumina — Street Level', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1, music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city',
@@ -61,9 +62,10 @@ function skyway() {
   m.rect(1, 15, 5, 5, 'n'); m.rect(2, 16, 3, 3, 'B'); bridge(5, 17, 2, 2); m.rect(31, 2, 10, 6, 'n'); m.rect(32, 3, 8, 4, 'B');
   const props = [];
   let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_k_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
-  for (const [x, y] of [[31, 23], [42, 23], [31, 30], [42, 30], [8, 18], [26, 20], [47, 20], [62, 20], [35, 40], [40, 40]]) P('streetlamp', x, y);
+  for (const [x, y] of [[31, 23], [42, 23], [31, 30], [42, 30], [9, 18], [26, 20], [47, 20], [62, 20], [35, 40], [40, 40]]) P('streetlamp', x, y);
   for (const [x, y] of [[33, 26], [39, 26], [33, 28], [39, 28]]) P('bench', x, y);
   P('fountain', 35, 26, { w: 2, h: 2 });
+  P('stairs', 35, 30, { examine: 'The public stair tower down to the Street Level.' }); P('lift', 43, 23, { examine: 'A glass lift to the Terraces. A sign: RESIDENTS AND GUESTS. A smaller sign: WE CAN SEE YOU.' });
   return {
     id: 'neumina_skyway', name: 'Neumina — The Skyway', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 2, below: { map: 'neumina_street', drop: SKY_DROP, lip: '#262838', glow: '#3ad8ff' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
@@ -93,6 +95,7 @@ function terrace() {
   for (const [x, y] of [[16, 6], [18, 9], [16, 10], [54, 5], [55, 9], [53, 11], [53, 37], [55, 41]]) P('tree', x, y);
   for (const [x, y] of [[4, 4], [20, 4], [41, 4], [67, 4], [38, 35], [67, 35], [43, 18], [43, 30]]) P('streetlamp', x, y);
   for (const [x, y] of [[8, 14], [11, 14], [46, 14], [49, 14], [40, 44], [42, 44]]) P('bench', x, y);
+  P('lift', 45, 23, { examine: 'The glass lift down to the Skyway.' });
   return {
     id: 'neumina_terrace', name: 'Neumina — The Terraces', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 3, below: { map: 'neumina_skyway', drop: TERRACE_DROP, lip: '#d8d2c4', glow: '#ffd27a' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
