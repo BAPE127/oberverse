@@ -9,8 +9,8 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 - **Version:** v0.106.0 (War: Destruction, the Army and the Coup), development channel, save schema 1.
 - **Size:** about 84,000 lines of source in `src/` (18 folders), 163 test files, 48 system and design documents.
 - **Released:** the home coast and Halvermouth, the living-world simulation, combat, quests and emergent events, the corporate empire (companies, group, bank, bonds, exchange, managers, headquarters), shipping, arms works, aerospace, farming, casino, the World Atlas, the complete Politics update (v0.93–v0.97), and the War update through Strategic Command (v0.98–v0.103.11).
-- **In progress:** nothing. v0.106.0 released on 2026-11-15 and published to the live site.
-- **Next on the roadmap:** v0.107.0 *War: Migration and Release* (the war update's regression and polish), then the Post-War Expansion (v0.108.0–v0.116.0). See `ROADMAP.md` section 0.
+- **In progress:** **Special Operations** (owner, 2026-11-16: the roadmap is scratched). Built: Neumina's three levels in 3D with the view down through the drops. Designed, waiting for the owner: missions, hacking (the Splice), disguise and suspicion, the mission-run rule (`SPECIAL_OPERATIONS.md`).
+- **Next:** the owner's answers to `SPECIAL_OPERATIONS.md` section 9, then v0.107.0 (Neumina's look, lobbies, crowds, the mission-run foundation and its contamination test) and v0.108.0 (the Splice, disguises, the first contract). The old roadmap is history.
 
 ## Last work
 
@@ -32,7 +32,6 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Recommended next assignment
 
-1. The owner plays an attended battle under rules 5 (planning, teams, helicopters, sound) and reports difficulty and feel; forest attack (13%% headless) and trench defence (85%%) are the outliers.
-2. v0.106.0 War: destruction, government response and the coup.
-
-Usage note: the Sonnet agents hit the weekly limit on 2026-11-15 (resets 2026-11-19 02:00 UTC). Run one agent at a time; WIP-commit before and after; resume a stopped agent with SendMessage.
+1. The owner answers `SPECIAL_OPERATIONS.md` §9 (who hands out missions, whether a mission takes Sund time, lethal or not, which contract first) and decides whether v0.106.0 is published to the live site.
+2. Build the mission-run foundation (template/instance, own clock and RNG, run-local people, extraction once, save mid-run) with the contamination test written first.
+3. The Splice, disguise and suspicion, and the first contract end to end.

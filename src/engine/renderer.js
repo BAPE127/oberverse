@@ -214,6 +214,10 @@ export class Renderer {
       }
       const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
       c = buildGroundChunk(map, cx, cy, makeCanvas, fields);
+      if (map.def?.below) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
+        const g2 = c.getContext('2d'); const ppt = c.width / Math.min(CHUNK, map.width - cx * CHUNK);
+        for (let ty = 0; ty < CHUNK; ty++) for (let tx = 0; tx < CHUNK; tx++) { const X = cx * CHUNK + tx; const Y = cy * CHUNK + ty; if (X < map.width && Y < map.height && map.tileAt(X, Y) === 'O') { g2.clearRect(tx * ppt, ty * ppt, ppt, ppt); c.holes = true; } }
+      }
       c.owner = entry;
       c.key = key;
       entry.chunks.set(key, c);

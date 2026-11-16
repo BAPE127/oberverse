@@ -9,6 +9,7 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
+import { buildDeckEdges } from './levels3d.js';
 import { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
 import { CombatFx3D } from './combatfx3d.js';
@@ -197,6 +198,19 @@ export class World3D {
       shown.add(ms);
       this.updateMap(ms, L, { x0: (wv.x - L.x) / TILE, y0: (wv.y - L.y) / TILE, x1: (wv.x + wv.w - L.x) / TILE, y1: (wv.y + wv.h - L.y) / TILE }, lamp);
     }
+    // v0.107.0: a city in levels. The map you stand on may lie over another (`def.below: { map, drop }` in tiles): that level is drawn `drop` tiles
+    // lower, through the holes of the deck (its 'O' tiles), and the one under it too. Levels above you are not drawn. The rules know nothing of
+    // this: each level is its own flat map, joined to the others by stairs and lifts (ordinary doors).
+    this.extraLayers = [];
+    { const top = host.layers.find((L) => L.map.id === g.player.map) || host.layers[0]; let cur = top?.map; let depth = 0;
+      for (let k = 0; cur?.def?.below && k < 2; k++) {
+        const bm = g.maps.get(cur.def.below.map); if (!bm) break; depth += cur.def.below.drop;
+        const ms = this.sceneFor(bm); ms.group.visible = !this.hideBelow; ms.last = this.frameNo; // (`hideBelow`: the smoke test, the level below on and off) ms.group.position.set(top.x / TILE, -depth, top.y / TILE); shown.add(ms);
+        const L2 = { map: bm, x: top.x, y: top.y, depth }; this.extraLayers.push(L2); const mg = depth * 1.6 + 4;
+        this.updateMap(ms, L2, { x0: (wv.x - top.x) / TILE - mg, y0: (wv.y - top.y) / TILE - mg, x1: (wv.x + wv.w - top.x) / TILE + mg, y1: (wv.y + wv.h - top.y) / TILE + mg }, lamp);
+        this.levelDressing(ms, cur, bm, depth);
+        cur = bm;
+      } }
     this.updateActors(shown, lamp);
     this.cfx.update(this);
     this.updateHoles();
@@ -210,7 +224,9 @@ export class World3D {
     if (aloft) this.bgColor.lerp(new THREE.Color('#10141e'), darkness * 0.8);
     const tx = this.camera.position.x - 200 / Math.sqrt(3);
     const tz = this.camera.position.z - 200 / Math.sqrt(3);
-    this.sea.visible = outdoor;
+    const mega = host.layers.some((L) => L.map.def?.megacity); // v0.107.0: a megacity has no sea at its edge, only the dark and the city's glow
+    this.sea.visible = outdoor && !mega;
+    if (mega) { this.bgColor.set('#0d0b1c'); }
     this.sea.position.x = tx; this.sea.position.z = tz;
     const p = g.player;
     this.rig.update(darkness, outdoor, [p.x / TILE, p.y / TILE], this.cands, host.quality);
@@ -436,14 +452,14 @@ export class World3D {
     const now = host.time;
     const byMap = new Map();
     const layerOf = new Map();
-    for (const L of host.layers) { const ms = this.mapScenes.get(L.map.id); layerOf.set(L.map.id, L); if (ms && shown.has(ms)) byMap.set(L.map.id, ms); }
+    for (const L of [...host.layers, ...(this.extraLayers || [])]) { const ms = this.mapScenes.get(L.map.id); layerOf.set(L.map.id, L); if (ms && shown.has(ms)) byMap.set(L.map.id, ms); }
     const clock = g.clock.total;
     for (const npc of g.npcs.values()) {
       const ms = byMap.get(npc.map);
       if (!ms || npc.riding != null) continue;
       const lay = layerOf.get(npc.map);
       const px = npc.x / TILE + lay.x / TILE; const pz = npc.y / TILE + lay.y / TILE;
-      if (!this.nearView(px, pz)) { const e0 = this.figures.get(npc); if (e0) e0.fig.root.visible = false; continue; }
+      if (!lay.depth && !this.nearView(px, pz)) { const e0 = this.figures.get(npc); if (e0) e0.fig.root.visible = false; continue; }
       const down = isDown(npc, clock);
       const wid = npc.profile.combat?.weapon;
       const fighting = npc.hostile?.mode === 'fight' && wid;
@@ -508,6 +524,17 @@ export class World3D {
         }
       }
     }
+  }
+
+  /** v0.107.0: what makes a deck read as a deck: its edges (a thick lip with a lit strip along every drop) once per upper map, and a haze between it and the level below. */
+  levelDressing(lowerMs, upperMap, lowerMap, depth) {
+    const up = this.mapScenes.get(upperMap.id);
+    if (up && !up.deckEdges) { up.deckEdges = buildDeckEdges(upperMap); up.group.add(up.deckEdges); }
+    if (!lowerMs.haze) {
+      const geo = new THREE.PlaneGeometry(lowerMap.width + 40, lowerMap.height + 40); const mat = new THREE.MeshBasicMaterial({ color: '#1a1030', transparent: true, opacity: 0.32, depthWrite: false });
+      const h = new THREE.Mesh(geo, mat); h.rotation.x = -Math.PI / 2; h.position.set(lowerMap.width / 2, 0.6, lowerMap.height / 2); h.renderOrder = 2; lowerMs.haze = h; lowerMs.group.add(h);
+    }
+    lowerMs.haze.position.y = Math.min(depth * 0.55, 6);
   }
 
   nearView(x, z, pad = 3) {

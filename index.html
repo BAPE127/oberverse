@@ -6368,6 +6368,117 @@ const __default = [hollowmoorLot];
 return { HM_W, HM_H, SLOTS, FENCE, AIRFIELD, PARK, INNER, hollowmoorLot, default: __default };
 })();
 
+// ---- src/content/maps/neumina.js
+__m["src/content/maps/neumina.js"] = (function () {
+// Neumina (v0.107.0; owner's brief of 2026-11-16): the Windfen League's megacity, a city in levels. This first cut is two of them, the proof that
+// a level shows through the one above it:
+//   neumina_street   Level 1, the street: avenues in a grid, arcades, and the towers whose feet stand here and whose shafts rise through every level
+//   neumina_skyway   Level 2, seven tiles up: decks round the towers and bridges between them, over open drops ('O') through which the street shows
+// Each level is its own flat map (the rules never stack them); stairs join them as ordinary doors. The 3D view draws the level below through the
+// drops (src/engine3d/world3d.js, `def.below`). Final coordinates; no growth, no generated interiors yet. Preview: `npm run map -- neumina_skyway`.
+const { MapBuilder } = __m["src/world/mapBuilder.js"];
+
+const NM_W = 72;
+const NM_H = 56;
+const SKY_DROP = 7; // tiles between the street and the skyway deck
+const TERRACE_DROP = 7; // and between the skyway and the terraces
+
+/** The towers: x, y, w, h, storeys, name, wall, glass. They stand on the street and rise through the skyway (its tiles there are 'B'). */
+const TOWERS = [
+  [6, 6, 8, 8, 34, 'Halcyne Spire', '#2a2f44', '#5fd6ff'], [22, 5, 7, 9, 26, 'Orrel Data Exchange', '#33283f', '#ff4fb8'],
+  [43, 6, 9, 7, 40, 'Vantor Biotic', '#1f3238', '#4dffc3'], [58, 5, 8, 9, 30, 'Kessin Arcology', '#3a2a2a', '#ffb347'],
+  [6, 34, 9, 8, 22, 'Lumen Freight Stack', '#2b2b35', '#8f7bff'], [24, 36, 8, 8, 28, 'The Meridian Lattice', '#24323a', '#5fd6ff'],
+  [44, 35, 7, 9, 36, 'Synth Court', '#3a2440', '#ff5fd6'], [58, 34, 9, 8, 24, 'Dace & Morrow Holdings', '#202b30', '#9dffb0'],
+];
+
+function street() {
+  const m = new MapBuilder(NM_W, NM_H, ',');
+  // avenues: two east-west, three north-south, four tiles wide
+  for (const y of [18, 28]) m.rect(0, y, NM_W, 4, '=');
+  for (const x of [18, 36, 54]) m.rect(x, 0, 4, NM_H, '=');
+  const buildings = TOWERS.map(([x, y, w, h, storeys, name, wall, glass], i) => {
+    m.rect(x, y, w, h, 'B');
+    return { id: `nm_t${i}`, name, mapLabel: name, x, y, w, h, tower: storeys, storeys: Math.round(storeys / 2.6), wall, trim: '#14141c', glass, sign: name.toUpperCase().split(' ')[0] }; // (`storeys` sets its 3D height: tall enough to rise through every level)
+  });
+  // low arcades along the avenues (shops at street level, roofs under the deck)
+  const arcade = [[1, 15, 15, 2, 'Night Market', '#3b2d22'], [40, 15, 13, 2, 'Arcade Row', '#2a2238'], [1, 24, 15, 3, 'Noodle Steps', '#402a20'], [40, 24, 13, 3, 'Chrome Alley', '#22303a'], [58, 24, 12, 3, 'The Underpass Clinic', '#2f2f2f']];
+  for (const [x, y, w, h, name, wall] of arcade) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_a_${x}_${y}`, name, mapLabel: name, x, y, w, h, wall, trim: '#151520', flatRoof: true, sign: name.toUpperCase() }); }
+  const props = [];
+  let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_s_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
+  for (const x of [2, 10, 26, 32, 40, 48, 60, 66]) { P('streetlamp', x, 17); P('streetlamp', x, 27); }
+  for (const [x, y] of [[23, 22], [41, 22], [59, 22], [23, 32], [41, 32], [59, 32]]) P('trafficlight', x, y);
+  for (const [x, y] of [[4, 22], [30, 33], [50, 17], [64, 33]]) P('bench', x, y);
+  for (const [x, y] of [[3, 14], [12, 23], [46, 23], [62, 14]]) P('trash', x, y);
+  return {
+    id: 'neumina_street', name: 'Neumina — Street Level', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1, music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city',
+    tiles: m.rows(), buildings, props,
+    areas: [{ id: 'area_nm_street', name: 'Neumina, Street Level', x: 0, y: 0, w: NM_W, h: NM_H }],
+    doors: [{ id: 'door_nm_up', x: 36, y: 25, keepTile: true, label: 'The stair tower up to the Skyway', to: { map: 'neumina_skyway', spot: 'stairs' } }],
+    spots: { arrive: { x: 38, y: 23, facing: 'down' }, stairs: { x: 37, y: 26, facing: 'down' } },
+  };
+}
+
+function skyway() {
+  const m = new MapBuilder(NM_W, NM_H, 'O');
+  // the decks round each tower's shaft (the shaft itself is 'B': the street's tower rises through), then bridges between them
+  for (const [x, y, w, h] of TOWERS) { m.rect(x - 2, y - 2, w + 4, h + 4, 'n'); m.rect(x, y, w, h, 'B'); }
+  m.rect(30, 22, 14, 10, 'm'); m.rect(31, 23, 12, 8, 'n'); m.rect(34, 25, 6, 4, 'm'); // the central plaza over the avenue crossing: plating with a stone court
+  const bridge = (x, y, w, h) => m.rect(x, y, w, h, 'n');
+  bridge(16, 9, 4, 3); bridge(31, 8, 10, 3); bridge(54, 8, 2, 3); bridge(9, 16, 3, 16); bridge(25, 16, 3, 18); bridge(46, 15, 3, 18); bridge(61, 16, 3, 16);
+  bridge(17, 38, 5, 3); bridge(34, 39, 8, 3); bridge(53, 38, 3, 3); bridge(28, 24, 2, 3); bridge(44, 26, 2, 3); bridge(30, 32, 3, 2); bridge(36, 13, 3, 9);
+  const buildings = [ // kiosks and a transit hall on the decks
+    { id: 'nm_k_kiosk_a', name: 'Static Noodles', mapLabel: 'Static Noodles', x: 2, y: 16, w: 3, h: 3, wall: '#2b1f33', trim: '#ff4fb8', flatRoof: true, sign: 'NOODLES' },
+    { id: 'nm_k_transit', name: 'Skyway Transit Hall', mapLabel: 'Skyway Transit Hall', x: 32, y: 3, w: 8, h: 4, wall: '#1f2a36', trim: '#3ad8ff', flatRoof: true, sign: 'TRANSIT' },
+  ];
+  m.rect(1, 15, 5, 5, 'n'); m.rect(2, 16, 3, 3, 'B'); bridge(5, 17, 2, 2); m.rect(31, 2, 10, 6, 'n'); m.rect(32, 3, 8, 4, 'B');
+  const props = [];
+  let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_k_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
+  for (const [x, y] of [[31, 23], [42, 23], [31, 30], [42, 30], [8, 18], [26, 20], [47, 20], [62, 20], [35, 40], [40, 40]]) P('streetlamp', x, y);
+  for (const [x, y] of [[33, 26], [39, 26], [33, 28], [39, 28]]) P('bench', x, y);
+  P('fountain', 35, 26, { w: 2, h: 2 });
+  return {
+    id: 'neumina_skyway', name: 'Neumina — The Skyway', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 2, below: { map: 'neumina_street', drop: SKY_DROP, lip: '#262838', glow: '#3ad8ff' },
+    music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
+    areas: [{ id: 'area_nm_skyway', name: 'Neumina, the Skyway', x: 0, y: 0, w: NM_W, h: NM_H }],
+    doors: [{ id: 'door_nm_down', x: 36, y: 31, keepTile: true, label: 'The stair tower down to the Street Level', to: { map: 'neumina_street', spot: 'stairs' } },
+      { id: 'door_nm_lift_up', x: 43, y: 24, keepTile: true, label: 'The lift up to the Terraces', to: { map: 'neumina_terrace', spot: 'lift' } }],
+    spots: { arrive: { x: 37, y: 27, facing: 'down' }, stairs: { x: 37, y: 30, facing: 'up' }, lift: { x: 42, y: 24, facing: 'left' }, bridge: { x: 26, y: 26, facing: 'down' } },
+  };
+}
+
+/** Level 3, the Terraces: the rich live up here, on gardens and terraces round the towers' upper floors, looking down through two levels. */
+function terrace() {
+  const m = new MapBuilder(NM_W, NM_H, 'O');
+  for (const [x, y, w, h] of TOWERS) m.rect(x, y, w, h, 'B');
+  // three terraces: the Halcyne garden (north-west), the Vantor terrace (north-east), the Synth Court promenade (south), joined by two long bridges
+  m.rect(3, 3, 26, 13, 'm'); for (const [x, y, w, h] of TOWERS.slice(0, 2)) m.rect(x, y, w, h, 'B'); m.rect(15, 5, 6, 8, '.');
+  m.rect(40, 3, 30, 12, 'm'); for (const [x, y, w, h] of TOWERS.slice(2, 4)) m.rect(x, y, w, h, 'B'); m.rect(53, 4, 4, 9, '.');
+  m.rect(36, 33, 34, 13, 'm'); for (const [x, y, w, h] of TOWERS.slice(6, 8)) m.rect(x, y, w, h, 'B'); m.rect(52, 36, 5, 8, '.');
+  m.rect(29, 8, 11, 3, 'n'); m.rect(41, 15, 3, 18, 'n'); m.rect(41, 21, 5, 7, 'n'); m.rect(42, 22, 3, 5, 'n');
+  const buildings = [
+    { id: 'nm_r_villa_a', name: 'The Halcyne Garden Pavilion', mapLabel: 'Garden Pavilion', x: 16, y: 12, w: 5, h: 3, wall: '#e8e2d4', trim: '#c9a43a', flatRoof: true, sign: 'PAVILION' },
+    { id: 'nm_r_club', name: 'The Aurum Club', mapLabel: 'The Aurum Club', x: 59, y: 42, w: 7, h: 3, wall: '#efe9dc', trim: '#c9a43a', flatRoof: true, sign: 'AURUM' },
+  ];
+  for (const b of buildings) m.rect(b.x, b.y, b.w, b.h, 'B');
+  const props = [];
+  let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_r_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
+  for (const [x, y] of [[16, 6], [18, 9], [16, 10], [54, 5], [55, 9], [53, 11], [53, 37], [55, 41]]) P('tree', x, y);
+  for (const [x, y] of [[4, 4], [20, 4], [41, 4], [67, 4], [38, 35], [67, 35], [43, 18], [43, 30]]) P('streetlamp', x, y);
+  for (const [x, y] of [[8, 14], [11, 14], [46, 14], [49, 14], [40, 44], [42, 44]]) P('bench', x, y);
+  return {
+    id: 'neumina_terrace', name: 'Neumina — The Terraces', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 3, below: { map: 'neumina_skyway', drop: TERRACE_DROP, lip: '#d8d2c4', glow: '#ffd27a' },
+    music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
+    areas: [{ id: 'area_nm_terrace', name: 'Neumina, the Terraces', x: 0, y: 0, w: NM_W, h: NM_H }],
+    doors: [{ id: 'door_nm_lift_down', x: 44, y: 23, keepTile: true, label: 'The lift down to the Skyway', to: { map: 'neumina_skyway', spot: 'lift' } }],
+    spots: { arrive: { x: 43, y: 25, facing: 'down' }, lift: { x: 43, y: 24, facing: 'down' }, garden: { x: 18, y: 7, facing: 'down' }, bridge: { x: 42, y: 19, facing: 'down' } },
+  };
+}
+
+const __default = [street(), skyway(), terrace()];
+
+return { NM_W, NM_H, SKY_DROP, TERRACE_DROP, default: __default };
+})();
+
 // ---- src/content/income.js
 __m["src/content/income.js"] = (function () {
 // What the game pays (v0.82.0). One place for the figures that decide how fast a new player gets from 12 obols to a
@@ -8486,6 +8597,8 @@ const TILE_TYPES = {
   R: { name: 'ridge', solid: true, color: '#6f7d4f', alt: '#68764a' }, // v0.29.1: a grassy, rocky bank at a map's edge
   a: { name: 'tarmac', solid: false, color: '#3e4048', alt: '#3a3c44' }, // v0.55.0: runways, taxiways and aprons (markings from map.airfield)
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
+  n: { name: 'deck plating', solid: false, color: '#2e3240', alt: '#2a2e3b' }, // v0.107.0: a megacity's decks and skyways
+  O: { name: 'drop', solid: true, drop: true, color: '#07080f', alt: '#07080f' }, // v0.107.0: the open edge of a city level: you see the level below through it (a map with `below`)
 };
 
 const isSolidCode = (ch) => Boolean(TILE_TYPES[ch]?.solid);
@@ -18331,6 +18444,7 @@ const estateGroundsMaps = __m["src/content/maps/estateGrounds.js"].default; // v
 const mansionMaps = __m["src/content/maps/mansions.js"].default;
 const fortMaps = __m["src/content/maps/fortGullcrest.js"].default; // v0.98.0: the government's own base
 const hollowmoorMaps = __m["src/content/maps/hollowmoor.js"].default; // v0.98.0: the company's lot
+const neuminaMaps = __m["src/content/maps/neumina.js"].default; // v0.107.0: Neumina, a city in levels (Special Operations)
 const { fortCharacters, fortDialogues } = __m["src/content/fort.js"];
 const { estateCharacters, estateDialogues } = __m["src/content/estates.js"];
 const { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } = __m["src/content/arms.js"];
@@ -18422,7 +18536,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...fortMaps, ...hollowmoorMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([...neuminaMaps, lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...fortMaps, ...hollowmoorMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);
@@ -60626,7 +60740,7 @@ const PX = {
 };
 
 // ------------------------------------------------------------------ tiles
-const CODES = '.,=:~bpsrBDWftcgmukRxa';
+const CODES = '.,=:~bpsrBDWftcgmukRxanO'; // (v0.107.0: n deck plating, O a city level's drop)
 const CID = {};
 [...CODES].forEach((c, i) => { CID[c] = i + 1; });
 const SOFT = new Uint8Array(32);
@@ -61098,6 +61212,13 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       // big slabs with joints and a bevel; a crack now and then
       R(px, py, T, 1, '#a8a092'); R(px, py, 1, T, '#a8a092'); R(px + 1, py + 1, T - 1, 1, '#ece6d8'); R(px + 1, py + 1, 1, T - 1, '#ece6d8');
       if (r > 0.88) { R(px + 6, py + 9, 6, 1, '#a8a092'); R(px + 12, py + 10, 5, 1, '#a8a092'); R(px + 17, py + 11, 4, 1, '#a8a092'); }
+      break;
+    }
+    case 'n': { // v0.107.0: a megacity deck: steel plates with seams, rivets, now and then a lit strip or a hazard edge
+      R(px, py, T, 1, '#1c1f2a'); R(px, py, 1, T, '#1c1f2a'); R(px + 1, py + 1, T - 1, 1, '#3c4152');
+      for (const [a, b] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) R(px + a, py + b, 1, 1, '#4c5266');
+      if (r > 0.9) R(px + 4, py + Math.floor(T / 2), T - 8, 1, '#2fb8d8');
+      else if (r < 0.05) for (let i = 0; i < T - 2; i += 6) { R(px + 1 + i, py + T - 4, 3, 2, '#d8b02a'); R(px + 4 + i, py + T - 4, 3, 2, '#1a1a20'); }
       break;
     }
     case 'g': {
@@ -74055,7 +74176,7 @@ class Ground3D {
         tex.generateMipmaps = false;
         const tw = canvas.width / 32;
         const th = canvas.height / 32;
-        const m = holeLit(new THREE.MeshLambertMaterial({ map: tex }));
+        const m = holeLit(new THREE.MeshLambertMaterial({ map: tex, alphaTest: canvas.holes ? 0.5 : 0 })); // (v0.107.0: a city level's drops are cut out)
         const mesh = new THREE.Mesh(planeFor(tw, th), m);
         mesh.rotation.x = -Math.PI / 2;
         mesh.position.set(cx * CHUNK + tw / 2, y, cy * CHUNK + th / 2);
@@ -74107,6 +74228,36 @@ class Ground3D {
 }
 
 return { Ground3D };
+})();
+
+// ---- src/engine3d/levels3d.js
+__m["src/engine3d/levels3d.js"] = (function () {
+// A city in levels (v0.107.0; docs/RENDERING.md 7.7): the dressing that makes a deck read as a deck over the level below. The rules never see
+// this: each level is its own flat map, and its drops ('O' tiles) are solid ground nobody can walk on.
+const { THREE } = __m["src/engine3d/three.js"];
+const lib = __m["src/engine3d/lib3d.js"];
+
+const THICK = 0.9; // a deck's lip, tiles (how thick the slab looks where it ends)
+
+/** Every edge between a deck tile and a drop gets a dark concrete lip going down and a thin lit strip along its top: merged into a few meshes. */
+function buildDeckEdges(map) {
+  const g = new THREE.Group(); g.name = 'deckEdges';
+  const W = map.width; const H = map.height; const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 'O' : map.tileAt(x, y));
+  const lipCol = map.def?.below?.lip || '#2a2c38'; const glow = map.def?.below?.glow || '#3ad8ff';
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (at(x, y) === 'O') continue;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx; const ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H || at(nx, ny) !== 'O') continue;
+      const cx = x + 0.5 + dx * 0.5; const cz = y + 0.5 + dy * 0.5; const along = dx ? 'z' : 'x';
+      g.add(lib.box(along === 'x' ? 1.0 : 0.12, THICK, along === 'x' ? 0.12 : 1.0, lipCol, { x: cx, z: cz, y: -THICK, cast: false }));
+      g.add(lib.box(along === 'x' ? 1.0 : 0.05, 0.05, along === 'x' ? 0.05 : 1.0, glow, { x: cx + dx * 0.04, z: cz + dy * 0.04, y: -0.04, cast: false, emissive: glow, ei: 1.4 }));
+    }
+  }
+  lib.bake(g);
+  return g;
+}
+
+return { buildDeckEdges };
 })();
 
 // ---- src/engine3d/weapons3d.js
@@ -80598,6 +80749,7 @@ const lib = __m["src/engine3d/lib3d.js"];
 const { disposeTree } = __m["src/engine3d/lib3d.js"];
 const { cameraFrame, applyFrame, TILE } = __m["src/engine3d/camera3d.js"];
 const { Ground3D } = __m["src/engine3d/ground3d.js"];
+const { buildDeckEdges } = __m["src/engine3d/levels3d.js"];
 const { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } = __m["src/engine3d/buildings3d.js"];
 const { Figure, stepFacing, newMotion, personKey } = __m["src/engine3d/people3d.js"];
 const { CombatFx3D } = __m["src/engine3d/combatfx3d.js"];
@@ -80786,6 +80938,19 @@ class World3D {
       shown.add(ms);
       this.updateMap(ms, L, { x0: (wv.x - L.x) / TILE, y0: (wv.y - L.y) / TILE, x1: (wv.x + wv.w - L.x) / TILE, y1: (wv.y + wv.h - L.y) / TILE }, lamp);
     }
+    // v0.107.0: a city in levels. The map you stand on may lie over another (`def.below: { map, drop }` in tiles): that level is drawn `drop` tiles
+    // lower, through the holes of the deck (its 'O' tiles), and the one under it too. Levels above you are not drawn. The rules know nothing of
+    // this: each level is its own flat map, joined to the others by stairs and lifts (ordinary doors).
+    this.extraLayers = [];
+    { const top = host.layers.find((L) => L.map.id === g.player.map) || host.layers[0]; let cur = top?.map; let depth = 0;
+      for (let k = 0; cur?.def?.below && k < 2; k++) {
+        const bm = g.maps.get(cur.def.below.map); if (!bm) break; depth += cur.def.below.drop;
+        const ms = this.sceneFor(bm); ms.group.visible = !this.hideBelow; ms.last = this.frameNo; // (`hideBelow`: the smoke test, the level below on and off) ms.group.position.set(top.x / TILE, -depth, top.y / TILE); shown.add(ms);
+        const L2 = { map: bm, x: top.x, y: top.y, depth }; this.extraLayers.push(L2); const mg = depth * 1.6 + 4;
+        this.updateMap(ms, L2, { x0: (wv.x - top.x) / TILE - mg, y0: (wv.y - top.y) / TILE - mg, x1: (wv.x + wv.w - top.x) / TILE + mg, y1: (wv.y + wv.h - top.y) / TILE + mg }, lamp);
+        this.levelDressing(ms, cur, bm, depth);
+        cur = bm;
+      } }
     this.updateActors(shown, lamp);
     this.cfx.update(this);
     this.updateHoles();
@@ -80799,7 +80964,9 @@ class World3D {
     if (aloft) this.bgColor.lerp(new THREE.Color('#10141e'), darkness * 0.8);
     const tx = this.camera.position.x - 200 / Math.sqrt(3);
     const tz = this.camera.position.z - 200 / Math.sqrt(3);
-    this.sea.visible = outdoor;
+    const mega = host.layers.some((L) => L.map.def?.megacity); // v0.107.0: a megacity has no sea at its edge, only the dark and the city's glow
+    this.sea.visible = outdoor && !mega;
+    if (mega) { this.bgColor.set('#0d0b1c'); }
     this.sea.position.x = tx; this.sea.position.z = tz;
     const p = g.player;
     this.rig.update(darkness, outdoor, [p.x / TILE, p.y / TILE], this.cands, host.quality);
@@ -81025,14 +81192,14 @@ class World3D {
     const now = host.time;
     const byMap = new Map();
     const layerOf = new Map();
-    for (const L of host.layers) { const ms = this.mapScenes.get(L.map.id); layerOf.set(L.map.id, L); if (ms && shown.has(ms)) byMap.set(L.map.id, ms); }
+    for (const L of [...host.layers, ...(this.extraLayers || [])]) { const ms = this.mapScenes.get(L.map.id); layerOf.set(L.map.id, L); if (ms && shown.has(ms)) byMap.set(L.map.id, ms); }
     const clock = g.clock.total;
     for (const npc of g.npcs.values()) {
       const ms = byMap.get(npc.map);
       if (!ms || npc.riding != null) continue;
       const lay = layerOf.get(npc.map);
       const px = npc.x / TILE + lay.x / TILE; const pz = npc.y / TILE + lay.y / TILE;
-      if (!this.nearView(px, pz)) { const e0 = this.figures.get(npc); if (e0) e0.fig.root.visible = false; continue; }
+      if (!lay.depth && !this.nearView(px, pz)) { const e0 = this.figures.get(npc); if (e0) e0.fig.root.visible = false; continue; }
       const down = isDown(npc, clock);
       const wid = npc.profile.combat?.weapon;
       const fighting = npc.hostile?.mode === 'fight' && wid;
@@ -81097,6 +81264,17 @@ class World3D {
         }
       }
     }
+  }
+
+  /** v0.107.0: what makes a deck read as a deck: its edges (a thick lip with a lit strip along every drop) once per upper map, and a haze between it and the level below. */
+  levelDressing(lowerMs, upperMap, lowerMap, depth) {
+    const up = this.mapScenes.get(upperMap.id);
+    if (up && !up.deckEdges) { up.deckEdges = buildDeckEdges(upperMap); up.group.add(up.deckEdges); }
+    if (!lowerMs.haze) {
+      const geo = new THREE.PlaneGeometry(lowerMap.width + 40, lowerMap.height + 40); const mat = new THREE.MeshBasicMaterial({ color: '#1a1030', transparent: true, opacity: 0.32, depthWrite: false });
+      const h = new THREE.Mesh(geo, mat); h.rotation.x = -Math.PI / 2; h.position.set(lowerMap.width / 2, 0.6, lowerMap.height / 2); h.renderOrder = 2; lowerMs.haze = h; lowerMs.group.add(h);
+    }
+    lowerMs.haze.position.y = Math.min(depth * 0.55, 6);
   }
 
   nearView(x, z, pad = 3) {
@@ -81396,6 +81574,10 @@ class Renderer {
       }
       const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
       c = buildGroundChunk(map, cx, cy, makeCanvas, fields);
+      if (map.def?.below) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
+        const g2 = c.getContext('2d'); const ppt = c.width / Math.min(CHUNK, map.width - cx * CHUNK);
+        for (let ty = 0; ty < CHUNK; ty++) for (let tx = 0; tx < CHUNK; tx++) { const X = cx * CHUNK + tx; const Y = cy * CHUNK + ty; if (X < map.width && Y < map.height && map.tileAt(X, Y) === 'O') { g2.clearRect(tx * ppt, ty * ppt, ppt, ppt); c.holes = true; } }
+      }
       c.owner = entry;
       c.key = key;
       entry.chunks.set(key, c);

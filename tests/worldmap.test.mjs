@@ -9,7 +9,7 @@ import { BUILDING_ICONS } from '../src/content/mapIcons.js';
 test('the world layout places every outdoor map, without overlaps', () => {
   const g = newGame(1);
   const L = new MapRenderer(g).worldLayout();
-  const outdoor = Object.values(CONTENT.maps).filter((m) => m.kind !== 'interior').map((m) => m.id);
+  const outdoor = Object.values(CONTENT.maps).filter((m) => m.kind !== 'interior' && !m.abroad).map((m) => m.id); // (v0.107.0: a city abroad, Neumina, is not on Sund's map)
   for (const id of outdoor) assert.ok(L.pos[id], `${id} is on the world map`);
   const boxes = outdoor.map((id) => ({ id, ...L.pos[id], w: g.maps.get(id).width, h: g.maps.get(id).height }));
   for (const a of boxes) for (const b of boxes) {
@@ -28,7 +28,7 @@ test('the world layout places every outdoor map, without overlaps', () => {
 test('every named building has a map icon, and the icons point at real buildings', () => {
   const ids = new Set();
   for (const m of Object.values(CONTENT.maps)) {
-    if (m.kind === 'interior') continue;
+    if (m.kind === 'interior' || m.abroad) continue; // (v0.107.0: nor are its buildings)
     for (const b of m.buildings || []) {
       ids.add(b.id);
       if (b.name !== 'Shack') assert.ok(BUILDING_ICONS[b.id], `${b.id} (${b.name}) has an icon`);

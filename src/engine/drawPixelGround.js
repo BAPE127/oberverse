@@ -126,7 +126,7 @@ const PX = {
 };
 
 // ------------------------------------------------------------------ tiles
-const CODES = '.,=:~bpsrBDWftcgmukRxa';
+const CODES = '.,=:~bpsrBDWftcgmukRxanO'; // (v0.107.0: n deck plating, O a city level's drop)
 const CID = {};
 [...CODES].forEach((c, i) => { CID[c] = i + 1; });
 const SOFT = new Uint8Array(32);
@@ -598,6 +598,13 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       // big slabs with joints and a bevel; a crack now and then
       R(px, py, T, 1, '#a8a092'); R(px, py, 1, T, '#a8a092'); R(px + 1, py + 1, T - 1, 1, '#ece6d8'); R(px + 1, py + 1, 1, T - 1, '#ece6d8');
       if (r > 0.88) { R(px + 6, py + 9, 6, 1, '#a8a092'); R(px + 12, py + 10, 5, 1, '#a8a092'); R(px + 17, py + 11, 4, 1, '#a8a092'); }
+      break;
+    }
+    case 'n': { // v0.107.0: a megacity deck: steel plates with seams, rivets, now and then a lit strip or a hazard edge
+      R(px, py, T, 1, '#1c1f2a'); R(px, py, 1, T, '#1c1f2a'); R(px + 1, py + 1, T - 1, 1, '#3c4152');
+      for (const [a, b] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) R(px + a, py + b, 1, 1, '#4c5266');
+      if (r > 0.9) R(px + 4, py + Math.floor(T / 2), T - 8, 1, '#2fb8d8');
+      else if (r < 0.05) for (let i = 0; i < T - 2; i += 6) { R(px + 1 + i, py + T - 4, 3, 2, '#d8b02a'); R(px + 4 + i, py + T - 4, 3, 2, '#1a1a20'); }
       break;
     }
     case 'g': {

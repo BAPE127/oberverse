@@ -39,7 +39,7 @@ export class Ground3D {
         tex.generateMipmaps = false;
         const tw = canvas.width / 32;
         const th = canvas.height / 32;
-        const m = holeLit(new THREE.MeshLambertMaterial({ map: tex }));
+        const m = holeLit(new THREE.MeshLambertMaterial({ map: tex, alphaTest: canvas.holes ? 0.5 : 0 })); // (v0.107.0: a city level's drops are cut out)
         const mesh = new THREE.Mesh(planeFor(tw, th), m);
         mesh.rotation.x = -Math.PI / 2;
         mesh.position.set(cx * CHUNK + tw / 2, y, cy * CHUNK + th / 2);

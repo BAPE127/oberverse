@@ -140,6 +140,29 @@ try {
   const night = await at3d(`g.changeMap('lanternside', 'civic_door_out'); g.clock.total = 22 * 60 + 30; R.snapCamera(); await T(3500); return { lights: R.world3d.stats.lights, darkness: g.clock.darkness, dark2d: R.world3d.host.ctx === R.ctx };`);
   record('3d: at night the street lamps and lit doors are real lights (and the 2D darkness overlay is off)', night.lights > 0 && night.darkness > 0.45, JSON.stringify(night));
   await shot('3d-night');
+  // v0.107.0: Neumina, a city in levels: from the Skyway the Street Level shows through the drops (pixels change when the level below is switched off),
+  // and from the Terraces both levels below are drawn
+  const levels = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; const R = ui.renderer; while (ui.panelStack.length) ui.closePanel(); g.clock.total = Math.floor(g.clock.total / 1440) * 1440 + 13 * 60;
+    g.changeMap('neumina_skyway', 'bridge'); R.snapCamera?.(); await new Promise((r) => setTimeout(r, 2600));
+    const W3 = R.world3d; if (!W3) return { gl: false };
+    const sky = g.maps.get('neumina_skyway'); const gl = W3.gl.getContext(); const H = R.canvas3d.height;
+    const px = (x, y) => { const o = new Uint8Array(4); gl.readPixels(Math.round(x), H - Math.round(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o); return [o[0], o[1], o[2]]; };
+    // drop tiles in view near the player: where the deck has a hole
+    const pts = []; const tx0 = Math.floor(g.player.x / 32); const ty0 = Math.floor(g.player.y / 32);
+    for (let dy = -6; dy <= 6 && pts.length < 12; dy++) for (let dx = -6; dx <= 6 && pts.length < 12; dx++) if (sky.tileAt(tx0 + dx, ty0 + dy) === 'O') pts.push(R.toScreen((tx0 + dx + 0.5) * 32, (ty0 + dy + 0.5) * 32, 0));
+    const inView = pts.filter((q) => q.x > 20 && q.y > 20 && q.x < R.canvas3d.width - 20 && q.y < H - 20);
+    W3.render(0.016); const on = inView.map((q) => px(q.x, q.y));
+    W3.hideBelow = true; W3.render(0.016); const off = inView.map((q) => px(q.x, q.y)); W3.hideBelow = false;
+    const changed = on.filter((c, i) => Math.hypot(c[0] - off[i][0], c[1] - off[i][1], c[2] - off[i][2]) > 20).length;
+    g.changeMap('neumina_terrace', 'bridge'); R.snapCamera?.(); await new Promise((r) => setTimeout(r, 2600)); W3.render(0.016);
+    const below = (W3.extraLayers || []).map((L) => `${L.map.id}@-${L.depth}`);
+    ui.openPanel('map'); await new Promise((r) => setTimeout(r, 300)); while (ui.panelStack.length) ui.closePanel(); // (the map screen opens abroad without an error)
+    R.mode = 'iso2d'; await new Promise((r) => setTimeout(r, 400)); R.mode = '3d'; // (and the 2D fallback draws a level without an error)
+    return { gl: true, pts: inView.length, changed, below };
+  });
+  await shot('3d-neumina-terrace');
+  record('Neumina: through the drops of a level you see the level below (pixels change with it switched off), and from the Terraces both levels below are drawn', levels.gl && levels.pts >= 3 && levels.changed >= Math.ceil(levels.pts / 2) && levels.below.join() === 'neumina_skyway@-7,neumina_street@-14', JSON.stringify(levels));
   // v0.106.0: a heavy blast blows a hole in an ordinary building's wall: walkable both ways, rubble, and a hole drawn on the roofed building in 3D
   const hole = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; while (ui.panelStack.length) ui.closePanel(); g.clock.total = Math.floor(g.clock.total / 1440) * 1440 + 13 * 60;

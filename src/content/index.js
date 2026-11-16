@@ -16,6 +16,7 @@ import estateGroundsMaps from './maps/estateGrounds.js'; // v0.94.1: Ironcrest H
 import mansionMaps from './maps/mansions.js';
 import fortMaps from './maps/fortGullcrest.js'; // v0.98.0: the government's own base
 import hollowmoorMaps from './maps/hollowmoor.js'; // v0.98.0: the company's lot
+import neuminaMaps from './maps/neumina.js'; // v0.107.0: Neumina, a city in levels (Special Operations)
 import { fortCharacters, fortDialogues } from './fort.js';
 import { estateCharacters, estateDialogues } from './estates.js';
 import { ARMS_ITEMS, CRATE_ITEMS, CRATE, BENCH_RECIPES, ARMS_STATIONS, ARMS_RECIPES, ARMS_RESEARCH, RESEARCH_BRANCHES, ARMS_WAREHOUSES, ARMS_LICENCE_PRICE, WHOLESALE, STAFF_NAMES, STAFF_SKILLS, STAFF_QUIRKS, COUNTRIES, HQ, SHIPPERS, MARKET, DRONES } from './arms.js';
@@ -107,7 +108,7 @@ const byId = (list) => {
 /** Registries keyed by id also carry that id on each entry (used for cooldowns, logs and saves). */
 const withIds = (reg) => Object.fromEntries(Object.entries(reg).map(([id, v]) => [id, { ...v, id }]));
 
-const MAPS = byId([lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...fortMaps, ...hollowmoorMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
+const MAPS = byId([...neuminaMaps, lanternside, ...interiors, ...oberMaps, ...westbrookMaps, ...halvermouthMaps, ...yardsMaps, ...lariatMaps, ...starlingMaps, ...crownQuarterMaps, ...halverHouseMaps, ...partyHQMaps, ...estateGroundsMaps, ...mansionMaps, ...fortMaps, ...hollowmoorMaps, ...homeMaps(), ...towerMaps(), ...casinoMaps()]);
 // v0.20.0: four-tile roads. Widen the outdoor maps, then fix up everything authored in the old coordinates.
 const SHIFTS = widenAll(MAPS);
 REGIONS.coast.maps.westbrook.x = -(MAPS.westbrook.tiles[0].length - 1);

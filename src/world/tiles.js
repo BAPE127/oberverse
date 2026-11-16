@@ -23,6 +23,8 @@ export const TILE_TYPES = {
   R: { name: 'ridge', solid: true, color: '#6f7d4f', alt: '#68764a' }, // v0.29.1: a grassy, rocky bank at a map's edge
   a: { name: 'tarmac', solid: false, color: '#3e4048', alt: '#3a3c44' }, // v0.55.0: runways, taxiways and aprons (markings from map.airfield)
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
+  n: { name: 'deck plating', solid: false, color: '#2e3240', alt: '#2a2e3b' }, // v0.107.0: a megacity's decks and skyways
+  O: { name: 'drop', solid: true, drop: true, color: '#07080f', alt: '#07080f' }, // v0.107.0: the open edge of a city level: you see the level below through it (a map with `below`)
 };
 
 export const isSolidCode = (ch) => Boolean(TILE_TYPES[ch]?.solid);

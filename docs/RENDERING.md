@@ -230,3 +230,8 @@ After the owner played the build on a real machine, four things were fixed and t
 - Weak models, by their authors' account: the two flying-wing bombers (dark on dark tarmac), the futuristic airliner, GT vs coupe, the Last Trick, traffic-light head, poker table, chain fence, boat.
 - Smoke test: timing-sensitive on software GL (Wrath, war-terminal and dialogue steps have each failed once and passed on rerun); run it alone.
 - `toWorld` ignores camera shake.
+
+
+### 7.7 A city in levels (v0.107.0, in progress)
+
+A map may lie over another: `def.below = { map, drop, lip?, glow? }` (`drop` in tiles). When the player stands on such a map, `world3d` draws the map below `drop` tiles lower, and the one below that too (at most two levels down), through the upper map's **drop tiles** (`O`: solid, never walked, cut out of the ground chunks so the 3D ground has holes there; the 2D views paint them dark). `levels3d.buildDeckEdges` puts a lip and a lit strip along every deck edge; a translucent haze plane sits between levels. Levels above the player are not drawn. Towers belong to the lowest level and rise through the others (the upper levels mark their footprint `B` and draw nothing there). The rules never stack maps: each level is a flat map joined to the others by doors. The smoke test checks pixels in the drops change when the level below is hidden. `megacity` maps have no sea at their edge and a dark sky.
