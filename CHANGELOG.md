@@ -2,6 +2,17 @@
 
 All notable changes to the Oberverse. Versions follow `MAJOR.MINOR.PATCH` (see docs/DEVELOPMENT_WORKFLOW.md).
 
+## [0.106.0] — 2026-11-15 — War: Destruction, the Army and the Coup (development build)
+
+The roadmap's War: Destruction, Government Response and Coup, with the owner's decisions of 2026-11-15. Saves gain optional `world.breaches`, `world.army`, `world.military.coupRun` and `world.politics.junta`; nothing older changes.
+
+- **Walls blow open in the open world** (`src/systems/breaches.js`, `src/content/destruction.js`). A heavy-weapons blast (an RPG, a missile, a strike) or a car driven hard into a wall opens up to two wall tiles of an ordinary building: the hole is a way in and out both ways, rubble lies outside it, it stays after a reload, and Mason's Os will brick it up for 180 obols. Buildings never collapse. Every hole goes through the damage gate, which refuses imported characters' buildings always (where they live and work), government buildings while no coup has been staged, and your base's core while it is protected. Holes are drawn on roofed 3D buildings, in the world and in battles (breached battle walls were only rubble before).
+- **The 4th wanted star: the Army** (`src/systems/army.js`, `src/content/army.js`). With three stars, killing two more police officers, attacking a government building, or staging a coup brings soldiers from Fort Gullcrest: a patrol, then a road block, then a team with a rocket launcher, from a finite stock the defence budget sizes (raise defence spending: a bigger fort). The dead are lost until the budget refits the fort (a quarter a month); the living go home when the hunt ends. Soldiers open fire from within sight, not from off the screen. Surrender to a soldier is an arrest; your company is not seized. Their rockets are not your crimes and open no walls.
+- **The coup** (`src/war/coup.js`, `src/content/coup.js`; the Command Overview of the terminal). Needs a licensed company, two battalions at home, no contract abroad, and a government with an exposed flank (approval under 45% or unrest). Staging it takes your base's protection away, raises the Army against you, and turns Sund into a theatre on the strategic map with your company as the side: your battalions muster at home and march on Halvermouth, the capital; the government fights with the provinces' garrisons and a field army the size of Fort Gullcrest's stock; every engagement can be played as a battle, given to a general or given up. Take the capital and you govern by decree (no elections, the Assembly suspended; decree or revoke any policy from the terminal). Lose your home province or every battalion, let it drag past 60 days, or surrender, and terms are imposed: a 500,000 fine, the licence suspended for 30 days, the battalions stood down; protection returns by settlement, damage stays. While it is on, the government taking your home province damages the base.
+- **Tests**: `breaches`, `army`, `coup` (17 tests), smoke checks for a hole, the Army and the coup panel.
+
+Not done: real tanks in the open-world streets (the heavy wave is a launcher team); a hole is not a door you can lock; the coup's battles use the existing map recipes (no hand-made Crown Quarter battle map); governing by decree does not yet reach the budget screen or bring its own unrest. Checked in software WebGL only; nobody has staged a coup in an attended game yet.
+
 ## [0.105.0] — 2026-11-15 — Combat in 3D and the Battle Rework (development build)
 
 **Combat in the world, in 3D** (no change to damage, accuracy or any rule):

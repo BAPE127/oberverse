@@ -140,6 +140,27 @@ try {
   const night = await at3d(`g.changeMap('lanternside', 'civic_door_out'); g.clock.total = 22 * 60 + 30; R.snapCamera(); await T(3500); return { lights: R.world3d.stats.lights, darkness: g.clock.darkness, dark2d: R.world3d.host.ctx === R.ctx };`);
   record('3d: at night the street lamps and lit doors are real lights (and the 2D darkness overlay is off)', night.lights > 0 && night.darkness > 0.45, JSON.stringify(night));
   await shot('3d-night');
+  // v0.106.0: a heavy blast blows a hole in an ordinary building's wall: walkable both ways, rubble, and a hole drawn on the roofed building in 3D
+  const hole = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; while (ui.panelStack.length) ui.closePanel(); g.clock.total = Math.floor(g.clock.total / 1440) * 1440 + 13 * 60;
+    const S = g.maps.get('halvermouth'); g.changeMap('halvermouth', Object.keys(S.spots)[0]);
+    const b = S.buildings.find((q) => q.interior && !q.tower && g.breaches.ownerOf('halvermouth', q) === 'civil' && g.breaches.candidates(S, (q.x + q.w / 2) * 32, (q.y + q.h + 0.6) * 32, 96).length);
+    g.player.x = (b.x + b.w / 2) * 32; g.player.y = (b.y + b.h + 3) * 32; ui.renderer.snapCamera?.();
+    const n = g.breaches.blast('halvermouth', (b.x + b.w / 2) * 32, (b.y + b.h + 0.6) * 32, 3, 200); await new Promise((r) => setTimeout(r, 900));
+    const r = g.world.breaches[g.world.breaches.length - 1]; let drawn = false; ui.renderer.world3d?.scene?.traverse?.((o) => { if (o.name === 'holes' && o.visible) drawn = true; });
+    return { n, door: Boolean(r && S.doorAt(r.x, r.y)?.breach), drawn, gov: g.breaches.ownerOf('halvermouth', S.buildings.find((q) => q.id === 'b_hall_of_justice')) };
+  });
+  await shot('3d-breach');
+  record('a heavy blast opens the wall of an ordinary building: a way in, rubble, and the hole drawn on the 3D building', hole.n > 0 && hole.door && hole.drawn, JSON.stringify(hole));
+  // v0.106.0: the 4th star: Fort Gullcrest's soldiers come in a wave, are drawn, and go home when the hunt ends
+  const army = await page.evaluate(async () => {
+    const ui = window.oberverse.ui; const g = ui.game; g.police.state.wanted = 3; g.army.raise('smoke test'); const sent = g.army.sendWave(); await new Promise((r) => setTimeout(r, 900));
+    const n = g.army.soldiers().length; const hud = /THE ARMY/.test(document.getElementById('hud-wanted')?.innerHTML || '');
+    return { sent, n, hud };
+  });
+  await shot('3d-army');
+  await page.evaluate(() => { const g = window.oberverse.ui.game; g.army.endHunt(); g.police.state.wanted = 0; });
+  record('the 4th star: soldiers from Fort Gullcrest arrive in a wave and the HUD shows the Army', army.sent && army.n >= 3 && army.hud, JSON.stringify(army));
   // people: eight walkers, one in each direction; each figure turns to face the way it goes
   const walk = await at3d(`g.clock.total = 13 * 60; g.changeMap('lanternside', 'cafe_door_out'); R.snapCamera(); await T(1500);
     const ns = [...g.npcs.values()].filter((n) => !n.dead && !n.profile.appearance.species).slice(0, 8);
@@ -570,6 +591,9 @@ try {
     // the seven sections, each one drawn with its own content and no error
     const SEC = [['Command Overview', /Operational summary/], ['Base Operations', /Base map/], ['Procurement', /Supplier marketplace/], ['Internal Logistics', /Your businesses|Transfer from my businesses/], ['Mission Control', /Mission/], ['Global Intelligence', /World map/], ['Theater Operations', /Theaters/]];
     out.sevenInRail = [...document.querySelectorAll('.osx-nav button')].length === 7;
+    // v0.106.0: the Command Overview offers the coup: its needs, and a Stage button that waits for them
+    [...document.querySelectorAll('.osx-nav button')].find((b) => b.textContent.includes('Command Overview'))?.click(); await new Promise((r) => setTimeout(r, 450));
+    out.coupPanel = /A coup/.test(document.querySelector('.osx-main')?.textContent || '') && /Stage the coup/.test(document.querySelector('.osx-main')?.textContent || '');
     for (const [name, re] of SEC) {
       [...document.querySelectorAll('.osx-nav button')].find((b) => b.textContent.includes(name))?.click(); await new Promise((r) => setTimeout(r, 450));
       out[`osx_${name}`] = re.test(document.querySelector('.osx-main')?.textContent || '') && !/could not be drawn/.test(document.querySelector('.osx-scroll')?.textContent || '');

@@ -4,6 +4,7 @@ Milestones, compatibility and migration notes. The changelog lists details; this
 
 | Version | Date | Channel | Save schema | Milestone |
 | --- | --- | --- | --- | --- |
+| 0.106.0 | 2026-11-15 | development | 1 | War: Destruction, the Army and the Coup: walls of ordinary buildings blown open in the open world (saved, repairable, through the damage gate); the 4th wanted star (Fort Gullcrest's soldiers, finite and budget-sized); the coup as a strategic campaign (win: rule by decree; lose: terms). Saves gain optional world.breaches, world.army, military.coupRun, politics.junta. |
 | 0.105.0 | 2026-11-15 | development | 1 | Combat in 3D and the Battle Rework: weapons, gunfire, blood and blasts in 3D; battles under rules 5 (perception, element AI, flying helicopters, teams, planning stage, vehicles 1.6×, sound, lower garrison cover). A battle saved under older rules plays on by them. No save-format change. |
 | 0.104.0 | 2026-11-13 | development | 1 | The Graphics Update: the world and the battles drawn in 3D with three.js (vendored, inlined; the one library), blocky low-poly buildings, people, all 159 props, vehicles and aircraft; buildings open when entered and dissolve in front of you; keys follow the screen. Canvas 2D isometric fallback without WebGL. No rules or save changes. |
 | 0.103.11 | 2026-11-09 | development | 1 | War, the battle screen: a right-click order menu, one slim bar, order pings. No save changes. |

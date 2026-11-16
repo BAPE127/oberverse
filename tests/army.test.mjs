@@ -19,6 +19,8 @@ test('waves come from the stock in order (patrol, road block, heavy weapons), an
   const s = g.army.state; const st0 = { ...s.stock };
   assert.ok(g.army.sendWave()); assert.equal(g.army.soldiers().length, ARMY.waves[0].soldiers); assert.equal(s.stock.soldiers, st0.soldiers - ARMY.waves[0].soldiers);
   assert.ok(g.army.soldiers().every((n) => n.hostile?.mode === 'fight' && n.profile.combat.weapon === ARMY.weapon && n.map === 'halvermouth'));
+  assert.ok(g.army.soldiers().every((n) => n.profile.combat.maxRange === ARMY.fireRange && n.profile.combat.damageScale === ARMY.damageScale), 'they open fire from on screen, and do not execute you');
+  assert.ok(g.clock.total - g.police.state.lastSeen < 1, 'the three stars are fresh: the police do not lose interest as the Army arrives');
   assert.ok(g.army.sendWave()); assert.ok(g.army.sendWave()); assert.equal(g.army.soldiers().filter((n) => n.profile.combat.weapon === ARMY.heavyWeapon).length, ARMY.waves[2].heavy);
   const far = g.army.soldiers().every((n) => Math.hypot(n.x - g.player.x, n.y - g.player.y) / 32 >= ARMY.spawn.min - 1); assert.ok(far, 'they come in out of reach');
   g.changeMap('cafe', 'entry'); assert.equal(g.army.sendWave(), false, 'not into a room');

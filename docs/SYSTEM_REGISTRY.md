@@ -80,7 +80,7 @@ Status is taken from `ROADMAP.md`, `KNOWN_ISSUES.md` and the passing test suite 
 | Tactical battles (rules 5: perception, element AI, flight, teams, planning) | `src/battle/` (`sim`, `ai`, `perception`, `plan`, `teams`, `flight`, `sizes`), `src/ui/battle.js`, `battleTeams.js`, `src/engine3d/battle3d.js`, `src/audio/battleAudio.js`, `tools/battle-audit.mjs`; 2D fallback `src/engine/drawBattle*.js` | `WAR.md`, `PROPOSAL_WAR_TACTICAL.md` | `battle*`, `drones` | Released |
 | Strategic command, air power, fleets, international contracts | `src/war/strategic*.js`, `airpower.js`, `navy.js`, `intl.js` | `WAR.md`, `PROPOSAL_WAR_STRATEGIC.md` | `strategic*`, `war*` | Released; air superiority and bombing of structures not done |
 | Command terminal | `src/ui/terminal.js`, `military*.js`, `strategic.js` | `WAR.md` | smoke test | Released |
-| Destruction, government response, coup | — | `ROADMAP.md` | — | **Planned: v0.104.0** |
+| Destruction (open world), the Army (4th star), the coup | `src/systems/breaches.js`, `src/systems/army.js`, `src/war/coup.js`, `src/war/damage.js`, `src/war/protection.js`; content `destruction.js`, `army.js`, `coup.js` | `WAR.md` (v0.106.0 section) | `breaches`, `army`, `coup`, `war_gate`; smoke | Released v0.106.0 |
 
 ## Relationships worth knowing
 

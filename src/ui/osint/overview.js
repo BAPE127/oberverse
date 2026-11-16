@@ -1,6 +1,7 @@
 // Command Overview (v0.103.4): the commander's briefing. Every figure is a count of real records (src/war/briefing.js).
 import { h, panel, stats, stat, btn, chip, empty, bar, feedLine, kv, fmt } from './kit.js';
 import { LOT } from '../../content/facilities.js';
+import { POLICIES } from '../../content/policies.js';
 
 const STATE = { permit: 'permit', foundation: 'foundations', frame: 'frame', fitted: 'fitting out' };
 
@@ -67,4 +68,32 @@ export function renderOverview(cx, box) {
     h('span', { class: 'osx-sub', style: 'padding:0' }, V.mode === 'wallet' ? `Everything it buys comes off your wallet (${fmt(g.player.money)} ◎) and everything it earns goes into it.` : V.mode === 'group' ? `It spends and earns through the parent company: ${fmt(V.cash)} ◎ there. Your wallet is not touched.` : `Its own account holds ${fmt(V.cash)} ◎; you hold ${fmt(g.player.money)} ◎. Switching to your wallet or the group returns what it holds to you.`),
     V.arrears > 0 ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `It owes ${fmt(V.arrears)} ◎ (wages or a fine it could not cover): it is paid first when money is available.`) : null,
   ].filter(Boolean)));
+  renderCoup(cx, box);
+}
+
+/** v0.106.0: the coup (src/war/coup.js). Before: what it needs and the button. During: the march on the capital and surrender. After a win: rule by decree. */
+function renderCoup(cx, box) {
+  const { g, W } = cx; const C = W.coup(); const run = C.run;
+  const rows = [];
+  if (C.junta) {
+    const gov = g.politics.government(); const active = gov.active;
+    rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, `You govern Sund by decree since day ${C.junta.since}. There are no elections and the Assembly does not sit while you rule.`));
+    rows.push(...active.slice(0, 10).map((p) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, p.def?.name || p.key), h('small', {}, p.def?.blurb || '')), btn('Revoke', () => cx.go(g.politics.revoke(p.id)), { kind: 'sm' }))));
+    const inForce = new Set(active.map((p) => p.key));
+    const offer = Object.values(POLICIES).filter((d) => !inForce.has(d.id)).slice(0, 12);
+    rows.push(h('b', {}, 'Decree'), ...offer.map((d) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, d.name), h('small', {}, d.blurb || '')), btn('Decree', () => cx.go(g.politics.decree(d.id)), { kind: 'sm pri' }))));
+  } else if (run?.state === 'on') {
+    rows.push(kv('The capital', C.capital ? `${C.capital.name}: ${C.capital.yours ? 'yours' : 'held by the government'}` : '?', C.capital?.yours ? 'ok' : 'bad'));
+    rows.push(kv('Days since it began', String(g.clock.day - run.since)), kv('Ground taken / lost', `${run.won} / ${run.lost}`));
+    if (C.stock) rows.push(kv('Fort Gullcrest has left', `${C.stock.soldiers} soldiers, ${C.stock.heavy} heavy-weapons teams`));
+    rows.push(h('div', { class: 'osx-note bad', style: 'margin:0' }, 'Your base is not protected while the coup is on, and the Army is hunting you. Order your battalions on the strategic map: take the capital to win.'));
+    rows.push(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, btn('Strategic map ›', () => cx.open('theaters'), { kind: 'pri sm' }), btn('Surrender', () => { if (window.confirm('Surrender the coup? Terms will be imposed: a fine, the licence suspended for a month, your battalions stood down.')) cx.go(W.surrenderCoup()); }, { kind: 'sm' })));
+  } else {
+    if (run?.state === 'lost') rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, `The last coup failed on day ${run.ended} (${run.why}).`));
+    for (const n of C.needs) rows.push(h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, `${n.ok ? '✓' : '▸'} ${n.text}`)), n.ok ? chip('ready', 'ok') : chip('not yet', 'warn')));
+    const ok = C.needs.every((n) => n.ok);
+    rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, 'A coup is a campaign on the strategic map against the government\'s garrisons and the field army Fort Gullcrest can put up (the defence budget sets its size). Win by taking the capital; you then govern by decree. Fail or surrender and terms are imposed. While it is on, your base can be attacked and you are hunted.'));
+    rows.push(btn('Stage the coup', () => { if (window.confirm('Stage a coup against the government of Sund? Your base loses its protection until a settlement, and the Army will hunt you.')) cx.go(W.stageCoup()); }, { kind: ok ? 'pri' : '', disabled: !ok }));
+  }
+  box.append(h('div', { style: 'height:10px' }), panel(C.junta ? 'Your government' : run?.state === 'on' ? 'The coup' : 'A coup', rows, { cls: 'osx-mb' }));
 }

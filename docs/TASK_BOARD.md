@@ -26,8 +26,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 | R-1 | Bring `README.md` up to v0.103.11: "What's in this build", the project layout, and remove the line "Combat is not in this build" | haiku-support, Fable reviews | Docs only. Source: `SYSTEM_REGISTRY.md`, `CHANGELOG.md` |
 | R-2 | `KNOWN_ISSUES.md`: correct the title version; `PROJECT_OVERVIEW.md`: mark the 0.1.0 scope and stage table as historical | haiku-support | Docs only; delete nothing |
 | R-3 | `oberverse-manifest.json`: update the `systems` map and `releaseDate` (2026-10-13) | haiku-support | Check `tests/version.test.mjs` for fields it reads first |
-| R-4 | v0.105.0 stage 12a: destruction | Fable plans; sonnet-gameplay (battle rules), then sonnet-ui (drawing) | Read `WAR.md`, `PROPOSAL_WAR_TACTICAL.md`, `src/battle/`. Opus review of the battle-sim change is justified (determinism: `src/battle/hash.js`) |
-| R-5 | v0.105.0 stage 12b: government response and the coup campaign | Fable plans; sonnet-systems + sonnet-business | Touches politics, strategic map and budget; plan after 12a |
+| R-4 | ~~v0.105.0 stage 12a~~ done in v0.106.0: destruction | Fable plans; sonnet-gameplay (battle rules), then sonnet-ui (drawing) | Read `WAR.md`, `PROPOSAL_WAR_TACTICAL.md`, `src/battle/`. Opus review of the battle-sim change is justified (determinism: `src/battle/hash.js`) |
+| R-5 | ~~v0.105.0 stage 12b~~ done in v0.106.0: government response and the coup campaign | Fable plans; sonnet-systems + sonnet-business | Touches politics, strategic map and budget; plan after 12a |
 | R-6 | Tag releases in git (none exist; v0.104.0 is untagged) | Fable | The release procedure asks for it; none exist |
 
 ## Backlog (from the roadmap and known issues, not scheduled)
@@ -41,6 +41,8 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 - `workbench` is declared twice in `src/content/props.js` (the later, w:3, wins); delete one after checking maps.
 
 - Smoke test: the war-terminal block failed once in three runs on 2026-11-13 and passed on rerun; find the timing dependency.
+
+- v0.106.0 follow-ups: tanks in the open-world streets for the Army's armour wave; a hand-made Crown Quarter battle map for the coup's decisive battle; decrees on the budget screen and unrest under a junta; playtest a coup attended.
 
 ## Blocked
 

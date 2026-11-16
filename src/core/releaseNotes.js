@@ -2,6 +2,17 @@
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 export const RELEASE_NOTES = [
   {
+    version: '0.106.0',
+    date: '2026-11-15',
+    channel: 'development',
+    title: 'War: Destruction, the Army and the Coup',
+    notes: [
+      'Walls can be blown open now: a rocket, a missile or a car driven hard into a wall makes a hole in an ordinary building that you can walk through. Rubble lies outside, the hole stays after you save, and Mason\'s Os will brick it up for a fee. Imported characters\' homes and workplaces never break, and government buildings only once a coup has been staged.',
+      'The 4th star: push the police far enough (kill two more officers with three stars, attack a government building, or stage a coup) and Fort Gullcrest sends soldiers, a patrol, then a road block, then a rocket team. The fort has only so many, set by the defence budget; the ones you kill stay lost until the budget replaces them. Surrender to a soldier and you are arrested, not your company.',
+      'The coup: with two battalions at home and an unpopular government, stage a coup from the command terminal. Sund becomes a theatre on the strategic map; march on Halvermouth and take it to govern by decree. Fail or surrender and terms are imposed: a fine, a suspended licence, your battalions stood down. While it is on your base can be attacked.',
+    ],
+  },
+  {
     version: '0.105.0',
     date: '2026-11-15',
     channel: 'development',

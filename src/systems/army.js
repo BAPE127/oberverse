@@ -43,7 +43,7 @@ export class Army {
     const g = this.game; const s = this.state; const pol = g.police.state;
     if (s.star4 || g.police.jailed()) return false;
     if (!force && pol.wanted < 3) return false;
-    pol.wanted = 3; s.star4 = true; s.since = g.clock.total; s.lastSeen = g.clock.total; s.why = why; s.waves = 0; s.hunts += 1;
+    pol.wanted = 3; pol.lastSeen = g.clock.total; s.star4 = true; s.since = g.clock.total; s.lastSeen = g.clock.total; s.why = why; s.waves = 0; s.hunts += 1;
     s.nextWaveAt = g.realTime + ARMY.firstWave;
     g.notify(`★★★★ The Army is coming: Fort Gullcrest is sending soldiers (${why}).`, 'warn');
     g.bus.emit('police:wanted', { level: 4 });
@@ -84,7 +84,7 @@ export class Army {
     const profile = {
       ...structuredClone(base), id, name: heavy ? 'Army Heavy Weapons Specialist' : 'Army Rifleman', shortName: heavy ? 'Specialist' : 'Soldier',
       faction: 'fac_army', transient: true, origin: 'army', schedule: [{ from: '00:00', to: '23:59', activity: 'patrol', spot: 'fort_gullcrest:parade' }],
-      combat: { fights: true, defends: true, weapon: heavy ? ARMY.heavyWeapon : ARMY.weapon, maxHealth: heavy ? 170 : 150 },
+      combat: { fights: true, defends: true, weapon: heavy ? ARMY.heavyWeapon : ARMY.weapon, maxHealth: heavy ? 170 : 150, maxRange: ARMY.fireRange, damageScale: ARMY.damageScale },
       appearance: { ...(base.appearance || {}), outfit: '#4f5d3a', accent: '#2f3a22', accessory: 'helmet' },
     };
     const npc = g.createNpc(profile);
@@ -111,7 +111,7 @@ export class Army {
     const out = this.soldiers();
     for (const n of out) {
       if (n.map !== p.map) continue;
-      if (!n.dead && !n.downUntil && g.canSee(n, p.x, p.y, g.currentMap(), 12)) s.lastSeen = g.clock.total;
+      if (!n.dead && !n.downUntil && g.canSee(n, p.x, p.y, g.currentMap(), 12)) { s.lastSeen = g.clock.total; g.police.state.lastSeen = g.clock.total; } // (seen by the Army is seen: the three stars do not lapse under fire)
       if (n.hostile?.mode !== 'fight' && !n.dead && !n.downUntil) n.hostile = { mode: 'fight', until: g.clock.total + 100000 }; // (soldiers do not run)
     }
     for (const n of out) if (n.dead && !n.counted) { n.counted = true; s.lost[n.armyHeavy ? 'heavy' : 'soldiers'] += 1; }

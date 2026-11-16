@@ -796,7 +796,8 @@ export class Combat {
       return;
     }
     const map = g.currentMap();
-    const canShoot = wp.kind === 'gun' && d < wp.range * TILE * 0.8 && g.canSee(npc, p.x, p.y, map, wp.range);
+    const reach = Math.min(wp.range, npc.profile.combat?.maxRange ?? wp.range); // v0.106.0: a soldier opens fire from where you can see him, not from off the screen
+    const canShoot = wp.kind === 'gun' && d < reach * TILE * 0.8 && g.canSee(npc, p.x, p.y, map, reach);
     const inReach = wp.kind === 'melee' ? d < wp.range * TILE + 10 : canShoot;
     if (inReach) {
       npc.moving = false;
@@ -811,7 +812,7 @@ export class Combat {
           const ang = Math.atan2(p.y - BODY_Y - oy, p.x - ox) + (g.rng.next() - 0.5) * 0.22;
           const bd = { x: Math.cos(ang), y: Math.sin(ang) };
           if (wp.projectile === 'rocket' && g.heavy) g.heavy.launchRocket(ox + bd.x * 12, oy - 18 + bd.y * 8, bd, wp, npc.id); // v0.106.0: a soldier's launcher fires a real rocket
-          else this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
+          else this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 * (npc.profile.combat?.damageScale ?? 1) } });
           this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, dir: bd, until: g.realTime + 0.06, start: g.realTime });
         } else {
           g.bus.emit('sfx', { id: 'sfx_punch' });

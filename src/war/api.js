@@ -29,6 +29,7 @@ import { checkMilitary } from './check.js';
 import { briefing as briefingOf, missions as missionsOf, activity as activityOf, worldFeed as worldFeedOf } from './briefing.js';
 import { profileOf as aiProfileOf } from './strategicAI.js';
 import { hooks as warHooks } from './hooks.js';
+import { coupNeeds, stageCoup, surrenderCoup, coupView } from './coup.js';
 import { view as stView, advance as stAdvance, templates as stTemplates, saveTemplate as stSave, removeTemplate as stRemove, needsOf as stNeeds, providedBy as stProvided, raise as stRaise, disband as stDisband, theatres as stTheatres, enlist as stEnlist, discharge as stDischarge, deploy as stDeploy, recall as stRecall, order as stOrder } from './strategic.js';
 import { commission as commissionFacility, facilityState as facilityStateOf, lotOwned as lotOwnedOf, capacity as baseCapacity, view as facilityView, repair as repairFacility, repairCost as facilityRepairCost, quote as facilityQuote } from './facilities.js';
 
@@ -208,6 +209,11 @@ export class War {
   theatres() { return stTheatres(this.g); }
   enlist(o) { return stEnlist(this.g, o); }
   discharge() { return stDischarge(this.g); }
+  // v0.106.0: the coup (src/war/coup.js)
+  coupNeeds() { return coupNeeds(this.g); }
+  stageCoup() { return stageCoup(this.g); }
+  surrenderCoup() { return surrenderCoup(this.g); }
+  coup() { return coupView(this.g); }
   deploy(id) { return stDeploy(this.g, id); }
   recall(id) { return stRecall(this.g, id); }
   battalionOrder(id, o) { return stOrder(this.g, id, o); }

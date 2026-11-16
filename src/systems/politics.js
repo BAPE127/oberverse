@@ -158,7 +158,7 @@ export class Politics {
 
   governmentStep(s, day) {
     const saved = this.dayOverride; this.dayOverride = day;
-    this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
+    if (!s.junta) this.electionStep(s, day); // v0.106.0: no elections while you rule by decree // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
@@ -178,7 +178,7 @@ export class Politics {
       else if (next === 'active') this.activate(s, p, day);
     }
     this.pollDay(s, day);
-    if (day - s.lastCabinet >= G.cabinetEvery) { s.lastCabinet = day; this.cabinet(s, day); }
+    if (!s.junta && day - s.lastCabinet >= G.cabinetEvery) { s.lastCabinet = day; this.cabinet(s, day); } // (the Assembly is suspended under a junta: no cabinet proposals)
     if (day - s.budget.lastWindow >= G.budgetEvery) { s.budget.lastWindow = day; this.budgetWindow(s, day); }
     this.dayOverride = saved;
   }
@@ -265,6 +265,22 @@ export class Politics {
       s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office.` });
       while (s.history.length > 60) s.history.shift();
     }
+  }
+
+  /** v0.106.0: after a successful coup you rule by decree: a policy comes into force at once (its opposite is repealed), or one in force is ended. */
+  decree(key) {
+    const s = this.ensure(); if (!s.junta) return { ok: false, text: 'Only a government that took power can rule by decree.' };
+    const def = POLICIES[key]; if (!def) return { ok: false, text: 'No such policy.' };
+    if (s.policies.some((p) => p.key === key && p.state === 'active')) return { ok: false, text: `${def.name} is already in force.` };
+    const p = { id: s.nextPolicy++, key, state: 'approved', since: this.day, by: 'junta', votes: null }; s.policies.push(p); this.activate(s, p, this.day);
+    s.junta.decrees.push({ day: this.day, key }); while (s.junta.decrees.length > 30) s.junta.decrees.shift();
+    return { ok: true, text: `By decree: ${def.name}.` };
+  }
+  revoke(policyId) {
+    const s = this.ensure(); if (!s.junta) return { ok: false, text: 'Only a government that took power can rule by decree.' };
+    const p = s.policies.find((q) => q.id === policyId && q.state === 'active'); if (!p) return { ok: false, text: 'That policy is not in force.' };
+    p.state = 'ended'; p.since = this.day; p.note = 'revoked by decree'; this.log(s, `${POLICIES[p.key].name} is revoked by decree.`);
+    return { ok: true, text: `Revoked: ${POLICIES[p.key].name}.` };
   }
 
   party(id) { return P.parties[id]; }

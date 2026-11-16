@@ -31,7 +31,7 @@ import { openStrategic } from './engagements.js';
 export const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
 export const nowHour = (game) => Math.floor(game.clock.total / 60);
 const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
-export const countryName = (id) => ATLAS.countries[id]?.name || id;
+export const countryName = (id) => (id === 'coup' ? 'your company' : ATLAS.countries[id]?.name || id);
 
 /** The war record, with its defaults (an older save simply gains them). */
 export function warOf(game) {
@@ -186,6 +186,9 @@ export function statsOf(game, bn) {
 // ---- theatres and employers
 const warBetween = (game, a, b) => (game.corp?.geo?.peek?.()?.events || []).some((e) => e.kind === 'war' && e.status === 'active' && e.parties.includes(a) && e.parties.includes(b));
 export function theatres(game) {
+  return [...(hooks.extraTheatres?.(game) || []), ...theatresOfAtlas(game)]; // v0.106.0: the coup's theatre, while one is on (src/war/coup.js)
+}
+function theatresOfAtlas(game) {
   return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.split(/\s*\+\s*/).includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
 }
 export const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
@@ -362,7 +365,7 @@ export function advance(game) {
 
 /** The landing must be on ground the employer still holds; if it falls, the next best ground takes its place; if nothing is left the employer is beaten, the contract ends and what is in the theatre is shipped home. */
 export function ensureEmployer(game) {
-  const w = warOf(game); const e = w?.employer; if (!e) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging);
+  const w = warOf(game); const e = w?.employer; if (!e || e.coup) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging); // (a coup is won or lost by src/war/coup.js)
   if (controllerOf(game, cur) === e.side) return;
   const next = staging(game, th, e.side, true);
   if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
@@ -389,10 +392,12 @@ export function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  hooks.coupDay?.(game); // v0.106.0
   hooks.intlDay?.(game, w); // v0.103.10: international contracts are checked once a day (done, failed, or closed with the employer)
   pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
   pay += hooks.navyPay?.(game) || 0; // v0.103.10: and so are fleets
   pay = Math.round(pay);
+  if (w.employer?.coup) pay = 0; // v0.106.0: nobody pays you to overthrow your own government
   if (pay > 0 && w.employer) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 

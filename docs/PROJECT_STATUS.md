@@ -6,15 +6,15 @@ The handoff. Read this and `TASK_BOARD.md` at the start of a session. Keep it to
 
 ## Where the project stands
 
-- **Version:** v0.105.0 (Combat in 3D and the Battle Rework), development channel, save schema 1.
+- **Version:** v0.106.0 (War: Destruction, the Army and the Coup), development channel, save schema 1.
 - **Size:** about 84,000 lines of source in `src/` (18 folders), 163 test files, 48 system and design documents.
 - **Released:** the home coast and Halvermouth, the living-world simulation, combat, quests and emergent events, the corporate empire (companies, group, bank, bonds, exchange, managers, headquarters), shipping, arms works, aerospace, farming, casino, the World Atlas, the complete Politics update (v0.93–v0.97), and the War update through Strategic Command (v0.98–v0.103.11).
-- **In progress:** nothing. v0.105.0 released on 2026-11-15 and published to the live site.
-- **Next on the roadmap:** v0.106.0 *War: Destruction, Government Response and Coup*, then v0.107.0 *War: Migration and Release*, then the Post-War Expansion (v0.108.0–v0.116.0). See `ROADMAP.md` section 0.
+- **In progress:** nothing. v0.106.0 released on 2026-11-15 and published to the live site.
+- **Next on the roadmap:** v0.107.0 *War: Migration and Release* (the war update's regression and polish), then the Post-War Expansion (v0.108.0–v0.116.0). See `ROADMAP.md` section 0.
 
 ## Last work
 
-2026-11-15 — **v0.105.0, Combat in 3D and the Battle Rework** (`CHANGELOG.md`). The last items were done in the lead session on Opus after the Sonnet agents reached the subscription's weekly limit.
+2026-11-15 — **v0.106.0, War: Destruction, the Army and the Coup** (`CHANGELOG.md`), built in the lead session on Opus while the Sonnet agents were on the weekly limit. Earlier the same day: v0.105.0.
 
 ## Health
 

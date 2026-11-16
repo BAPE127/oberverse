@@ -2,7 +2,7 @@
 
 Every prop type in `src/content/props.js` put in one drawing category for the isometric move (see `docs/RENDERING.md` section 2.2). Footprints are the content defaults: `*` = one side not stated, 1 assumed; `-` = not stated. `workbench` is declared twice in `props.js`; the later entry (w 3) is used.
 
-Counts: FLAT 21, LINEAR 12, UPRIGHT 30, BOXY 48, LARGE 23, UNSURE 25. Total 159.
+Counts: FLAT 22, LINEAR 12, UPRIGHT 30, BOXY 48, LARGE 23, UNSURE 25. Total 160 (v0.106.0 added `rubble`, flat: what is left of a wall blown open).
 
 ## FLAT: lies on the ground (markings, rugs, pads)
 

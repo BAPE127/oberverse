@@ -18546,7 +18546,7 @@ __m["src/core/version.js"] = (function () {
 // Single source of truth for version identifiers inside the running game.
 // tests/version.test.mjs asserts these agree with VERSION, package.json and
 // oberverse-manifest.json — update all four together (see docs/DEVELOPMENT_WORKFLOW.md).
-const GAME_VERSION = '0.105.0';
+const GAME_VERSION = '0.106.0';
 /** 'development' builds show a "dev" tag; 'stable' builds do not. */
 const BUILD_CHANNEL = 'development';
 const SAVE_SCHEMA_VERSION = 1;
@@ -24544,7 +24544,8 @@ class Combat {
       return;
     }
     const map = g.currentMap();
-    const canShoot = wp.kind === 'gun' && d < wp.range * TILE * 0.8 && g.canSee(npc, p.x, p.y, map, wp.range);
+    const reach = Math.min(wp.range, npc.profile.combat?.maxRange ?? wp.range); // v0.106.0: a soldier opens fire from where you can see him, not from off the screen
+    const canShoot = wp.kind === 'gun' && d < reach * TILE * 0.8 && g.canSee(npc, p.x, p.y, map, reach);
     const inReach = wp.kind === 'melee' ? d < wp.range * TILE + 10 : canShoot;
     if (inReach) {
       npc.moving = false;
@@ -24558,7 +24559,8 @@ class Combat {
           // v0.44.0: a real bullet, aimed with a shooter's wobble — keep moving and it can miss you
           const ang = Math.atan2(p.y - BODY_Y - oy, p.x - ox) + (g.rng.next() - 0.5) * 0.22;
           const bd = { x: Math.cos(ang), y: Math.sin(ang) };
-          this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 } });
+          if (wp.projectile === 'rocket' && g.heavy) g.heavy.launchRocket(ox + bd.x * 12, oy - 18 + bd.y * 8, bd, wp, npc.id); // v0.106.0: a soldier's launcher fires a real rocket
+          else this.spawnBullet(ox + bd.x * 12, oy + bd.y * 8, bd, wp.range * TILE, { speed: 620, hurts: { by: npc.id, damage: wp.damage * 0.8 * (npc.profile.combat?.damageScale ?? 1) } });
           this.fx.push({ type: 'flash', x: ox + (dx / d) * 14, y: oy + (dy / d) * 10, dir: bd, until: g.realTime + 0.06, start: g.realTime });
         } else {
           g.bus.emit('sfx', { id: 'sfx_punch' });
@@ -24741,7 +24743,7 @@ class Police {
     const sev = this.severityOf(e);
     s.record += sev;
     s.lastCrimeDay = g.clock.day;
-    if (e.fact === 'fact_player_murder' && this.isOfficer(g.npcs.get(e.victim))) s.officersKilled += 1;
+    if (e.fact === 'fact_player_murder' && this.isOfficer(g.npcs.get(e.victim))) { s.officersKilled += 1; g.bus.emit('police:officerKilled', { id: e.victim }); } // v0.106.0: two of these at three stars bring the Army
     const ids = [...new Set([...(e.witnesses || []), ...(e.victim ? [e.victim] : [])])];
     const people = ids.map((id) => g.npcs.get(id)).filter((n) => n && !isDown(n, g.clock.total));
     const officers = people.filter((n) => this.isOfficer(n) && n.id !== CHIEF);
@@ -25044,6 +25046,7 @@ class Police {
   surrender() {
     const g = this.game;
     if (this.jailed()) return { ok: false, text: '' };
+    if (g.army?.hunting()) { const r = g.army.surrender(); if (r) return r; } // v0.106.0: to a soldier near you
     if (this.state.wanted <= 0) return { ok: false, text: 'Nobody is trying to arrest you.' };
     const near = this.activeOfficers().find((o) => o.map === g.player.map && dist(o.x, o.y, g.player.x, g.player.y) < 8 * TILE);
     if (!near) return { ok: false, text: 'There\'s no officer close enough to surrender to.' };
@@ -25066,6 +25069,7 @@ class Police {
   /** Arrested, beaten, or struck down: everything ends in a cell. */
   sendToJail(reason) {
     const g = this.game;
+    if (g.army?.hunting()) g.army.endHunt(); // v0.106.0: arrested, the hunt is over
     const s = this.state;
     const p = g.player;
     // confiscate weapons, ammunition, stolen goods and any jail keys
@@ -30776,7 +30780,7 @@ class Politics {
 
   governmentStep(s, day) {
     const saved = this.dayOverride; this.dayOverride = day;
-    this.electionStep(s, day); // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
+    if (!s.junta) this.electionStep(s, day); // v0.106.0: no elections while you rule by decree // v0.95.0: funds, the campaign, scandals, the vote, and the change of term
     this.influenceStep(s, day); // v0.95.0: heat fades, donors' expectations come due, investigators
     this.unrestStep(s, day); // v0.97.0: demonstrations
     this.partyDay(s); // v0.97.0: your party's wages
@@ -30796,7 +30800,7 @@ class Politics {
       else if (next === 'active') this.activate(s, p, day);
     }
     this.pollDay(s, day);
-    if (day - s.lastCabinet >= G.cabinetEvery) { s.lastCabinet = day; this.cabinet(s, day); }
+    if (!s.junta && day - s.lastCabinet >= G.cabinetEvery) { s.lastCabinet = day; this.cabinet(s, day); } // (the Assembly is suspended under a junta: no cabinet proposals)
     if (day - s.budget.lastWindow >= G.budgetEvery) { s.budget.lastWindow = day; this.budgetWindow(s, day); }
     this.dayOverride = saved;
   }
@@ -30883,6 +30887,22 @@ class Politics {
       s.history.push({ day: this.day, kind: 'term', text: `A new term begins: ${this.party(s.government.partyId).name} continues in office.` });
       while (s.history.length > 60) s.history.shift();
     }
+  }
+
+  /** v0.106.0: after a successful coup you rule by decree: a policy comes into force at once (its opposite is repealed), or one in force is ended. */
+  decree(key) {
+    const s = this.ensure(); if (!s.junta) return { ok: false, text: 'Only a government that took power can rule by decree.' };
+    const def = POLICIES[key]; if (!def) return { ok: false, text: 'No such policy.' };
+    if (s.policies.some((p) => p.key === key && p.state === 'active')) return { ok: false, text: `${def.name} is already in force.` };
+    const p = { id: s.nextPolicy++, key, state: 'approved', since: this.day, by: 'junta', votes: null }; s.policies.push(p); this.activate(s, p, this.day);
+    s.junta.decrees.push({ day: this.day, key }); while (s.junta.decrees.length > 30) s.junta.decrees.shift();
+    return { ok: true, text: `By decree: ${def.name}.` };
+  }
+  revoke(policyId) {
+    const s = this.ensure(); if (!s.junta) return { ok: false, text: 'Only a government that took power can rule by decree.' };
+    const p = s.policies.find((q) => q.id === policyId && q.state === 'active'); if (!p) return { ok: false, text: 'That policy is not in force.' };
+    p.state = 'ended'; p.since = this.day; p.note = 'revoked by decree'; this.log(s, `${POLICIES[p.key].name} is revoked by decree.`);
+    return { ok: true, text: `Revoked: ${POLICIES[p.key].name}.` };
   }
 
   party(id) { return P.parties[id]; }
@@ -34708,7 +34728,7 @@ const { openStrategic } = __m["src/war/engagements.js"];
 const unit = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
 const nowHour = (game) => Math.floor(game.clock.total / 60);
 const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
-const countryName = (id) => ATLAS.countries[id]?.name || id;
+const countryName = (id) => (id === 'coup' ? 'your company' : ATLAS.countries[id]?.name || id);
 
 /** The war record, with its defaults (an older save simply gains them). */
 function warOf(game) {
@@ -34863,6 +34883,9 @@ function statsOf(game, bn) {
 // ---- theatres and employers
 const warBetween = (game, a, b) => (game.corp?.geo?.peek?.()?.events || []).some((e) => e.kind === 'war' && e.status === 'active' && e.parties.includes(a) && e.parties.includes(b));
 function theatres(game) {
+  return [...(hooks.extraTheatres?.(game) || []), ...theatresOfAtlas(game)]; // v0.106.0: the coup's theatre, while one is on (src/war/coup.js)
+}
+function theatresOfAtlas(game) {
   return atlasTheatres().filter((t) => t.between.length === 2).map((t) => ({ id: t.id, name: t.name, between: t.between, kind: t.kind, note: t.note, states: t.states, hot: t.kind.split(/\s*\+\s*/).includes('land') || warBetween(game, t.between[0], t.between[1]), provinces: provinces().filter((p) => t.states.includes(p.state)).length }));
 }
 const theatreOf = (game, id) => theatres(game).find((t) => t.id === id) || null;
@@ -35039,7 +35062,7 @@ function advance(game) {
 
 /** The landing must be on ground the employer still holds; if it falls, the next best ground takes its place; if nothing is left the employer is beaten, the contract ends and what is in the theatre is shipped home. */
 function ensureEmployer(game) {
-  const w = warOf(game); const e = w?.employer; if (!e) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging);
+  const w = warOf(game); const e = w?.employer; if (!e || e.coup) return; const th = theatreOf(game, e.theatre); const cur = provinceById(e.staging); // (a coup is won or lost by src/war/coup.js)
   if (controllerOf(game, cur) === e.side) return;
   const next = staging(game, th, e.side, true);
   if (next) { e.staging = next.id; note(w, game, `The landing at ${cur.name} is lost: ${countryName(e.side)} lands you at ${next.name} from now on.`); game.notify?.(`${cur.name} has fallen. New landing: ${next.name}.`, 'warn'); return; }
@@ -35066,10 +35089,12 @@ function dayTick(game) {
     } else if (!bn.moving && !bn.engaged) bn.org = Math.min(BATTALION.orgMax, bn.org + BATTALION.restPerDay);
   }
   if (w.employer) { hooks.aiDay?.(game, w); ensureEmployer(game); }
+  hooks.coupDay?.(game); // v0.106.0
   hooks.intlDay?.(game, w); // v0.103.10: international contracts are checked once a day (done, failed, or closed with the employer)
   pay += hooks.airPay?.(game) || 0; // v0.103.9: wings abroad are paid like the other vehicles in the theatre
   pay += hooks.navyPay?.(game) || 0; // v0.103.10: and so are fleets
   pay = Math.round(pay);
+  if (w.employer?.coup) pay = 0; // v0.106.0: nobody pays you to overthrow your own government
   if (pay > 0 && w.employer) { game.corp.receive('security', pay, { cat: 'contract' }); w.paid = (w.paid || 0) + pay; note(w, game, `${countryName(w.employer.side)} pays ${pay.toLocaleString('en-US')} obols for the day.`); }
 }
 
@@ -36521,6 +36546,171 @@ void WEAKEN;
 return { profileOf, exchange, aiState, defenders, front, choose, spawn };
 })();
 
+// ---- src/content/coup.js
+__m["src/content/coup.js"] = (function () {
+// The coup (v0.106.0; src/war/coup.js). Every number that shapes it is here.
+const COUP = {
+  /** Battalions raised and at home before a coup can be staged. */
+  battalions: 2,
+  /** The government's exposed flank: approval below this, or unrest at this level or more. */
+  flank: { approval: 0.45, unrest: 2 },
+  /** A heavy-weapons team counts as this many troops in the government's field army. */
+  heavyAsTroops: 3,
+  /** Damage each of your base's structures takes when the government takes your home province (the gate's points, out of 100). */
+  baseDamage: 45,
+  /** A coup still going after this many days fails. */
+  maxDays: 60,
+  /** What a failed or surrendered coup costs: a fine from the company and the licence suspended. */
+  terms: { fine: 500000, licenceDays: 30 },
+};
+
+return { COUP };
+})();
+
+// ---- src/war/coup.js
+__m["src/war/coup.js"] = (function () {
+// The coup (v0.106.0; owner's decisions of 2026-11-08 and 2026-11-15): a campaign on the strategic map. You stage it from the command terminal;
+// Sund's own provinces become a theatre with your company as the side and the government as the enemy; your battalions march on the capital;
+// the government fights back with the provinces' garrisons and a field army whose size is Fort Gullcrest's stock (the defence budget). Every
+// engagement is the ordinary strategic one: played as a battle, given to a general, or given up. While the coup is on, your base is not
+// protected (the one flag, src/war/protection.js) and you are hunted (the 4th star).
+//
+//   coupNeeds(game)        what staging needs, each { ok, text }: a licensed company, enough battalions at home, none abroad, a government with an exposed flank
+//   stageCoup(game)        stage it: the flag goes to 'staged', the theatre opens, the Army is raised against you
+//   surrenderCoup(game)    give up: terms are imposed
+//   coupDay(game)          once a day: has it been won (the capital is yours) or lost (no battalion left in the field, or your home province taken)?
+//   coupView(game)         what the terminal shows
+// Won: the flag goes to 'ended', a settlement "you govern" restores protection, and you rule by decree (world.politics.junta). Lost or surrendered:
+// 'ended', then the settlement "terms": a fine from the company, the licence suspended, the battalions stood down; the company survives.
+const { ensureMilitary, peekMilitary } = __m["src/war/state.js"];
+const { setCoupState, settle } = __m["src/war/protection.js"];
+const { warOf, note, controllerOf, setControl, nowHour, countryName } = __m["src/war/strategic.js"];
+const { provinces, provinceById } = __m["src/world/provinces.js"];
+const { hooks } = __m["src/war/hooks.js"];
+const { aiState } = __m["src/war/strategicAI.js"];
+const { COUP } = __m["src/content/coup.js"];
+const { view: damageView, apply: damageApply } = __m["src/war/damage.js"];
+
+
+const COUP_SIDE = 'coup';
+const HOME = 'sund';
+const capital = () => provinces().find((p) => p.country === HOME && p.capital);
+const homeStates = () => [...new Set(provinces().filter((p) => p.country === HOME).map((p) => p.state))];
+
+const coupOf = (game) => peekMilitary(game)?.coupRun || null;
+const coupOn = (game) => coupOf(game)?.state === 'on';
+
+/** The theatre a coup fights in (added to the strategic theatres while one is on). */
+function coupTheatre(game) {
+  const r = coupOf(game); if (!r || r.state !== 'on') return null;
+  return { id: 'coup', name: 'The Coup', between: [COUP_SIDE, HOME], kind: 'land', note: 'Your company against the government of Sund.', states: homeStates(), hot: true, coup: true };
+}
+
+/** What staging a coup needs: each { ok, text }. */
+function coupNeeds(game) {
+  const m = peekMilitary(game); const C = m?.company; const w = warOf(game);
+  const home = (w?.battalions || []).filter((b) => b.status === 'home'); const away = (w?.battalions || []).filter((b) => b.status !== 'home');
+  const pol = game.politics?.peek?.(); const approval = pol ? game.politics.approval(pol) : 0.5; const unrest = (pol?.unrest?.level ?? 0);
+  const flank = approval < COUP.flank.approval || unrest >= COUP.flank.unrest;
+  return [
+    { ok: Boolean(C?.identity && C.licensed), text: 'A licensed military company' },
+    { ok: home.length >= COUP.battalions, text: `${COUP.battalions} battalions raised and at home (you have ${home.length})` },
+    { ok: !away.length && !w?.employer, text: 'No contract abroad: every battalion home, nobody\'s flag but your own' },
+    { ok: flank, text: `A government with an exposed flank: approval under ${Math.round(COUP.flank.approval * 100)}% (now ${Math.round(approval * 100)}%) or unrest at ${COUP.flank.unrest} or more` },
+    { ok: (m?.coup?.state ?? 'none') === 'none', text: 'No coup has been staged before without a settlement' },
+  ];
+}
+
+function stageCoup(game) {
+  const need = coupNeeds(game).filter((n) => !n.ok); if (need.length) return { ok: false, text: `Not yet: ${need.map((n) => n.text).join('; ')}.` };
+  const m = ensureMilitary(game); const w = warOf(game); const day = game.clock.day;
+  const r = setCoupState(game, 'staged', 'you marched on the capital'); if (!r.ok) return r;
+  const home = w.battalions.find((b) => b.status === 'home')?.home;
+  m.coupRun = { state: 'on', since: day, home, battles: 0, won: 0, lost: 0 };
+  w.employer = { theatre: 'coup', side: COUP_SIDE, enemy: HOME, since: day, staging: home, coup: true };
+  w.ai = null; w.lost = []; w.flipped = {};
+  // the government's field army is what Fort Gullcrest has: the Army's stock, in the strategic pool
+  const ai = aiState(game, w); const st = game.army?.state?.stock || { soldiers: 30, heavy: 4 };
+  ai.pool[HOME] = Math.round(st.soldiers + st.heavy * COUP.heavyAsTroops); ai.pool[COUP_SIDE] = 0;
+  // your battalions muster where they are: no sealift, they are already in the country
+  for (const b of w.battalions) if (b.status === 'home') { b.status = 'theatre'; b.pos = home; b.order = { type: 'hold' }; b.org = Math.max(b.org || 0, 80); }
+  note(w, game, 'The coup: your battalions march on the capital.');
+  game.army?.raise('a coup has been staged', true);
+  game.notify?.(`The coup has begun. Take ${capital()?.name || 'the capital'} to win. Your base is no longer protected.`, 'warn');
+  return { ok: true, text: `The coup has begun. Take ${capital()?.name || 'the capital'}.` };
+}
+
+/** The end of it. `won`: you govern; otherwise terms are imposed. */
+function finish(game, won, why) {
+  const m = ensureMilitary(game); const w = warOf(game); const run = m.coupRun; if (!run || run.state !== 'on') return;
+  run.state = won ? 'won' : 'lost'; run.ended = game.clock.day; run.why = why;
+  setCoupState(game, 'ended', won ? 'the capital is taken' : why);
+  for (const b of w.battalions) if (b.status === 'theatre') { b.status = 'home'; b.pos = b.home; b.engaged = null; b.moving = null; b.order = { type: 'hold' }; }
+  w.employer = null; w.ai = null;
+  game.army?.endHunt(won ? 'The Army stands down: it answers to you now.' : '');
+  const pol = game.politics?.ensure?.();
+  if (won) {
+    if (pol) pol.junta = { since: game.clock.day, leader: game.player.name, company: m.company?.identity?.name || 'your company', decrees: [] };
+    settle(game, 'you govern');
+    note(w, game, 'The coup succeeds: you govern Sund.');
+    game.notify?.('The capital is yours. You govern Sund by decree; the Assembly is suspended and there are no elections while you rule.', 'info');
+  } else {
+    const C = m.company; const fine = Math.round(COUP.terms.fine); try { game.corp.pay('security', fine, { cat: 'fine', owe: true }); } catch { /* no account */ }
+    if (C) { C.licensed = false; C.licenceSuspendedUntil = game.clock.day + COUP.terms.licenceDays; }
+    for (const b of [...w.battalions]) { w.battalions = w.battalions.filter((x) => x !== b); } // (stood down: the squads stay the company's)
+    for (const pid of Object.keys(w.control)) if (provinceById(pid)?.country === HOME) setControl(game, pid, HOME);
+    settle(game, 'terms');
+    note(w, game, `The coup fails (${why}). Terms: a fine of ${fine.toLocaleString('en-US')} obols, the licence suspended for ${COUP.terms.licenceDays} days, the battalions stood down.`);
+    game.notify?.(`The coup has failed (${why}). The company survives under terms: a fine, a suspended licence, its battalions stood down.`, 'warn');
+  }
+}
+
+function surrenderCoup(game) {
+  if (!coupOn(game)) return { ok: false, text: 'There is no coup to give up.' };
+  finish(game, false, 'you surrendered'); return { ok: true, text: 'You surrender. Terms are imposed.' };
+}
+
+/** Once a day (and after each engagement): won if the capital is yours; lost if your home province has fallen or nothing of yours is left in the field. */
+function coupDay(game) {
+  if (!coupOn(game)) return;
+  const w = warOf(game); const run = coupOf(game); const cap = capital();
+  if (cap && controllerOf(game, cap) === COUP_SIDE) return finish(game, true, 'the capital is taken');
+  const home = provinceById(run.home);
+  if (home && controllerOf(game, home) !== COUP_SIDE && controllerOf(game, home) === HOME && w.flipped?.[home.id] !== undefined) return finish(game, false, 'your base was overrun');
+  if (!w.battalions.some((b) => b.status === 'theatre')) return finish(game, false, 'nothing of yours is left in the field');
+  if (game.clock.day - run.since > COUP.maxDays) return finish(game, false, 'it dragged on until the country turned against you');
+  const ai = w.ai; if (ai) ai.pool[COUP_SIDE] = 0; // (you have no allies' army: only your battalions)
+}
+
+function coupView(game) {
+  const run = coupOf(game); const cap = capital();
+  return { run, needs: coupNeeds(game), capital: cap ? { id: cap.id, name: cap.name, yours: controllerOf(game, cap) === COUP_SIDE } : null, flag: peekMilitary(game)?.coup?.state ?? 'none', junta: game.politics?.peek?.()?.junta || null, stock: game.army?.state?.stock || null };
+}
+
+// ---- hooks into the strategic war: the coup's own ground
+const prevControl = hooks.controlChanged;
+hooks.controlChanged = (game, p, old, now) => {
+  prevControl?.(game, p, old, now);
+  if (!coupOn(game)) return;
+  const run = coupOf(game);
+  // the government takes your home province: the base is attacked (it is not protected while the coup is on); every company structure there takes damage through the gate
+  if (p.id === run.home && now === HOME) {
+    for (const s of damageView(game)) if (s.owner === 'company') damageApply(game, s.id, COUP.baseDamage, 'strategic');
+  }
+  if (now === COUP_SIDE) run.won += 1; else if (old === COUP_SIDE) run.lost += 1;
+  if (now === COUP_SIDE && p.id === capital()?.id) finish(game, true, 'the capital is taken'); // (won the moment it falls, not at midnight)
+};
+hooks.extraTheatres = (game) => { const t = coupTheatre(game); return t ? [t] : []; };
+hooks.coupDay = (game) => {
+  coupDay(game);
+  const C = peekMilitary(game)?.company; // terms run out: the licence comes back
+  if (C && !C.licensed && C.licenceSuspendedUntil && game.clock.day >= C.licenceSuspendedUntil) { C.licensed = true; C.licenceSuspendedUntil = null; game.notify?.('The suspension is over: your company\'s licence is restored.', 'info'); }
+};
+void nowHour; void countryName;
+
+return { COUP_SIDE, HOME, coupOf, coupOn, coupTheatre, coupNeeds, stageCoup, surrenderCoup, coupDay, coupView };
+})();
+
 // ---- src/war/api.js
 __m["src/war/api.js"] = (function () {
 // The war update's service (v0.98.0): game.war. A thin facade over the record (src/war/state.js), the protection gate (protection.js), the damage gate (damage.js) and the
@@ -36554,6 +36744,7 @@ const { checkMilitary } = __m["src/war/check.js"];
 const { briefing: briefingOf, missions: missionsOf, activity: activityOf, worldFeed: worldFeedOf } = __m["src/war/briefing.js"];
 const { profileOf: aiProfileOf } = __m["src/war/strategicAI.js"];
 const { hooks: warHooks } = __m["src/war/hooks.js"];
+const { coupNeeds, stageCoup, surrenderCoup, coupView } = __m["src/war/coup.js"];
 const { view: stView, advance: stAdvance, templates: stTemplates, saveTemplate: stSave, removeTemplate: stRemove, needsOf: stNeeds, providedBy: stProvided, raise: stRaise, disband: stDisband, theatres: stTheatres, enlist: stEnlist, discharge: stDischarge, deploy: stDeploy, recall: stRecall, order: stOrder } = __m["src/war/strategic.js"];
 const { commission: commissionFacility, facilityState: facilityStateOf, lotOwned: lotOwnedOf, capacity: baseCapacity, view: facilityView, repair: repairFacility, repairCost: facilityRepairCost, quote: facilityQuote } = __m["src/war/facilities.js"];
 
@@ -36733,6 +36924,11 @@ class War {
   theatres() { return stTheatres(this.g); }
   enlist(o) { return stEnlist(this.g, o); }
   discharge() { return stDischarge(this.g); }
+  // v0.106.0: the coup (src/war/coup.js)
+  coupNeeds() { return coupNeeds(this.g); }
+  stageCoup() { return stageCoup(this.g); }
+  surrenderCoup() { return surrenderCoup(this.g); }
+  coup() { return coupView(this.g); }
   deploy(id) { return stDeploy(this.g, id); }
   recall(id) { return stRecall(this.g, id); }
   battalionOrder(id, o) { return stOrder(this.g, id, o); }
@@ -37069,9 +37265,9 @@ class Heavy {
 
   // ------------------------------------------------------------- launching
   /** An RPG rocket (Combat.fire, for weapons with `projectile`). */
-  launchRocket(ox, oy, dir, wp) {
+  launchRocket(ox, oy, dir, wp, byNpc = null) {
     const g = this.game;
-    this.projectiles.push({ kind: 'rocket', x: ox, y: oy + 18, vx: dir.x * ROCKET_SPEED, vy: dir.y * ROCKET_SPEED, travelled: 0, range: wp.range * TILE, damage: wp.damage, blast: wp.blast, born: g.realTime, by: 'player' });
+    this.projectiles.push({ byNpc, kind: 'rocket', x: ox, y: oy + 18, vx: dir.x * ROCKET_SPEED, vy: dir.y * ROCKET_SPEED, travelled: 0, range: wp.range * TILE, damage: wp.damage, blast: wp.blast, born: g.realTime, by: 'player' });
   }
 
   /** Use a missile or drone from the inventory (item use: { heavy: type }). */
@@ -37110,7 +37306,7 @@ class Heavy {
   }
 
   /** An explosion. Imported characters are never harmed by it. */
-  explode(x, y, radiusTiles, damage) {
+  explode(x, y, radiusTiles, damage, byNpc = null) {
     const g = this.game;
     const R = radiusTiles * TILE;
     g.combat.fx.push({ type: 'blast', x, y, r: R, until: g.realTime + 0.9, start: g.realTime });
@@ -37132,8 +37328,8 @@ class Heavy {
     }
     const pd = dist(g.player.x, g.player.y, x, y);
     if (pd <= R) g.combat.damagePlayer(damage * 0.6 * (1 - 0.6 * (pd / R)), null);
-    this.crime(x, y);
-    g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open
+    if (!byNpc) this.crime(x, y); // (v0.106.0: a soldier's rocket is not your crime)
+    if (!byNpc) g.breaches?.blast(g.player.map, x, y, radiusTiles, damage); // v0.106.0: a wall within reach is blown open (yours; the Army's rockets do not open walls)
   }
 
   // --------------------------------------------------------------- update
@@ -37161,21 +37357,23 @@ class Heavy {
         pr.y += (pr.vy * dt) / n;
         pr.travelled += step / n;
         // a direct hit on someone
+        if (pr.byNpc && dist(g.player.x, g.player.y - 18, pr.x, pr.y) <= HIT) { this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc); done = true; break; } // v0.106.0: a soldier's rocket is aimed at you
         for (const npc of g.combat.targets()) {
           if (dist(npc.x, npc.y, pr.x, pr.y) > HIT) continue;
+          if (pr.byNpc && (npc.id === pr.byNpc || npc.profile.faction === 'fac_army' || isProtected(npc))) continue; // (it does not hit its own side, and it is not the player's attack on anyone)
           if (isProtected(npc)) {
             // a direct attack on an imported character: the Wrath, not an explosion
             g.combat.smite(npc, BLAST_WEAPON);
             this.projectiles = [];
             return;
           }
-          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc);
           done = true;
           break;
         }
         if (done) break;
         if (map.blockedTile(Math.floor(pr.x / TILE), Math.floor(pr.y / TILE)) || pr.travelled >= pr.range) {
-          this.explode(pr.x, pr.y, pr.blast, pr.damage);
+          this.explode(pr.x, pr.y, pr.blast, pr.damage, pr.byNpc);
           done = true;
         }
       }
@@ -38405,6 +38603,7 @@ class Breaches {
   make(S, c, source) {
     const g = this.game; this.structure(S.id, c.b);
     const r = damageApply(g, sid(S.id, c.b), BREACH.hpPerTile, source);
+    if (!r.ok && r.refused && this.ownerOf(S.id, c.b) === 'government') g.army?.raise('an attack on a government building', true); // v0.106.0: the 4th star
     if (!r.ok) { if (r.refused && !this.warned?.has(c.b.id)) { (this.warned ||= new Set()).add(c.b.id); g.notify?.(r.text, 'info'); } return r.refused ? 'refused' : false; }
     const rec = { street: S.id, b: c.b.id, x: c.tx, y: c.ty, ix: c.ix, iy: c.iy, ox: c.ox, oy: c.oy, day: g.clock.day };
     this.list.push(rec); this.open(rec);
@@ -38454,6 +38653,200 @@ class Breaches {
 }
 
 return { Breaches };
+})();
+
+// ---- src/content/army.js
+__m["src/content/army.js"] = (function () {
+// The government's response, the 4th wanted star (v0.106.0; src/systems/army.js). Every number that shapes it is here.
+const ARMY = {
+  /** What the defence budget keeps ready at Fort Gullcrest for a hunt, before policies. */
+  base: { soldiers: 36, heavy: 6 },
+  /** Each defence policy in force moves that by this share (raise defence spending: +25%, cut it: −25%). */
+  budgetStep: 0.25,
+  /** Every this many days the budget refits the fort by this share of what it pays for (losses are not replaced at once). */
+  refitDays: 30,
+  refitShare: 0.25,
+  /** With three stars, this many police officers killed brings the Army. */
+  officerKills: 2,
+  /** Real seconds before the first wave, and between waves. */
+  firstWave: 20,
+  waveEvery: 75,
+  /** No new wave while this many soldiers are already on your street and on their feet. */
+  maxOut: 6,
+  /** The waves, in order (the last repeats): a patrol, a road block, heavy weapons. */
+  waves: [
+    { kind: 'patrol', soldiers: 3, heavy: 0 },
+    { kind: 'roadblock', soldiers: 5, heavy: 0 },
+    { kind: 'heavy', soldiers: 3, heavy: 1 },
+  ],
+  /** Where they come in, in tiles from you. */
+  spawn: { min: 14, max: 24 },
+  /** Game minutes unseen before the 4th star lapses. */
+  lapseMinutes: 600,
+  /** Soldiers open fire within this many tiles (about the width of the screen), and their rounds do this share of a rifle's damage (they shoot to stop you, and you should get a fight, not an execution). */
+  fireRange: 9,
+  damageScale: 0.55,
+  weapon: 'item_rifle',
+  heavyWeapon: 'item_rpg',
+};
+
+return { ARMY };
+})();
+
+// ---- src/systems/army.js
+__m["src/systems/army.js"] = (function () {
+// The government's response: the 4th wanted star (v0.106.0, owner's decision of 2026-11-15). When the police cannot stop you, Fort Gullcrest
+// sends real soldiers, in waves (a patrol, then a road block, then a heavy-weapons team), from a finite stock that the defence budget pays
+// for. Soldiers who die are lost to the Army until the budget refits them; soldiers still standing when the hunt ends go home to the fort.
+//
+//   raise(why)        the 4th star: three stars and (officers killed again and again, an attack on a government building, a coup staged)
+//   update(dt)        per frame: the next wave, the soldiers out, who has fallen
+//   minuteTick()      the star lapses when nobody has seen you for a long while; soldiers go home
+//   surrender()       to a soldier near you: arrest, as with the police (your company is not seized)
+//
+// State: world.army (saved). The soldiers themselves are runtime characters (ids `army_*`, `profile.transient`): not saved; after a load
+// the hunt goes on with fresh waves from what is left of the stock.
+const { TILE, dist } = __m["src/core/util.js"];
+const { ARMY } = __m["src/content/army.js"];
+
+const isSoldier = (npc) => npc?.profile?.faction === 'fac_army' && npc.profile.transient;
+
+class Army {
+  constructor(game) {
+    this.game = game;
+    game.bus.on('police:officerKilled', () => this.officerKilled());
+  }
+
+  get state() {
+    const w = this.game.world;
+    if (!w.army) w.army = { stock: null, lost: { soldiers: 0, heavy: 0 }, star4: false, since: 0, why: '', waves: 0, nextWaveAt: 0, lastSeen: 0, officerKills: 0, refitDay: 0, hunts: 0 };
+    const s = w.army; if (!s.stock) s.stock = this.capacity();
+    return s;
+  }
+
+  /** What the defence budget keeps at Fort Gullcrest for this work: a base, up or down a quarter for each defence policy in force. */
+  capacity() {
+    const g = this.game; let lvl = 0;
+    try { for (const p of g.politics?.government?.().active || []) { if (p.key === 'defence_up') lvl += 1; if (p.key === 'defence_down') lvl -= 1; } } catch { /* politics not set up yet */ }
+    const k = Math.max(0.5, 1 + ARMY.budgetStep * lvl);
+    return { soldiers: Math.round(ARMY.base.soldiers * k), heavy: Math.round(ARMY.base.heavy * k) };
+  }
+
+  soldiers() { return [...this.game.npcs.values()].filter(isSoldier); }
+  hunting() { return Boolean(this.state.star4); }
+
+  /** The 4th star. Only with three already (the police have failed), or when a coup is staged. */
+  raise(why, force = false) {
+    const g = this.game; const s = this.state; const pol = g.police.state;
+    if (s.star4 || g.police.jailed()) return false;
+    if (!force && pol.wanted < 3) return false;
+    pol.wanted = 3; pol.lastSeen = g.clock.total; s.star4 = true; s.since = g.clock.total; s.lastSeen = g.clock.total; s.why = why; s.waves = 0; s.hunts += 1;
+    s.nextWaveAt = g.realTime + ARMY.firstWave;
+    g.notify(`★★★★ The Army is coming: Fort Gullcrest is sending soldiers (${why}).`, 'warn');
+    g.bus.emit('police:wanted', { level: 4 });
+    return true;
+  }
+
+  officerKilled() {
+    const g = this.game; const s = this.state;
+    if (g.police.state.wanted >= 3) { s.officerKills += 1; if (s.officerKills >= ARMY.officerKills) this.raise('police officers killed'); }
+  }
+
+  /** A wave's make-up: patrol, road block, then heavy weapons; never more than the fort has left. */
+  waveOf(n) {
+    const W = ARMY.waves[Math.min(n, ARMY.waves.length - 1)]; const st = this.state.stock;
+    return { kind: W.kind, soldiers: Math.min(W.soldiers, st.soldiers), heavy: Math.min(W.heavy, st.heavy) };
+  }
+
+  /** Where soldiers come in: open ground on your map, out of sight and well away from you, roads first. */
+  entry(map, n) {
+    const g = this.game; const p = g.player; const out = [];
+    const tries = [];
+    for (let y = 1; y < map.height - 1; y += 1) for (let x = 1; x < map.width - 1; x += 1) {
+      const d = Math.hypot((x + 0.5) * TILE - p.x, (y + 0.5) * TILE - p.y) / TILE;
+      if (d < ARMY.spawn.min || d > ARMY.spawn.max) continue;
+      if (map.blockedTile(x, y) || map.doorAt(x, y)) continue;
+      tries.push({ x, y, d, road: map.tileAt(x, y) === '=' ? 0 : 1 });
+    }
+    tries.sort((a, b) => a.road - b.road || a.d - b.d);
+    const first = tries[Math.floor(g.rng.next() * Math.min(tries.length, 40))]; if (!first) return out;
+    for (const t of tries) { if (out.length >= n) break; if (Math.hypot(t.x - first.x, t.y - first.y) < 4) out.push(t); }
+    return out;
+  }
+
+  /** One soldier: a runtime character with a rifle (or a launcher), hostile to you and nobody else. */
+  soldier(i, heavy, map, at) {
+    const g = this.game; const base = g.content.characters.npc_fg_patrol_a;
+    const id = `army_${g.clock.total | 0}_${i}`;
+    const profile = {
+      ...structuredClone(base), id, name: heavy ? 'Army Heavy Weapons Specialist' : 'Army Rifleman', shortName: heavy ? 'Specialist' : 'Soldier',
+      faction: 'fac_army', transient: true, origin: 'army', schedule: [{ from: '00:00', to: '23:59', activity: 'patrol', spot: 'fort_gullcrest:parade' }],
+      combat: { fights: true, defends: true, weapon: heavy ? ARMY.heavyWeapon : ARMY.weapon, maxHealth: heavy ? 170 : 150, maxRange: ARMY.fireRange, damageScale: ARMY.damageScale },
+      appearance: { ...(base.appearance || {}), outfit: '#4f5d3a', accent: '#2f3a22', accessory: 'helmet' },
+    };
+    const npc = g.createNpc(profile);
+    npc.map = map.id; npc.x = (at.x + 0.5) * TILE; npc.y = (at.y + 0.5) * TILE; npc.health = profile.combat.maxHealth;
+    npc.hostile = { mode: 'fight', until: g.clock.total + 100000 }; npc.activity = 'fight'; npc.armyHeavy = heavy;
+    g.npcs.set(id, npc);
+    return npc;
+  }
+
+  sendWave() {
+    const g = this.game; const s = this.state; const map = g.currentMap();
+    if (map.kind === 'interior') return false; // (they come by the streets: the wave waits until you are out)
+    const W = this.waveOf(s.waves); const n = W.soldiers + W.heavy; if (!n) return false;
+    const spots = this.entry(map, n); if (spots.length < n) return false;
+    for (let i = 0; i < n; i++) this.soldier(i, i >= W.soldiers, map, spots[i]);
+    s.stock.soldiers -= W.soldiers; s.stock.heavy -= W.heavy; s.waves += 1;
+    g.notify(W.kind === 'patrol' ? '★★★★ An Army patrol is on your street.' : W.kind === 'roadblock' ? '★★★★ Soldiers are closing the street: a road block.' : '★★★★ Heavy weapons: the Army has sent a launcher team.', 'warn');
+    return true;
+  }
+
+  update() {
+    const g = this.game; const s = this.state; const p = g.player;
+    if (!s.star4 || g.police.jailed() || g.combat.wrath) return;
+    const out = this.soldiers();
+    for (const n of out) {
+      if (n.map !== p.map) continue;
+      if (!n.dead && !n.downUntil && g.canSee(n, p.x, p.y, g.currentMap(), 12)) { s.lastSeen = g.clock.total; g.police.state.lastSeen = g.clock.total; } // (seen by the Army is seen: the three stars do not lapse under fire)
+      if (n.hostile?.mode !== 'fight' && !n.dead && !n.downUntil) n.hostile = { mode: 'fight', until: g.clock.total + 100000 }; // (soldiers do not run)
+    }
+    for (const n of out) if (n.dead && !n.counted) { n.counted = true; s.lost[n.armyHeavy ? 'heavy' : 'soldiers'] += 1; }
+    const standing = out.filter((n) => !n.dead && !n.downUntil && n.map === p.map).length;
+    if (g.realTime >= s.nextWaveAt && standing < ARMY.maxOut) { if (this.sendWave() || true) s.nextWaveAt = g.realTime + ARMY.waveEvery; }
+  }
+
+  minuteTick() {
+    const g = this.game; const s = this.state;
+    if (s.star4 && g.clock.total - s.lastSeen > ARMY.lapseMinutes) this.endHunt('They lost you. The Army has gone back to Fort Gullcrest.');
+    if (g.clock.day - (s.refitDay || 0) >= ARMY.refitDays) { // the budget refits the fort: up to what it pays for now
+      s.refitDay = g.clock.day; const cap = this.capacity();
+      s.stock.soldiers = Math.min(cap.soldiers, s.stock.soldiers + Math.ceil(cap.soldiers * ARMY.refitShare));
+      s.stock.heavy = Math.min(cap.heavy, s.stock.heavy + Math.ceil(cap.heavy * ARMY.refitShare));
+    }
+  }
+
+  /** The hunt is over (lost you, arrested, or a settlement): the soldiers still standing go home, back into the stock. */
+  endHunt(text = '') {
+    const g = this.game; const s = this.state; if (!s.star4) return;
+    s.star4 = false; s.officerKills = 0;
+    for (const n of this.soldiers()) { if (!n.dead) s.stock[n.armyHeavy ? 'heavy' : 'soldiers'] += 1; g.npcs.delete(n.id); }
+    if (text) g.notify(text, 'info');
+  }
+
+  /** Hands up to a soldier close by: arrested, as by the police. */
+  surrender() {
+    const g = this.game; const p = g.player;
+    const near = this.soldiers().find((n) => !n.dead && !n.downUntil && n.map === p.map && dist(n.x, n.y, p.x, p.y) < 8 * TILE);
+    if (!near) return null;
+    g.bark(near, 'Down on the ground! Hands where I can see them!');
+    this.endHunt();
+    g.police.sendToJail('surrendered to the Army');
+    return { ok: true, text: 'You surrender to the soldiers. They hand you to the police; your company is not touched.' };
+  }
+}
+
+return { Army };
 })();
 
 // ---- src/casino/roulette.js
@@ -57069,6 +57462,7 @@ const { Tablet } = __m["src/systems/tablet.js"];
 const { Vehicles } = __m["src/systems/vehicles.js"];
 const { Homes } = __m["src/systems/homes.js"];
 const { Breaches } = __m["src/systems/breaches.js"];
+const { Army } = __m["src/systems/army.js"];
 const { BREACH } = __m["src/content/destruction.js"];
 const { Casino } = __m["src/systems/casino.js"];
 const { Transit } = __m["src/systems/transit.js"];
@@ -57122,6 +57516,7 @@ class Game {
     this.vehicles = new Vehicles(this);
     this.homes = new Homes(this); // v0.36.0: break-ins and invitations
     this.breaches = new Breaches(this); // v0.106.0: holes blown in walls
+    this.army = new Army(this); // v0.106.0: the 4th wanted star
     this.casino = new Casino(this); // v0.52.0: the Phonograph Grand
     this.transit = new Transit(this);
     this.pursuit = new Pursuit(this);
@@ -57368,6 +57763,7 @@ class Game {
     }
     this.combat.update(dt);
     this.police.update(dt);
+    this.army.update(dt); // v0.106.0
     this.gang.update(dt);
     this.heavy.update(dt);
     this.transit.update(dt);
@@ -57392,6 +57788,7 @@ class Game {
     this.combat.minuteTick();
     this.homes.minuteTick();
     this.police.minuteTick();
+    this.army.minuteTick(); // v0.106.0
     this.calculators.minuteTick();
     this.gang.minuteTick();
     this.factory.minuteTick();
@@ -58314,6 +58711,7 @@ class Game {
   serialize() {
     const npcs = {};
     for (const [id, n] of this.npcs) {
+      if (n.profile.transient) continue; // v0.106.0: the Army's soldiers out on a hunt are not saved (a load sends fresh waves)
       npcs[id] = {
         map: n.map, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, facing: n.facing,
         activity: n.activity, mood: n.mood, met: n.met, relationships: n.relationships, knowledge: n.knowledge,
@@ -58551,6 +58949,17 @@ __m["src/core/releaseNotes.js"] = (function () {
 // In-game release history (About screen). Keep in sync with CHANGELOG.md;
 // tests/version.test.mjs checks the newest entry matches GAME_VERSION.
 const RELEASE_NOTES = [
+  {
+    version: '0.106.0',
+    date: '2026-11-15',
+    channel: 'development',
+    title: 'War: Destruction, the Army and the Coup',
+    notes: [
+      'Walls can be blown open now: a rocket, a missile or a car driven hard into a wall makes a hole in an ordinary building that you can walk through. Rubble lies outside, the hole stays after you save, and Mason\'s Os will brick it up for a fee. Imported characters\' homes and workplaces never break, and government buildings only once a coup has been staged.',
+      'The 4th star: push the police far enough (kill two more officers with three stars, attack a government building, or stage a coup) and Fort Gullcrest sends soldiers, a patrol, then a road block, then a rocket team. The fort has only so many, set by the defence budget; the ones you kill stay lost until the budget replaces them. Surrender to a soldier and you are arrested, not your company.',
+      'The coup: with two battalions at home and an unpopular government, stage a coup from the command terminal. Sund becomes a theatre on the strategic map; march on Halvermouth and take it to govern by decree. Fail or surrender and terms are imposed: a fine, a suspended licence, your battalions stood down. While it is on your base can be attacked.',
+    ],
+  },
   {
     version: '0.105.0',
     date: '2026-11-15',
@@ -94716,6 +95125,7 @@ __m["src/ui/osint/overview.js"] = (function () {
 // Command Overview (v0.103.4): the commander's briefing. Every figure is a count of real records (src/war/briefing.js).
 const { h, panel, stats, stat, btn, chip, empty, bar, feedLine, kv, fmt } = __m["src/ui/osint/kit.js"];
 const { LOT } = __m["src/content/facilities.js"];
+const { POLICIES } = __m["src/content/policies.js"];
 
 const STATE = { permit: 'permit', foundation: 'foundations', frame: 'frame', fitted: 'fitting out' };
 
@@ -94782,6 +95192,34 @@ function renderOverview(cx, box) {
     h('span', { class: 'osx-sub', style: 'padding:0' }, V.mode === 'wallet' ? `Everything it buys comes off your wallet (${fmt(g.player.money)} ◎) and everything it earns goes into it.` : V.mode === 'group' ? `It spends and earns through the parent company: ${fmt(V.cash)} ◎ there. Your wallet is not touched.` : `Its own account holds ${fmt(V.cash)} ◎; you hold ${fmt(g.player.money)} ◎. Switching to your wallet or the group returns what it holds to you.`),
     V.arrears > 0 ? h('div', { class: 'osx-note bad', style: 'margin:0' }, `It owes ${fmt(V.arrears)} ◎ (wages or a fine it could not cover): it is paid first when money is available.`) : null,
   ].filter(Boolean)));
+  renderCoup(cx, box);
+}
+
+/** v0.106.0: the coup (src/war/coup.js). Before: what it needs and the button. During: the march on the capital and surrender. After a win: rule by decree. */
+function renderCoup(cx, box) {
+  const { g, W } = cx; const C = W.coup(); const run = C.run;
+  const rows = [];
+  if (C.junta) {
+    const gov = g.politics.government(); const active = gov.active;
+    rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, `You govern Sund by decree since day ${C.junta.since}. There are no elections and the Assembly does not sit while you rule.`));
+    rows.push(...active.slice(0, 10).map((p) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, p.def?.name || p.key), h('small', {}, p.def?.blurb || '')), btn('Revoke', () => cx.go(g.politics.revoke(p.id)), { kind: 'sm' }))));
+    const inForce = new Set(active.map((p) => p.key));
+    const offer = Object.values(POLICIES).filter((d) => !inForce.has(d.id)).slice(0, 12);
+    rows.push(h('b', {}, 'Decree'), ...offer.map((d) => h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, d.name), h('small', {}, d.blurb || '')), btn('Decree', () => cx.go(g.politics.decree(d.id)), { kind: 'sm pri' }))));
+  } else if (run?.state === 'on') {
+    rows.push(kv('The capital', C.capital ? `${C.capital.name}: ${C.capital.yours ? 'yours' : 'held by the government'}` : '?', C.capital?.yours ? 'ok' : 'bad'));
+    rows.push(kv('Days since it began', String(g.clock.day - run.since)), kv('Ground taken / lost', `${run.won} / ${run.lost}`));
+    if (C.stock) rows.push(kv('Fort Gullcrest has left', `${C.stock.soldiers} soldiers, ${C.stock.heavy} heavy-weapons teams`));
+    rows.push(h('div', { class: 'osx-note bad', style: 'margin:0' }, 'Your base is not protected while the coup is on, and the Army is hunting you. Order your battalions on the strategic map: take the capital to win.'));
+    rows.push(h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, btn('Strategic map ›', () => cx.open('theaters'), { kind: 'pri sm' }), btn('Surrender', () => { if (window.confirm('Surrender the coup? Terms will be imposed: a fine, the licence suspended for a month, your battalions stood down.')) cx.go(W.surrenderCoup()); }, { kind: 'sm' })));
+  } else {
+    if (run?.state === 'lost') rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, `The last coup failed on day ${run.ended} (${run.why}).`));
+    for (const n of C.needs) rows.push(h('div', { class: 'osx-row' }, h('div', {}, h('b', {}, `${n.ok ? '✓' : '▸'} ${n.text}`)), n.ok ? chip('ready', 'ok') : chip('not yet', 'warn')));
+    const ok = C.needs.every((n) => n.ok);
+    rows.push(h('div', { class: 'osx-note', style: 'margin:0' }, 'A coup is a campaign on the strategic map against the government\'s garrisons and the field army Fort Gullcrest can put up (the defence budget sets its size). Win by taking the capital; you then govern by decree. Fail or surrender and terms are imposed. While it is on, your base can be attacked and you are hunted.'));
+    rows.push(btn('Stage the coup', () => { if (window.confirm('Stage a coup against the government of Sund? Your base loses its protection until a settlement, and the Army will hunt you.')) cx.go(W.stageCoup()); }, { kind: ok ? 'pri' : '', disabled: !ok }));
+  }
+  box.append(h('div', { style: 'height:10px' }), panel(C.junta ? 'Your government' : run?.state === 'on' ? 'The coup' : 'A coup', rows, { cls: 'osx-mb' }));
 }
 
 return { renderOverview };
@@ -101142,7 +101580,8 @@ class UI {
     // the law: Wanted stars, a bribe running, time left inside
     const pol = g.world.police;
     let whtmlWanted = '';
-    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted)}<span class="off">${'★'.repeat(3 - pol.wanted)}</span></span> WANTED`;
+    const army = g.army?.hunting(); // v0.106.0: the 4th star, the Army
+    if (pol?.wanted > 0) whtmlWanted += `<span class="stars${pol.wanted >= 2 ? ' flash' : ''}">${'★'.repeat(pol.wanted + (army ? 1 : 0))}<span class="off">${'★'.repeat(Math.max(0, 3 - pol.wanted))}</span></span> ${army ? 'THE ARMY' : 'WANTED'}${army ? ` <span class="tag">🪖 ×${g.army.soldiers().filter((n) => !n.dead && n.map === g.player.map).length} soldiers · Fort Gullcrest has ${g.army.state.stock.soldiers + g.army.state.stock.heavy} left</span>` : ''}`;
     const cruisers = g.pursuit?.active().filter((c) => c.chase.mode === 'chase').length || 0;
     if (pol?.wanted > 0 && cruisers) whtmlWanted += ` <span class="tag">🚓 ×${cruisers} in pursuit</span>`;
     else if (pol?.wanted > 0 && g.pursuit?.active().length) whtmlWanted += ' <span class="tag">🔦 They\'re searching</span>';

@@ -24,6 +24,9 @@ export const ARMY = {
   spawn: { min: 14, max: 24 },
   /** Game minutes unseen before the 4th star lapses. */
   lapseMinutes: 600,
+  /** Soldiers open fire within this many tiles (about the width of the screen), and their rounds do this share of a rifle's damage (they shoot to stop you, and you should get a fight, not an execution). */
+  fireRange: 9,
+  damageScale: 0.55,
   weapon: 'item_rifle',
   heavyWeapon: 'item_rpg',
 };
