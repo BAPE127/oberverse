@@ -6,6 +6,7 @@
 // It reads the same game state the 2D helpers read (game.aero.movers() / launches() / convoys(), game.war.equipment()) and draws it; it never
 // writes to the game. world3d.js calls syncMachines() once a frame (after the people and cars) and disposeMachines() when it resets.
 // Objects live in the map's own group (tile units, like the cars), are made when first in view and freed after a while out of sight.
+import { seenDarkness } from '../engine/atmos.js';
 import { THREE } from './three.js';
 import { disposeTree } from './lib3d.js';
 import { VEHICLES } from './registry3d.js';
@@ -216,7 +217,7 @@ function syncLaunches(world, game, ctx, dt, st, ms) {
     // smoke (a pool of instanced balls) and fire
     const fx = st.fx.get(tag) || (() => { const o = { puffs: makePuffs(320), debris: makePuffs(24), ball: [] }; o.puffs.name = 'puffs'; ms.dynGroup.add(o.puffs, o.debris); st.fx.set(tag, o); return o; })();
     fx.last = st.frame;
-    { const day = 1 - Math.min(0.75, game.clock.darkness * 0.8); fx.puffs.material.color.setScalar(day); fx.debris.material.color.setScalar(1); }
+    { const day = 1 - Math.min(0.75, seenDarkness(game) * 0.8); fx.puffs.material.color.setScalar(day); fx.debris.material.color.setScalar(1); }
     if (fx.puffs.parent !== ms.dynGroup) ms.dynGroup.add(fx.puffs, fx.debris);
     let n = 0;
     if (!(ph.phase === 'done' && t > L.cloudLife)) {
@@ -292,7 +293,7 @@ function sync(world, game, ctx, dt) {
   const st = stateOf(world);
   st.frame++;
   dt = Math.min(dt || 0.016, 0.1);
-  const night = Boolean(ctx?.night) || game.clock.darkness > 0.45;
+  const night = Boolean(ctx?.night) || seenDarkness(game) > 0.45;
   const c2 = { ...(ctx || {}), night, game, time: world.host?.time || 0 };
   const budget = world.deadline ? world.deadline + 10 : Infinity;
   // Starling Field: aircraft, the launch complex, convoys

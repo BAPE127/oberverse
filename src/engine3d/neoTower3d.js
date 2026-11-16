@@ -75,3 +75,34 @@ export function dressNeoTower(b, g, deco, H, seed) {
   deco.add(box(0.22, 0.22, 0.22, lit('#ff3a3a', 2.6), { y: H + ch + 0.6 + mh, cast: false }));
   return H + ch + 0.6; // (the mast is too thin to hide anyone: the top for the see-behind is the crown's)
 }
+
+/** The Crown (level 5): white stone and glass, gold fins up the corners, gold courses every few storeys, a hanging garden ledge, and a
+ * stepped glass crown under a slender gold spire. No adverts: up here nobody needs to sell you anything. Returns the crown's top. */
+export function dressCrownTower(b, g, deco, H, seed) {
+  const gold = mat('#d9b24a', { emissive: '#8a6a1a', ei: 0.35 });
+  const warm = (ei = 1.6) => mat('#fff1c8', { emissive: '#ffe2a0', ei });
+  const hw = b.w / 2; const hd = b.h / 2;
+  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) deco.add(box(0.3, H - 0.3, 0.3, gold, { x: sx * (hw + 0.05), z: sz * (hd + 0.05), y: 0.3 }));
+  const step = 6 + Math.floor(hash(seed, 50) * 3);
+  for (let y = 4, i = 0; y < H - 1; y += step, i++) {
+    const t = i === 0 ? 0.32 : 0.16; const m = i === 0 ? warm(1.2) : gold;
+    deco.add(box(b.w + 0.2, t, 0.1, m, { y, z: hd + 0.05, cast: false }), box(b.w + 0.2, t, 0.1, m, { y, z: -hd - 0.05, cast: false }));
+    deco.add(box(0.1, t, b.h + 0.2, m, { y, x: hw + 0.05, cast: false }), box(0.1, t, b.h + 0.2, m, { y, x: -hw - 0.05, cast: false }));
+  }
+  // a garden ledge on the south face: a planted shelf a few storeys up
+  const ly = Math.min(H - 3, 5 + hash(seed, 51) * 6);
+  deco.add(box(b.w * 0.7, 0.3, 1.1, mat('#e8e2d4'), { y: ly, z: hd + 0.55 }), box(b.w * 0.66, 0.5, 0.9, mat('#4f7a45', { flat: true }), { y: ly + 0.3, z: hd + 0.55 }));
+  for (let k = 0; k < 3; k++) deco.add(cyl(0.32, 0.7, mat('#6b9a58', { flat: true }), { x: (k - 1) * b.w * 0.22, z: hd + 0.55, y: ly + 0.7, rt: 0.05, seg: 7 }));
+  // the crown: two set-back glass storeys ringed in gold, then the spire
+  let y = H; let w = b.w * 0.8; let d = b.h * 0.8;
+  const glassM = mat('#bfe3ff', { opacity: 0.55, emissive: '#7ab8e8', ei: 0.4 });
+  for (let k = 0; k < 2; k++) {
+    const h = 2 + hash(seed, 52 + k) * 1.5;
+    deco.add(box(w, h, d, glassM, { y, cast: false }), box(w + 0.16, 0.18, d + 0.16, gold, { y: y + h - 0.18 }));
+    y += h; w *= 0.62; d *= 0.62;
+  }
+  const sh = 5 + hash(seed, 54) * 6;
+  deco.add(cyl(0.22, sh, gold, { y, rt: 0.03, seg: 8 }));
+  deco.add(box(0.26, 0.26, 0.26, warm(2.4), { y: y + sh, cast: false }));
+  return y;
+}

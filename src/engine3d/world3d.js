@@ -4,13 +4,14 @@
 //
 // What is built lazily and dropped when far: ground quads (ground3d.js), buildings (buildings3d.js), props (the
 // registry, else fallbacks3d.js), figures and vehicles. Nothing is created per frame beyond a few small arrays.
+import { seenDarkness } from '../engine/atmos.js';
 import { THREE } from './three.js';
 import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
 import { buildDeckEdges } from './levels3d.js';
-import { buildSkyline } from './skyline3d.js';
+import { buildSkyline, buildCloudSea } from './skyline3d.js';
 import { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
 import { CombatFx3D } from './combatfx3d.js';
@@ -189,7 +190,7 @@ export class World3D {
     this.foci = this.buildFoci();
     this.cands.length = 0;
     this.count = { buildings: 0, props: 0, figures: 0, vehicles: 0 };
-    const darkness = g.clock.darkness;
+    const darkness = seenDarkness(g);
     const lamp = lampFactor(darkness);
     const outdoor = host.layers.some((L) => L.map.kind !== 'interior');
     const wv = host.worldBox(host.view, 80, 480); // (a tall building's foot is below the view)
@@ -222,7 +223,11 @@ export class World3D {
         cur = bm;
       } }
     for (const ms of shown) { // v0.107.0: the city beyond a megacity's street level (the skyline, the abyss, the air traffic), carried by the street's scene
-      const d = ms.map?.def; if (!d?.megacity || d.level !== 1) continue;
+      const d = ms.map?.def; if (!d?.megacity) continue;
+      if ((d.edges || d.atmos?.clouds) && !d.below && !ms.deckEdges) { ms.deckEdges = buildDeckEdges(ms.map); ms.group.add(ms.deckEdges); } // (a level with drops of its own: lit lips at its edges)
+      if (d.atmos?.clouds && !ms.clouds) { ms.clouds = buildCloudSea(ms.map.width, ms.map.height); ms.group.add(ms.clouds); }
+      if (ms.clouds) ms.clouds.userData.update(Math.min(host.lastDt || 0.016, 0.1));
+      if (!d.atmos?.skyline) continue;
       if (!ms.skyline) { ms.skyline = buildSkyline(ms.map.width, ms.map.height, d.level * 97 + ms.map.width); ms.group.add(ms.skyline); }
       ms.skyline.userData.update(Math.min(host.lastDt || 0.016, 0.1));
     }
@@ -241,7 +246,7 @@ export class World3D {
     const tz = this.camera.position.z - 200 / Math.sqrt(3);
     const mega = host.layers.some((L) => L.map.def?.megacity); // v0.107.0: a megacity has no sea at its edge, only the dark and the city's glow
     this.sea.visible = outdoor && !mega;
-    if (mega) { this.bgColor.set('#0d0b1c'); }
+    if (mega) { const at = g.currentMap()?.def?.atmos; this.bgColor.set(at?.bg || '#0d0b1c'); } // (each level of the city its own sky: the Sump's murk, the Crown's blue)
     this.sea.position.x = tx; this.sea.position.z = tz;
     const p = g.player;
     this.rig.update(darkness, outdoor, [p.x / TILE, p.y / TILE], this.cands, host.quality);
@@ -277,7 +282,7 @@ export class World3D {
     const host = this.host;
     const lm = ms.map;
     const g = host.game;
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     const interior = lm.kind === 'interior';
     this.ground.show(lm, ms.groundGroup, r, interior ? 0.045 : 0);
     const rec = host.overlaid.get(lm.id);

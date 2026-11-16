@@ -159,10 +159,14 @@ try {
     const below = (W3.extraLayers || []).map((L) => `${L.map.id}@${W3.mapScenes.get(L.map.id)?.group.position.y}`); // (where each level is really drawn, not where it should be)
     ui.openPanel('map'); await new Promise((r) => setTimeout(r, 300)); while (ui.panelStack.length) ui.closePanel(); // (the map screen opens abroad without an error)
     R.mode = 'iso2d'; await new Promise((r) => setTimeout(r, 400)); R.mode = '3d'; // (and the 2D fallback draws a level without an error)
-    return { gl: true, pts: inView.length, changed, below };
+    g.changeMap('neumina_crown', 'gate'); R.snapCamera?.(); await new Promise((r) => setTimeout(r, 1500)); W3.render(0.016);
+    const crown = { clouds: Boolean(W3.mapScenes.get('neumina_crown')?.clouds), bg: '#' + W3.scene.background.getHexString() };
+    g.changeMap('neumina_sump', 'chain'); R.snapCamera?.(); await new Promise((r) => setTimeout(r, 1500)); W3.render(0.016);
+    const sump = { bg: '#' + W3.scene.background.getHexString() };
+    return { gl: true, pts: inView.length, changed, below, crown, sump };
   });
   await shot('3d-neumina-terrace');
-  record('Neumina: through the drops of a level you see the level below (pixels change with it switched off), and from the Terraces both levels below are drawn', levels.gl && levels.pts >= 3 && levels.changed >= Math.ceil(levels.pts / 2) && levels.below.join() === 'neumina_skyway@-7,neumina_street@-14', JSON.stringify(levels));
+  record('Neumina: through the drops of a level you see the level below (pixels change with it switched off), and from the Terraces both levels below are drawn; the Crown has its cloud sea and sky, the Sump its murk', levels.gl && levels.pts >= 3 && levels.changed >= Math.ceil(levels.pts / 2) && levels.below.join() === 'neumina_skyway@-7,neumina_street@-14' && levels.crown.clouds && levels.crown.bg === '#8fb8e0' && levels.sump.bg === '#0a0807', JSON.stringify(levels));
   // v0.106.0: a heavy blast blows a hole in an ordinary building's wall: walkable both ways, rubble, and a hole drawn on the roofed building in 3D
   const hole = await page.evaluate(async () => {
     const ui = window.oberverse.ui; const g = ui.game; while (ui.panelStack.length) ui.closePanel(); g.clock.total = Math.floor(g.clock.total / 1440) * 1440 + 13 * 60;

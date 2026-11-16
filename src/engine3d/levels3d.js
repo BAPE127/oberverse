@@ -9,7 +9,7 @@ const THICK = 0.9; // a deck's lip, tiles (how thick the slab looks where it end
 export function buildDeckEdges(map) {
   const g = new THREE.Group(); g.name = 'deckEdges';
   const W = map.width; const H = map.height; const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 'O' : map.tileAt(x, y));
-  const lipCol = map.def?.below?.lip || '#2a2c38'; const glow = map.def?.below?.glow || '#3ad8ff';
+  const E = map.def?.edges || map.def?.below; const lipCol = E?.lip || '#2a2c38'; const glow = E?.glow || '#3ad8ff';
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (at(x, y) === 'O') continue;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {

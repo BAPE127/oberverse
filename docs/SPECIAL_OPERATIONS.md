@@ -1,12 +1,14 @@
 # Special Operations — design
 
-**Status (2026-11-16):** design for the owner's approval, plus the first built piece (Neumina's three levels in 3D, v0.107.0 in progress). Nothing in sections 3 to 7 is built yet.
+**Status (2026-11-16):** design for the owner's approval, plus the first built pieces (Neumina's levels in 3D, v0.107.0 in progress: the Sump and the Crown built as the first slice of the five-level city; the middle three still the first cut). Nothing in sections 3 to 7 is built yet.
 
 The owner's brief (2026-11-16): scratch the roadmap and develop **Special Operations**: spy missions the player plays in person, in sandbox levels where a target can be reached many ways (the feel of the stealth-assassination games), with **cyber hacking** of the city's devices (the feel of the hacker-in-a-surveillance-city games), starting with **Neumina**, a dystopian megacity of stacked levels with bridges from which you see the levels below (the feel of the neon megacity of cyberpunk fiction and of a planet-wide city of towers). Those works are **tone references only**: every name, faction, mechanic name, interface and piece of art here is the Oberverse's own.
 
 Until 2026-11-15 "Special Operations" meant the war company's tactical battles; those keep the name **battles**.
 
-Decisions already on record that hold here (`POST_WAR_EXPANSION_PLAN.md`, answered 2026-11-03): Neumina is in the **Windfen League**; a city's levels are **separate maps joined by stairs and lifts**; **abandoning a mission costs nothing**; the **template / instance rule** (section 3).
+**Owner's decisions of 2026-11-16 (second round):** every Special Operation takes place in the **Free Territories** (`ATLAS.countries.free`: Neumina stands in the Windfen Plains, `fr_windfen`; later cities for contracts are also to be Free Territories, never Sund or a named country). The city has **five levels with a class difference**: the lowest a slum, the fifth the richest, a city above the clouds; each level has **its own landmarks and points of interest** and a **clear way up and down** (a place, not a bare door). Levels need not be drawn from one another.
+
+Decisions already on record that hold here (`POST_WAR_EXPANSION_PLAN.md`, answered 2026-11-03): Neumina is in the **Windfen League** (the Windfen Plains, a Free Territory); a city's levels are **separate maps joined by stairs and lifts**; **abandoning a mission costs nothing**; the **template / instance rule** (section 3).
 
 ---
 
@@ -14,17 +16,19 @@ Decisions already on record that hold here (`POST_WAR_EXPANSION_PLAN.md`, answer
 
 **The Windfen League's capital: a megacity in levels.** Chartered firms govern; the higher you live, the more of the sky you own.
 
-| Level | Map | What it is | Built |
-| --- | --- | --- | --- |
-| 3 | `neumina_terrace` | **The Terraces**: stone and gardens round the towers' upper floors; the chartered families, private clubs, guarded lifts | ✅ first cut |
-| 2 | `neumina_skyway` | **The Skyway**: steel decks and bridges between the towers, transit, kiosks, corporate lobbies; the working city | ✅ first cut |
-| 1 | `neumina_street` | **Street Level**: avenues in the towers' shadow, arcades, night market, clinic, traffic | ✅ first cut |
-| 0 | `neumina_under` (planned) | **The Underworks**: service tunnels, cable vaults, data farms, squatters, smugglers | planned |
+| Level | Map | What it is | Landmarks | Way up / down | Built |
+| --- | --- | --- | --- | --- | --- |
+| 5 | `neumina_crown` | **The Crown**: white stone platforms over a sea of cloud; always sunlit; the chartered families' own sky | The Spire (the gala), the Mirror Pools, the Sky Garden, the Yacht Pads, the Halo Observatory | the Crown lift (gold doors, a doorman) to the Terraces | ✅ slice |
+| 4 | `neumina_terrace` | **The Terraces**: gardens and clubs round the towers' upper floors; the comfortable rich | the Halcyne Garden, the Aurum Club | the Crown lift up; a glass lift down | first cut |
+| 3 | `neumina_skyway` | **The Skyway**: steel decks and bridges between the towers; the working city, transit, corporate lobbies | the Transit Hall, Static Noodles | lift up, stair tower down | first cut |
+| 2 | `neumina_street` | **The Gutterline**: avenues in the towers' shadow, arcades, night market, clinic, traffic | the Night Market, Chrome Alley, the Underpass Clinic | stair tower up; the Chain Lift down | first cut |
+| 1 | `neumina_sump` | **The Sump**: the bottom; the towers' foundations in the wet and a town of sheet metal between them; never daylight | the Drain Cathedral, the Scrap Bazaar, the Pit, Mother Kettle's | the Chain Lift (a freight cage) up | ✅ slice |
 
-- **Seeing down.** From any level the levels below show through its drops: the deck's edge has a lit lip, a haze lies between levels, and the towers rise from the street through every level. Levels above you are not drawn. (Built: `src/engine3d/world3d.js` `def.below`, `src/engine3d/levels3d.js`; the drop tile `O`; a pixel check in the smoke test.)
+- **Each level its own sky** (`def.atmos`): `dark: [min, max]` clamps the darkness the eye sees (the Sump is always night, the Crown always day; the clock and the rules keep the real time: `src/engine/atmos.js`); `bg` the background; `clouds` the Crown's cloud sea (`src/engine3d/skyline3d.js`); `skyline` the city beyond the Gutterline. `def.edges` gives a level's drops their lit lip without a level drawn below.
+- **Seeing down** (the first cut; optional since 2026-11-16, kept between the Gutterline, the Skyway and the Terraces). From those levels the levels below show through the drops: the deck's edge has a lit lip, a haze lies between levels, and the towers rise from the street through every level. Levels above you are not drawn. (Built: `src/engine3d/world3d.js` `def.below`, `src/engine3d/levels3d.js`; the drop tile `O`; a pixel check in the smoke test.)
 - **The towers** (data in `src/content/maps/neumina.js`): Halcyne Spire, Orrel Data Exchange, Vantor Biotic, Kessin Arcology, Lumen Freight Stack, the Meridian Lattice, Synth Court, Dace & Morrow Holdings. Each is a chartered firm and a mission venue.
 - **Getting between levels.** Public stair towers and lifts (free, watched); service lifts and maintenance ladders (restricted, need a disguise, a keycard or a hack); jumping down is not possible (the drops are solid).
-- **Still to do for the city:** the Underworks; interiors for the towers' mission floors (lobby, offices, a server floor, a penthouse); traffic and air-cars; neon signage and holographic billboards as props; crowds with schedules.
+- **Still to do for the city:** the middle three levels redone in the same spirit (each its own layout and class: the Gutterline's market, the Skyway's offices, the Terraces' gardens); the old 'Underworks' idea is now the Sump; interiors for the towers' mission floors (lobby, offices, a server floor, a penthouse); traffic and air-cars; neon signage and holographic billboards as props; crowds with schedules.
 
 ## 2. How a mission is reached and ended
 

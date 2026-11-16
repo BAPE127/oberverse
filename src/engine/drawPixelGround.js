@@ -126,7 +126,7 @@ const PX = {
 };
 
 // ------------------------------------------------------------------ tiles
-const CODES = '.,=:~bpsrBDWftcgmukRxanO'; // (v0.107.0: n deck plating, O a city level's drop)
+const CODES = '.,=:~bpsrBDWftcgmukRxanOqQ'; // (v0.107.0: n deck plating, O a city level's drop, q sump grime, Q sky marble)
 const CID = {};
 [...CODES].forEach((c, i) => { CID[c] = i + 1; });
 const SOFT = new Uint8Array(32);
@@ -605,6 +605,19 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       for (const [a, b] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) R(px + a, py + b, 1, 1, '#4c5266');
       if (r > 0.9) R(px + 4, py + Math.floor(T / 2), T - 8, 1, '#2fb8d8');
       else if (r < 0.05) for (let i = 0; i < T - 2; i += 6) { R(px + 1 + i, py + T - 4, 3, 2, '#d8b02a'); R(px + 4 + i, py + T - 4, 3, 2, '#1a1a20'); }
+      break;
+    }
+    case 'q': { // v0.107.0: the Sump: cracked patched concrete, rust stains, standing water that catches what light there is
+      if (r > 0.55) R(px + 2 + Math.floor(r * 9), py + 3, 1, T - 8, '#1b1815');
+      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, '#3c5a60'); } // a puddle
+      else if (r > 0.86) R(px + 9, py + 6, 10, 10, 'rgba(120,58,26,0.28)'); // rust
+      if (x % 3 === 0) R(px, py, 1, T, '#211e1a');
+      break;
+    }
+    case 'Q': { // v0.107.0: the Crown: white stone slabs, fine joints, a gold inlay line on every fourth course
+      R(px, py, T, 1, '#d6d1c6'); R(px, py, 1, T, '#d6d1c6');
+      if ((x + y) % 4 === 0) R(px + 3, py + Math.floor(T / 2), T - 6, 1, '#c9a43a');
+      if (r > 0.92) R(px + 10, py + 9, 8, 6, 'rgba(255,255,255,0.5)');
       break;
     }
     case 'g': {

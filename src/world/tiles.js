@@ -24,6 +24,8 @@ export const TILE_TYPES = {
   a: { name: 'tarmac', solid: false, color: '#3e4048', alt: '#3a3c44' }, // v0.55.0: runways, taxiways and aprons (markings from map.airfield)
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
   n: { name: 'deck plating', solid: false, color: '#2e3240', alt: '#2a2e3b' }, // v0.107.0: a megacity's decks and skyways
+  q: { name: 'sump grime', solid: false, color: '#2b2722', alt: '#26221e' }, // v0.107.0: the bottom of a megacity: wet, cracked, patched concrete
+  Q: { name: 'sky marble', solid: false, color: '#e9e6df', alt: '#e2ded5' }, // v0.107.0: the top of one: white stone with gold inlay
   O: { name: 'drop', solid: true, drop: true, color: '#07080f', alt: '#07080f' }, // v0.107.0: the open edge of a city level: you see the level below through it (a map with `below`)
 };
 

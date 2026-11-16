@@ -1,4 +1,5 @@
 // Minimap and full map rendering (DOM canvases).
+import { seenDarkness } from '../engine/atmos.js';
 import { TILE } from '../core/util.js';
 import { TILE_TYPES } from '../world/tiles.js';
 import { BUILDING_ICONS } from '../content/mapIcons.js';
@@ -88,8 +89,8 @@ export class MapRenderer {
       for (const m of this.markers(L.map)) this.marker(ctx, ox + (m.x + L.x) * scale, oy + (m.y + L.y) * scale, m, 1);
     }
     this.playerArrow(ctx, ox + px, oy + py, g.player.facing, 1);
-    if (g.clock.darkness > 0.2) {
-      ctx.fillStyle = `rgba(14,18,48,${g.clock.darkness * 0.35})`;
+    if (seenDarkness(g) > 0.2) {
+      ctx.fillStyle = `rgba(14,18,48,${seenDarkness(g) * 0.35})`;
       ctx.fillRect(0, 0, W, H);
     }
   }

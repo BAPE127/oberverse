@@ -76,3 +76,32 @@ export function buildSkyline(W, H, seed = 1) {
   root.userData.counts = { towers: towers.length, cars: cars.length };
   return root;
 }
+
+function cloudTexture(seed) {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = '#9fb6d2'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i++) { // soft white billows, wrapped at the edges so the sea tiles without a seam
+    const cx = hash(seed, i, 1) * 256; const cy = hash(seed, i, 2) * 256; const r = 18 + hash(seed, i, 3) * 46; const a = 0.45 + hash(seed, i, 4) * 0.5;
+    for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) {
+      const gr = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(cx + ox - r, cy + oy - r, r * 2, r * 2);
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** The sea of clouds under the Crown: two drifting layers below the platforms (the lower one tinted by the sky). Returns a group with userData.update(dt). */
+export function buildCloudSea(W, H, seed = 5) {
+  const root = new THREE.Group(); root.name = 'clouds';
+  const layers = [];
+  for (const [y, rep, op, sp] of [[-9, 6, 1, 0.004], [-3.5, 4, 0.55, 0.009]]) {
+    const tex = cloudTexture(seed + y); if (tex) tex.repeat.set(rep, rep);
+    const m = new THREE.MeshBasicMaterial({ color: tex ? '#ffffff' : '#dfe6ef', map: tex, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W + 400, H + 400), m); mesh.rotation.x = -Math.PI / 2; mesh.position.set(W / 2, y, H / 2); mesh.renderOrder = op < 1 ? 1 : 0;
+    root.add(mesh); layers.push({ tex, sp });
+  }
+  root.userData.update = (dt) => { for (const L of layers) if (L.tex) { L.tex.offset.x += L.sp * dt; L.tex.offset.y += L.sp * 0.4 * dt; } };
+  return root;
+}

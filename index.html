@@ -6409,13 +6409,15 @@ function street() {
   for (const [x, y] of [[23, 22], [41, 22], [59, 22], [23, 32], [41, 32], [59, 32]]) P('trafficlight', x, y);
   for (const [x, y] of [[4, 22], [30, 33], [50, 17], [64, 33]]) P('bench', x, y);
   P('stairs', 35, 24, { examine: 'The public stair tower up to the Skyway. Its steps are worn into dips by a million commuters.' });
+  P('lift', 25, 24, { examine: 'The Chain Lift: a freight cage down to the Sump. A sign: NO REFUNDS. NO RETURNS. NO QUESTIONS.' });
   for (const [x, y] of [[3, 14], [12, 23], [46, 23], [62, 14]]) P('trash', x, y);
   return {
-    id: 'neumina_street', name: 'Neumina — Street Level', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1, music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city',
+    id: 'neumina_street', name: 'Neumina — The Gutterline', kind: 'outdoor', megacity: true, atmos: { skyline: true }, abroad: 'neumina', level: 2, music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city',
     tiles: m.rows(), buildings, props,
-    areas: [{ id: 'area_nm_street', name: 'Neumina, Street Level', x: 0, y: 0, w: NM_W, h: NM_H }],
-    doors: [{ id: 'door_nm_up', x: 36, y: 25, keepTile: true, label: 'The stair tower up to the Skyway', to: { map: 'neumina_skyway', spot: 'stairs' } }],
-    spots: { arrive: { x: 38, y: 23, facing: 'down' }, stairs: { x: 37, y: 26, facing: 'down' } },
+    areas: [{ id: 'area_nm_street', name: 'Neumina, the Gutterline', x: 0, y: 0, w: NM_W, h: NM_H }],
+    doors: [{ id: 'door_nm_up', x: 36, y: 25, keepTile: true, label: 'The stair tower up to the Skyway', to: { map: 'neumina_skyway', spot: 'stairs' } },
+      { id: 'door_nm_chain_down', x: 25, y: 25, keepTile: true, label: 'The Chain Lift down to the Sump', to: { map: 'neumina_sump', spot: 'chain' } }],
+    spots: { arrive: { x: 38, y: 23, facing: 'down' }, stairs: { x: 37, y: 26, facing: 'down' }, chain: { x: 24, y: 25, facing: 'down' } },
   };
 }
 
@@ -6439,7 +6441,7 @@ function skyway() {
   P('fountain', 35, 26, { w: 2, h: 2 });
   P('stairs', 35, 30, { examine: 'The public stair tower down to the Street Level.' }); P('lift', 43, 23, { examine: 'A glass lift to the Terraces. A sign: RESIDENTS AND GUESTS. A smaller sign: WE CAN SEE YOU.' });
   return {
-    id: 'neumina_skyway', name: 'Neumina — The Skyway', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 2, below: { map: 'neumina_street', drop: SKY_DROP, lip: '#262838', glow: '#3ad8ff' },
+    id: 'neumina_skyway', name: 'Neumina — The Skyway', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 3, below: { map: 'neumina_street', drop: SKY_DROP, lip: '#262838', glow: '#3ad8ff' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
     areas: [{ id: 'area_nm_skyway', name: 'Neumina, the Skyway', x: 0, y: 0, w: NM_W, h: NM_H }],
     doors: [{ id: 'door_nm_down', x: 36, y: 31, keepTile: true, label: 'The stair tower down to the Street Level', to: { map: 'neumina_street', spot: 'stairs' } },
@@ -6468,16 +6470,120 @@ function terrace() {
   for (const [x, y] of [[4, 4], [20, 4], [41, 4], [67, 4], [38, 35], [67, 35], [43, 18], [43, 30]]) P('streetlamp', x, y);
   for (const [x, y] of [[8, 14], [11, 14], [46, 14], [49, 14], [40, 44], [42, 44]]) P('bench', x, y);
   P('lift', 45, 23, { examine: 'The glass lift down to the Skyway.' });
+  P('lift', 39, 38, { examine: 'The Crown lift: gold doors, and a man beside them whose whole job is to look at you.' });
   return {
-    id: 'neumina_terrace', name: 'Neumina — The Terraces', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 3, below: { map: 'neumina_skyway', drop: TERRACE_DROP, lip: '#d8d2c4', glow: '#ffd27a' },
+    id: 'neumina_terrace', name: 'Neumina — The Terraces', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 4, below: { map: 'neumina_skyway', drop: TERRACE_DROP, lip: '#d8d2c4', glow: '#ffd27a' },
     music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
     areas: [{ id: 'area_nm_terrace', name: 'Neumina, the Terraces', x: 0, y: 0, w: NM_W, h: NM_H }],
-    doors: [{ id: 'door_nm_lift_down', x: 44, y: 23, keepTile: true, label: 'The lift down to the Skyway', to: { map: 'neumina_skyway', spot: 'lift' } }],
-    spots: { arrive: { x: 43, y: 25, facing: 'down' }, lift: { x: 43, y: 24, facing: 'down' }, garden: { x: 18, y: 7, facing: 'down' }, bridge: { x: 42, y: 19, facing: 'down' } },
+    doors: [{ id: 'door_nm_lift_down', x: 44, y: 23, keepTile: true, label: 'The lift down to the Skyway', to: { map: 'neumina_skyway', spot: 'lift' } },
+      { id: 'door_nm_crown_up', x: 39, y: 39, keepTile: true, label: 'The Crown lift up to the Crown', to: { map: 'neumina_crown', spot: 'gate' } }],
+    spots: { arrive: { x: 43, y: 25, facing: 'down' }, lift: { x: 43, y: 24, facing: 'down' }, garden: { x: 18, y: 7, facing: 'down' }, bridge: { x: 42, y: 19, facing: 'down' }, crown: { x: 38, y: 39, facing: 'down' } },
   };
 }
 
-const __default = [street(), skyway(), terrace()];
+/** Level 1, the Sump: the bottom of the city, where the towers' foundations stand in the wet and the people nobody counts have built a town
+ * of sheet metal between them. No daylight reaches it (`atmos.dark`). Landmarks: the Drain Cathedral, the Scrap Bazaar, the Pit, Mother
+ * Kettle's, and the Chain Lift up to the Gutterline. Tall things stand to the north and west, low things to the south and east (the camera
+ * looks from the south-east). */
+function sump() {
+  const W = 60; const H = 46;
+  const m = new MapBuilder(W, H, 'q');
+  const buildings = [];
+  // the foundations: piers of the towers above, squatted, their lit windows amber
+  const piers = [[1, 1, 8, 7, 'Pier Nine'], [13, 1, 7, 5, 'Pier Ten'], [27, 1, 9, 5, 'Pier Eleven'], [43, 1, 7, 6, 'Pier Twelve'], [1, 13, 6, 8, 'Pier Fourteen']];
+  for (const [x, y, w, h, name] of piers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_pier_${x}_${y}`, name, mapLabel: name, x, y, w, h, tower: 30, storeys: 12, wall: '#2c2925', trim: '#1a1816', glass: '#ffb866' }); }
+  // the Drain Cathedral: an old pump hall the squatters made a church of
+  m.rect(20, 11, 13, 7, 'B'); buildings.push({ id: 'nm_u_cathedral', name: 'The Drain Cathedral', mapLabel: 'The Drain Cathedral', x: 20, y: 11, w: 13, h: 7, wall: '#4a4038', trim: '#2a241e', columns: true, storeys: 3, sign: 'ST. RUNOFF' });
+  // the shanties: sheet metal and salvage, in clusters along the alleys
+  const shanty = [[10, 9, 4, 3, '#6b4a34'], [14, 9, 3, 3, '#3f5a58'], [36, 9, 4, 3, '#6a5a3a'], [40, 9, 3, 3, '#5a3a3a'], [51, 9, 4, 3, '#3a4a5a'], [9, 16, 3, 3, '#5a4a3a'],
+    [9, 22, 4, 3, '#4a5a3a'], [14, 22, 3, 3, '#6b4a34'], [36, 13, 3, 3, '#3f5a58'], [52, 14, 4, 3, '#5a3a3a'], [53, 19, 3, 3, '#6a5a3a'], [18, 22, 4, 2, '#3a4a5a'],
+    [2, 25, 4, 3, '#5a3a3a'], [47, 30, 3, 2, '#4a5a3a'], [52, 30, 4, 2, '#6b4a34']];
+  shanty.forEach(([x, y, w, h, wall], i) => { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_u_shack_${i}`, name: 'A shack', x, y, w, h, wall, shabby: true, storeys: 1 + (i % 2) }); });
+  // Mother Kettle's soup kitchen
+  m.rect(26, 22, 6, 3, 'B'); buildings.push({ id: 'nm_u_kettle', name: "Mother Kettle's", mapLabel: "Mother Kettle's", x: 26, y: 22, w: 6, h: 3, wall: '#7a5a3a', shabby: true, storeys: 1, sign: 'SOUP' });
+  // the run-off channel along the south, two plank bridges over it
+  m.rect(0, 38, W, 3, '~'); m.rect(12, 38, 3, 3, 'p'); m.rect(40, 38, 3, 3, 'p'); m.rect(0, 41, W, 5, 'u');
+  const props = [];
+  let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_u_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
+  // the Scrap Bazaar: tents and salvage round a fire
+  for (const [x, y] of [[37, 19], [41, 19], [45, 19], [37, 24], [45, 24]]) P('tent', x, y, { w: 2 });
+  P('barrelfire', 42, 22); for (const [x, y] of [[40, 22], [44, 22], [42, 21]]) P('crate', x, y);
+  for (const [x, y] of [[39, 27], [48, 21], [35, 21]]) P('barrel', x, y);
+  P('laundry', 36, 17, { w: 3 }); P('laundry', 47, 17, { w: 3 });
+  P('neon_sign', 49, 23, { color: '#ff5f5f', examine: 'BAZAAR, in tubes salvaged from three different signs. The Z is an N lying down.' });
+  // the Pit: a ring of chain fence where people fight for money and once, by accident, for a goat
+  for (let x = 4; x <= 10; x++) { P('chainfence', x, 30); P('chainfence', x, 35); } for (let y = 31; y <= 34; y++) { P('chainfence', 4, y); P('chainfence', 10, y); }
+  P('barrelfire', 3, 29); P('barrelfire', 11, 36);
+  // the streets of the Sump: fires, rubbish, a few lamps that work
+  for (const [x, y] of [[18, 19], [33, 20], [24, 30], [50, 26], [8, 13]]) P('barrelfire', x, y);
+  for (const [x, y] of [[16, 26], [31, 9], [56, 26], [21, 34]]) P('dumpster', x, y, { w: 2 });
+  for (const [x, y] of [[12, 20], [34, 28], [26, 35], [55, 34]]) P('rubble', x, y);
+  for (const [x, y] of [[16, 13], [34, 16], [22, 27], [48, 13]]) P('streetlamp', x, y);
+  for (const [x, y] of [[27, 26], [30, 26]]) P('bench', x, y);
+  P('vent_stack', 19, 9); P('vent_stack', 41, 13); P('vent_stack', 6, 22);
+  P('security_camera', 27, 30, { examine: 'A Gutterline camera, pointed down at the Chain Lift. Someone has taped a picture of an eye over the lens.' });
+  // the Chain Lift: a freight cage up to the Gutterline
+  P('lift', 29, 31, { examine: 'The Chain Lift: a freight cage on a chain as thick as your leg. It goes up to the Gutterline, and complains the whole way.' });
+  P('sign', 31, 31, { text: 'CHAIN LIFT - UP', color: '#d8b02a' });
+  for (const x of [27, 28, 30, 31]) P('chainfence', x, 33);
+  return {
+    id: 'neumina_sump', name: 'Neumina — The Sump', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 1,
+    atmos: { dark: [0.78, 1], bg: '#0a0807' }, edges: { lip: '#2a2622', glow: '#d8902a' },
+    music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
+    areas: [{ id: 'area_nm_sump', name: 'Neumina, the Sump', x: 0, y: 0, w: W, h: H }],
+    doors: [{ id: 'door_nm_chain_up', x: 29, y: 32, keepTile: true, label: 'The Chain Lift up to the Gutterline', to: { map: 'neumina_street', spot: 'chain' } }],
+    spots: { arrive: { x: 29, y: 29, facing: 'down' }, chain: { x: 29, y: 29, facing: 'down' }, bazaar: { x: 42, y: 25, facing: 'down' }, cathedral: { x: 26, y: 19, facing: 'up' }, pit: { x: 7, y: 32, facing: 'down' } },
+  };
+}
+
+/** Level 5, the Crown: above the clouds. White stone platforms over a sea of cloud (its drops show cloud, not the city), towers of glass and
+ * gold, and the sun always out (`atmos.dark`). Landmarks: the Spire (where the gala is held), the Mirror Pools, the Sky Garden, the Yacht
+ * Pads, the Crown Gate (the private lift down to the Terraces). */
+function crown() {
+  const W = 60; const H = 46;
+  const m = new MapBuilder(W, H, 'O');
+  const buildings = [];
+  const towers = [[4, 3, 10, 10, 60, 'The Spire'], [20, 2, 8, 7, 44, 'The Aurelian Residences'], [36, 3, 9, 8, 50, 'Celestine House'], [50, 6, 7, 7, 38, 'The Halo Observatory']];
+  for (const [x, y, w, h, storeys, name] of towers) { m.rect(x - 2, y - 2, w + 4, h + 4, 'Q'); }
+  // the platforms: the Spire plaza (north-west), the Mirror Pools (west), the Sky Garden (centre), the Yacht Pads (east), the Crown Gate (south)
+  m.rect(2, 14, 18, 12, 'Q'); m.rect(4, 17, 5, 3, '~'); m.rect(11, 17, 5, 3, '~'); m.rect(4, 22, 12, 2, '~');
+  m.rect(22, 14, 16, 13, 'Q'); m.rect(25, 16, 10, 8, '.');
+  m.rect(42, 18, 15, 12, 'Q');
+  m.rect(24, 34, 12, 8, 'Q');
+  // the bridges (marble walks over the cloud)
+  m.rect(9, 12, 3, 3, 'Q'); m.rect(20, 18, 2, 3, 'Q'); m.rect(38, 21, 4, 3, 'Q'); m.rect(29, 27, 3, 7, 'Q'); m.rect(26, 9, 3, 5, 'Q'); m.rect(42, 11, 3, 7, 'Q'); m.rect(46, 8, 3, 3, 'Q'); m.rect(52, 14, 3, 5, 'Q');
+  for (const [x, y, w, h, storeys, name] of towers) { m.rect(x, y, w, h, 'B'); buildings.push({ id: `nm_c_${name.toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '')}`, name, mapLabel: name, x, y, w, h, tower: storeys, crown: true, storeys: Math.round(storeys / 2.6), wall: '#eeeae2', trim: '#c9a43a', glass: '#9fd4ff', sign: name.toUpperCase().replace('THE ', '') }); }
+  const pav = { id: 'nm_c_pavilion', name: 'The Gate Pavilion', mapLabel: 'The Crown Gate', x: 27, y: 39, w: 6, h: 2, wall: '#f4f0e6', trim: '#c9a43a', columns: true, storeys: 1, sign: 'CROWN GATE' };
+  m.rect(pav.x, pav.y, pav.w, pav.h, 'B'); buildings.push(pav);
+  const props = [];
+  let n = 0; const P = (type, x, y, o = {}) => props.push({ id: `nm_c_${type}_${n++}`, type, x, y, w: o.w || 1, h: o.h || 1, ...o });
+  // the Mirror Pools
+  P('fountain', 9, 20, { w: 2, h: 2 }); P('statue', 3, 15); P('statue', 17, 15);
+  for (const [x, y] of [[4, 25], [8, 25], [12, 25], [16, 25]]) P('bench', x, y);
+  // the Sky Garden
+  for (const [x, y] of [[26, 17], [33, 17], [26, 22], [33, 22], [29, 19]]) P('tree', x, y);
+  for (const [x, y] of [[23, 15], [35, 15], [23, 25], [35, 25]]) P('glow_planter', x, y, { w: 2 });
+  for (const [x, y] of [[28, 24], [31, 24]]) P('bench', x, y);
+  // the Yacht Pads
+  for (const [x, y] of [[44, 20], [48, 20], [52, 20], [46, 25], [51, 25]]) P('drone_pad', x, y, { w: 2, h: 2 });
+  P('holo_ad', 55, 28, { color: '#ffe2a0', examine: 'A hologram of a yacht, turning slowly, for those who already own one and might want another.' });
+  // lamps: slim gold-white ones everywhere a guest might walk
+  for (const [x, y] of [[2, 14], [19, 14], [22, 14], [37, 14], [42, 18], [56, 18], [24, 34], [35, 34], [15, 12], [43, 12]]) P('neon_lamp', x, y, { color: '#ffe9b8' });
+  for (const [x, y] of [[24, 36], [35, 36]]) P('security_camera', x, y);
+  // the Crown Gate: the private lift down to the Terraces, and benches at the rail to look at the clouds
+  P('lift', 30, 37, { examine: 'The Crown lift. No buttons inside: it knows where you are allowed to go.' });
+  for (const [x, y] of [[25, 41], [34, 41]]) P('bench', x, y);
+  return {
+    id: 'neumina_crown', name: 'Neumina — The Crown', kind: 'outdoor', megacity: true, abroad: 'neumina', level: 5,
+    atmos: { dark: [0, 0.06], bg: '#8fb8e0', clouds: true }, edges: { lip: '#e8e2d4', glow: '#ffd27a' },
+    music: { day: 'mus_halvermouth', night: 'mus_halvermouth' }, ambience: 'amb_city', tiles: m.rows(), buildings, props,
+    areas: [{ id: 'area_nm_crown', name: 'Neumina, the Crown', x: 0, y: 0, w: W, h: H }],
+    doors: [{ id: 'door_nm_crown_down', x: 30, y: 38, keepTile: true, label: 'The Crown lift down to the Terraces', to: { map: 'neumina_terrace', spot: 'crown' } }],
+    spots: { arrive: { x: 30, y: 35, facing: 'up' }, gate: { x: 30, y: 35, facing: 'up' }, spire: { x: 9, y: 15, facing: 'up' }, pools: { x: 10, y: 24, facing: 'up' }, garden: { x: 30, y: 20, facing: 'down' }, pads: { x: 49, y: 23, facing: 'down' } },
+  };
+}
+
+const __default = [sump(), street(), skyway(), terrace(), crown()];
 
 return { NM_W, NM_H, SKY_DROP, TERRACE_DROP, default: __default };
 })();
@@ -8614,6 +8720,8 @@ const TILE_TYPES = {
   a: { name: 'tarmac', solid: false, color: '#3e4048', alt: '#3a3c44' }, // v0.55.0: runways, taxiways and aprons (markings from map.airfield)
   x: { name: 'void', solid: true, color: '#14121a', alt: '#14121a' },
   n: { name: 'deck plating', solid: false, color: '#2e3240', alt: '#2a2e3b' }, // v0.107.0: a megacity's decks and skyways
+  q: { name: 'sump grime', solid: false, color: '#2b2722', alt: '#26221e' }, // v0.107.0: the bottom of a megacity: wet, cracked, patched concrete
+  Q: { name: 'sky marble', solid: false, color: '#e9e6df', alt: '#e2ded5' }, // v0.107.0: the top of one: white stone with gold inlay
   O: { name: 'drop', solid: true, drop: true, color: '#07080f', alt: '#07080f' }, // v0.107.0: the open edge of a city level: you see the level below through it (a map with `below`)
 };
 
@@ -60626,6 +60734,18 @@ const RELEASE_NOTES = [
 return { RELEASE_NOTES };
 })();
 
+// ---- src/engine/atmos.js
+__m["src/engine/atmos.js"] = (function () {
+// What the eye sees of the time of day (v0.107.0). A map may set `def.atmos.dark: [min, max]`: the Sump never sees daylight, the Crown never
+// sees night. Only the drawing reads this; the clock, schedules and every rule keep the real darkness.
+function seenDarkness(g) {
+  const d = g.clock.darkness; const a = g.currentMap?.()?.def?.atmos?.dark;
+  return a ? Math.min(a[1], Math.max(a[0], d)) : d;
+}
+
+return { seenDarkness };
+})();
+
 // ---- src/engine/drawPixelGround.js
 __m["src/engine/drawPixelGround.js"] = (function () {
 // Pixel-art ground, v0.48.0: the Streets of Rogue look the owner drew.
@@ -60756,7 +60876,7 @@ const PX = {
 };
 
 // ------------------------------------------------------------------ tiles
-const CODES = '.,=:~bpsrBDWftcgmukRxanO'; // (v0.107.0: n deck plating, O a city level's drop)
+const CODES = '.,=:~bpsrBDWftcgmukRxanOqQ'; // (v0.107.0: n deck plating, O a city level's drop, q sump grime, Q sky marble)
 const CID = {};
 [...CODES].forEach((c, i) => { CID[c] = i + 1; });
 const SOFT = new Uint8Array(32);
@@ -61235,6 +61355,19 @@ function detailTile(R, map, x, y, at, F, pixelsDone) {
       for (const [a, b] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) R(px + a, py + b, 1, 1, '#4c5266');
       if (r > 0.9) R(px + 4, py + Math.floor(T / 2), T - 8, 1, '#2fb8d8');
       else if (r < 0.05) for (let i = 0; i < T - 2; i += 6) { R(px + 1 + i, py + T - 4, 3, 2, '#d8b02a'); R(px + 4 + i, py + T - 4, 3, 2, '#1a1a20'); }
+      break;
+    }
+    case 'q': { // v0.107.0: the Sump: cracked patched concrete, rust stains, standing water that catches what light there is
+      if (r > 0.55) R(px + 2 + Math.floor(r * 9), py + 3, 1, T - 8, '#1b1815');
+      if (r < 0.18) { R(px + 6, py + 12, 14, 7, '#1d2a2e'); R(px + 8, py + 13, 6, 1, '#3c5a60'); } // a puddle
+      else if (r > 0.86) R(px + 9, py + 6, 10, 10, 'rgba(120,58,26,0.28)'); // rust
+      if (x % 3 === 0) R(px, py, 1, T, '#211e1a');
+      break;
+    }
+    case 'Q': { // v0.107.0: the Crown: white stone slabs, fine joints, a gold inlay line on every fourth course
+      R(px, py, T, 1, '#d6d1c6'); R(px, py, 1, T, '#d6d1c6');
+      if ((x + y) % 4 === 0) R(px + 3, py + Math.floor(T / 2), T - 6, 1, '#c9a43a');
+      if (r > 0.92) R(px + 10, py + 9, 8, 6, 'rgba(255,255,255,0.5)');
       break;
     }
     case 'g': {
@@ -73589,7 +73722,38 @@ function dressNeoTower(b, g, deco, H, seed) {
   return H + ch + 0.6; // (the mast is too thin to hide anyone: the top for the see-behind is the crown's)
 }
 
-return { dressNeoTower };
+/** The Crown (level 5): white stone and glass, gold fins up the corners, gold courses every few storeys, a hanging garden ledge, and a
+ * stepped glass crown under a slender gold spire. No adverts: up here nobody needs to sell you anything. Returns the crown's top. */
+function dressCrownTower(b, g, deco, H, seed) {
+  const gold = mat('#d9b24a', { emissive: '#8a6a1a', ei: 0.35 });
+  const warm = (ei = 1.6) => mat('#fff1c8', { emissive: '#ffe2a0', ei });
+  const hw = b.w / 2; const hd = b.h / 2;
+  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) deco.add(box(0.3, H - 0.3, 0.3, gold, { x: sx * (hw + 0.05), z: sz * (hd + 0.05), y: 0.3 }));
+  const step = 6 + Math.floor(hash(seed, 50) * 3);
+  for (let y = 4, i = 0; y < H - 1; y += step, i++) {
+    const t = i === 0 ? 0.32 : 0.16; const m = i === 0 ? warm(1.2) : gold;
+    deco.add(box(b.w + 0.2, t, 0.1, m, { y, z: hd + 0.05, cast: false }), box(b.w + 0.2, t, 0.1, m, { y, z: -hd - 0.05, cast: false }));
+    deco.add(box(0.1, t, b.h + 0.2, m, { y, x: hw + 0.05, cast: false }), box(0.1, t, b.h + 0.2, m, { y, x: -hw - 0.05, cast: false }));
+  }
+  // a garden ledge on the south face: a planted shelf a few storeys up
+  const ly = Math.min(H - 3, 5 + hash(seed, 51) * 6);
+  deco.add(box(b.w * 0.7, 0.3, 1.1, mat('#e8e2d4'), { y: ly, z: hd + 0.55 }), box(b.w * 0.66, 0.5, 0.9, mat('#4f7a45', { flat: true }), { y: ly + 0.3, z: hd + 0.55 }));
+  for (let k = 0; k < 3; k++) deco.add(cyl(0.32, 0.7, mat('#6b9a58', { flat: true }), { x: (k - 1) * b.w * 0.22, z: hd + 0.55, y: ly + 0.7, rt: 0.05, seg: 7 }));
+  // the crown: two set-back glass storeys ringed in gold, then the spire
+  let y = H; let w = b.w * 0.8; let d = b.h * 0.8;
+  const glassM = mat('#bfe3ff', { opacity: 0.55, emissive: '#7ab8e8', ei: 0.4 });
+  for (let k = 0; k < 2; k++) {
+    const h = 2 + hash(seed, 52 + k) * 1.5;
+    deco.add(box(w, h, d, glassM, { y, cast: false }), box(w + 0.16, 0.18, d + 0.16, gold, { y: y + h - 0.18 }));
+    y += h; w *= 0.62; d *= 0.62;
+  }
+  const sh = 5 + hash(seed, 54) * 6;
+  deco.add(cyl(0.22, sh, gold, { y, rt: 0.03, seg: 8 }));
+  deco.add(box(0.26, 0.26, 0.26, warm(2.4), { y: y + sh, cast: false }));
+  return y;
+}
+
+return { dressNeoTower, dressCrownTower };
 })();
 
 // ---- src/engine3d/buildings3d.js
@@ -73603,7 +73767,7 @@ __m["src/engine3d/buildings3d.js"] = (function () {
 // Units: 1 unit = 1 tile; the group's origin is the map's own, x east, z south, y up.
 const { THREE, hash, strHash, canvas, tex, shade, mix, mute, box, cyl, cone, group, board, textMat, mat, bake } = __m["src/engine3d/lib3d.js"];
 const { buildingHeight } = __m["src/engine/isoBuildings.js"];
-const { dressNeoTower } = __m["src/engine3d/neoTower3d.js"];
+const { dressNeoTower, dressCrownTower } = __m["src/engine3d/neoTower3d.js"];
 
 const FP = 32; // facade texture pixels per tile
 const STOREY = 2.3; // tiles of wall to a storey of an ordinary building
@@ -73972,7 +74136,8 @@ function buildRoofed(b, shared) {
     const pm = mat(shade(kind === 'tower' ? trim : wall, 8));
     const ph = kind === 'shack' ? 0.12 : 0.38;
     deco.add(box(b.w, ph, 0.16, pm, { y: H, z: b.h / 2 - 0.08 }), box(b.w, ph, 0.16, pm, { y: H, z: -b.h / 2 + 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: b.w / 2 - 0.08 }), box(0.16, ph, b.h, pm, { y: H, x: -b.w / 2 + 0.08 }));
-    if (b.neo) out.top = Math.max(out.top, dressNeoTower(b, g, deco, H, seed)); // (Neumina: the megacity's dressing in place of the roof clutter)
+    if (b.crown) out.top = Math.max(out.top, dressCrownTower(b, g, deco, H, seed)); // (the Crown: white, gold and glass)
+    else if (b.neo) out.top = Math.max(out.top, dressNeoTower(b, g, deco, H, seed)); // (Neumina: the megacity's dressing in place of the roof clutter)
     else if (kind !== 'shack') {
       const n = Math.max(1, Math.round(b.w * b.h / 40));
       for (let i = 0; i < Math.min(n, 6); i++) {
@@ -74431,7 +74596,7 @@ const THICK = 0.9; // a deck's lip, tiles (how thick the slab looks where it end
 function buildDeckEdges(map) {
   const g = new THREE.Group(); g.name = 'deckEdges';
   const W = map.width; const H = map.height; const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 'O' : map.tileAt(x, y));
-  const lipCol = map.def?.below?.lip || '#2a2c38'; const glow = map.def?.below?.glow || '#3ad8ff';
+  const E = map.def?.edges || map.def?.below; const lipCol = E?.lip || '#2a2c38'; const glow = E?.glow || '#3ad8ff';
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (at(x, y) === 'O') continue;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -74529,7 +74694,36 @@ function buildSkyline(W, H, seed = 1) {
   return root;
 }
 
-return { buildSkyline };
+function cloudTexture(seed) {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = '#9fb6d2'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i++) { // soft white billows, wrapped at the edges so the sea tiles without a seam
+    const cx = hash(seed, i, 1) * 256; const cy = hash(seed, i, 2) * 256; const r = 18 + hash(seed, i, 3) * 46; const a = 0.45 + hash(seed, i, 4) * 0.5;
+    for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) {
+      const gr = x.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = gr; x.fillRect(cx + ox - r, cy + oy - r, r * 2, r * 2);
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** The sea of clouds under the Crown: two drifting layers below the platforms (the lower one tinted by the sky). Returns a group with userData.update(dt). */
+function buildCloudSea(W, H, seed = 5) {
+  const root = new THREE.Group(); root.name = 'clouds';
+  const layers = [];
+  for (const [y, rep, op, sp] of [[-9, 6, 1, 0.004], [-3.5, 4, 0.55, 0.009]]) {
+    const tex = cloudTexture(seed + y); if (tex) tex.repeat.set(rep, rep);
+    const m = new THREE.MeshBasicMaterial({ color: tex ? '#ffffff' : '#dfe6ef', map: tex, transparent: op < 1, opacity: op, depthWrite: op >= 1 });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W + 400, H + 400), m); mesh.rotation.x = -Math.PI / 2; mesh.position.set(W / 2, y, H / 2); mesh.renderOrder = op < 1 ? 1 : 0;
+    root.add(mesh); layers.push({ tex, sp });
+  }
+  root.userData.update = (dt) => { for (const L of layers) if (L.tex) { L.tex.offset.x += L.sp * dt; L.tex.offset.y += L.sp * 0.4 * dt; } };
+  return root;
+}
+
+return { buildSkyline, buildCloudSea };
 })();
 
 // ---- src/engine3d/weapons3d.js
@@ -80745,6 +80939,7 @@ __m["src/engine3d/machines3d.js"] = (function () {
 // It reads the same game state the 2D helpers read (game.aero.movers() / launches() / convoys(), game.war.equipment()) and draws it; it never
 // writes to the game. world3d.js calls syncMachines() once a frame (after the people and cars) and disposeMachines() when it resets.
 // Objects live in the map's own group (tile units, like the cars), are made when first in view and freed after a while out of sight.
+const { seenDarkness } = __m["src/engine/atmos.js"];
 const { THREE } = __m["src/engine3d/three.js"];
 const { disposeTree } = __m["src/engine3d/lib3d.js"];
 const { VEHICLES } = __m["src/engine3d/registry3d.js"];
@@ -80955,7 +81150,7 @@ function syncLaunches(world, game, ctx, dt, st, ms) {
     // smoke (a pool of instanced balls) and fire
     const fx = st.fx.get(tag) || (() => { const o = { puffs: makePuffs(320), debris: makePuffs(24), ball: [] }; o.puffs.name = 'puffs'; ms.dynGroup.add(o.puffs, o.debris); st.fx.set(tag, o); return o; })();
     fx.last = st.frame;
-    { const day = 1 - Math.min(0.75, game.clock.darkness * 0.8); fx.puffs.material.color.setScalar(day); fx.debris.material.color.setScalar(1); }
+    { const day = 1 - Math.min(0.75, seenDarkness(game) * 0.8); fx.puffs.material.color.setScalar(day); fx.debris.material.color.setScalar(1); }
     if (fx.puffs.parent !== ms.dynGroup) ms.dynGroup.add(fx.puffs, fx.debris);
     let n = 0;
     if (!(ph.phase === 'done' && t > L.cloudLife)) {
@@ -81031,7 +81226,7 @@ function sync(world, game, ctx, dt) {
   const st = stateOf(world);
   st.frame++;
   dt = Math.min(dt || 0.016, 0.1);
-  const night = Boolean(ctx?.night) || game.clock.darkness > 0.45;
+  const night = Boolean(ctx?.night) || seenDarkness(game) > 0.45;
   const c2 = { ...(ctx || {}), night, game, time: world.host?.time || 0 };
   const budget = world.deadline ? world.deadline + 10 : Infinity;
   // Starling Field: aircraft, the launch complex, convoys
@@ -81180,13 +81375,14 @@ __m["src/engine3d/world3d.js"] = (function () {
 //
 // What is built lazily and dropped when far: ground quads (ground3d.js), buildings (buildings3d.js), props (the
 // registry, else fallbacks3d.js), figures and vehicles. Nothing is created per frame beyond a few small arrays.
+const { seenDarkness } = __m["src/engine/atmos.js"];
 const { THREE } = __m["src/engine3d/three.js"];
 const lib = __m["src/engine3d/lib3d.js"];
 const { disposeTree } = __m["src/engine3d/lib3d.js"];
 const { cameraFrame, applyFrame, TILE } = __m["src/engine3d/camera3d.js"];
 const { Ground3D } = __m["src/engine3d/ground3d.js"];
 const { buildDeckEdges } = __m["src/engine3d/levels3d.js"];
-const { buildSkyline } = __m["src/engine3d/skyline3d.js"];
+const { buildSkyline, buildCloudSea } = __m["src/engine3d/skyline3d.js"];
 const { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } = __m["src/engine3d/buildings3d.js"];
 const { Figure, stepFacing, newMotion, personKey } = __m["src/engine3d/people3d.js"];
 const { CombatFx3D } = __m["src/engine3d/combatfx3d.js"];
@@ -81365,7 +81561,7 @@ class World3D {
     this.foci = this.buildFoci();
     this.cands.length = 0;
     this.count = { buildings: 0, props: 0, figures: 0, vehicles: 0 };
-    const darkness = g.clock.darkness;
+    const darkness = seenDarkness(g);
     const lamp = lampFactor(darkness);
     const outdoor = host.layers.some((L) => L.map.kind !== 'interior');
     const wv = host.worldBox(host.view, 80, 480); // (a tall building's foot is below the view)
@@ -81398,7 +81594,11 @@ class World3D {
         cur = bm;
       } }
     for (const ms of shown) { // v0.107.0: the city beyond a megacity's street level (the skyline, the abyss, the air traffic), carried by the street's scene
-      const d = ms.map?.def; if (!d?.megacity || d.level !== 1) continue;
+      const d = ms.map?.def; if (!d?.megacity) continue;
+      if ((d.edges || d.atmos?.clouds) && !d.below && !ms.deckEdges) { ms.deckEdges = buildDeckEdges(ms.map); ms.group.add(ms.deckEdges); } // (a level with drops of its own: lit lips at its edges)
+      if (d.atmos?.clouds && !ms.clouds) { ms.clouds = buildCloudSea(ms.map.width, ms.map.height); ms.group.add(ms.clouds); }
+      if (ms.clouds) ms.clouds.userData.update(Math.min(host.lastDt || 0.016, 0.1));
+      if (!d.atmos?.skyline) continue;
       if (!ms.skyline) { ms.skyline = buildSkyline(ms.map.width, ms.map.height, d.level * 97 + ms.map.width); ms.group.add(ms.skyline); }
       ms.skyline.userData.update(Math.min(host.lastDt || 0.016, 0.1));
     }
@@ -81417,7 +81617,7 @@ class World3D {
     const tz = this.camera.position.z - 200 / Math.sqrt(3);
     const mega = host.layers.some((L) => L.map.def?.megacity); // v0.107.0: a megacity has no sea at its edge, only the dark and the city's glow
     this.sea.visible = outdoor && !mega;
-    if (mega) { this.bgColor.set('#0d0b1c'); }
+    if (mega) { const at = g.currentMap()?.def?.atmos; this.bgColor.set(at?.bg || '#0d0b1c'); } // (each level of the city its own sky: the Sump's murk, the Crown's blue)
     this.sea.position.x = tx; this.sea.position.z = tz;
     const p = g.player;
     this.rig.update(darkness, outdoor, [p.x / TILE, p.y / TILE], this.cands, host.quality);
@@ -81453,7 +81653,7 @@ class World3D {
     const host = this.host;
     const lm = ms.map;
     const g = host.game;
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     const interior = lm.kind === 'interior';
     this.ground.show(lm, ms.groundGroup, r, interior ? 0.045 : 0);
     const rec = host.overlaid.get(lm.id);
@@ -81812,6 +82012,7 @@ return { softwareGL, World3D };
 __m["src/engine/renderer.js"] = (function () {
 // Canvas renderer: camera, y-sorted world drawing, speech bubbles, interaction
 // highlight and day/night lighting. Reads game state; never mutates it.
+const { seenDarkness } = __m["src/engine/atmos.js"];
 const { TILE, clamp, lerp, dist } = __m["src/core/util.js"];
 const { buildGroundChunk, buildGroundOverview, CHUNK } = __m["src/engine/drawPixelGround.js"];
 const { drawPropShadow, SPRITE_PROPS } = __m["src/engine/propSprites.js"];
@@ -82026,7 +82227,7 @@ class Renderer {
       }
       const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
       c = buildGroundChunk(map, cx, cy, makeCanvas, fields);
-      if (map.def?.below) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
+      if (map.def?.below || map.def?.atmos?.clouds) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
         const g2 = c.getContext('2d'); const ppt = c.width / Math.min(CHUNK, map.width - cx * CHUNK);
         for (let ty = 0; ty < CHUNK; ty++) for (let tx = 0; tx < CHUNK; tx++) { const X = cx * CHUNK + tx; const Y = cy * CHUNK + ty; if (X < map.width && Y < map.height && map.tileAt(X, Y) === 'O') { g2.clearRect(tx * ppt, ty * ppt, ppt, ppt); c.holes = true; } }
       }
@@ -82304,7 +82505,7 @@ class Renderer {
     const s = pixel ? zoom / this.px : zoom; // world → canvas scale
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? (map.def.atmos?.clouds ? '#cfd8e4' : '#07080f') : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea; the Crown's are cloud)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
     // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
@@ -82322,7 +82523,7 @@ class Renderer {
     ctx.setTransform(s, 0, 0, s, pixel ? ix : ox, pixel ? iy : oy);
     ctx.imageSmoothingEnabled = true;
 
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
     this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null; // v0.59.0: what the ground station's dishes follow // v0.58.0: the windsocks and the runway in use
     const items = [];
@@ -82348,7 +82549,7 @@ class Renderer {
           drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
-        const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
+        const shade = 0.34 * (1 - Math.min(1, seenDarkness(g)) * 0.75);
         for (const p of lm.props) {
           if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96)) continue;
@@ -82714,7 +82915,7 @@ class Renderer {
     const ctx = this.ctx;
     const s = zoom / this.px;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? (map.def.atmos?.clouds ? '#cfd8e4' : '#07080f') : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea; the Crown's are cloud)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const cs = g.combat.shake;
     const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0, this.launchShake(map));
@@ -82730,7 +82931,7 @@ class Renderer {
     this.setScreen(ctx);
     ctx.imageSmoothingEnabled = false;
 
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
     this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null;
     const dtc = Math.min(dt, 0.1);
@@ -82782,7 +82983,7 @@ class Renderer {
         if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE, 64, 8)) continue;
         drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
       }
-      const shade2 = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
+      const shade2 = 0.34 * (1 - Math.min(1, seenDarkness(g)) * 0.75);
       for (const p of lm.props) {
         if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
         if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96, 64, 8)) continue;
@@ -83697,7 +83898,7 @@ class Renderer {
 
   buildingLit(b) {
     const g = this.game;
-    if (g.clock.darkness < 0.3) return false;
+    if (seenDarkness(g) < 0.3) return false;
     const door = b.door;
     if (!door?.to) return false;
     const interior = door.to.map;
@@ -83766,7 +83967,7 @@ class Renderer {
     const g = this.game;
     // v0.51.0: one night for the whole scene — a room you're standing in is part of the street around it
     const outdoor = this.layers.some((L) => L.map.kind !== 'interior');
-    const dark = outdoor ? g.clock.darkness * 0.78 : 0.12 + g.clock.darkness * 0.2;
+    const dark = outdoor ? seenDarkness(g) * 0.78 : 0.12 + seenDarkness(g) * 0.2;
     if (dark < 0.02) return;
     const pix = this.pixel && (this.isoNow || !g.combat.wrath);
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
@@ -83964,13 +84165,13 @@ class Renderer {
       const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : tint || '255,190,90';
       if (glow) {
         const sp = lightSprite(r * gk, 1, rgb, 6);
-        gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * g.clock.darkness);
+        gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * seenDarkness(g));
         gc.drawImage(sp, s.x - (sp.width >> 1), s.y - (sp.height >> 1));
         gc.globalAlpha = 1;
         continue;
       }
       const grad = gc.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * gk);
-      ramp(grad, (tint ? 0.5 : 0.3) * g.clock.darkness, rgb);
+      ramp(grad, (tint ? 0.5 : 0.3) * seenDarkness(g), rgb);
       gc.fillStyle = grad;
       gc.beginPath();
       gc.arc(s.x, s.y, r * gk, 0, Math.PI * 2);
@@ -83980,7 +84181,7 @@ class Renderer {
     for (const [wx, wy, ww] of fronts) {
       const s = gpos(wx, wy);
       const grad = gc.createLinearGradient(0, s.y, 0, s.y + 26 * gk);
-      grad.addColorStop(0, `rgba(255,200,120,${0.22 * g.clock.darkness})`);
+      grad.addColorStop(0, `rgba(255,200,120,${0.22 * seenDarkness(g)})`);
       grad.addColorStop(1, 'rgba(255,200,120,0)');
       gc.fillStyle = grad;
       gc.fillRect(s.x, s.y, ww * gk, 26 * gk);
@@ -83997,7 +84198,7 @@ class Renderer {
       // the cone's direction on screen (in the iso view the world angle is projected)
       const ha = iso ? Math.atan2((Math.sin(this.headlights.angle) + Math.cos(this.headlights.angle)) / 2, Math.cos(this.headlights.angle) - Math.sin(this.headlights.angle)) : this.headlights.angle;
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
-      grad.addColorStop(0, `rgba(255,245,200,${0.3 * g.clock.darkness})`);
+      grad.addColorStop(0, `rgba(255,245,200,${0.3 * seenDarkness(g)})`);
       grad.addColorStop(1, 'rgba(255,245,200,0)');
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
@@ -84013,7 +84214,7 @@ class Renderer {
       const len = 900 * z;
       for (const a of [ang, ang + Math.PI]) {
         const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
-        grad.addColorStop(0, `rgba(255,240,180,${0.45 * g.clock.darkness})`);
+        grad.addColorStop(0, `rgba(255,240,180,${0.45 * seenDarkness(g)})`);
         grad.addColorStop(1, 'rgba(255,240,180,0)');
         this.ctx.fillStyle = grad;
         this.ctx.beginPath();
@@ -85021,6 +85222,7 @@ return { BUILDING_ICONS };
 // ---- src/ui/maps.js
 __m["src/ui/maps.js"] = (function () {
 // Minimap and full map rendering (DOM canvases).
+const { seenDarkness } = __m["src/engine/atmos.js"];
 const { TILE } = __m["src/core/util.js"];
 const { TILE_TYPES } = __m["src/world/tiles.js"];
 const { BUILDING_ICONS } = __m["src/content/mapIcons.js"];
@@ -85110,8 +85312,8 @@ class MapRenderer {
       for (const m of this.markers(L.map)) this.marker(ctx, ox + (m.x + L.x) * scale, oy + (m.y + L.y) * scale, m, 1);
     }
     this.playerArrow(ctx, ox + px, oy + py, g.player.facing, 1);
-    if (g.clock.darkness > 0.2) {
-      ctx.fillStyle = `rgba(14,18,48,${g.clock.darkness * 0.35})`;
+    if (seenDarkness(g) > 0.2) {
+      ctx.fillStyle = `rgba(14,18,48,${seenDarkness(g) * 0.35})`;
       ctx.fillRect(0, 0, W, H);
     }
   }

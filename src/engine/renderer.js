@@ -1,5 +1,6 @@
 // Canvas renderer: camera, y-sorted world drawing, speech bubbles, interaction
 // highlight and day/night lighting. Reads game state; never mutates it.
+import { seenDarkness } from './atmos.js';
 import { TILE, clamp, lerp, dist } from '../core/util.js';
 import { buildGroundChunk, buildGroundOverview, CHUNK } from './drawPixelGround.js';
 import { drawPropShadow, SPRITE_PROPS } from './propSprites.js';
@@ -214,7 +215,7 @@ export class Renderer {
       }
       const fields = map.def?.fields ? (ctx) => drawFields(ctx, map.def.fields.map((f) => ({ ...f, ...(map.fieldState?.[f.id] || {}) }))) : null;
       c = buildGroundChunk(map, cx, cy, makeCanvas, fields);
-      if (map.def?.below) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
+      if (map.def?.below || map.def?.atmos?.clouds) { // v0.107.0: a city level's drops are holes in its ground: the level below shows through (3D); the 2D views keep the dark fill
         const g2 = c.getContext('2d'); const ppt = c.width / Math.min(CHUNK, map.width - cx * CHUNK);
         for (let ty = 0; ty < CHUNK; ty++) for (let tx = 0; tx < CHUNK; tx++) { const X = cx * CHUNK + tx; const Y = cy * CHUNK + ty; if (X < map.width && Y < map.height && map.tileAt(X, Y) === 'O') { g2.clearRect(tx * ppt, ty * ppt, ppt, ppt); c.holes = true; } }
       }
@@ -492,7 +493,7 @@ export class Renderer {
     const s = pixel ? zoom / this.px : zoom; // world → canvas scale
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? (map.def.atmos?.clouds ? '#cfd8e4' : '#07080f') : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea; the Crown's are cloud)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     // explosions shake the camera
     // v0.44.0: and so do gunshots, hard hits and getting hurt (combat.kick)
@@ -510,7 +511,7 @@ export class Renderer {
     ctx.setTransform(s, 0, 0, s, pixel ? ix : ox, pixel ? iy : oy);
     ctx.imageSmoothingEnabled = true;
 
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
     this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null; // v0.59.0: what the ground station's dishes follow // v0.58.0: the windsocks and the runway in use
     const items = [];
@@ -536,7 +537,7 @@ export class Renderer {
           drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
         }
         // v0.49.0: the props' shadows, on the ground under everyone (they fade as the light goes)
-        const shade = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
+        const shade = 0.34 * (1 - Math.min(1, seenDarkness(g)) * 0.75);
         for (const p of lm.props) {
           if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
           if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96)) continue;
@@ -902,7 +903,7 @@ export class Renderer {
     const ctx = this.ctx;
     const s = zoom / this.px;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? '#07080f' : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea)
+    ctx.fillStyle = map.kind === 'interior' ? '#1b1620' : map.def?.megacity ? (map.def.atmos?.clouds ? '#cfd8e4' : '#07080f') : '#2d6f8f'; // (v0.107.0: a megacity's drops and edges are dark, not sea; the Crown's are cloud)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const cs = g.combat.shake;
     const shake = Math.max(g.heavy && g.realTime < g.heavy.shakeUntil ? (g.heavy.shakeUntil - g.realTime) * 14 : 0, cs && g.realTime < cs.until ? cs.mag * 2 : 0, this.launchShake(map));
@@ -918,7 +919,7 @@ export class Renderer {
     this.setScreen(ctx);
     ctx.imageSmoothingEnabled = false;
 
-    const night = g.clock.darkness > 0.45;
+    const night = seenDarkness(g) > 0.45;
     this.wind = windRunway(g.clock.day) === '09' ? 1 : -1;
     this.dishTrack = g.player.map === 'starling_flats' ? g.aero.groundPass() : null;
     const dtc = Math.min(dt, 0.1);
@@ -970,7 +971,7 @@ export class Renderer {
         if (!inView(p.x * TILE, p.y * TILE, p.w * TILE, p.h * TILE, 64, 8)) continue;
         drawProp(ctx, p, { wind: this.wind, track: this.dishTrack, map: lm, time: this.time, night, aero: AERO_VIEW.has(p.type) ? g.aero.propView(p) : null, state: g.world.props[p.id], jailDig: g.world.police?.jail?.dig, clock: g.clock.total, realTime: g.realTime, berth: p.type === 'shipberth' ? g.logistics.docks.at(p.slot) : null, slip: p.type === 'slipway' ? g.logistics.slip() : null });
       }
-      const shade2 = 0.34 * (1 - Math.min(1, g.clock.darkness) * 0.75);
+      const shade2 = 0.34 * (1 - Math.min(1, seenDarkness(g)) * 0.75);
       for (const p of lm.props) {
         if (!SPRITE_PROPS.has(p.type) || !this.propVisible(p)) continue;
         if (!inView(p.x * TILE - 32, p.y * TILE - 64, p.w * TILE + 64, p.h * TILE + 96, 64, 8)) continue;
@@ -1885,7 +1886,7 @@ export class Renderer {
 
   buildingLit(b) {
     const g = this.game;
-    if (g.clock.darkness < 0.3) return false;
+    if (seenDarkness(g) < 0.3) return false;
     const door = b.door;
     if (!door?.to) return false;
     const interior = door.to.map;
@@ -1954,7 +1955,7 @@ export class Renderer {
     const g = this.game;
     // v0.51.0: one night for the whole scene — a room you're standing in is part of the street around it
     const outdoor = this.layers.some((L) => L.map.kind !== 'interior');
-    const dark = outdoor ? g.clock.darkness * 0.78 : 0.12 + g.clock.darkness * 0.2;
+    const dark = outdoor ? seenDarkness(g) * 0.78 : 0.12 + seenDarkness(g) * 0.2;
     if (dark < 0.02) return;
     const pix = this.pixel && (this.isoNow || !g.combat.wrath);
     const LS = pix ? 1 / this.px : LIGHT_SCALE;
@@ -2152,13 +2153,13 @@ export class Renderer {
       const rgb = tint === 'red' ? '255,40,40' : tint === 'blue' ? '60,110,255' : tint || '255,190,90';
       if (glow) {
         const sp = lightSprite(r * gk, 1, rgb, 6);
-        gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * g.clock.darkness);
+        gc.globalAlpha = Math.min(1, (tint ? 0.5 : 0.3) * seenDarkness(g));
         gc.drawImage(sp, s.x - (sp.width >> 1), s.y - (sp.height >> 1));
         gc.globalAlpha = 1;
         continue;
       }
       const grad = gc.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * gk);
-      ramp(grad, (tint ? 0.5 : 0.3) * g.clock.darkness, rgb);
+      ramp(grad, (tint ? 0.5 : 0.3) * seenDarkness(g), rgb);
       gc.fillStyle = grad;
       gc.beginPath();
       gc.arc(s.x, s.y, r * gk, 0, Math.PI * 2);
@@ -2168,7 +2169,7 @@ export class Renderer {
     for (const [wx, wy, ww] of fronts) {
       const s = gpos(wx, wy);
       const grad = gc.createLinearGradient(0, s.y, 0, s.y + 26 * gk);
-      grad.addColorStop(0, `rgba(255,200,120,${0.22 * g.clock.darkness})`);
+      grad.addColorStop(0, `rgba(255,200,120,${0.22 * seenDarkness(g)})`);
       grad.addColorStop(1, 'rgba(255,200,120,0)');
       gc.fillStyle = grad;
       gc.fillRect(s.x, s.y, ww * gk, 26 * gk);
@@ -2185,7 +2186,7 @@ export class Renderer {
       // the cone's direction on screen (in the iso view the world angle is projected)
       const ha = iso ? Math.atan2((Math.sin(this.headlights.angle) + Math.cos(this.headlights.angle)) / 2, Math.cos(this.headlights.angle) - Math.sin(this.headlights.angle)) : this.headlights.angle;
       const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
-      grad.addColorStop(0, `rgba(255,245,200,${0.3 * g.clock.darkness})`);
+      grad.addColorStop(0, `rgba(255,245,200,${0.3 * seenDarkness(g)})`);
       grad.addColorStop(1, 'rgba(255,245,200,0)');
       this.ctx.fillStyle = grad;
       this.ctx.beginPath();
@@ -2201,7 +2202,7 @@ export class Renderer {
       const len = 900 * z;
       for (const a of [ang, ang + Math.PI]) {
         const grad = this.ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, len);
-        grad.addColorStop(0, `rgba(255,240,180,${0.45 * g.clock.darkness})`);
+        grad.addColorStop(0, `rgba(255,240,180,${0.45 * seenDarkness(g)})`);
         grad.addColorStop(1, 'rgba(255,240,180,0)');
         this.ctx.fillStyle = grad;
         this.ctx.beginPath();
