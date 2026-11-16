@@ -245,6 +245,93 @@ export function drawPixelProp(ctx, p, opts) {
       for (let k = 2; k < W - 2; k += 6) { R(k, 1, 3, 1, '#f2efe6'); R(k, H - 2, 3, 1, '#f2efe6'); }
       return true;
     }
+    // Neumina megacity kit: dark bodies with always-lit neon (no night test, the city never goes dark)
+    case 'holo_billboard': {
+      const c = p.color || '#ff3fb4';
+      R(5, 13, 22, 2, SHADOW); R(14, -34, 4, 47, INK); R(15, -34, 2, 47, '#2a2d38');
+      box(2, -34, 28, 18, '#14151d', 0); R(4, -32, 24, 14, c); R(4, -32, 24, 1, shade(c, 60));
+      for (let k = 0; k < 3; k++) R(6, -29 + k * 4, 8 + k * 5, 2, shade(c, -70));
+      R(4, -16, 24, 1, '#ffffff');
+      return true;
+    }
+    case 'neon_sign': {
+      const c = p.color || '#4dfcff';
+      R(4, 13, 8, 2, SHADOW); R(3, -24, 2, 38, INK); R(3.5, -24, 1, 38, '#2a2d38'); R(5, -22, 3, 2, INK);
+      box(7, -24, 6, 22, '#14151d', 0); R(7, -24, 6, 1, c); R(7, -3, 6, 1, c); R(7, -24, 1, 22, c); R(12, -24, 1, 22, c);
+      for (let k = 0; k < 4; k++) R(9, -21 + k * 5, 2 + (k % 2) * 2, 1, c);
+      return true;
+    }
+    case 'holo_ad': {
+      const c = p.color || '#7af7ff';
+      const ph = Math.sin(time * 2 + p.x) * 2;
+      R(2, 12, 12, 2, SHADOW); box(3, 10, 10, 4, '#1d1f2a', 0); R(5, 10, 6, 1, c);
+      ctx.globalAlpha = 0.6; R(5, -6 + ph, 6, 14, c); R(3, -2 + ph, 10, 3, c); R(6, -8 + ph, 4, 2, '#ffffff'); ctx.globalAlpha = 1;
+      return true;
+    }
+    case 'data_pylon': {
+      R(2, 12, 12, 2, SHADOW); box(3, 3, 10, 11, '#14151d'); R(5, 5, 6, 4, '#4dfcff'); R(5, 5, 6, 1, '#b8fdff');
+      R(5, 10, 1, 1, '#ff3fb4'); R(7, 10, 1, 1, '#4dfcff'); R(9, 10, 1, 1, '#ff3fb4');
+      return true;
+    }
+    case 'security_camera': {
+      R(4, 13, 8, 2, SHADOW); R(7, -14, 2, 27, INK); R(7.5, -14, 1, 27, '#2a2d38');
+      const sw = Math.round(Math.sin(time * 0.8 + p.y) * 2);
+      box(4 + sw, -18, 8, 5, '#2a2d36', 0); R(11 + sw, -16, 1, 2, '#7a9fff');
+      if (Math.floor(time * 1.2) % 3 === 0) R(5 + sw, -17, 1, 1, '#ff2a2a');
+      return true;
+    }
+    case 'drone_pad': {
+      R(1, 2, W - 2, H - 2, INK); R(2, 3, W - 4, H - 4, '#1d1f2a');
+      for (const [ax, ay] of [[3, 4], [W - 5, 4], [3, H - 5], [W - 5, H - 5]]) R(ax, ay, 2, 2, '#ffb02e');
+      R(W / 2 - 6, H / 2 - 1, 12, 2, '#ffb02e'); R(W / 2 - 1, H / 2 - 6, 2, 12, '#ffb02e');
+      const bob = Math.round(Math.sin(time * 1.6 + p.x) * 1.5);
+      R(W / 2 - 3, H / 2 - 10 + bob, 6, 3, INK); R(W / 2 - 2, H / 2 - 10 + bob, 4, 2, '#2a2d36'); R(W / 2 - 6, H / 2 - 11 + bob, 12, 1, '#7af7ff');
+      return true;
+    }
+    case 'neon_lamp': {
+      const c = p.color || '#9fdcff';
+      R(5, 13, 6, 2, SHADOW); R(5, 12, 6, 2, INK); R(7, -8, 2, 21, INK); R(7.5, -8, 1, 21, '#2a2d38');
+      R(3, -11, 10, 3, INK); R(4, -10, 8, 1, c); R(4, -10, 8, 0.5, '#ffffff');
+      return true;
+    }
+    case 'glow_planter': {
+      R(1, 11, W - 2, 3, SHADOW); box(1, 6, W - 2, 7, '#1d1f2a'); R(2, 7, W - 4, 1, '#0d0e14');
+      for (let k = 0; k < W - 6; k += 3) { const c = ['#2ff5d0', '#a064ff', '#4dfcff'][(k / 3) % 3]; const h = 2 + (k * 7) % 4; R(3 + k, 6 - h, 1, h, '#1f5a52'); R(2.5 + k, 4 - h, 2, 2, c); }
+      return true;
+    }
+    case 'vent_stack': {
+      R(2, 12, 12, 2, SHADOW); box(3, 9, 10, 5, '#1d1f2a'); box(5, -6, 6, 16, '#2b2e38'); R(4, -8, 8, 3, INK); R(5, -7, 6, 1, '#0d0e14');
+      R(6, 0, 4, 1, '#0d0e14'); R(6, 3, 4, 1, '#0d0e14'); R(6, 6, 4, 1, '#0d0e14');
+      R(10, -3, 2, 2, '#ffb02e');
+      ctx.globalAlpha = 0.35; const st = (time * 0.3) % 1; R(6 + Math.round(Math.sin(time) * 1), -14 - Math.round(st * 6), 4, 4, '#cfd8e0'); ctx.globalAlpha = 1;
+      return true;
+    }
+    case 'transit_shelter': {
+      R(1, H - 2, W - 2, 2, SHADOW);
+      R(1, 2, 2, H - 4, INK); R(W - 3, 2, 2, H - 4, INK);
+      ctx.globalAlpha = 0.4; R(2, 3, W - 4, H - 8, '#9fe8ff'); ctx.globalAlpha = 1;
+      box(0, 0, W, 4, '#1d1f2a'); R(1, 3, W - 2, 1, '#4dfcff');
+      box(6, H - 9, W / 2 - 4, 3, '#3a3d4a', 0);
+      box(W - 14, 5, 11, 8, '#14151d', 0); R(W - 13, 6, 9, 6, '#4dfcff'); R(W - 12, 8, 4, 1, '#14151d'); R(W - 7, 8, 2, 1, '#ff3fb4');
+      return true;
+    }
+    case 'vend_neo': {
+      const c = ['#ff3fb4', '#4dfcff', '#ffb02e'][Math.abs(Math.round(p.x + p.y)) % 3];
+      R(2, 13, 12, 2, SHADOW); box(2, -2, 12, 16, '#14151d'); R(3, -1, 8, 11, c); R(3, -1, 8, 1, shade(c, 60));
+      for (let k = 0; k < 3; k++) { R(4, 1 + k * 3, 2, 1, '#ffffff'); R(7, 1 + k * 3, 2, 1, shade(c, -60)); }
+      R(4, 11, 6, 2, '#0a0a10'); R(12, 2, 1, 6, '#2a2d38');
+      return true;
+    }
+    case 'market_stall_neo': {
+      const c = p.color || '#ff3fb4';
+      R(1, H - 2, W - 2, 2, SHADOW);
+      box(1, 7, W - 2, 7, '#2a2630'); R(2, 7, W - 4, 1, '#1d1f2a');
+      box(0, -8, W, 6, '#1d1f2a', 0); R(0, -3, W, 1, c);
+      for (let k = 2; k < W - 3; k += 4) R(k, -2, 2, 2, k % 8 === 2 ? '#ffd27a' : '#4dfcff');
+      R(3, 5, 3, 2, '#a064ff'); R(W - 7, 5, 3, 2, '#2ff5d0');
+      box(W - 4, 11, 3, 3, '#7a5a42', 0);
+      return true;
+    }
     default: return false;
   }
 }

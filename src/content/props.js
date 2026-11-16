@@ -173,4 +173,17 @@ export const PROP_TYPES = {
   test_stand: { solid: true, label: 'Engine test stand', defaults: { w: 3, h: 3 } },
   blast_wall: { solid: true, label: 'Blast wall', defaults: {} },
   valet_stand: { solid: true, label: 'Valet stand', defaults: { examine: 'VALET. A podium, a hook of keys, and a valet who parks cars the way Morganius deals cards.' } },
+  // Neumina megacity kit (neon, holograms, city furniture); src/engine3d/props/neon.js
+  holo_billboard: { solid: true, label: 'Holo billboard', light: { radius: 150, color: '255,63,180' }, defaults: { w: 2, h: 1, examine: 'A billboard selling something with great confidence and no detail.' } },
+  neon_sign: { solid: true, label: 'Neon sign', defaults: { examine: 'A blade sign buzzing in a colour that does not occur in nature.' } },
+  holo_ad: { solid: true, label: 'Holo ad', defaults: { examine: 'A hologram turning slowly over its projector. It has been advertising the same thing for years.' } },
+  data_pylon: { solid: true, label: 'Data pylon', defaults: { examine: 'A city access node. Its port lights blink in a rhythm that might be a language.' } },
+  security_camera: { solid: true, label: 'Security camera', defaults: { examine: 'A camera on a pole, turning to look at everything and nothing in particular.' } },
+  drone_pad: { solid: false, label: 'Drone pad', defaults: { w: 2, h: 2, examine: 'A landing pad for delivery drones. The scorch marks say they land hard.' } },
+  neon_lamp: { solid: true, label: 'Neon lamp', light: { radius: 130, color: '159,220,255' }, defaults: { examine: 'A thin mast with a bar of cold light. Moths have not been invented here.' } },
+  glow_planter: { solid: true, label: 'Glow planter', defaults: { w: 2, examine: 'Bioluminescent plants in a concrete box. The city grows its own gardens at night.' } },
+  vent_stack: { solid: true, label: 'Vent stack', defaults: { examine: 'An exhaust stack from the levels below. Warm, faintly sweet, best not thought about.' } },
+  transit_shelter: { solid: true, label: 'Skybus shelter', defaults: { w: 3, h: 1, examine: 'A glass shelter for the skybus. The route panel is optimistic about the timetable.' } },
+  vend_neo: { solid: true, label: 'Vending machine', defaults: { examine: 'A vending machine glowing like a small shrine to sugar.' } },
+  market_stall_neo: { solid: true, label: 'Night-market stall', defaults: { w: 2, h: 1, examine: 'A night-market stall under strings of small lights. Everything on it is a bargain, in some currency.' } },
 };

@@ -15,6 +15,7 @@ import { BUILDERS as farm } from './props/farm.js';
 import { BUILDERS as port } from './props/port.js';
 import { BUILDERS as aerospace } from './props/aerospace.js';
 import { BUILDERS as casino } from './props/casino.js';
+import { BUILDERS as neon } from './props/neon.js';
 
-export const GROUPS = { street, nature, furniture, industrial, farm, port, aerospace, casino };
+export const GROUPS = { street, nature, furniture, industrial, farm, port, aerospace, casino, neon };
 for (const table of Object.values(GROUPS)) for (const [type, build] of Object.entries(table)) registerProp(type, build);

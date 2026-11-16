@@ -26,7 +26,7 @@ function street() {
   for (const x of [18, 36, 54]) m.rect(x, 0, 4, NM_H, '=');
   const buildings = TOWERS.map(([x, y, w, h, storeys, name, wall, glass], i) => {
     m.rect(x, y, w, h, 'B');
-    return { id: `nm_t${i}`, name, mapLabel: name, x, y, w, h, tower: storeys, storeys: Math.round(storeys / 2.6), wall, trim: '#14141c', glass, sign: name.toUpperCase().split(' ')[0] }; // (`storeys` sets its 3D height: tall enough to rise through every level)
+    return { id: `nm_t${i}`, name, mapLabel: name, x, y, w, h, tower: storeys, neo: true, storeys: Math.round(storeys / 2.6), wall, trim: '#14141c', glass, sign: name.toUpperCase().split(' ')[0] }; // (`storeys` sets its 3D height: tall enough to rise through every level)
   });
   // low arcades along the avenues (shops at street level, roofs under the deck)
   const arcade = [[1, 15, 15, 2, 'Night Market', '#3b2d22'], [40, 15, 13, 2, 'Arcade Row', '#2a2238'], [1, 24, 15, 3, 'Noodle Steps', '#402a20'], [40, 24, 13, 3, 'Chrome Alley', '#22303a'], [58, 24, 12, 3, 'The Underpass Clinic', '#2f2f2f']];

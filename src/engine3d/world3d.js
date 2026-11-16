@@ -10,6 +10,7 @@ import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
 import { buildDeckEdges } from './levels3d.js';
+import { buildSkyline } from './skyline3d.js';
 import { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
 import { CombatFx3D } from './combatfx3d.js';
@@ -220,6 +221,11 @@ export class World3D {
         this.levelDressing(ms, cur, bm, depth);
         cur = bm;
       } }
+    for (const ms of shown) { // v0.107.0: the city beyond a megacity's street level (the skyline, the abyss, the air traffic), carried by the street's scene
+      const d = ms.map?.def; if (!d?.megacity || d.level !== 1) continue;
+      if (!ms.skyline) { ms.skyline = buildSkyline(ms.map.width, ms.map.height, d.level * 97 + ms.map.width); ms.group.add(ms.skyline); }
+      ms.skyline.userData.update(Math.min(host.lastDt || 0.016, 0.1));
+    }
     this.updateActors(shown, lamp);
     this.cfx.update(this);
     this.updateHoles();
