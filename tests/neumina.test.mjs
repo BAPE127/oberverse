@@ -19,7 +19,7 @@ test('the middle levels lie over each other: same size, a drop between them, and
 
 test('five levels from slum to cloud: numbered in order, the Sump always dark and the Crown always lit, each with its own ground and named landmarks', () => {
   const g = newGame(); const M = LEVELS.map((id) => g.maps.get(id));
-  M.forEach((m, i) => { assert.equal(m.def.level, i + 1, m.id); assert.ok(m.def.megacity && m.def.abroad === 'neumina'); assert.ok(m.buildings.filter((b) => b.mapLabel).length >= 2, `${m.id} has landmarks`); });
+  M.forEach((m, i) => { assert.equal(m.def.level, i + 1, m.id); assert.ok(m.def.megacity && m.def.abroad === 'neumina'); assert.ok(m.buildings.filter((b) => b.mapLabel).length >= 3, `${m.id} has landmarks`); });
   const [sump, , , , crown] = M;
   assert.ok(sump.def.atmos.dark[0] > 0.5, 'no daylight in the Sump'); assert.ok(crown.def.atmos.dark[1] < 0.3, 'no night in the Crown'); assert.ok(crown.def.atmos.clouds);
   const share = (m, c) => m.grid.join('').split(c).length - 1;

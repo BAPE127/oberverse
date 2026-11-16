@@ -15,7 +15,7 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 | # | Question | Why it matters |
 | --- | --- | --- |
 | O-10 | Publish v0.106.0 to the live site (the push to `claude/funny-mayer-52dll8` was blocked pending your word) | Players are on v0.105.0 |
-| O-12 | Neumina's look: the Sump and the Crown slice (screenshots sent 2026-11-16). Approve the direction before the middle three levels are redone | Blocks the Gutterline, Skyway and Terraces redo |
+| O-12 | Neumina's look: all five levels (screenshots sent 2026-11-16; the Sump approved with 'more futuristic', done) | Next: the mission foundation |
 | O-11 | `SPECIAL_OPERATIONS.md` §9: who hands out missions; does a mission take Sund time; lethal or not; which contract first | Shapes the mission foundation |
 | O-8 | Play an attended rules-5 battle and report difficulty and feel (forest attack 13%, trench defence 85% headless) | Only headless battles have been measured |
 | O-3 | War: destruction and coup is now v0.105.0 (the Graphics Update took v0.104.0) | — |
@@ -48,7 +48,7 @@ Current assignments, what is waiting, and what is blocked. Fable keeps it curren
 - v0.106.0 follow-ups: tanks in the open-world streets for the Army's armour wave; a hand-made Crown Quarter battle map for the coup's decisive battle; decrees on the budget screen and unrest under a junta; playtest a coup attended.
 
 - Smoke: `battle_city_heliOverRoof` failed once in three runs on 2026-11-16 and passed on rerun (timing on software GL).
-- Neumina: redo the Gutterline, Skyway and Terraces in the five-level spirit (own layouts, class, landmarks; place the neon props); tower lobbies and mission floors; crowds. In 2D (small windows) tower shafts on the upper levels draw as flat squares.
+- Neumina: tower lobbies and mission floors; crowds. In 2D (small windows) tower shafts on the upper levels draw as flat squares.
 
 ## Blocked
 

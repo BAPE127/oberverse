@@ -22,3 +22,18 @@ export function buildDeckEdges(map) {
   lib.bake(g);
   return g;
 }
+
+/** Under a deck (`def.capTowers`, the deck's height in tiles): a dark slab round each tower where it meets the deck it rises through, its edges lit,
+ * so a tower cut away above the deck reads as going on up into the ceiling of the street. */
+export function buildDeckCaps(map, cap, glowColour) {
+  const g = new THREE.Group(); g.name = 'deckCaps';
+  const glow = glowColour || map.def?.capGlow || '#3ad8ff';
+  for (const b of map.buildings || []) {
+    if (!b.tower) continue;
+    const cx = b.x + b.w / 2; const cz = b.y + b.h / 2; const w = b.w + 1.2; const d = b.h + 1.2; const y = cap - 0.5;
+    g.add(lib.box(w, 0.45, d, '#15161f', { x: cx, z: cz, y, cast: false }));
+    g.add(lib.box(w + 0.04, 0.06, 0.06, glow, { x: cx, z: cz + d / 2, y, cast: false, emissive: glow, ei: 1.6 }), lib.box(0.06, 0.06, d + 0.04, glow, { x: cx + w / 2, z: cz, y, cast: false, emissive: glow, ei: 1.6 }));
+  }
+  lib.bake(g);
+  return g;
+}

@@ -10,7 +10,9 @@ import * as lib from './lib3d.js';
 import { disposeTree } from './lib3d.js';
 import { cameraFrame, applyFrame, TILE } from './camera3d.js';
 import { Ground3D } from './ground3d.js';
-import { buildDeckEdges } from './levels3d.js';
+import { buildDeckEdges, buildDeckCaps } from './levels3d.js';
+
+const NO_PLANES = [];
 import { buildSkyline, buildCloudSea } from './skyline3d.js';
 import { buildRoofed, buildHoles, buildOpen, buildRoom, buildStreetWalls, seeThroughN, HOLES_SHARED, HOLES, setHole, endHoles, height3d } from './buildings3d.js';
 import { Figure, stepFacing, newMotion, personKey } from './people3d.js';
@@ -222,6 +224,15 @@ export class World3D {
         this.levelDressing(ms, cur, bm, depth);
         cur = bm;
       } }
+    // v0.107.0: under a deck (the Gutterline, `def.capTowers`: the Skyway's height) everything above the deck is cut away, like a roof lifted off a
+    // room, so the towers do not wall off the street; a dark slab with a lit edge stands where each tower meets the deck it rises through
+    { const cap = g.currentMap()?.def?.capTowers;
+      this.gl.clippingPlanes = cap ? [this.capPlane || (this.capPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), cap))] : NO_PLANES;
+      if (cap) {
+        const here = g.currentMap(); const hm = this.mapScenes.get(here.id);
+        let src = here; for (let k = 0; k < 3 && !(src.buildings || []).some((b) => b.tower) && src.def?.below; k++) src = g.maps.get(src.def.below.map) || src; // (the towers stand on the street: the levels above share their shafts)
+        if (hm && !hm.deckCaps) { hm.deckCaps = buildDeckCaps(src, cap, here.def?.capGlow); hm.group.add(hm.deckCaps); }
+      } }
     for (const ms of shown) { // v0.107.0: the city beyond a megacity's street level (the skyline, the abyss, the air traffic), carried by the street's scene
       const d = ms.map?.def; if (!d?.megacity) continue;
       if ((d.edges || d.atmos?.clouds) && !d.below && !ms.deckEdges) { ms.deckEdges = buildDeckEdges(ms.map); ms.group.add(ms.deckEdges); } // (a level with drops of its own: lit lips at its edges)
@@ -329,7 +340,8 @@ export class World3D {
           }
           // the see-through hole (shader, shared): does this roofed building stand between the camera and a focus? (the hole itself is set in `updateHoles`)
           if (t < 0.01 && this.foci.length) {
-            const box = buildingBox(b, L); const top = Math.max(H3, e.roofed.top - 0.5) * TILE;
+            const hc = g.currentMap()?.def?.capTowers; const cap = hc ? hc + (L.depth || 0) : 0; // (v0.107.0: towers cut at the deck overhead hide only up to it; a tower from a level below stands `depth` lower)
+            const box = buildingBox(b, L); const top = Math.min(Math.max(H3, e.roofed.top - 0.5), cap || Infinity) * TILE;
             for (let k = 0; k < this.foci.length; k++) {
               const f = this.foci[k];
               const fz = f.z + (L.depth || 0) * TILE; // (v0.107.0: a tower rising from a level below stands `depth` lower than you: the focus is that much higher above its foot)
